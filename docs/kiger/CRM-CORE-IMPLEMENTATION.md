@@ -4,6 +4,14 @@
 **Repository:** `kylinlin2020/kigercrm`  
 **Base:** XiHan.BasicApp v5.9.1 (`34f127757f588ff2139875c4c5fd491ccc4e423f`)
 
+## Field-security mapping increment (2026-11-02)
+
+The CRM module now has explicit response DTOs and mapper methods for Customer, Contact, Opportunity, Activity and Task, in addition to Lead. This is required because BasicApp discovers field-security DTO mappings from public static mapper methods whose first parameter is a registered entity.
+
+The API contract test project now references the CRM module and includes `AddCrmFieldSecurityEntities()` in its wiring fixture. The existing field-security wiring tests can therefore detect missing CRM DTO mappings and missing query guards.
+
+This wiring has been authored but not executed in this environment. The .NET build/test result remains unverified until CI or a local .NET SDK run succeeds.
+
 ## Delivery status (2026-11-02)
 
 The first implementation increment is committed on `kiger-dev` and proposed as draft PR #1.
