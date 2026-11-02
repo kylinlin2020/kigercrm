@@ -32,7 +32,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services)
     {
         services.AddDataSeeder<CrmPermissionCatalogSeeder>();
-        services.AddDataSeeder<CrmMenuSeeder>();
+        // Menu seeding is intentionally deferred until the corresponding frontend routes/components ship.
         return services;
     }
 }
