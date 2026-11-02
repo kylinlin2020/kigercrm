@@ -90,7 +90,6 @@ public sealed class CrmLeadQueryService(
             return null;
         }
 
-        await fieldSecurity.EnsureReadableAsync(typeof(SysCrmLead), entity, cancellationToken);
         return CrmLeadMapper.ToDetailDto(entity);
     }
 }
