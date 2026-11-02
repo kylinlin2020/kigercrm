@@ -4,6 +4,7 @@
 using System.Xml.Linq;
 using XiHan.BasicApp.AI;
 using XiHan.BasicApp.Chat;
+using XiHan.BasicApp.Crm;
 using XiHan.BasicApp.CodeGeneration;
 using XiHan.BasicApp.Printing;
 using XiHan.BasicApp.Saas;
@@ -41,7 +42,8 @@ public sealed class WebHostModuleDependencyTests
             typeof(XiHanBasicAppAIModule),
             typeof(XiHanBasicAppWorkflowModule),
             typeof(XiHanBasicAppPrintingModule),
-            typeof(XiHanBasicAppChatModule)
+            typeof(XiHanBasicAppChatModule),
+            typeof(XiHanBasicAppCrmModule)
         ];
 
         var actual = XiHanModuleHelper.FindDependedModuleTypes(typeof(XiHanBasicAppWebHostModule));
