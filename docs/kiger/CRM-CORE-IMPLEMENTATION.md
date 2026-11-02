@@ -12,7 +12,7 @@ Implemented in source:
 - CRM module project and WebHost module dependency registration.
 - Tenant-scoped persistence entities for Customer, Contact, Lead, Opportunity, Activity and Task.
 - CRM field-security entity registration.
-- Tenant-side CRM permission catalog and menu seeders.
+- Tenant-side CRM permission catalog seeder; menu registry/seeder authored but activation deferred until matching frontend routes exist.
 - Lead query contract, DTOs, explicit mapper, tenant-scoped repository and paginated query service.
 - WebHost module dependency regression test updated to include CRM.
 
@@ -24,7 +24,7 @@ Not yet implemented or verified:
 - End-to-end tenant-isolation, permission and field-security tests.
 - Successful .NET restore/build/test. GitHub Actions currently reports no workflow runs for this draft branch; do not interpret absence of checks as a passing build.
 
-The CRM menu registry currently declares intended component paths. Those pages must be added and verified before treating the seeded navigation as production-ready.
+The CRM menu registry currently declares intended component paths, but menu seeding is intentionally disabled until matching frontend routes/components exist.
 
 ## 1. Objective
 
