@@ -22,10 +22,8 @@ public static class ServiceCollectionExtensions
         return services.AddFieldSecurityEntities(entities => entities
             .Add<SysCrmCustomer>()
             .Add<SysCrmContact>()
-            .Add<SysCrmLead>()
-            .Add<SysCrmOpportunity>()
-            .Add<SysCrmActivity>()
-            .Add<SysCrmTask>());
+            .Add<SysCrmLead>());
+        // Opportunity, Activity and Task are registered here only after their guarded query/write services ship.
     }
 
     /// <summary>Registers CRM permission and navigation seeders.</summary>
