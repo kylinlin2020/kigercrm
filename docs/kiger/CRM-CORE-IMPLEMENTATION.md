@@ -4,6 +4,28 @@
 **Repository:** `kylinlin2020/kigercrm`  
 **Base:** XiHan.BasicApp v5.9.1 (`34f127757f588ff2139875c4c5fd491ccc4e423f`)
 
+## Delivery status (2026-11-02)
+
+The first implementation increment is committed on `kiger-dev` and proposed as draft PR #1.
+
+Implemented in source:
+- CRM module project and WebHost module dependency registration.
+- Tenant-scoped persistence entities for Customer, Contact, Lead, Opportunity, Activity and Task.
+- CRM field-security entity registration.
+- Tenant-side CRM permission catalog and menu seeders.
+- Lead query contract, DTOs, explicit mapper, tenant-scoped repository and paginated query service.
+- WebHost module dependency regression test updated to include CRM.
+
+Not yet implemented or verified:
+- Customer/Contact/Lead command APIs (create, update, delete, conversion).
+- Opportunity, Activity and Task application services.
+- Database migration / schema upgrade scripts.
+- Frontend pages and localization.
+- End-to-end tenant-isolation, permission and field-security tests.
+- Successful .NET restore/build/test. GitHub Actions currently reports no workflow runs for this draft branch; do not interpret absence of checks as a passing build.
+
+The CRM menu registry currently declares intended component paths. Those pages must be added and verified before treating the seeded navigation as production-ready.
+
 ## 1. Objective
 
 Build KIGER CRM as a business module on top of XiHan.BasicApp. BasicApp remains the platform foundation; KIGER owns CRM domain behavior. Do not copy Haituo's Express/TypeScript service layer into the .NET application.
