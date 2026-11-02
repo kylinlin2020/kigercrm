@@ -8,6 +8,8 @@ using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Saas.Application.Extensions;
 using XiHan.BasicApp.Saas.Application.Services;
+using XiHan.BasicApp.Saas.Application.Services;
+using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Domain.Shared.Paging.Dtos;
 using XiHan.Framework.Domain.Shared.Paging.Enums;
@@ -16,6 +18,7 @@ using XiHan.Framework.Domain.Shared.Paging.Models;
 namespace XiHan.BasicApp.Crm.Application.QueryServices;
 
 /// <summary>Tenant-scoped lead queries with field-security filtering.</summary>
+[DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Leads")]
 public sealed class CrmLeadQueryService(
     ICrmLeadRepository repository,
     IFieldSecurityService fieldSecurity)
