@@ -19,6 +19,10 @@ public static class ServiceCollectionExtensions
     {
         return services.AddFieldSecurityEntities(entities => entities
             .Add<SysCrmCustomer>()
-            .Add<SysCrmContact>());
+            .Add<SysCrmContact>()
+            .Add<SysCrmLead>()
+            .Add<SysCrmOpportunity>()
+            .Add<SysCrmActivity>()
+            .Add<SysCrmTask>());
     }
 }
