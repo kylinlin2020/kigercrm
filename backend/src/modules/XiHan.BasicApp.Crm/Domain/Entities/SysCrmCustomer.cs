@@ -3,7 +3,6 @@
 
 using SqlSugar;
 using XiHan.BasicApp.Core.Entities;
-using XiHan.Framework.MultiTenancy;
 
 namespace XiHan.BasicApp.Crm.Domain.Entities;
 
