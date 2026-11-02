@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using XiHan.BasicApp.AI.Extensions;
 using XiHan.BasicApp.CodeGeneration.Extensions;
+using XiHan.BasicApp.Crm.Extensions;
 using XiHan.BasicApp.Printing.Extensions;
 using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.BasicApp.Saas.Domain.DomainServices;
@@ -31,6 +32,7 @@ public sealed partial class FieldSecurityEntityWiringTests
             .AddSaasFieldSecurityEntities()
             .AddAIFieldSecurityEntities()
             .AddCodeGenerationFieldSecurityEntities()
+            .AddCrmFieldSecurityEntities()
             .AddPrintingFieldSecurityEntities()
             .AddWorkflowFieldSecurityEntities();
         using var provider = services.BuildServiceProvider();
