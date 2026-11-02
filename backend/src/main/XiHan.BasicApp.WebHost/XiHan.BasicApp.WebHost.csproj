@@ -9,9 +9,9 @@
         <AssemblyName>XiHan.BasicApp.WebHost</AssemblyName>
         <PackageId>XiHan.BasicApp.WebHost</PackageId>
         <Description>曦寒基础应用 Web 主机</Description>
-        <IsPackable>false</IsPackable>
-        <GenerateDocumentationFile>false</GenerateDocumentationFile>
-        <OutputType>Exe</OutputType>
+		<IsPackable>false</IsPackable>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+		<OutputType>Exe</OutputType>
     </PropertyGroup>
 
     <ItemGroup>
@@ -25,16 +25,29 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="IpDatabases\ip2region_v4.xdb"><CopyToOutputDirectory>Always</CopyToOutputDirectory></None>
-      <None Update="IpDatabases\ip2region_v6.xdb"><CopyToOutputDirectory>Always</CopyToOutputDirectory></None>
-      <None Update="ServiceScripts\XiHan.BasicApp.bat"><CopyToOutputDirectory>Always</CopyToOutputDirectory></None>
-      <None Update="ServiceScripts\XiHan.BasicApp.ini"><CopyToOutputDirectory>Always</CopyToOutputDirectory></None>
-      <None Update="Localization\**\*.json"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></None>
-      <None Update="UpdateScripts\**\*.sql"><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></None>
+      <None Update="IpDatabases\ip2region_v4.xdb">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="IpDatabases\ip2region_v6.xdb">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="ServiceScripts\XiHan.BasicApp.bat">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="ServiceScripts\XiHan.BasicApp.ini">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Localization\**\*.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <!-- 数据库升级脚本：SqlScriptMigrationRunner 从 AppContext.BaseDirectory/UpdateScripts 读取，必须随输出/发布一同拷贝 -->
+      <None Update="UpdateScripts\**\*.sql">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="wwwroot\\" />
+      <Folder Include="wwwroot\" />
     </ItemGroup>
 
 </Project>
