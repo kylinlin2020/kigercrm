@@ -4,6 +4,21 @@
 **Repository:** `kylinlin2020/kigercrm`  
 **Base:** XiHan.BasicApp v5.9.1 (`34f127757f588ff2139875c4c5fd491ccc4e423f`)
 
+## Customer and contact query increment (2026-11-02)
+
+Implemented:
+- Customer and Contact repository contracts and tenant-scoped SqlSugar repository implementations, using the platform SaasRepository base.
+- Customer and Contact query contracts, paginated query DTOs, list/detail projections and explicit mapper methods.
+- Customer search by name/legal name/website, region, industry and owner.
+- Contact search by name/email/phone, customer and owner.
+- Both query services apply the platform field-security query guard, permission authorization and deterministic created-time default ordering.
+- CRM field-security registration is deliberately staged to Customer, Contact and Lead only. Opportunity, Activity and Task entities remain modeled but are not yet activated in the field-security catalog until their guarded services are implemented.
+
+Validation status:
+- Source has been committed to `kiger-dev`.
+- No successful .NET build/test result is available yet. The API field-security wiring test is expected to verify the currently activated three entities once CI is run.
+- No create/update/delete endpoints or schema migrations are included in this increment.
+
 ## Field-security mapping increment (2026-11-02)
 
 The CRM module now has explicit response DTOs and mapper methods for Customer, Contact, Opportunity, Activity and Task, in addition to Lead. This is required because BasicApp discovers field-security DTO mappings from public static mapper methods whose first parameter is a registered entity.
