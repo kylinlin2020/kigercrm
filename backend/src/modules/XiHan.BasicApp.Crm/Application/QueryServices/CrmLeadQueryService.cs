@@ -8,7 +8,6 @@ using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Saas.Application.Extensions;
 using XiHan.BasicApp.Saas.Application.Services;
-using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Domain.Shared.Paging.Dtos;
@@ -43,8 +42,13 @@ public sealed class CrmLeadQueryService(
                 lead => lead.CompanyName, lead => lead.ContactName, lead => lead.Email);
         }
 
-        if (input.Status.HasValue && Enum.IsDefined(typeof(CrmLeadStatus), input.Status.Value))
+        if (input.Status.HasValue)
         {
+            if (!Enum.IsDefined(typeof(CrmLeadStatus), input.Status.Value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(input.Status), "Lead status is invalid.");
+            }
+
             request.Conditions.AddFilter((SysCrmLead lead) => lead.Status, (CrmLeadStatus)input.Status.Value);
         }
 
