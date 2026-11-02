@@ -3,6 +3,8 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Infrastructure.Seeders;
+using XiHan.Framework.Data.Extensions.DependencyInjection;
 using XiHan.BasicApp.Saas.Extensions;
 
 namespace XiHan.BasicApp.Crm.Extensions;
@@ -24,5 +26,13 @@ public static class ServiceCollectionExtensions
             .Add<SysCrmOpportunity>()
             .Add<SysCrmActivity>()
             .Add<SysCrmTask>());
+    }
+
+    /// <summary>Registers CRM permission and navigation seeders.</summary>
+    public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services)
+    {
+        services.AddDataSeeder<CrmPermissionCatalogSeeder>();
+        services.AddDataSeeder<CrmMenuSeeder>();
+        return services;
     }
 }
