@@ -112,3 +112,7 @@ The quote and sales order query services now expose separate header-detail and p
 - Read permission is required for each detail/line operation.
 
 This avoids loading unbounded line collections into a single detail response. Source-wiring tests cover parent authorization, line scoping and field guards. Version revision, quote-to-order conversion, concurrency control, compilation and database execution remain pending.
+
+## Sales order source-quote uniqueness guard
+
+The sales-order header now has a tenant-scoped unique index over `TenantId + SourceQuoteId + IsDeleted`. Since `SourceQuoteId` is nullable, orders entered independently may leave it null; database engines supported by this project permit multiple null values in a unique index. For a non-null source quote, the index is a final database-level guard against creating more than one order from the same quote, including concurrent requests. The index does not replace application authorization, transaction boundaries, or quote status checks; accepted-quote conversion still needs to create the order and update the quote in one transaction. Existing databases need CodeFirst/index synchronization before this guard is active.
