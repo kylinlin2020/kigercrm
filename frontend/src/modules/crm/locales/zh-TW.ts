@@ -4,7 +4,8 @@ export default {
     "crm_customers": "客戶",
     "crm_leads": "銷售線索",
     "crm_opportunities": "商機",
-    "crm_tasks": "任務"
+    "crm_tasks": "任務",
+    "crm_contacts": "聯絡人"
   },
   "crm": {
     "lead": {
@@ -227,6 +228,50 @@ export default {
       "priority3": "一般",
       "priority4": "高",
       "priority5": "緊急"
+    },
+    "contact": {
+      "title": "聯絡人",
+      "description": "管理客戶帳戶關聯人員、職稱及聯絡方式。",
+      "create": "新增聯絡人",
+      "search": "搜尋姓名、電子郵件、電話或 WhatsApp",
+      "customerId": "客戶 ID",
+      "loading": "正在載入聯絡人…",
+      "empty": "目前沒有聯絡人記錄",
+      "name": "姓名",
+      "firstName": "名字",
+      "lastName": "姓氏",
+      "jobTitle": "職稱",
+      "email": "電子郵件",
+      "phone": "電話",
+      "whatsApp": "WhatsApp",
+      "primary": "主要聯絡人",
+      "yes": "是",
+      "ownerId": "負責人使用者 ID",
+      "notes": "備註",
+      "actions": "操作",
+      "edit": "編輯",
+      "delete": "刪除",
+      "newTitle": "新增聯絡人",
+      "editTitle": "編輯聯絡人",
+      "save": "儲存聯絡人",
+      "saving": "正在儲存…",
+      "cancel": "取消",
+      "requiredFields": "客戶 ID、名字及姓氏不可為空",
+      "loadError": "載入聯絡人清單失敗",
+      "detailError": "載入聯絡人詳情失敗",
+      "saveError": "儲存聯絡人失敗",
+      "createSuccess": "聯絡人已新增",
+      "updateSuccess": "聯絡人已更新",
+      "deleteSuccess": "聯絡人已刪除",
+      "deleteError": "刪除聯絡人失敗",
+      "confirmDelete": "確定刪除聯絡人「{name}」嗎？",
+      "notFound": "找不到聯絡人或沒有檢視權限",
+      "total": "共 {count} 筆",
+      "page": "第 {current} / {total} 頁",
+      "previous": "上一頁",
+      "next": "下一頁",
+      "query": "搜尋",
+      "refresh": "重新整理"
     }
   }
 }
