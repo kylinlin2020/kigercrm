@@ -25,6 +25,18 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("CrmSalesOrderStatus.Confirmed", source, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ShipmentCancellation_ShouldBeExecuteAuthorizedAndDraftOnly()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", source, StringComparison.Ordinal);
+        Assert.Contains("shipment.Status != CrmShipmentStatus.Draft", source, StringComparison.Ordinal);
+        Assert.Contains("shipment.Status = CrmShipmentStatus.Cancelled", source, StringComparison.Ordinal);
+        Assert.Contains("EnsureRecordAccessibleAsync", source, StringComparison.Ordinal);
+        Assert.Contains("EnsureUpdatableAsync(typeof(SysCrmShipment)", source, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
