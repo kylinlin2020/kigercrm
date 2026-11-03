@@ -138,6 +138,13 @@ public sealed class CrmShipmentAppService(
         {
             if (shipment.Status != CrmShipmentStatus.Draft)
                 throw new InvalidOperationException("Only a draft shipment can be cancelled.");
+
+            // Keep the aggregate lock order consistent: order header first, then order lines.
+            var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
+                ?? throw new InvalidOperationException("Source sales order no longer exists.");
+            order.FulfillmentRevision++;
+            await orders.UpdateAsync(order, cancellationToken);
+
             foreach (var shipmentLine in lines)
             {
                 var orderLine = await orderLines.GetByIdAsync(shipmentLine.SalesOrderLineId, cancellationToken)
@@ -148,17 +155,21 @@ public sealed class CrmShipmentAppService(
                 await orderLines.UpdateAsync(orderLine, cancellationToken);
             }
 
-            // Releasing reservations is an order-level fulfillment mutation too.
-            // Advance the aggregate revision in the same transaction as the ledger updates.
-            var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
-                ?? throw new InvalidOperationException("Source sales order no longer exists.");
-            order.FulfillmentRevision++;
-            await orders.UpdateAsync(order, cancellationToken);
         }
         else if (target == CrmShipmentStatus.Dispatched)
         {
             if (shipment.Status != CrmShipmentStatus.Draft)
                 throw new InvalidOperationException("Only a draft shipment can be dispatched.");
+
+            // Acquire the order aggregate's optimistic lock before any line-row locks.
+            // This matches draft reservation and cancellation and prevents lock-order deadlocks.
+            var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
+                ?? throw new InvalidOperationException("Source sales order no longer exists.");
+            if (order.Status is not (CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.PartiallyShipped))
+                throw new InvalidOperationException("The source sales order is not eligible for dispatch.");
+            order.FulfillmentRevision++;
+            order = await orders.UpdateAsync(order, cancellationToken);
+
             foreach (var shipmentLine in lines)
             {
                 var orderLine = await orderLines.GetByIdAsync(shipmentLine.SalesOrderLineId, cancellationToken)
@@ -172,10 +183,6 @@ public sealed class CrmShipmentAppService(
                 await orderLines.UpdateAsync(orderLine, cancellationToken);
             }
 
-            var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
-                ?? throw new InvalidOperationException("Source sales order no longer exists.");
-            if (order.Status is not (CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.PartiallyShipped))
-                throw new InvalidOperationException("The source sales order is not eligible for dispatch.");
             var orderLineRows = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
             if (orderLineRows.Count == 0)
                 throw new InvalidOperationException("Source sales order has no lines.");
