@@ -98,6 +98,7 @@ export interface CrmSalesOrderCreateDto {
 
 export interface CrmSalesOrderLineUpdateDto extends CrmSalesOrderLineCreateDto {
   id: ApiId
+  sourceQuoteLineId?: ApiId | null
 }
 
 export interface CrmSalesOrderUpdateDto {
