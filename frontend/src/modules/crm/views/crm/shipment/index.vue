@@ -19,6 +19,7 @@ const pageSize = 20
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize)))
 const canCreate = computed(() => hasPermission('crm_shipments.create'))
 const canExecute = computed(() => hasPermission('crm_shipments.execute'))
+const detailOpen = ref(false)
 const detailShipment = ref<CrmShipmentDetailDto | null>(null)
 const detailLines = ref<CrmShipmentLineDto[]>([])
 const detailLoading = ref(false)
@@ -149,7 +150,13 @@ async function createShipment() {
   }
 }
 
+function closeDetails() {
+  detailOpen.value = false
+  detailShipment.value = null
+}
+
 async function openDetails(row: CrmShipmentListItemDto) {
+  detailOpen.value = true
   detailLoading.value = true
   detailShipment.value = null
   detailLines.value = []
@@ -225,7 +232,7 @@ onMounted(loadPage)
       <div><button :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.shipment.previous') }}</button><button :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.shipment.next') }}</button></div>
     </footer>
 
-    <div v-if="detailShipment || detailLoading" class="modal-backdrop" @click.self="detailShipment = null">
+    <div v-if="detailOpen" class="modal-backdrop" @click.self="closeDetails">
       <section class="editor detail-editor">
         <header><h2>{{ detailShipment?.shipmentNumber || t('crm.shipment.detailTitle') }}</h2><button type="button" @click="detailShipment = null">×</button></header>
         <div v-if="detailLoading" class="empty">{{ t('crm.shipment.loadingDetails') }}</div>
