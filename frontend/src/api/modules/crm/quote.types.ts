@@ -82,6 +82,7 @@ export interface CrmQuoteDetailDto extends CrmQuoteListItemDto {
   termsAndConditions?: string | null
   notes?: string | null
   convertedOrderId?: ApiId | null
+  previousVersionId?: ApiId | null
 }
 
 export interface CrmQuoteLinePageQueryDto extends PageRequest {
