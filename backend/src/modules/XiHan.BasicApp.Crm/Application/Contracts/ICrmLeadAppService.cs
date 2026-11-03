@@ -7,5 +7,6 @@ public interface ICrmLeadAppService : IApplicationService
 {
     Task<CrmLeadDetailDto> CreateAsync(CrmLeadCreateDto input, CancellationToken cancellationToken = default);
     Task<CrmLeadDetailDto> UpdateAsync(CrmLeadUpdateDto input, CancellationToken cancellationToken = default);
+    Task<CrmLeadDetailDto> ConvertAsync(long id, CancellationToken cancellationToken = default);
     Task DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
