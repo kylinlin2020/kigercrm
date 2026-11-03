@@ -1,5 +1,6 @@
 import type { ApiId, PageResult } from '../../types'
 import type {
+  CrmQuoteCommandResultDto,
   CrmQuoteCreateDto,
   CrmQuoteDetailDto,
   CrmQuoteLineDto,
@@ -15,13 +16,13 @@ const quoteCommandApi = createDynamicApiClient('CrmQuote')
 
 export const crmQuoteApi = {
   create(input: CrmQuoteCreateDto) {
-    return quoteCommandApi.post<CrmQuoteDetailDto, CrmQuoteCreateDto>('CrmQuote', input)
+    return quoteCommandApi.post<CrmQuoteCommandResultDto, CrmQuoteCreateDto>('CrmQuote', input)
   },
   revise(sourceQuoteId: ApiId, input: CrmQuoteCreateDto) {
     return quoteCommandApi.post<CrmQuoteDetailDto, CrmQuoteCreateDto>('Revise', input, { params: { sourceQuoteId } })
   },
   changeStatus(input: CrmQuoteStatusUpdateDto) {
-    return quoteCommandApi.post<CrmQuoteDetailDto, CrmQuoteStatusUpdateDto>('ChangeStatus', input)
+    return quoteCommandApi.post<CrmQuoteCommandResultDto, CrmQuoteStatusUpdateDto>('ChangeStatus', input)
   },
   page(input: CrmQuotePageQueryDto) {
     return quoteQueryApi.post<PageResult<CrmQuoteListItemDto>, CrmQuotePageQueryDto>('CrmQuotePage', input)
