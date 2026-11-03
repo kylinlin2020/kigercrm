@@ -1,5 +1,6 @@
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
+using XiHan.BasicApp.Crm.Domain.Services;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 
 namespace XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
@@ -109,6 +110,9 @@ public sealed class CrmLeadDomainService(
         entity.Email = Optional(email, 254, nameof(email))?.ToLowerInvariant();
         entity.Phone = Optional(phone, 40, nameof(phone));
         entity.Website = Optional(website, 500, nameof(website));
+        entity.DuplicateEmailNormalized = CrmLeadDuplicateMatcher.NormalizeEmail(entity.Email);
+        entity.PhoneDigits = CrmLeadDuplicateMatcher.NormalizePhone(entity.Phone);
+        entity.WebsiteHost = CrmLeadDuplicateMatcher.NormalizeDomain(entity.Website);
         entity.CountryRegion = Optional(country, 100, nameof(country));
         entity.Source = Optional(source, 80, nameof(source));
         entity.SourceReference = Optional(sourceReference, 500, nameof(sourceReference));
