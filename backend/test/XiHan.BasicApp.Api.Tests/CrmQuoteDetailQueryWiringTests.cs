@@ -12,6 +12,7 @@ public sealed class CrmQuoteDetailQueryWiringTests
         Assert.Contains("ResolveAccessibleUsersAsync", source, StringComparison.Ordinal);
         Assert.Contains("CanReadOwnedRecord(quote.OwnerUserId)", source, StringComparison.Ordinal);
         Assert.Contains("ConvertedOrderId = quote.ConvertedOrderId", source, StringComparison.Ordinal);
+        Assert.Contains("PreviousVersionId = quote.PreviousVersionId", source, StringComparison.Ordinal);
     }
 
     [Fact]
