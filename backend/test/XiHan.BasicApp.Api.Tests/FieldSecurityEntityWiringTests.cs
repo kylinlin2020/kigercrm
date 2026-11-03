@@ -265,6 +265,28 @@ public sealed partial class FieldSecurityEntityWiringTests
         Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
     }
 
+    /// <summary>
+    /// Lead update, conversion and deletion must first prove that the existing record belongs to the caller's data scope.
+    /// Checking only the requested new owner would allow changing or converting another user's lead by ID.
+    /// </summary>
+    [Fact]
+    public void LeadMutations_ShouldEnforceExistingRecordDataScope()
+    {
+        var source = Sources.Value.Single(item => item.File == "CrmLeadAppService.cs").Text;
+        Assert.Contains("ICrmLeadRepository leads", source, StringComparison.Ordinal);
+
+        foreach (var methodName in new[] { "UpdateAsync", "ConvertAsync", "DeleteAsync" })
+        {
+            var signature = Regex.Match(source, $@"public async Task(?:<[^>]+>)?\\s+{methodName}\\(");
+            Assert.True(signature.Success, $"Lead {methodName} endpoint was not found.");
+            var body = MethodBody(source, signature.Index);
+            Assert.Contains(
+                "CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken)",
+                body,
+                StringComparison.Ordinal);
+        }
+    }
+
     private static FieldSecurityEntityOptions BuildOptions()
     {
         var options = new FieldSecurityEntityOptions();
