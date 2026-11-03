@@ -38,7 +38,8 @@ BEGIN
         ALTER TABLE crm_sales_order_line
             ADD CONSTRAINT ck_crm_sales_order_line_fulfillment_qty
             CHECK (
-                reserved_quantity >= 0
+                quantity > 0
+                AND reserved_quantity >= 0
                 AND shipped_quantity >= 0
                 AND reserved_quantity + shipped_quantity <= quantity
             );
