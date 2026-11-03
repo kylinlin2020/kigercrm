@@ -222,7 +222,6 @@ onMounted(loadPage)
           <tr v-for="row in rows" :key="row.basicId">
             <td>
               <strong>{{ row.name }}</strong>
-              <small>{{ row.legalName || '' }}</small>
             </td>
             <td>
               <a v-if="row.website" :href="row.website" target="_blank" rel="noopener noreferrer">{{ row.website }}</a>
