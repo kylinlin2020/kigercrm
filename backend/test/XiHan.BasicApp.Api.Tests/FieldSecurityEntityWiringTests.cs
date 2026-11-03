@@ -201,6 +201,32 @@ public sealed partial class FieldSecurityEntityWiringTests
         Assert.True(missing.Count == 0, string.Join(Environment.NewLine, missing));
     }
 
+    /// <summary>
+    /// CRM list and detail reads must both enforce the BasicApp owner/assignee data scope.
+    /// </summary>
+    [Fact]
+    public void CrmQueryServices_ShouldEnforceOwnerDataScopeOnListsAndDetails()
+    {
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["CrmCustomerQueryService.cs"] = "OwnerUserId",
+            ["CrmContactQueryService.cs"] = "OwnerUserId",
+            ["CrmLeadQueryService.cs"] = "OwnerUserId",
+            ["CrmOpportunityQueryService.cs"] = "OwnerUserId",
+            ["CrmActivityQueryService.cs"] = "OwnerUserId",
+            ["CrmTaskQueryService.cs"] = "AssigneeUserId"
+        };
+
+        foreach (var (file, ownerField) in expected)
+        {
+            var source = Sources.Value.SingleOrDefault(item => item.File == file).Text;
+            Assert.False(string.IsNullOrWhiteSpace(source), $"缺少 CRM 查询服务源码：{file}");
+            Assert.Contains("IUserDataScopeFilterService dataScope", source, StringComparison.Ordinal);
+            Assert.Contains("ApplyOwnerScopeAsync(dataScope", source, StringComparison.Ordinal);
+            Assert.Contains($"CanReadOwnedRecord(entity.{ownerField})", source, StringComparison.Ordinal);
+        }
+    }
+
     private static FieldSecurityEntityOptions BuildOptions()
     {
         var options = new FieldSecurityEntityOptions();
