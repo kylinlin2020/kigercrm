@@ -323,3 +323,17 @@ Remaining:
 - Corrected the field-security wiring test to recognize both `fieldSecurity` and `_fieldSecurity` service-field naming conventions. CRM application/query services use the former; without this, the test could miss CRM query guards and write guards.
 - Added the CRM module assembly to the entity-placement test inventory so CRM entities are checked for strict tenant-database isolation alongside the other business modules.
 - These are test-suite changes only; they have not been executed in this environment. The final Windows pull/build/test remains required.
+
+## CRM user data-scope enforcement (2026-11-03)
+
+Implemented on `kiger-dev`:
+- Added a shared CRM query extension that resolves the platform `IUserDataScopeFilterService` and applies an `IN` predicate through the typed `QueryConditions.AddFilterIn` API.
+- Customer, Contact, Lead, Opportunity and Activity list queries are restricted by `OwnerUserId`.
+- Task list queries are restricted by `AssigneeUserId`.
+- All six detail query methods re-check the resolved user scope before returning a DTO; records outside scope are returned as not found (`null`).
+- Unrestricted platform/all-data contexts retain full visibility. For restricted contexts, unassigned records are excluded deliberately; an empty accessible-user set yields an always-nonmatching sentinel filter rather than silently disabling the scope.
+- User-provided filters are combined with the mandatory data-scope predicate, so specifying another owner cannot broaden visibility.
+
+Important validation boundary:
+- This increment covers query-time visibility only. Create/update assignment authorization (whether a caller may assign an owner or assignee outside their allowed user set) remains a separate command-side task and must be completed before production release.
+- No successful .NET restore/build/test has been observed yet. The change is committed to the draft branch but remains unverified by runtime tests.
