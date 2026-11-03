@@ -15,6 +15,7 @@ import {
 
 const leadQueryApi = createDynamicApiClient('CrmLeadQuery')
 const leadCommandApi = createCommandApi<CrmLeadCreateDto, CrmLeadUpdateDto, CrmLeadDetailDto>('CrmLead', 'CrmLead')
+const leadCommandRouteApi = createDynamicApiClient('CrmLead')
 
 const duplicateQueryApi = createDynamicApiClient('CrmLeadDuplicateQuery')
 
@@ -43,9 +44,9 @@ export const crmLeadApi = {
 }
 
 function leadCommandApiDelete(id: ApiId) {
-  return createDynamicApiClient('CrmLead').delete<void>('CrmLead', { id })
+  return leadCommandRouteApi.delete<void>('CrmLead', { id })
 }
 
 function leadCommandApiAction<TResult>(action: string, params: { id: ApiId }) {
-  return createDynamicApiClient('CrmLead').post<TResult, null>(action, null, { params })
+  return leadCommandRouteApi.post<TResult, undefined>(action, undefined, { params })
 }
