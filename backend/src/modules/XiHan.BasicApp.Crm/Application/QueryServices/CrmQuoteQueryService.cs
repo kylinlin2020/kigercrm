@@ -20,6 +20,7 @@ namespace XiHan.BasicApp.Crm.Application.QueryServices;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Quotes")]
 public sealed class CrmQuoteQueryService(
     ICrmQuoteRepository repository,
+    ICrmQuoteLineRepository quoteLines,
     IFieldSecurityService fieldSecurity,
     IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmQuoteQueryService
@@ -78,4 +79,75 @@ public sealed class CrmQuoteQueryService(
             ExtendDatas = page.ExtendDatas
         };
     }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<CrmQuoteDetailDto?> GetDetailAsync(long id, CancellationToken cancellationToken = default)
+    {
+        if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
+        cancellationToken.ThrowIfCancellationRequested();
+        var quote = await repository.GetByIdAsync(id, cancellationToken);
+        if (quote is null) return null;
+        var scope = await dataScope.ResolveAccessibleUsersAsync(DateTimeOffset.UtcNow, cancellationToken);
+        if (!scope.CanReadOwnedRecord(quote.OwnerUserId)) return null;
+        return new CrmQuoteDetailDto
+        {
+            BasicId = quote.BasicId,
+            QuoteNumber = quote.QuoteNumber,
+            Version = quote.Version,
+            CustomerId = quote.CustomerId,
+            CustomerNameSnapshot = quote.CustomerNameSnapshot,
+            ContactId = quote.ContactId,
+            ContactNameSnapshot = quote.ContactNameSnapshot,
+            OpportunityId = quote.OpportunityId,
+            Status = (int)quote.Status,
+            IssueDate = quote.IssueDate,
+            ValidUntil = quote.ValidUntil,
+            Currency = quote.Currency,
+            Subtotal = quote.Subtotal,
+            DiscountTotal = quote.DiscountTotal,
+            TaxTotal = quote.TaxTotal,
+            GrandTotal = quote.GrandTotal,
+            OwnerUserId = quote.OwnerUserId,
+            TermsAndConditions = quote.TermsAndConditions,
+            Notes = quote.Notes,
+            ConvertedOrderId = quote.ConvertedOrderId,
+            CreatedTime = quote.CreatedTime
+        };
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    [HttpPost]
+    public async Task<PageResultDtoBase<CrmQuoteLineDto>> GetLinesPageAsync(CrmQuoteLinePageQueryDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.QuoteId <= 0) throw new ArgumentOutOfRangeException(nameof(input.QuoteId));
+        var quote = await repository.GetByIdAsync(input.QuoteId, cancellationToken);
+        if (quote is null) throw new InvalidOperationException("Quote does not exist.");
+        var scope = await dataScope.ResolveAccessibleUsersAsync(DateTimeOffset.UtcNow, cancellationToken);
+        if (!scope.CanReadOwnedRecord(quote.OwnerUserId)) throw new UnauthorizedAccessException("Quote is outside the current data scope.");
+
+        var request = new BasicAppPRDto { Page = input.Page, Conditions = new QueryConditions() };
+        request.Conditions.AddFilter((SysCrmQuoteLine x) => x.QuoteId, input.QuoteId);
+        await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmQuoteLine), cancellationToken);
+        request.Conditions.AddSort((SysCrmQuoteLine x) => x.SortOrder, SortDirection.Ascending, 0);
+        var page = await quoteLines.GetPagedAsync(request, cancellationToken);
+        var items = page.Items.Select(x => new CrmQuoteLineDto
+        {
+            BasicId = x.BasicId,
+            ProductCode = x.ProductCode,
+            Description = x.Description,
+            Quantity = x.Quantity,
+            Unit = x.Unit,
+            UnitPrice = x.UnitPrice,
+            DiscountRate = x.DiscountRate,
+            TaxRate = x.TaxRate,
+            LineSubtotal = x.LineSubtotal,
+            LineDiscount = x.LineDiscount,
+            LineTax = x.LineTax,
+            LineTotal = x.LineTotal,
+            SortOrder = x.SortOrder
+        }).ToList();
+        return new PageResultDtoBase<CrmQuoteLineDto>(items, page.Page) { ExtendDatas = page.ExtendDatas };
+    }
+
 }
