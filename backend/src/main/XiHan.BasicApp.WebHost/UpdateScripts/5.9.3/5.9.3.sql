@@ -13,14 +13,14 @@ BEGIN
     ) THEN
         UPDATE crm_contact
         SET primary_customer_id = CASE
-            WHEN is_primary THEN customer_id
+            WHEN is_primary AND is_deleted = FALSE THEN customer_id
             ELSE NULL
         END;
 
         IF EXISTS (
             SELECT 1
             FROM crm_contact
-            WHERE is_primary = TRUE
+            WHERE is_primary = TRUE AND is_deleted = FALSE
             GROUP BY tenant_id, customer_id
             HAVING COUNT(*) > 1
         ) THEN
@@ -28,7 +28,7 @@ BEGIN
         END IF;
 
         CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_contact_teid_prcuid
-            ON crm_contact (tenant_id, primary_customer_id);
+            ON crm_contact (tenant_id, primary_customer_id, is_deleted);
     END IF;
 END
 $$;
