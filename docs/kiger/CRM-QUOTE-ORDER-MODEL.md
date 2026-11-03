@@ -278,3 +278,8 @@ Draft-order editing increments and persists the order-level fulfillment revision
 ### Shipment status transition boundaries
 
 Shipment status commands are intentionally non-idempotent state transitions: cancellation and dispatch are allowed only from Draft, while delivery confirmation is allowed only from Dispatched. Repeated dispatch, cancellation after dispatch, delivery before dispatch, and repeated delivery are rejected instead of silently replaying fulfillment mutations. A source-wiring regression guard covers these transition boundaries. Runtime/API and PostgreSQL transaction behavior remain part of the integration acceptance pass.
+
+
+### Legacy document-number uniqueness migration
+
+Migration 5.9.6 adds the tenant-scoped unique indexes already declared by the sales-order and shipment entity models: `(tenant_id, order_number, is_deleted)` and `(tenant_id, shipment_number, is_deleted)`. Before creating either index it checks for duplicate keys, including soft-deleted rows, and stops with an actionable error rather than silently modifying legacy data. The script uses `CREATE UNIQUE INDEX IF NOT EXISTS` and is safe to rerun after any duplicate cleanup. A source-level migration guard verifies the index definitions and preflight ordering. PostgreSQL execution remains part of deployment acceptance.
