@@ -191,7 +191,7 @@ public sealed partial class FieldSecurityEntityWiringTests
 
                 var expected = method.Groups["kind"].Value == "Create" ? "EnsureCreatableAsync" : "EnsureUpdatableAsync";
                 var body = MethodBody(text, method.Index);
-                if (!body.Contains($"_fieldSecurity.{expected}(typeof({entity})", StringComparison.Ordinal))
+                if (!Regex.IsMatch(body, $@"_?fieldSecurity\.{expected}\(typeof\({entity}\)"))
                 {
                     missing.Add($"{file}：{method.Groups["name"].Value} 缺 {expected}(typeof({entity}), …)");
                 }
@@ -222,7 +222,7 @@ public sealed partial class FieldSecurityEntityWiringTests
         return next.Success ? text[start..next.Index] : text[start..];
     }
 
-    [GeneratedRegex(@"_fieldSecurity\.(?<method>\w+Async)\((?:[\w.]+,\s*)?typeof\((?<entity>\w+)\)")]
+    [GeneratedRegex(@"_?fieldSecurity\.(?<method>\w+Async)\((?:[\w.]+,\s*)?typeof\((?<entity>\w+)\)") ]
     private static partial Regex FieldSecurityCall();
 
     [GeneratedRegex(@"public async Task(?:<[^\n]*?>)? (?<name>\w+Async)\(\s*(?<prefix>\w+?)(?<kind>Create|Update|StatusUpdate)Dto \w+")]
