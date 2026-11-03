@@ -24,7 +24,7 @@ describe('crmShipmentApi', () => {
   })
 
   it('uses shipment creation and lifecycle command routes', async () => {
-    const input = { shipmentNumber: 'S-1', salesOrderId: '8', lines: [{ salesOrderLineId: '10', quantity: 2 }, { salesOrderLineId: '11', quantity: 1.5 }] } as never
+    const input = { shipmentNumber: '', numberingIdempotencyKey: 'shipment-create-key', salesOrderId: '8', lines: [{ salesOrderLineId: '10', quantity: 2 }, { salesOrderLineId: '11', quantity: 1.5 }] } as never
     const status = { id: '9', status: 1 } as never
     await crmShipmentApi.create(input)
     await crmShipmentApi.changeStatus(status)
