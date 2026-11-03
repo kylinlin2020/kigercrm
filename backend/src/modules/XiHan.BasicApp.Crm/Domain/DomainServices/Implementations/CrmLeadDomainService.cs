@@ -4,7 +4,10 @@ using XiHan.BasicApp.Crm.Domain.Repositories;
 
 namespace XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
 
-public sealed class CrmLeadDomainService(ICrmLeadRepository repository) : ICrmLeadDomainService
+public sealed class CrmLeadDomainService(
+    ICrmLeadRepository repository,
+    ICrmCustomerRepository customers,
+    ICrmContactRepository contacts) : ICrmLeadDomainService
 {
     public async Task<SysCrmLead> CreateAsync(CrmLeadCreateCommand command, CancellationToken cancellationToken = default)
     {
@@ -31,6 +34,60 @@ public sealed class CrmLeadDomainService(ICrmLeadRepository repository) : ICrmLe
         Apply(entity, command.CompanyName, command.ContactName, command.Email, command.Phone, command.Website, command.CountryRegion, command.Source, command.SourceReference, command.OwnerUserId, command.Notes);
         entity.Status = (CrmLeadStatus)command.Status;
         return await repository.UpdateAsync(entity, cancellationToken);
+    }
+
+    public async Task<SysCrmLead> ConvertAsync(long id, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
+        var lead = await repository.GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException("Lead does not exist.");
+
+        if (lead.Status == CrmLeadStatus.Converted)
+        {
+            if (lead.ConvertedCustomerId is not > 0)
+                throw new InvalidOperationException("Converted lead is missing its customer reference.");
+            _ = await customers.GetByIdAsync(lead.ConvertedCustomerId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Converted customer reference is invalid.");
+            if (lead.ConvertedContactId is > 0)
+                _ = await contacts.GetByIdAsync(lead.ConvertedContactId.Value, cancellationToken)
+                    ?? throw new InvalidOperationException("Converted contact reference is invalid.");
+            return lead;
+        }
+
+        if (lead.Status == CrmLeadStatus.Disqualified)
+            throw new InvalidOperationException("A disqualified lead cannot be converted.");
+
+        var customer = await customers.AddAsync(new SysCrmCustomer
+        {
+            Name = lead.CompanyName,
+            Website = lead.Website,
+            CountryRegion = lead.CountryRegion,
+            Source = lead.Source,
+            OwnerUserId = lead.OwnerUserId,
+            Notes = lead.Notes
+        }, cancellationToken);
+
+        long? contactId = null;
+        if (!string.IsNullOrWhiteSpace(lead.ContactName))
+        {
+            var nameParts = lead.ContactName.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var contact = await contacts.AddAsync(new SysCrmContact
+            {
+                CustomerId = customer.BasicId,
+                FirstName = nameParts[0],
+                LastName = nameParts.Length > 1 ? nameParts[1] : nameParts[0],
+                Email = lead.Email,
+                Phone = lead.Phone,
+                OwnerUserId = lead.OwnerUserId
+            }, cancellationToken);
+            contactId = contact.BasicId;
+        }
+
+        lead.ConvertedCustomerId = customer.BasicId;
+        lead.ConvertedContactId = contactId;
+        lead.Status = CrmLeadStatus.Converted;
+        return await repository.UpdateAsync(lead, cancellationToken);
     }
 
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
