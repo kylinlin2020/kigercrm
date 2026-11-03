@@ -21,7 +21,9 @@ public sealed class CrmSalesOrderLifecycleWiringTests
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
         Assert.Contains("CrmSalesOrderStatus.Draft => target is CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Cancelled", source, StringComparison.Ordinal);
-        Assert.Contains("CrmSalesOrderStatus.PartiallyShipped => target == CrmSalesOrderStatus.Completed", source, StringComparison.Ordinal);
+        Assert.Contains("CrmSalesOrderStatus.Processing => false", source, StringComparison.Ordinal);
+        Assert.Contains("CrmSalesOrderStatus.PartiallyShipped => false", source, StringComparison.Ordinal);
+        Assert.Contains("Fulfillment-derived states are written only by shipment workflows", source, StringComparison.Ordinal);
         Assert.Contains("_ => false", source, StringComparison.Ordinal);
     }
 
