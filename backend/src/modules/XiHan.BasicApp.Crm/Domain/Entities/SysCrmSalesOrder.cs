@@ -10,6 +10,7 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 /// </summary>
 [SugarTable(TableName = "Crm_Sales_Order", TableDescription = "KIGER CRM customer sales orders")]
 [SugarIndex("UX_{table}_TeId_No_IsDe", nameof(TenantId), OrderByType.Asc, nameof(OrderNumber), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
+[SugarIndex("UX_{table}_TeId_Sq_IsDe", nameof(TenantId), OrderByType.Asc, nameof(SourceQuoteId), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_TeId_Cu_St", nameof(TenantId), OrderByType.Asc, nameof(CustomerId), OrderByType.Asc, nameof(Status), OrderByType.Asc)]
 [SugarIndex("IX_{table}_TeId_Ow_Cr", nameof(TenantId), OrderByType.Asc, nameof(OwnerUserId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 public sealed class SysCrmSalesOrder : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
