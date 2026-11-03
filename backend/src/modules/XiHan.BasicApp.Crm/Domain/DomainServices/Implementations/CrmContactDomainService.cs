@@ -37,6 +37,15 @@ public sealed class CrmContactDomainService(ICrmContactRepository contacts, ICrm
         if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
         var entity = await contacts.GetByIdAsync(id, cancellationToken)
             ?? throw new InvalidOperationException("Contact does not exist.");
+        // Release the unique primary slot before soft deletion. The database index includes IsDeleted
+        // so deleted history cannot reserve the active customer's primary-contact slot.
+        if (entity.IsPrimary || entity.PrimaryCustomerId.HasValue)
+        {
+            entity.IsPrimary = false;
+            entity.PrimaryCustomerId = null;
+            entity = await contacts.UpdateAsync(entity, cancellationToken);
+        }
+
         if (!await contacts.DeleteAsync(entity, cancellationToken))
             throw new InvalidOperationException("Contact deletion failed.");
     }
