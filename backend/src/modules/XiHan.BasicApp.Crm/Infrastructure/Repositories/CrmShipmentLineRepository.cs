@@ -18,4 +18,11 @@ public sealed class CrmShipmentLineRepository(ISqlSugarClientResolver clientReso
             .OrderBy(line => line.BasicId)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<bool> AnyForSalesOrderLineAsync(long salesOrderLineId, CancellationToken cancellationToken = default)
+    {
+        if (salesOrderLineId <= 0) throw new ArgumentOutOfRangeException(nameof(salesOrderLineId));
+        cancellationToken.ThrowIfCancellationRequested();
+        return await CreateQueryable().AnyAsync(line => line.SalesOrderLineId == salesOrderLineId, cancellationToken);
+    }
 }
