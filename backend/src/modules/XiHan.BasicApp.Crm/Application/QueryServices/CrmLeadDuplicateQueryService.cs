@@ -78,9 +78,9 @@ public sealed class CrmLeadDuplicateQueryService(
                 Conditions = new QueryConditions()
             };
             addSignal(request.Conditions);
+            await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmLead), cancellationToken);
             await request.Conditions.ApplyOwnerScopeAsync(
                 dataScope, (SysCrmLead lead) => lead.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
-            await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmLead), cancellationToken);
             request.Conditions.AddSort((SysCrmLead lead) => lead.CreatedTime, SortDirection.Descending, 0);
 
             var page = await repository.GetPagedAsync(request, cancellationToken);
