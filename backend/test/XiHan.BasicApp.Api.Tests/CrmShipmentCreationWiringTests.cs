@@ -79,6 +79,26 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("GetByShipmentIdAsync(shipment.BasicId, cancellationToken))", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ShipmentFulfillment_ShouldLockOrderBeforeMutatingOrderLines()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var cancellationStart = source.IndexOf("if (target == CrmShipmentStatus.Cancelled)", StringComparison.Ordinal);
+        var dispatchStart = source.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", cancellationStart, StringComparison.Ordinal);
+        var deliveredStart = source.IndexOf("else\n        {\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
+
+        Assert.True(cancellationStart >= 0);
+        Assert.True(dispatchStart > cancellationStart);
+        Assert.True(deliveredStart > dispatchStart);
+
+        var cancellation = source[cancellationStart..dispatchStart];
+        var dispatch = source[dispatchStart..deliveredStart];
+        Assert.True(cancellation.IndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal)
+            < cancellation.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal));
+        Assert.True(dispatch.IndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal)
+            < dispatch.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal));
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
