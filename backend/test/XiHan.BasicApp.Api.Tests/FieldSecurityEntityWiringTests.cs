@@ -288,7 +288,7 @@ public sealed partial class FieldSecurityEntityWiringTests
 
             foreach (var methodName in contract.Methods)
             {
-                var signature = Regex.Match(source, $@"public async Task(?:<[^>]+>)?\\s+{methodName}\\(");
+                var signature = Regex.Match(source, $@"public async Task(?:<[^>]+>)?\s+{methodName}\(");
                 Assert.True(signature.Success, $"CRM {module}.{methodName} endpoint was not found.");
                 var body = MethodBody(source, signature.Index);
                 Assert.Contains(
