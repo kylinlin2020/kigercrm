@@ -5,6 +5,7 @@ namespace XiHan.BasicApp.Crm.Domain.DomainServices;
 public interface ICrmQuoteDomainService
 {
     Task<SysCrmQuote> CreateAsync(CrmQuoteCreateCommand command, CancellationToken cancellationToken = default);
+    Task<SysCrmQuote> CreateRevisionAsync(long sourceQuoteId, CrmQuoteCreateCommand command, CancellationToken cancellationToken = default);
     Task<SysCrmQuote> ChangeStatusAsync(long id, int status, CancellationToken cancellationToken = default);
 }
 
@@ -29,4 +30,6 @@ public sealed record CrmQuoteCreateCommand(
     long? OwnerUserId,
     string? TermsAndConditions,
     string? Notes,
-    IReadOnlyList<CrmQuoteLineCommand> Lines);
+    IReadOnlyList<CrmQuoteLineCommand> Lines,
+    int Version = 1,
+    long? PreviousVersionId = null);
