@@ -29,7 +29,9 @@ public static class ServiceCollectionExtensions
             .Add<SysCrmQuote>()
             .Add<SysCrmQuoteLine>()
             .Add<SysCrmSalesOrder>()
-            .Add<SysCrmSalesOrderLine>());
+            .Add<SysCrmSalesOrderLine>()
+            .Add<SysCrmShipment>()
+            .Add<SysCrmShipmentLine>());
         
     }
 
