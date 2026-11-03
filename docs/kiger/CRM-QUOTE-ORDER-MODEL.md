@@ -273,3 +273,8 @@ Dispatch updates the order once to acquire the aggregate version before touching
 ### Draft order aggregate row-version refresh
 
 Draft-order editing increments and persists the order-level fulfillment revision before reading or changing order lines. It now reloads the order immediately after that aggregate lock so the final header update uses the newly persisted `Row_Version`, rather than relying on the repository mutating the in-memory entity's concurrency token. A source-wiring regression guard verifies the lock-update → reload → line mutation → final header update sequence. This is a source-level guard only; actual optimistic concurrency behavior still requires the planned PostgreSQL integration test.
+
+
+### Shipment status transition boundaries
+
+Shipment status commands are intentionally non-idempotent state transitions: cancellation and dispatch are allowed only from Draft, while delivery confirmation is allowed only from Dispatched. Repeated dispatch, cancellation after dispatch, delivery before dispatch, and repeated delivery are rejected instead of silently replaying fulfillment mutations. A source-wiring regression guard covers these transition boundaries. Runtime/API and PostgreSQL transaction behavior remain part of the integration acceptance pass.
