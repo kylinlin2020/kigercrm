@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CrmLeadCreateDto, CrmLeadDetailDto, CrmLeadListItemDto, CrmLeadUpdateDto } from '@/api'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { createPageRequest, CrmLeadStatus, crmLeadApi } from '@/api'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
@@ -18,9 +18,8 @@ const pageSize = 20
 const totalCount = ref(0)
 const editorOpen = ref(false)
 const editingId = ref<string | null>(null)
-const duplicateCandidates = ref<Awaited<ReturnType<typeof crmLeadApi.findPotentialDuplicates>>>(
-  [],
-)
+const duplicateCandidates = ref<Awaited<ReturnType<typeof crmLeadApi.findPotentialDuplicates>>>([])
+const duplicateChecked = ref(false)
 
 const form = reactive({
   companyName: '',
@@ -52,7 +51,13 @@ function statusLabel(status: CrmLeadStatus | number) {
   }
 }
 
+watch(form, () => {
+  duplicateChecked.value = false
+  duplicateCandidates.value = []
+}, { deep: true })
+
 function resetForm() {
+  duplicateChecked.value = false
   Object.assign(form, {
     companyName: '',
     contactName: '',
@@ -131,13 +136,23 @@ async function openEdit(row: CrmLeadListItemDto) {
 }
 
 async function checkDuplicates() {
-  duplicateCandidates.value = await crmLeadApi.findPotentialDuplicates({
-    excludeLeadId: editingId.value,
-    companyName: form.companyName,
-    email: form.email,
-    phone: form.phone,
-    website: form.website,
-  })
+  try {
+    duplicateCandidates.value = await crmLeadApi.findPotentialDuplicates({
+      excludeLeadId: editingId.value,
+      companyName: form.companyName,
+      email: form.email,
+      phone: form.phone,
+      website: form.website,
+    })
+  }
+  catch (error) {
+    // Duplicate lookup is advisory. A lookup outage must never block an otherwise valid Lead write.
+    duplicateCandidates.value = []
+    toast.warning((error as Error)?.message || '重复线索检查暂不可用，仍可继续保存')
+  }
+  finally {
+    duplicateChecked.value = true
+  }
 }
 
 async function save() {
@@ -145,9 +160,12 @@ async function save() {
     toast.warning('公司名称不能为空')
     return
   }
+  if (!duplicateChecked.value) {
+    await checkDuplicates()
+    if (duplicateCandidates.value.length > 0) return
+  }
   submitting.value = true
   try {
-    await checkDuplicates()
     const common = {
       companyName: form.companyName.trim(),
       contactName: form.contactName || null,
@@ -342,7 +360,7 @@ onMounted(loadPage)
           <footer>
             <button type="button" @click="editorOpen = false">取消</button>
             <button class="primary-button" type="submit" :disabled="submitting">
-              {{ submitting ? '正在保存…' : '保存线索' }}
+              {{ submitting ? '正在保存…' : duplicateCandidates.length ? '确认仍然保存' : '保存线索' }}
             </button>
           </footer>
         </form>
