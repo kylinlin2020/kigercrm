@@ -6,4 +6,5 @@ namespace XiHan.BasicApp.Crm.Application.Contracts;
 public interface ICrmQuoteAppService : IApplicationService
 {
     Task<CrmQuoteDto> CreateAsync(CrmQuoteCreateDto input, CancellationToken cancellationToken = default);
+    Task<CrmQuoteDto> ChangeStatusAsync(CrmQuoteStatusUpdateDto input, CancellationToken cancellationToken = default);
 }
