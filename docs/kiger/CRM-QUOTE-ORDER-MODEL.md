@@ -136,3 +136,13 @@ This is persistence groundwork only. No shipment create/dispatch/deliver command
 - Read permission, tenant-aware repository filtering, owner data scope and field-security query guards are applied.
 - Shipment-line reads first authorize access to the parent shipment, preventing direct line-ID/page access from bypassing parent record scope.
 - These are read APIs only. Shipment creation, dispatch/delivery commands and cumulative quantity enforcement remain pending.
+
+## Draft shipment creation command
+
+- Added a transactional Create shipment command with Create permission.
+- Validates the source sales order exists in the current tenant, is within the caller's owner data scope, and is Confirmed, Processing or PartiallyShipped.
+- Requires 1–500 unique sales-order line references; each line must belong to the selected order and each requested quantity must be positive, use at most four decimal places, and not exceed that line's ordered quantity.
+- Creates the shipment header and all draft shipment lines within one application UnitOfWork; applies field-security creation checks to both entity types.
+- The shipment owner defaults to the source order owner and is checked against the caller's assignable data scope.
+
+Important limitation: this creates a Draft manifest only. It does not reserve stock, dispatch goods, mark quantities shipped, or prevent cumulative over-shipment across multiple draft manifests. Dispatch must remain blocked until transactional cumulative shipped-quantity checks and concurrency protection are implemented.
