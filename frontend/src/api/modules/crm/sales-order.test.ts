@@ -24,7 +24,7 @@ describe('crmSalesOrderApi', () => {
   })
 
   it('uses the direct order creation command route', async () => {
-    const input = { orderNumber: 'SO-MANUAL-1', customerId: '5', currency: 'USD', lines: [{ description: 'Generator', quantity: 2, unitPrice: 100 }] } as never
+    const input = { orderNumber: '', numberingIdempotencyKey: 'order-create-key', customerId: '5', currency: 'USD', lines: [{ description: 'Generator', quantity: 2, unitPrice: 100 }] } as never
     await crmSalesOrderApi.create(input)
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrder/Create', input, undefined)
   })
