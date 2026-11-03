@@ -53,6 +53,25 @@ export interface CrmQuoteListItemDto extends BasicDto {
   createdTime: DateTimeString
 }
 
+export interface CrmQuoteCommandResultDto extends BasicDto {
+  quoteNumber: string
+  version: number
+  customerId: ApiId
+  contactId?: ApiId | null
+  opportunityId?: ApiId | null
+  customerNameSnapshot: string
+  contactNameSnapshot?: string | null
+  status: CrmQuoteStatus
+  issueDate: DateTimeString
+  validUntil?: DateTimeString | null
+  currency: string
+  subtotal: number
+  discountTotal: number
+  taxTotal: number
+  grandTotal: number
+  ownerUserId?: ApiId | null
+}
+
 export interface CrmQuoteDetailDto extends CrmQuoteListItemDto {
   contactId?: ApiId | null
   opportunityId?: ApiId | null
