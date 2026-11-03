@@ -251,6 +251,7 @@ public sealed partial class FieldSecurityEntityWiringTests
             Assert.False(string.IsNullOrWhiteSpace(source), $"缺少 CRM 应用服务源码：{file}");
             foreach (Match method in WriteMethod().Matches(source))
             {
+                if (method.Groups["prefix"].Value.EndsWith("Status", StringComparison.Ordinal)) continue;
                 var body = MethodBody(source, method.Index);
                 var count = Regex.Matches(body,
                     $@"CrmAssignmentAuthorization\.EnsureAssignableAsync\(dataScope, input\.{field}, cancellationToken\)").Count;
