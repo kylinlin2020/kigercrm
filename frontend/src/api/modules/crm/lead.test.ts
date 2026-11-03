@@ -28,8 +28,8 @@ describe('crmLeadApi', () => {
     await crmLeadApi.page(query)
     await crmLeadApi.detail(42)
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLeadQuery/GetPage', query, undefined)
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmLeadQuery/GetDetail', expect.objectContaining({
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLeadQuery/CrmLeadPage', query, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmLeadQuery/CrmLeadDetail', expect.objectContaining({
       params: { id: 42 },
     }))
   })
