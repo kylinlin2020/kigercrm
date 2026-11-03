@@ -287,3 +287,14 @@ Migration 5.9.6 adds the tenant-scoped unique indexes already declared by the sa
 ### Permanent document-number uniqueness
 
 Migration 5.9.7 replaces the 5.9.6 unique indexes so soft deletion no longer participates in the unique key. Quotation numbers are unique by tenant, quote number and version; sales-order and shipment numbers are unique by tenant and document number. Historical rows, including soft-deleted rows, are checked before old indexes are dropped. Duplicate legacy keys stop the migration for explicit remediation. Entity CodeFirst annotations now match the permanent uniqueness policy. PostgreSQL migration execution remains part of deployment acceptance.
+
+
+### Optional shared numbering integration
+
+CRM quote, sales-order and shipment create DTOs now accept an optional `NumberingIdempotencyKey`. When supplied, the application service obtains the document number from the shared `INumberGenerator` using the stable rule codes `CRM_QUOTE`, `CRM_SALES_ORDER` and `CRM_SHIPMENT`; manual document-number fields remain supported when the key is omitted for backward compatibility. A generated number can therefore be requested without sending a manual number.
+
+The key must be generated once per logical number-allocation request and reused unchanged for retries. This protects the number allocation from duplicate consumption; it does **not** make the complete CRM create operation replay-idempotent. If a create request committed but its response was lost, a retry with the same key will recover the same number and the document unique index will reject a second document. A later enhancement should add a durable create-request-to-document mapping before promising full create replay semantics.
+
+Before enabling this mode, provision enabled numbering rules with the three stable rule codes in each intended tenant (or as global rules with tenant use enabled). If a rule is missing or unavailable, the create operation fails rather than silently falling back to a client-supplied number. Existing clients remain compatible because the new key is optional. Quote revisions retain the original quote number and increment the version; they do not allocate a new quote number. Quote-to-order conversion retains its existing deterministic source-quote-derived order number.
+
+The application services invoke the generator only after basic input and relationship checks, but the generator commits its allocation independently of the CRM unit of work. A later CRM persistence failure may leave an intentional number gap. Build, automated tests and PostgreSQL integration validation are still required before production enablement.
