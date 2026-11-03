@@ -54,6 +54,18 @@ public sealed class CrmQuoteCreationWiringTests
         Assert.Contains("[UnitOfWork(true)]", appService, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void QuoteCreation_ShouldSupportOptionalIdempotentServerNumbering()
+    {
+        var dto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmQuoteCommandDtos.cs");
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        Assert.Contains("NumberingIdempotencyKey", dto, StringComparison.Ordinal);
+        Assert.Contains("INumberGenerator numberGenerator", service, StringComparison.Ordinal);
+        Assert.Contains("CrmNumberingRuleCodes.Quote", service, StringComparison.Ordinal);
+        Assert.Contains("command = command with { QuoteNumber = allocation.Numbers.Single() }", service, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
