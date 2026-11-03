@@ -5,6 +5,7 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Infrastructure.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.Data.SqlSugar.Extensions;
+using XiHan.Framework.Domain.Exceptions;
 using XiHan.Framework.Domain.Entities.Abstracts;
 using XiHan.Framework.MultiTenancy.Abstractions;
 
@@ -82,10 +83,10 @@ public sealed class CrmSalesOrderOptimisticConcurrencySqliteIntegrationTests : I
             await _repository.UpdateAsync(firstRead);
 
             staleRead.FulfillmentRevision++;
-            var exception = await Assert.ThrowsAnyAsync<Exception>(
+            var exception = await Assert.ThrowsAsync<ConcurrencyConflictException>(
                 () => _repository.UpdateAsync(staleRead));
 
-            Assert.Contains("数据已被其他操作修改", exception.ToString(), StringComparison.Ordinal);
+            Assert.Equal("数据已被其他操作修改，请刷新后重试。", exception.Message);
             var persisted = await _repository.GetByIdAsync(created.BasicId);
             Assert.NotNull(persisted);
             Assert.Equal(1, persisted.FulfillmentRevision);
