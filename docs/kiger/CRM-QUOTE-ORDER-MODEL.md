@@ -101,3 +101,14 @@ An authorized sales order status command is now exposed through the CRM dynamic 
 The command requires Execute permission, runs inside a transactional unit of work, validates tenant-scoped order existence through the repository, enforces owner data access and field-level update permission, and rejects all unlisted transitions. Shipment quantities, partial-shipment records, inventory reservation and fulfillment integrations are not implied by status changes; they require dedicated domain records and workflows.
 
 Source-wiring tests were added. Concurrent state-change protection and runtime/database verification remain outstanding.
+
+## Quote and sales order detail query implementation
+
+The quote and sales order query services now expose separate header-detail and paged-line endpoints.
+
+- Header details include commercial totals, customer/contact/opportunity references, validity or order terms, notes, and conversion/source references where applicable.
+- Line endpoints require the parent quote/order to exist and be inside the caller's owner-data scope before querying child records.
+- Child lines are tenant-scoped through their repositories, filtered by parent ID, field-security guarded, paged, and sorted by line sort order.
+- Read permission is required for each detail/line operation.
+
+This avoids loading unbounded line collections into a single detail response. Source-wiring tests cover parent authorization, line scoping and field guards. Version revision, quote-to-order conversion, concurrency control, compilation and database execution remain pending.
