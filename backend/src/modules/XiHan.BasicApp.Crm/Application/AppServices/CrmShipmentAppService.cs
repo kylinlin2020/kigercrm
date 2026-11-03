@@ -33,7 +33,9 @@ public sealed class CrmShipmentAppService(
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
         if (input.SalesOrderId <= 0) throw new ArgumentOutOfRangeException(nameof(input.SalesOrderId));
-        var number = NormalizeRequired(input.ShipmentNumber, 40, nameof(input.ShipmentNumber));
+        var number = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
+            ? NormalizeRequired(input.ShipmentNumber, 40, nameof(input.ShipmentNumber))
+            : string.Empty;
         if (input.Lines is null || input.Lines.Count == 0)
             throw new ArgumentException("At least one shipment line is required.", nameof(input.Lines));
         if (input.Lines.Count > 500)
