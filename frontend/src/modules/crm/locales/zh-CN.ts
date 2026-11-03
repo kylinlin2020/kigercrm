@@ -4,7 +4,8 @@ export default {
     "crm_customers": "客户",
     "crm_leads": "销售线索",
     "crm_opportunities": "商机",
-    "crm_tasks": "任务"
+    "crm_tasks": "任务",
+    "crm_contacts": "联系人"
   },
   "crm": {
     "lead": {
@@ -227,6 +228,50 @@ export default {
       "priority3": "普通",
       "priority4": "高",
       "priority5": "紧急"
+    },
+    "contact": {
+      "title": "联系人",
+      "description": "管理客户账户关联人员、职位及联系方式。",
+      "create": "新建联系人",
+      "search": "搜索姓名、邮箱、电话或 WhatsApp",
+      "customerId": "客户 ID",
+      "loading": "正在加载联系人…",
+      "empty": "暂无联系人记录",
+      "name": "姓名",
+      "firstName": "名",
+      "lastName": "姓",
+      "jobTitle": "职位",
+      "email": "邮箱",
+      "phone": "电话",
+      "whatsApp": "WhatsApp",
+      "primary": "主要联系人",
+      "yes": "是",
+      "ownerId": "负责人用户 ID",
+      "notes": "备注",
+      "actions": "操作",
+      "edit": "编辑",
+      "delete": "删除",
+      "newTitle": "新建联系人",
+      "editTitle": "编辑联系人",
+      "save": "保存联系人",
+      "saving": "正在保存…",
+      "cancel": "取消",
+      "requiredFields": "客户 ID、名和姓不能为空",
+      "loadError": "联系人列表加载失败",
+      "detailError": "联系人详情加载失败",
+      "saveError": "保存联系人失败",
+      "createSuccess": "联系人已创建",
+      "updateSuccess": "联系人已更新",
+      "deleteSuccess": "联系人已删除",
+      "deleteError": "删除联系人失败",
+      "confirmDelete": "确认删除联系人“{name}”吗？",
+      "notFound": "联系人不存在或无权查看",
+      "total": "共 {count} 条",
+      "page": "第 {current} / {total} 页",
+      "previous": "上一页",
+      "next": "下一页",
+      "query": "查询",
+      "refresh": "刷新"
     }
   }
 }
