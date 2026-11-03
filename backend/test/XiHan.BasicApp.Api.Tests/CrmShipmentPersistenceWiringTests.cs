@@ -27,6 +27,16 @@ public sealed class CrmShipmentPersistenceWiringTests
     }
 
     [Fact]
+    public void SalesOrderLine_ShouldPersistReservedAndShippedQuantitiesForOptimisticUpdates()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrderLine.cs");
+        Assert.Contains("Reserved_Quantity", source, StringComparison.Ordinal);
+        Assert.Contains("Shipped_Quantity", source, StringComparison.Ordinal);
+        Assert.Contains("decimal(18,4)", source, StringComparison.Ordinal);
+        Assert.Contains("BasicAppFullAuditedEntity", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ShipmentEntities_ShouldBeRegisteredForFieldSecurity()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
