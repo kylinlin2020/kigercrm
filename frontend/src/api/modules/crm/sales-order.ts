@@ -1,5 +1,6 @@
 import type { ApiId, PageResult } from '../../types'
 import type {
+  CrmSalesOrderCreateDto,
   CrmSalesOrderDetailDto,
   CrmSalesOrderLineDto,
   CrmSalesOrderLinePageQueryDto,
@@ -13,6 +14,9 @@ const orderQueryApi = createDynamicApiClient('CrmSalesOrderQuery')
 const orderCommandApi = createDynamicApiClient('CrmSalesOrder')
 
 export const crmSalesOrderApi = {
+  create(input: CrmSalesOrderCreateDto) {
+    return orderCommandApi.post<CrmSalesOrderListItemDto, CrmSalesOrderCreateDto>('Create', input)
+  },
   page(input: CrmSalesOrderPageQueryDto) {
     return orderQueryApi.post<PageResult<CrmSalesOrderListItemDto>, CrmSalesOrderPageQueryDto>('CrmSalesOrderPage', input)
   },
