@@ -6,7 +6,10 @@ export default {
     "crm_opportunities": "商机",
     "crm_tasks": "任务",
     "crm_activities": "活动记录",
-    "crm_contacts": "联系人"
+    "crm_contacts": "联系人",
+    "crm_quotes": "报价",
+    "crm_sales_orders": "销售订单",
+    "crm_shipments": "发货管理"
   },
   "crm": {
     "lead": {
@@ -326,6 +329,15 @@ export default {
       "next": "下一页",
       "query": "查询",
       "refresh": "刷新"
+    }
+    "quote": {
+      "title": "报价管理", "description": "创建客户报价并管理审核状态。", "create": "新建报价", "search": "搜索报价编号或客户", "allStatuses": "全部状态", "query": "查询", "refresh": "刷新", "loading": "正在加载报价…", "empty": "暂无报价", "number": "报价编号", "customer": "客户", "version": "版本", "status": "状态", "date": "报价日期", "total": "总金额", "actions": "操作", "markSent": "标记已发送", "accept": "接受", "reject": "拒绝", "newTitle": "创建报价", "customerId": "客户 ID", "issueDate": "报价日期", "validUntil": "有效期至", "currency": "币种", "descriptionLine": "明细描述", "quantity": "数量", "unitPrice": "单价", "required": "请填写必填字段，并确保数量和价格有效。", "created": "报价已创建", "saveError": "创建报价失败", "statusSaved": "报价状态已更新", "statusError": "更新报价状态失败", "cancel": "取消", "save": "保存报价", "saving": "正在保存…", "previous": "上一页", "next": "下一页", "totalCount": "共 {count} 条", "page": "第 {current} / {total} 页", "status0": "草稿", "status1": "已发送", "status2": "已接受", "status3": "已拒绝", "status4": "已过期", "status5": "已转订单"
+    },
+    "salesOrder": {
+      "title": "销售订单", "description": "查看已确认订单并跟踪发货履约数量。", "search": "搜索订单编号或客户", "allStatuses": "全部状态", "query": "查询", "refresh": "刷新", "loading": "正在加载订单…", "empty": "暂无销售订单", "number": "订单编号", "customer": "客户", "date": "订单日期", "status": "状态", "total": "总金额", "actions": "操作", "viewLines": "查看明细", "confirm": "确认订单", "start": "开始处理", "cancelOrder": "取消订单", "lines": "订单明细", "product": "产品 / 描述", "quantity": "订购数量", "reserved": "预占", "shipped": "已发货", "remaining": "剩余可发", "loadError": "加载订单失败", "linesError": "加载订单明细失败", "statusSaved": "订单状态已更新", "statusError": "更新订单状态失败", "previous": "上一页", "next": "下一页", "totalCount": "共 {count} 条", "page": "第 {current} / {total} 页", "status0": "草稿", "status1": "已确认", "status2": "处理中", "status3": "部分发货", "status4": "已完成", "status5": "已取消"
+    },
+    "shipment": {
+      "title": "发货管理", "description": "创建草稿发货单、预占订单数量、派发并确认签收。", "create": "新建发货单", "search": "搜索发货单、承运商或物流单号", "allStatuses": "全部状态", "query": "查询", "refresh": "刷新", "loading": "正在加载发货单…", "empty": "暂无发货单", "number": "发货单号", "orderId": "销售订单 ID", "status": "状态", "carrier": "承运商", "tracking": "物流单号", "shippedAt": "派发时间", "deliveredAt": "签收时间", "actions": "操作", "dispatch": "确认派发", "cancelDraft": "取消草稿", "deliver": "确认签收", "newTitle": "创建草稿发货单", "orderLineId": "订单明细 ID", "quantity": "发货数量", "required": "请填写发货单号、订单 ID、订单明细 ID 和有效数量。", "created": "草稿发货单已创建，数量已预占", "saveError": "创建发货单失败", "statusSaved": "发货状态已更新", "statusError": "更新发货状态失败", "cancel": "取消", "save": "创建发货单", "saving": "正在保存…", "previous": "上一页", "next": "下一页", "totalCount": "共 {count} 条", "page": "第 {current} / {total} 页", "status0": "草稿", "status1": "已派发", "status2": "已签收", "status3": "已取消", "loadError": "加载发货单失败"
     }
   }
 }
