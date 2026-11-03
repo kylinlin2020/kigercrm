@@ -22,7 +22,7 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         var unitOfWork = preceding.LastIndexOf("[UnitOfWork(true)]", StringComparison.Ordinal);
         var permission = preceding.LastIndexOf("[PermissionAuthorize(CrmPermissionCodes.Update)]", StringComparison.Ordinal);
 
-        Assert.True(unitOfWork >= 0 && unitOfWork > permission,
+        Assert.True(unitOfWork >= 0 && permission > unitOfWork,
             "ConvertAsync must retain its transactional UnitOfWork attribute after its permission attribute.");
     }
 
