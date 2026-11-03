@@ -48,6 +48,10 @@ public sealed class CrmShipmentAppService(
         var owner = input.OwnerUserId ?? order.OwnerUserId;
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, owner, cancellationToken);
 
+        // Serialize fulfillment mutations at order level before reserving any line quantities.
+        order.FulfillmentRevision++;
+        order = await orders.UpdateAsync(order, cancellationToken);
+
         var resolvedLines = new List<SysCrmSalesOrderLine>(input.Lines.Count);
         foreach (var requested in input.Lines)
         {
@@ -166,6 +170,7 @@ public sealed class CrmShipmentAppService(
             order.Status = orderLineRows.All(x => x.ShippedQuantity >= x.Quantity)
                 ? CrmSalesOrderStatus.Completed
                 : CrmSalesOrderStatus.PartiallyShipped;
+            order.FulfillmentRevision++;
             await orders.UpdateAsync(order, cancellationToken);
             shipment.ShipmentDate ??= DateTime.UtcNow;
         }
