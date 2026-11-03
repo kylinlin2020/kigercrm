@@ -3,11 +3,12 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 namespace XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
-public sealed class CrmActivityDomainService(ICrmActivityRepository repository) : ICrmActivityDomainService
+public sealed class CrmActivityDomainService(ICrmActivityRepository repository, ICrmCustomerRepository customers, ICrmContactRepository contacts, ICrmLeadRepository leads, ICrmOpportunityRepository opportunities) : ICrmActivityDomainService
 {
     public async Task<SysCrmActivity> CreateAsync(CrmActivityCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+        await EnsureRelatedRecordAsync(command.RelatedEntityType, command.RelatedEntityId, cancellationToken);
         var entity = new SysCrmActivity();
         Apply(entity, command);
         return await repository.AddAsync(entity, cancellationToken);
@@ -15,6 +16,7 @@ public sealed class CrmActivityDomainService(ICrmActivityRepository repository) 
     public async Task<SysCrmActivity> UpdateAsync(long id, CrmActivityCommand command, CancellationToken cancellationToken = default)
     {
         if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
+        await EnsureRelatedRecordAsync(command.RelatedEntityType, command.RelatedEntityId, cancellationToken);
         var entity = await repository.GetByIdAsync(id, cancellationToken) ?? throw new InvalidOperationException("Activity does not exist.");
         Apply(entity, command);
         return await repository.UpdateAsync(entity, cancellationToken);
@@ -24,6 +26,19 @@ public sealed class CrmActivityDomainService(ICrmActivityRepository repository) 
         if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
         var entity = await repository.GetByIdAsync(id, cancellationToken) ?? throw new InvalidOperationException("Activity does not exist.");
         if (!await repository.DeleteAsync(entity, cancellationToken)) throw new InvalidOperationException("Activity deletion failed.");
+    }
+    private async Task EnsureRelatedRecordAsync(string relatedType, long relatedId, CancellationToken cancellationToken)
+    {
+        if (relatedId <= 0) throw new ArgumentOutOfRangeException(nameof(relatedId));
+        var exists = relatedType.Trim().ToLowerInvariant() switch
+        {
+            "customer" => await customers.GetByIdAsync(relatedId, cancellationToken) is not null,
+            "contact" => await contacts.GetByIdAsync(relatedId, cancellationToken) is not null,
+            "lead" => await leads.GetByIdAsync(relatedId, cancellationToken) is not null,
+            "opportunity" => await opportunities.GetByIdAsync(relatedId, cancellationToken) is not null,
+            _ => throw new ArgumentException("Related entity type must be customer, contact, lead or opportunity.", nameof(relatedType))
+        };
+        if (!exists) throw new InvalidOperationException("Related CRM record does not exist in the current tenant.");
     }
     private static void Apply(SysCrmActivity entity, CrmActivityCommand command)
     {
