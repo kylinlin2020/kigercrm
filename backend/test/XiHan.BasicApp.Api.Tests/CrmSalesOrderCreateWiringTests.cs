@@ -215,6 +215,20 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("row-version token before the final order-header update", update, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void SalesOrderCreation_ShouldSupportOptionalIdempotentServerNumbering()
+    {
+        var dto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmSalesOrderCreateDto.cs");
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        Assert.Contains("NumberingIdempotencyKey", dto, StringComparison.Ordinal);
+        Assert.Contains("INumberGenerator numberGenerator", service, StringComparison.Ordinal);
+        Assert.Contains("CrmNumberingRuleCodes.SalesOrder", service, StringComparison.Ordinal);
+        Assert.Contains("NumberingScope.Auto", service, StringComparison.Ordinal);
+        Assert.Contains("input.NumberingIdempotencyKey", service, StringComparison.Ordinal);
+        Assert.Contains("allocation.Numbers.Single()", service, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
