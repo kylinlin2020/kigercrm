@@ -31,4 +31,5 @@ Phone and website candidate preselection now use persisted normalized keys inste
 ## Validation status
 
 - Source and PostgreSQL migration committed to `kiger-dev`.
+- Added a SQLite integration test that exercises the real Lead domain create path and verifies normalized values are persisted and queryable. The test has been committed but not executed.
 - No .NET restore/build/test or PostgreSQL migration execution has been performed. The Windows validation gate remains open.
