@@ -200,6 +200,21 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("row-version token after acquiring the aggregate lock", dispatch, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void DraftUpdate_ShouldReloadOrderRowVersionAfterAggregateLock()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var start = source.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", StringComparison.Ordinal);
+        var end = source.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
+        var update = source[start..end];
+        var lockUpdate = update.IndexOf("repository.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal);
+        var reload = update.IndexOf("repository.GetByIdAsync(order.BasicId, cancellationToken)", StringComparison.Ordinal);
+        var lineMutation = update.IndexOf("var existingLines =", StringComparison.Ordinal);
+        var finalUpdate = update.LastIndexOf("repository.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal);
+        Assert.True(lockUpdate >= 0 && reload > lockUpdate && lineMutation > reload && finalUpdate > lineMutation);
+        Assert.Contains("row-version token before the final order-header update", update, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
