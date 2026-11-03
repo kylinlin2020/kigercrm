@@ -1,4 +1,4 @@
-import type { ApiId, PageResult } from '../../types'
+import type { ApiId } from '../../types'
 import type {
   CrmCustomerCreateDto,
   CrmCustomerDetailDto,
