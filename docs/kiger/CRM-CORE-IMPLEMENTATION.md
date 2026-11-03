@@ -206,3 +206,19 @@ Important validation limits:
 - Tenant scoping relies on the platform `SaasRepository` and authenticated tenant context. This must be proven by integration tests.
 - Contact CRUD, database migrations, frontend pages, Go CRM integration and lead conversion remain pending.
 - Owner assignment authorization and customer/contact relationship policies still require explicit tests and, if needed, server-side policy enforcement before production.
+
+
+## Contact command workflow increment (2026-11-03)
+
+Implemented on `kiger-dev`:
+- Contact create/update DTOs, application contract, command mapper and application service.
+- Contact domain service for create/update/delete.
+- Create/update operations enforce CRM permissions, unit-of-work boundaries and field-security guards.
+- Contact writes validate required first/last names, normalize email casing, enforce field length limits and validate positive owner IDs.
+- Contact create/update verifies that the referenced customer can be resolved through the current tenant-scoped customer repository before saving.
+
+Validation and policy gaps:
+- No successful .NET build/test or database integration test is claimed.
+- Primary-contact uniqueness per customer is not yet enforced; it needs a transactional rule and concurrency-safe test before production.
+- Owner assignment authorization, data-scope behavior and soft-delete semantics still require integration tests.
+- Lead commands/conversion, migrations, frontend and Go CRM integration remain pending.
