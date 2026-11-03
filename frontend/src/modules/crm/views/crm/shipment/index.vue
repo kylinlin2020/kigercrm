@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmSalesOrderLineDto, CrmSalesOrderListItemDto, CrmShipmentListItemDto } from '@/api'
+import type { CrmSalesOrderLineDto, CrmSalesOrderListItemDto, CrmShipmentDetailDto, CrmShipmentLineDto, CrmShipmentListItemDto } from '@/api'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPageRequest, CrmSalesOrderStatus, CrmShipmentStatus, crmSalesOrderApi, crmShipmentApi } from '@/api'
@@ -19,6 +19,9 @@ const pageSize = 20
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize)))
 const canCreate = computed(() => hasPermission('crm_shipments.create'))
 const canExecute = computed(() => hasPermission('crm_shipments.execute'))
+const detailShipment = ref<CrmShipmentDetailDto | null>(null)
+const detailLines = ref<CrmShipmentLineDto[]>([])
+const detailLoading = ref(false)
 
 const createOpen = ref(false)
 const saving = ref(false)
@@ -146,6 +149,25 @@ async function createShipment() {
   }
 }
 
+async function openDetails(row: CrmShipmentListItemDto) {
+  detailLoading.value = true
+  detailShipment.value = null
+  detailLines.value = []
+  try {
+    const p = createPageRequest({ page: { pageIndex: 1, pageSize: 500 } })
+    const [detail, lines] = await Promise.all([crmShipmentApi.detail(row.basicId), crmShipmentApi.lines({ ...p, shipmentId: row.basicId })])
+    if (!detail) throw new Error(t('crm.shipment.detailError'))
+    detailShipment.value = detail
+    detailLines.value = lines.items
+  }
+  catch (e) {
+    toast.danger((e as Error)?.message || t('crm.shipment.detailError'))
+  }
+  finally {
+    detailLoading.value = false
+  }
+}
+
 async function changeStatus(row: CrmShipmentListItemDto, next: CrmShipmentStatus) {
   try {
     await crmShipmentApi.changeStatus({ id: row.basicId, status: next })
@@ -202,7 +224,7 @@ onMounted(loadPage)
       <div><button :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.shipment.previous') }}</button><button :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.shipment.next') }}</button></div>
     </footer>
 
-    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
+    <div v-if="detailShipment || detailLoading" class="modal-backdrop" @click.self="detailShipment = null">\n      <section class="editor detail-editor">\n        <header><h2>{{ detailShipment?.shipmentNumber || t('crm.shipment.detailTitle') }}</h2><button type="button" @click="detailShipment = null">×</button></header>\n        <div v-if="detailLoading" class="empty">{{ t('crm.shipment.loadingDetails') }}</div>\n        <template v-else-if="detailShipment">\n          <p class="order-context">{{ t('crm.shipment.orderId') }}: {{ detailShipment.salesOrderId }} · {{ label(detailShipment.status) }}</p>\n          <p class="order-context">{{ t('crm.shipment.carrier') }}: {{ detailShipment.carrier || '—' }} · {{ t('crm.shipment.tracking') }}: {{ detailShipment.trackingNumber || '—' }}</p>\n          <div class="table-wrap"><table><thead><tr><th>{{ t('crm.shipment.orderLineId') }}</th><th>{{ t('crm.shipment.quantity') }}</th></tr></thead><tbody><tr v-for="line in detailLines" :key="line.basicId"><td>{{ line.salesOrderLineId }}</td><td>{{ line.quantity }}</td></tr><tr v-if="!detailLines.length"><td colspan="2" class="empty">{{ t('crm.shipment.noLines') }}</td></tr></tbody></table></div>\n        </template>\n      </section>\n    </div>\n\n    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
       <section class="editor">
         <header><h2>{{ t('crm.shipment.newTitle') }}</h2><button type="button" @click="createOpen = false">×</button></header>
         <form @submit.prevent="createShipment">
@@ -249,7 +271,7 @@ th,td{padding:11px 12px;border-bottom:1px solid hsl(var(--border))}th{color:hsl(
 .modal-backdrop{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:20px;background:rgb(0 0 0 / 42%)}
 .editor{width:min(820px,100%);max-height:90vh;overflow:auto;border:1px solid hsl(var(--border));border-radius:12px;padding:20px;background:hsl(var(--card))}
 .editor form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:18px}.editor form>label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:hsl(var(--muted-foreground))}
-.editor form>label input,.editor form>label select{box-sizing:border-box;width:100%;color:hsl(var(--foreground))}.order-context,.line-picker{grid-column:1/-1}.order-context{margin:0;color:hsl(var(--muted-foreground));font-size:12px}
+.editor form>label input,.editor form>label select{box-sizing:border-box;width:100%;color:hsl(var(--foreground))}.detail-editor{width:min(720px,100%)}.detail-editor .table-wrap{margin-top:14px}.order-context,.line-picker{grid-column:1/-1}.order-context{margin:0;color:hsl(var(--muted-foreground));font-size:12px}
 .line-picker{border:1px solid hsl(var(--border));border-radius:8px;padding:12px}.line-heading{font-size:12px;margin-bottom:8px}.line-heading span{color:hsl(var(--muted-foreground))}
 .line-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(110px,auto) minmax(110px,140px);align-items:center;gap:12px;padding:9px 0;border-top:1px solid hsl(var(--border));font-size:12px}
 .line-check{display:flex;align-items:center;gap:8px;min-width:0}.line-check input{width:auto}.line-check span{overflow-wrap:anywhere}.line-row>span{color:hsl(var(--muted-foreground))}.line-row>input{width:100%;box-sizing:border-box}
