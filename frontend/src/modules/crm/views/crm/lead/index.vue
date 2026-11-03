@@ -258,13 +258,13 @@ onMounted(loadPage)
         :placeholder="t('crm.lead.searchPlaceholder')"
         @keydown.enter="search"
       >
-      <select v-model="statusFilter" aria-label="线索状态">
+      <select v-model="statusFilter"  :aria-label="t('crm.lead.status')">
         <option value="">{{ t('crm.lead.allStatuses') }}</option>
-        <option :value="CrmLeadStatus.New">新线索</option>
-        <option :value="CrmLeadStatus.Contacted">已联系</option>
-        <option :value="CrmLeadStatus.Qualified">已确认</option>
-        <option :value="CrmLeadStatus.Disqualified">已淘汰</option>
-        <option :value="CrmLeadStatus.Converted">已转化</option>
+        <option :value="CrmLeadStatus.New">{{ t('crm.lead.new') }}</option>
+        <option :value="CrmLeadStatus.Contacted">{{ t('crm.lead.contacted') }}</option>
+        <option :value="CrmLeadStatus.Qualified">{{ t('crm.lead.qualified') }}</option>
+        <option :value="CrmLeadStatus.Disqualified">{{ t('crm.lead.disqualified') }}</option>
+        <option :value="CrmLeadStatus.Converted">{{ t('crm.lead.converted') }}</option>
       </select>
       <button type="button" @click="search">{{ t('crm.lead.query') }}</button>
       <button type="button" :disabled="loading" @click="loadPage">{{ t('crm.lead.refresh') }}</button>
@@ -326,24 +326,24 @@ onMounted(loadPage)
             <h2>{{ editingId ? t('crm.lead.editTitle') : t('crm.lead.createTitle') }}</h2>
             <p>{{ t('crm.lead.duplicateTip') }}</p>
           </div>
-          <button type="button" aria-label="关闭" @click="editorOpen = false">×</button>
+          <button type="button"  :aria-label="t('common.actions.close')" @click="editorOpen = false">×</button>
         </header>
         <form @submit.prevent="save">
           <label>{{ t('crm.lead.companyRequired') }}<input v-model="form.companyName" required maxlength="200"></label>
-          <label>联系人<input v-model="form.contactName" maxlength="200"></label>
-          <label>邮箱<input v-model="form.email" type="email" maxlength="254"></label>
-          <label>电话<input v-model="form.phone" maxlength="40"></label>
-          <label>网站<input v-model="form.website" type="url" maxlength="500"></label>
-          <label>国家/地区<input v-model="form.countryRegion" maxlength="100"></label>
-          <label>线索来源<input v-model="form.source" maxlength="80"></label>
-          <label>来源备注<input v-model="form.sourceReference" maxlength="500"></label>
+          <label>{{ t('crm.lead.contact') }}<input v-model="form.contactName" maxlength="200"></label>
+          <label>{{ t('crm.lead.emailPhone') }}<input v-model="form.email" type="email" maxlength="254"></label>
+          <label>{{ t('crm.lead.phone') }}<input v-model="form.phone" maxlength="40"></label>
+          <label>{{ t('crm.lead.website') }}<input v-model="form.website" type="url" maxlength="500"></label>
+          <label>{{ t('crm.lead.countryRegion') }}<input v-model="form.countryRegion" maxlength="100"></label>
+          <label>{{ t('crm.lead.source') }}<input v-model="form.source" maxlength="80"></label>
+          <label>{{ t('crm.lead.sourceReference') }}<input v-model="form.sourceReference" maxlength="500"></label>
           <label>{{ t('crm.lead.ownerId') }}<input v-model="form.ownerUserId" inputmode="numeric"></label>
-          <label v-if="editingId">状态
+          <label v-if="editingId">{{ t('crm.lead.status') }}
             <select v-model.number="form.status">
-              <option :value="CrmLeadStatus.New">新线索</option>
-              <option :value="CrmLeadStatus.Contacted">已联系</option>
-              <option :value="CrmLeadStatus.Qualified">已确认</option>
-              <option :value="CrmLeadStatus.Disqualified">已淘汰</option>
+              <option :value="CrmLeadStatus.New">{{ t('crm.lead.new') }}</option>
+              <option :value="CrmLeadStatus.Contacted">{{ t('crm.lead.contacted') }}</option>
+              <option :value="CrmLeadStatus.Qualified">{{ t('crm.lead.qualified') }}</option>
+              <option :value="CrmLeadStatus.Disqualified">{{ t('crm.lead.disqualified') }}</option>
             </select>
           </label>
           <label class="wide">{{ t('crm.lead.notes') }}<textarea v-model="form.notes" rows="3" /></label>
@@ -352,7 +352,7 @@ onMounted(loadPage)
             <strong>{{ t('crm.lead.duplicateFound', { count: duplicateCandidates.length }) }}</strong>
             <ul>
               <li v-for="item in duplicateCandidates" :key="item.candidate.basicId">
-                {{ item.candidate.companyName }} · {{ item.candidate.email || item.candidate.phone || '匹配信息' }}
+                {{ item.candidate.companyName }} · {{ item.candidate.email || item.candidate.phone || t('crm.lead.matchedInfo') }}
                 （{{ item.score }} 分，{{ item.confidence }}）
               </li>
             </ul>
@@ -362,7 +362,7 @@ onMounted(loadPage)
           <footer>
             <button type="button" @click="editorOpen = false">{{ t('crm.lead.cancel') }}</button>
             <button class="primary-button" type="submit" :disabled="submitting">
-              {{ submitting ? '{{ t('crm.lead.saving') }}' : duplicateCandidates.length ? '{{ t('crm.lead.duplicateContinue') }}' : '{{ t('crm.lead.save') }}' }}
+              {{ submitting ? t('crm.lead.saving') : duplicateCandidates.length ? t('crm.lead.duplicateContinue') : t('crm.lead.save') }}
             </button>
           </footer>
         </form>
