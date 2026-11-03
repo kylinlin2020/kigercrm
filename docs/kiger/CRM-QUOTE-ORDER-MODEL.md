@@ -217,3 +217,17 @@ The shipment management page now loads eligible sales orders (Confirmed, Process
 ## Quotation version history UI
 
 The quotation detail query now returns `PreviousVersionId` alongside the converted sales-order reference. The quote page displays the complete commercial line snapshot, terms, notes and conversion reference, and allows navigation to the previous quote version. Users with quote-create permission can start a new revision from Sent, Rejected or Expired quotes. The revision editor copies all source lines and allows editing descriptions, quantities, prices, discounts, tax rates, validity dates, terms and notes; the backend enforces the allowed source status and creates the next immutable version linked by `PreviousVersionId`. The frontend validates line quantities, decimal precision, prices, discount/tax ranges and date order before submission.
+
+
+## Direct sales-order creation
+
+Sales orders may now also be created directly without a source quotation. The transactional Create command:
+
+- Requires CRM Create permission and checks the selected customer's owner data scope.
+- Validates optional contact and opportunity tenant existence, customer relationship, and owner data scope.
+- Defaults the order owner from the customer when the caller does not supply one, then validates assignment scope.
+- Accepts 1–500 commercial lines and calculates quantity, unit price, discount, tax and totals on the server using the same four-decimal input and two-decimal money precision as quotations.
+- Creates the order in Draft state and inserts all line snapshots in the same UnitOfWork.
+- Applies field-security create checks to the order header and each line.
+
+The API contract and frontend API client are wired. The sales-order management page still needs its direct-create form, and runtime/API integration tests plus Windows/PostgreSQL acceptance remain outstanding. Order numbers are caller-supplied and protected by the existing tenant-scoped unique index; a tenant-aware number sequence is still a separate follow-up.
