@@ -37,6 +37,17 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("EnsureUpdatableAsync(typeof(SysCrmShipment)", source, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ShipmentStatusCommand_ShouldNotExposeDispatchOrDeliveryBeforeQuantityLedgerExists()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        Assert.Contains("if (input.Status != (int)CrmShipmentStatus.Cancelled)", source, StringComparison.Ordinal);
+        Assert.Contains("Only cancellation of a draft shipment is currently supported.", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("shipment.Status = CrmShipmentStatus.Dispatched", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("shipment.Status = CrmShipmentStatus.Delivered", source, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
