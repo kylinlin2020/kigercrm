@@ -30,3 +30,9 @@ public sealed class CrmShipmentDto
     public long? OwnerUserId { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
 }
+
+public sealed class CrmShipmentStatusUpdateDto
+{
+    public long Id { get; set; }
+    public int Status { get; set; }
+}
