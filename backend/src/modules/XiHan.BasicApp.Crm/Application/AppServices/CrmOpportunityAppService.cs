@@ -14,7 +14,7 @@ using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Opportunities")]
-public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domainService, ICrmOpportunityRepository records, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
+public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domainService, ICrmOpportunityRepository records, ICrmCustomerRepository customers, ICrmContactRepository contacts, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmOpportunityAppService
 {
     [UnitOfWork(true)]
@@ -23,6 +23,7 @@ public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domain
     {
         ArgumentNullException.ThrowIfNull(input);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
+        await EnsureRelatedRecordsAccessibleAsync(input.CustomerId, input.PrimaryContactId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmOpportunity), input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.CreateAsync(CrmOpportunityCommandMapper.ToCommand(input), cancellationToken));
     }
@@ -36,8 +37,22 @@ public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domain
             ?? throw new InvalidOperationException("CRM record does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
+        await EnsureRelatedRecordsAccessibleAsync(input.CustomerId, input.PrimaryContactId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmOpportunity), input.BasicId, input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.UpdateAsync(CrmOpportunityCommandMapper.ToCommand(input), cancellationToken));
+    }
+
+    private async Task EnsureRelatedRecordsAccessibleAsync(long customerId, long? contactId, CancellationToken cancellationToken)
+    {
+        var customer = await customers.GetByIdAsync(customerId, cancellationToken)
+            ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
+        if (contactId is > 0)
+        {
+            var contact = await contacts.GetByIdAsync(contactId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Primary contact does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
+        }
     }
 
     [UnitOfWork(true)]
