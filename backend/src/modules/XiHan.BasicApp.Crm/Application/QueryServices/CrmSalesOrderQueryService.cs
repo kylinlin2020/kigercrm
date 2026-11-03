@@ -135,6 +135,8 @@ public sealed class CrmSalesOrderQueryService(
             ProductCode = x.ProductCode,
             Description = x.Description,
             Quantity = x.Quantity,
+            ReservedQuantity = x.ReservedQuantity,
+            ShippedQuantity = x.ShippedQuantity,
             Unit = x.Unit,
             UnitPrice = x.UnitPrice,
             DiscountRate = x.DiscountRate,
