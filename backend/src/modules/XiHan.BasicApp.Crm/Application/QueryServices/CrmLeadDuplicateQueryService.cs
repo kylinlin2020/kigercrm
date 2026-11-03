@@ -53,9 +53,9 @@ public sealed class CrmLeadDuplicateQueryService(
 
         var company = NormalizeInput(input.CompanyName);
         var email = CrmLeadDuplicateMatcher.NormalizeEmail(input.Email);
-        var phone = NormalizeInput(input.Phone);
-        var website = NormalizeInput(input.Website);
-        if (company is null && email is null && phone is null && website is null)
+        var phone = CrmLeadDuplicateMatcher.NormalizePhone(input.Phone);
+        var websiteHost = CrmLeadDuplicateMatcher.NormalizeDomain(input.Website);
+        if (company is null && email is null && phone is null && websiteHost is null)
             throw new ArgumentException("At least one lead identity signal is required.", nameof(input));
 
         var source = new SysCrmLead
@@ -63,8 +63,8 @@ public sealed class CrmLeadDuplicateQueryService(
             BasicId = input.ExcludeLeadId ?? 0,
             CompanyName = company ?? string.Empty,
             Email = email,
-            Phone = phone,
-            Website = website
+            Phone = input.Phone,
+            Website = input.Website
         };
 
         var candidates = new Dictionary<long, SysCrmLead>();
@@ -92,11 +92,11 @@ public sealed class CrmLeadDuplicateQueryService(
         }
 
         if (email is not null)
-            await LoadAsync(conditions => conditions.AddFilter((SysCrmLead lead) => lead.Email, email));
+            await LoadAsync(conditions => conditions.AddFilter((SysCrmLead lead) => lead.DuplicateEmailNormalized, email));
         if (phone is not null)
-            await LoadAsync(conditions => conditions.AddFilter((SysCrmLead lead) => lead.Phone, phone));
-        if (website is not null)
-            await LoadAsync(conditions => conditions.AddFilter((SysCrmLead lead) => lead.Website, website));
+            await LoadAsync(conditions => conditions.AddFilter((SysCrmLead lead) => lead.PhoneDigits, phone));
+        if (websiteHost is not null)
+            await LoadAsync(conditions => conditions.AddFilter((SysCrmLead lead) => lead.WebsiteHost, websiteHost));
         if (company is not null)
             await LoadAsync(conditions => conditions.SetKeyword<SysCrmLead>(company, lead => lead.CompanyName));
 
