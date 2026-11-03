@@ -7,9 +7,9 @@ export default {
     "crm_tasks": "작업",
     "crm_activities": "활동 기록",
     "crm_contacts": "연락처",
-    "crm_quotes": "Quotes",
-    "crm_sales_orders": "Sales orders",
-    "crm_shipments": "Shipments"
+    "crm_quotes": "견적",
+    "crm_sales_orders": "판매 주문",
+    "crm_shipments": "배송"
   },
   "crm": {
     "lead": {
