@@ -7,9 +7,9 @@ export default {
     "crm_tasks": "कार्य",
     "crm_activities": "गतिविधियाँ",
     "crm_contacts": "संपर्क",
-    "crm_quotes": "Quotes",
-    "crm_sales_orders": "Sales orders",
-    "crm_shipments": "Shipments"
+    "crm_quotes": "कोटेशन",
+    "crm_sales_orders": "बिक्री ऑर्डर",
+    "crm_shipments": "शिपमेंट"
   },
   "crm": {
     "lead": {
