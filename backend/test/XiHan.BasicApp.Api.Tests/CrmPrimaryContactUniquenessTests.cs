@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using SqlSugar;
 using XiHan.BasicApp.Crm.Domain.Entities;
 
