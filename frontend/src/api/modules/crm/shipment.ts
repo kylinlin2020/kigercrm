@@ -1,5 +1,6 @@
 import type { ApiId, PageResult } from '../../types'
 import type {
+  CrmShipmentCommandResultDto,
   CrmShipmentCreateDto,
   CrmShipmentDetailDto,
   CrmShipmentLineDto,
@@ -15,10 +16,10 @@ const shipmentCommandApi = createDynamicApiClient('CrmShipment')
 
 export const crmShipmentApi = {
   create(input: CrmShipmentCreateDto) {
-    return shipmentCommandApi.post<CrmShipmentDetailDto, CrmShipmentCreateDto>('CrmShipment', input)
+    return shipmentCommandApi.post<CrmShipmentCommandResultDto, CrmShipmentCreateDto>('CrmShipment', input)
   },
   changeStatus(input: CrmShipmentStatusUpdateDto) {
-    return shipmentCommandApi.post<CrmShipmentDetailDto, CrmShipmentStatusUpdateDto>('ChangeStatus', input)
+    return shipmentCommandApi.post<CrmShipmentCommandResultDto, CrmShipmentStatusUpdateDto>('ChangeStatus', input)
   },
   page(input: CrmShipmentPageQueryDto) {
     return shipmentQueryApi.post<PageResult<CrmShipmentListItemDto>, CrmShipmentPageQueryDto>('CrmShipmentPage', input)
