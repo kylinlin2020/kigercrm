@@ -73,6 +73,7 @@ public sealed class CrmShipmentQueryService(
         if (!scope.CanReadOwnedRecord(shipment.OwnerUserId)) return null;
         return new CrmShipmentDetailDto
         {
+            BasicId = shipment.BasicId,
             ShipmentNumber = shipment.ShipmentNumber,
             SalesOrderId = shipment.SalesOrderId,
             Status = (int)shipment.Status,
