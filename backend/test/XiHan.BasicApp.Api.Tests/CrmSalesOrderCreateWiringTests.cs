@@ -98,6 +98,18 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("EnsureUpdatableAsync(typeof(SysCrmSalesOrderLine)", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void DraftUpdate_ShouldKeepQuotationDerivedOrderLineSnapshotsImmutable()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var start = source.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", StringComparison.Ordinal);
+        var end = source.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
+        var method = source[start..end];
+        Assert.Contains("existing.SourceQuoteLineId.HasValue", method, StringComparison.Ordinal);
+        Assert.Contains("Quotation-derived order lines are immutable", method, StringComparison.Ordinal);
+        Assert.Contains("revise the quotation and create a new order", method, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
