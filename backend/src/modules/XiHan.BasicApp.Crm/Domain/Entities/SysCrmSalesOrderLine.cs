@@ -7,6 +7,7 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 /// <summary>Commercial product/service snapshot copied from the source quotation.</summary>
 [SugarTable(TableName = "Crm_Sales_Order_Line", TableDescription = "KIGER CRM sales order line snapshots")]
 [SugarIndex("IX_{table}_TeId_Or_So", nameof(TenantId), OrderByType.Asc, nameof(SalesOrderId), OrderByType.Asc, nameof(SortOrder), OrderByType.Asc)]
+[SugarIndex("UX_{table}_TeId_Or_SqLi_IsDe", nameof(TenantId), OrderByType.Asc, nameof(SalesOrderId), OrderByType.Asc, nameof(SourceQuoteLineId), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
 public sealed class SysCrmSalesOrderLine : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
 {
     [SugarColumn(ColumnName = "Sales_Order_Id", IsNullable = false)]
