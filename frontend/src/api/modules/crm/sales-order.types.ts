@@ -68,3 +68,29 @@ export interface CrmSalesOrderStatusUpdateDto {
   id: ApiId
   status: CrmSalesOrderStatus
 }
+
+export interface CrmSalesOrderLineCreateDto {
+  productCode?: string | null
+  description: string
+  quantity: number
+  unit?: string | null
+  unitPrice: number
+  discountRate: number
+  taxRate: number
+  sortOrder: number
+}
+
+export interface CrmSalesOrderCreateDto {
+  orderNumber: string
+  customerId: ApiId
+  contactId?: ApiId | null
+  opportunityId?: ApiId | null
+  orderDate?: DateTimeString
+  currency: string
+  ownerUserId?: ApiId | null
+  customerPurchaseOrderNumber?: string | null
+  paymentTerms?: string | null
+  deliveryTerms?: string | null
+  notes?: string | null
+  lines: CrmSalesOrderLineCreateDto[]
+}
