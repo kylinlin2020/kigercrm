@@ -35,3 +35,18 @@
 ## 数据库初始化
 
 新增实体由当前 BasicApp CodeFirst 初始化流程创建新表；本次没有修改已有表，因此不新增 PostgreSQL 升级脚本。存量数据库的新表创建行为仍需在真实 PostgreSQL 环境验证。
+
+## Quote creation implementation status
+
+The first application command is now wired:
+
+- `ICrmQuoteAppService.CreateAsync` is a transactional application operation with the CRM create permission.
+- Both quote header and each quote line pass through field-security create checks.
+- Owner assignment is checked against the caller's user data scope.
+- Domain validation resolves customer, contact and opportunity through tenant-aware repositories and verifies contact/opportunity ownership against the selected customer.
+- A draft quote and all line snapshots are inserted in the same UnitOfWork.
+- The server rounds quantity, unit price and rates to persisted precision before computing amounts. Each line subtotal, discount and tax is rounded to two decimals using `MidpointRounding.AwayFromZero`; the header totals are derived from the calculated lines.
+- Quote number is supplied by the caller in this initial slice; the tenant-scoped unique index is the final duplicate guard. A dedicated configurable number sequence is a follow-up item.
+- A maximum of 500 lines is accepted per quote.
+
+This is source implementation, not a completed runtime verification. Query/list/detail, update-as-new-version, status transitions and quote-to-order conversion remain follow-up work.
