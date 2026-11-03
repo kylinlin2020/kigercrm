@@ -22,7 +22,6 @@ public sealed class CrmCustomerAppService(ICrmCustomerDomainService domainServic
     {
         ArgumentNullException.ThrowIfNull(input);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
-        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmCustomer), input, cancellationToken);
         var entity = await domainService.CreateAsync(CrmCustomerCommandMapper.ToCommand(input), cancellationToken);
@@ -34,6 +33,7 @@ public sealed class CrmCustomerAppService(ICrmCustomerDomainService domainServic
     public async Task<CrmCustomerDetailDto> UpdateAsync(CrmCustomerUpdateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmCustomer), input.BasicId, input, cancellationToken);
         var entity = await domainService.UpdateAsync(CrmCustomerCommandMapper.ToCommand(input), cancellationToken);
