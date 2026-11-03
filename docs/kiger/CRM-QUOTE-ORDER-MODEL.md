@@ -207,3 +207,8 @@ The CRM quote application service now exposes `ConvertToSalesOrderAsync`:
 - The complete operation is enclosed in one transactional UnitOfWork. The tenant-scoped unique source-quote index is the database-level guard against concurrent duplicate conversion; a failed insert or optimistic quote update must roll back the order header and all lines.
 
 The sales-order number is deterministically generated from the source quote record ID (`SO-{quoteId}`) so separate accepted quote versions do not collide merely because they share a human quote number. The operation has source-wiring regression coverage only; PostgreSQL concurrency/rollback, compilation and frontend integration remain unverified.
+
+
+## Shipment creation experience
+
+The shipment management page now loads eligible sales orders (Confirmed, Processing, PartiallyShipped) and fetches the selected order's lines. Users can select multiple lines and enter a quantity per line. The page displays each line's currently available quantity (`ordered - reserved - shipped`) and performs a client-side positive-quantity, four-decimal and available-balance check before submitting one multi-line draft shipment. The backend remains authoritative and revalidates every line inside its transactional reservation workflow, including concurrency and ledger constraints. The selector fetches up to 100 eligible orders per status and up to 500 lines for the selected order; very large tenants/orders may require server-side searchable selectors and paging in a later iteration.
