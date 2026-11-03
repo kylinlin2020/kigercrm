@@ -51,6 +51,16 @@ function priorityLabel(priority: number) {
   return t(`crm.task.priority${priority}`)
 }
 
+function relatedTypeLabel(type?: string | null) {
+  switch (type) {
+    case 'customer': return t('crm.task.customer')
+    case 'contact': return t('crm.task.contact')
+    case 'lead': return t('crm.task.lead')
+    case 'opportunity': return t('crm.task.opportunity')
+    default: return '—'
+  }
+}
+
 function resetForm() {
   Object.assign(form, {
     relatedEntityType: '',
@@ -250,7 +260,7 @@ onMounted(loadPage)
         <tbody>
           <tr v-for="row in rows" :key="row.basicId">
             <td><strong>{{ row.title }}</strong></td>
-            <td>{{ row.relatedEntityType || '—' }}</td>
+            <td>{{ relatedTypeLabel(row.relatedEntityType) }}</td>
             <td>{{ row.relatedEntityId || '—' }}</td>
             <td>{{ row.dueAt ? new Date(row.dueAt).toLocaleString() : '—' }}</td>
             <td><span class="status-pill" :data-status="row.status">{{ statusLabel(row.status) }}</span></td>
