@@ -38,6 +38,28 @@ public sealed class CrmQuoteDomainService(
         return await quotes.UpdateAsync(quote, cancellationToken);
     }
 
+    public async Task<SysCrmQuote> CreateRevisionAsync(long sourceQuoteId, CrmQuoteCreateCommand command, CancellationToken cancellationToken = default)
+    {
+        if (sourceQuoteId <= 0) throw new ArgumentOutOfRangeException(nameof(sourceQuoteId));
+        ArgumentNullException.ThrowIfNull(command);
+        var source = await quotes.GetByIdAsync(sourceQuoteId, cancellationToken)
+            ?? throw new InvalidOperationException("Source quote does not exist in the current tenant.");
+        if (source.Status is CrmQuoteStatus.Draft or CrmQuoteStatus.Accepted or CrmQuoteStatus.Converted)
+            throw new InvalidOperationException("Only a sent, rejected or expired quote can be revised.");
+        var revision = command with
+        {
+            QuoteNumber = source.QuoteNumber,
+            CustomerId = source.CustomerId,
+            ContactId = source.ContactId,
+            OpportunityId = source.OpportunityId,
+            Currency = source.Currency,
+            OwnerUserId = source.OwnerUserId,
+            Version = checked(source.Version + 1),
+            PreviousVersionId = source.BasicId
+        };
+        return await CreateAsync(revision, cancellationToken);
+    }
+
     public async Task<SysCrmQuote> CreateAsync(CrmQuoteCreateCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -83,7 +105,8 @@ public sealed class CrmQuoteDomainService(
         var quote = await quotes.AddAsync(new SysCrmQuote
         {
             QuoteNumber = quoteNumber,
-            Version = 1,
+            Version = command.Version,
+            PreviousVersionId = command.PreviousVersionId,
             CustomerId = customer.BasicId,
             ContactId = contact?.BasicId,
             OpportunityId = command.OpportunityId,
