@@ -111,6 +111,9 @@ public sealed class CrmSalesOrderAppService(
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken);
         if (order.Status != CrmSalesOrderStatus.Draft)
             throw new InvalidOperationException("Only draft sales orders can be edited.");
+        if (order.SourceQuoteId.HasValue &&
+            (input.CustomerId != order.CustomerId || input.ContactId != order.ContactId || input.OpportunityId != order.OpportunityId))
+            throw new InvalidOperationException("Customer, contact and opportunity on a quotation-derived order are fixed to the accepted quotation snapshot.");
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmSalesOrder), order.BasicId, input, cancellationToken);
 
         // Serialize edits with shipment reservation/dispatch operations before reading the line ledger.
@@ -187,6 +190,8 @@ public sealed class CrmSalesOrderAppService(
         var currency = NormalizeRequired(input.Currency, 3, nameof(input.Currency)).ToUpperInvariant();
         if (currency.Length != 3 || currency.Any(c => c is < 'A' or > 'Z'))
             throw new ArgumentException("Currency must be a three-letter alphabetic code.", nameof(input.Currency));
+        if (order.SourceQuoteId.HasValue && !string.Equals(currency, order.Currency, StringComparison.Ordinal))
+            throw new InvalidOperationException("Currency on a quotation-derived order is fixed to the accepted quotation snapshot.");
         var updatedLines = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
         order.CustomerId = customer.BasicId;
         order.CustomerNameSnapshot = customer.Name;
