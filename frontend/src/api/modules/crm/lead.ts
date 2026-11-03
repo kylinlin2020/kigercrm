@@ -32,10 +32,10 @@ export const crmLeadApi = {
     return leadCommandApiAction<CrmLeadDetailDto>('Convert', { id })
   },
   detail(id: ApiId) {
-    return leadQueryApi.get<CrmLeadDetailDto | null>('GetDetail', { id })
+    return leadQueryApi.get<CrmLeadDetailDto | null>('CrmLeadDetail', { id })
   },
   page(input: CrmLeadPageQueryDto) {
-    return leadQueryApi.post<PageResult<CrmLeadListItemDto>, CrmLeadPageQueryDto>('GetPage', input)
+    return leadQueryApi.post<PageResult<CrmLeadListItemDto>, CrmLeadPageQueryDto>('CrmLeadPage', input)
   },
   findPotentialDuplicates(input: CrmLeadDuplicateCheckDto) {
     return duplicateQueryApi.post<CrmLeadDuplicateCandidateDto[], CrmLeadDuplicateCheckDto>('FindPotentialDuplicates', input)
