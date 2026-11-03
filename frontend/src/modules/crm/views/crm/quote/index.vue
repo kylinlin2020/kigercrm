@@ -89,7 +89,7 @@ function openRevision() {
   closeDetails(); reviseOpen.value = true
 }
 async function saveRevision() {
-  if (!reviseSourceId.value || !revisionBase.value || reviseLines.value.length === 0 || reviseLines.value.some(line => !line.description.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitPrice) || line.unitPrice < 0)) { toast.warning(t('crm.quote.revisionRequired')); return }
+  if (!reviseSourceId.value || !revisionBase.value || reviseLines.value.length === 0 || !reviseForm.value.issueDate || (reviseForm.value.validUntil && reviseForm.value.validUntil < reviseForm.value.issueDate) || reviseLines.value.some(line => !line.description.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || Math.abs(line.quantity * 10000 - Math.round(line.quantity * 10000)) > 1e-8 || !Number.isFinite(line.unitPrice) || line.unitPrice < 0 || !Number.isFinite(line.discountRate) || line.discountRate < 0 || line.discountRate > 100 || !Number.isFinite(line.taxRate) || line.taxRate < 0 || line.taxRate > 100)) { toast.warning(t('crm.quote.revisionRequired')); return }
   revising.value = true
   try {
     const input: CrmQuoteCreateDto = { quoteNumber: revisionBase.value.quoteNumber, customerId: revisionBase.value.customerId, issueDate: `${reviseForm.value.issueDate}T00:00:00`, validUntil: reviseForm.value.validUntil ? `${reviseForm.value.validUntil}T23:59:59` : null, currency: revisionBase.value.currency, termsAndConditions: reviseForm.value.termsAndConditions || null, notes: reviseForm.value.notes || null, lines: reviseLines.value }
