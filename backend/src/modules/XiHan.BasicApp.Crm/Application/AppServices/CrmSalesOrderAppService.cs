@@ -4,7 +4,9 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Saas.Application.Contracts;
 using XiHan.BasicApp.Saas.Application.QueryServices;
+using XiHan.BasicApp.Saas.Domain.Enums;
 using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
@@ -22,7 +24,8 @@ public sealed class CrmSalesOrderAppService(
     ICrmContactRepository contacts,
     ICrmOpportunityRepository opportunities,
     IFieldSecurityService fieldSecurity,
-    IUserDataScopeFilterService dataScope)
+    IUserDataScopeFilterService dataScope,
+    INumberGenerator numberGenerator)
     : CrmApplicationService, ICrmSalesOrderAppService
 {
     [UnitOfWork(true)]
@@ -63,6 +66,17 @@ public sealed class CrmSalesOrderAppService(
         }
 
         var calculated = input.Lines.Select(CalculateLine).ToArray();
+        if (!string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey))
+        {
+            var allocation = await numberGenerator.GenerateAsync(
+                new NumberGenerateRequest(
+                    CrmNumberingRuleCodes.SalesOrder,
+                    NumberingScope.Auto,
+                    input.NumberingIdempotencyKey,
+                    "CRM_SALES_ORDER"),
+                cancellationToken);
+            number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
+        }
         var order = new SysCrmSalesOrder
         {
             OrderNumber = number,
