@@ -379,3 +379,19 @@ A security audit found that validating only the requested new owner/assignee did
 The shared `CrmAssignmentAuthorization.EnsureRecordAccessibleAsync` denies records with no owner/assignee to restricted scopes, matching the existing query-side `CanReadOwnedRecord` rule. Unrestricted scopes remain unrestricted. Target owner/assignee validation remains separate, so the old and new ownership checks are both applied on reassignment.
 
 A source-wiring regression test now covers every listed mutation endpoint. It has not been executed. This is application-layer protection; repository-level tests and actual database/provider validation remain outstanding.
+
+
+## Lead duplicate matching foundation (2026-11-03)
+
+Added `CrmLeadDuplicateMatcher` as a deterministic, side-effect-free scoring component:
+
+- Exact normalized email: score 100 (high confidence).
+- Phone digits after formatting removal, preserving country-code digits: score 95 (high confidence).
+- Website host comparison, ignoring scheme, `www.`, path and trailing dot: score 90 (high confidence).
+- Normalized company name: score 60 (medium confidence only); company name is never treated as a hard uniqueness key.
+- Empty values never match, current record is excluded, and results are sorted by score and stable record ID.
+- No automatic block or database unique constraint is applied by this matcher.
+
+Unit tests cover email case/whitespace, phone formatting, website host normalization, company-only medium confidence, empty values, self-exclusion and result ordering.
+
+This commit establishes the normalization/scoring engine only. It is not yet exposed as a lead-check API and does not yet retrieve tenant-scoped candidates from the repository. API integration must preserve tenant and owner data scope, field-security rules, paging limits and cancellation before duplicate warnings can be shown in the UI.
