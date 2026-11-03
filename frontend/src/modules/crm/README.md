@@ -7,7 +7,7 @@ This module provides all four CRM management routes registered by the backend `P
 - Opportunity component: `Crm/Opportunity/Index` (`/crm/opportunities`)
 - Task component: `Crm/Task/Index` (`/crm/tasks`)
 - View root: `src/modules/crm/views/crm/<resource>/index.vue`
-- Page routes: `/crm/customers`, `/crm/leads`, `/crm/opportunities`
+- Page routes: `/crm/customers`, `/crm/leads`, `/crm/opportunities`, `/crm/tasks`
 - Page permission: `crm:read` (backend menu permission)
 - Button permissions: resource-scoped `create`, `update`, and `delete`; Leads also use `crm_leads.convert`
 
