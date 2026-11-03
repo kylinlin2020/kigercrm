@@ -7,7 +7,7 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 
 /// <summary>Shipment header recording physical fulfillment independently from the order lifecycle.</summary>
 [SugarTable(TableName = "Crm_Shipment", TableDescription = "KIGER CRM shipment records")]
-[SugarIndex("UX_{table}_TeId_No_IsDe", nameof(TenantId), OrderByType.Asc, nameof(ShipmentNumber), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
+[SugarIndex("UX_{table}_TeId_No", nameof(TenantId), OrderByType.Asc, nameof(ShipmentNumber), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_TeId_Or_Cr", nameof(TenantId), OrderByType.Asc, nameof(SalesOrderId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 public sealed class SysCrmShipment : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
 {
