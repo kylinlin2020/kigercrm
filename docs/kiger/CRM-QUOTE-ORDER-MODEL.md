@@ -178,3 +178,8 @@ The sales-order source-quote and source-quote-line unique indexes are declared i
 
 
 Migration hardening note: duplicate preflight groups by the complete unique-index key, including `IsDeleted`. This is intentional because the declared indexes include the soft-delete flag; multiple historical deleted rows with the same source reference would also prevent index creation and must be reported before migration.
+
+
+## Quote version uniqueness migration
+
+The 5.9.4 PostgreSQL upgrade also installs the entity-declared tenant + quote number + version + IsDeleted unique index for existing databases. It checks the complete key (including soft-deleted history) before index creation. This is the database-level final guard against concurrent revision attempts producing the same version. The migration is guarded for tenant databases where the quote table exists; non-PostgreSQL deployments need equivalent DDL.
