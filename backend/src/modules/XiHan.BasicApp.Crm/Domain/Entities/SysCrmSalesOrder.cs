@@ -33,6 +33,10 @@ public sealed class SysCrmSalesOrder : BasicAppFullAuditedEntity, IStrictMultiTe
     [SugarColumn(ColumnName = "Customer_Name_Snapshot", Length = 200, IsNullable = false)]
     public string CustomerNameSnapshot { get; set; } = string.Empty;
 
+    /// <summary>Incremented by each fulfillment or lifecycle mutation to serialize order-level operations.</summary>
+    [SugarColumn(ColumnName = "Fulfillment_Revision", IsNullable = false, DefaultValue = "0")]
+    public int FulfillmentRevision { get; set; }
+
     [SugarColumn(ColumnName = "Status", IsNullable = false)]
     public CrmSalesOrderStatus Status { get; set; } = CrmSalesOrderStatus.Draft;
 
