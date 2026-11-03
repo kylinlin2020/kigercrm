@@ -331,7 +331,7 @@ onMounted(loadPage)
         <form @submit.prevent="save">
           <label>{{ t('crm.lead.companyRequired') }}<input v-model="form.companyName" required maxlength="200"></label>
           <label>{{ t('crm.lead.contact') }}<input v-model="form.contactName" maxlength="200"></label>
-          <label>{{ t('crm.lead.emailPhone') }}<input v-model="form.email" type="email" maxlength="254"></label>
+          <label>{{ t('crm.lead.email') }}<input v-model="form.email" type="email" maxlength="254"></label>
           <label>{{ t('crm.lead.phone') }}<input v-model="form.phone" maxlength="40"></label>
           <label>{{ t('crm.lead.website') }}<input v-model="form.website" type="url" maxlength="500"></label>
           <label>{{ t('crm.lead.countryRegion') }}<input v-model="form.countryRegion" maxlength="100"></label>
