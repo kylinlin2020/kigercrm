@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CrmLeadCreateDto, CrmLeadDetailDto, CrmLeadListItemDto, CrmLeadUpdateDto } from '@/api'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { createPageRequest, CrmLeadStatus, crmLeadApi } from '@/api'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
@@ -8,6 +9,7 @@ import { usePermission } from '~/hooks'
 defineOptions({ name: 'CrmLeadPage' })
 
 const { hasPermission } = usePermission()
+const { t } = useI18n()
 const loading = ref(false)
 const submitting = ref(false)
 const keyword = ref('')
@@ -43,11 +45,11 @@ const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageS
 
 function statusLabel(status: CrmLeadStatus | number) {
   switch (status) {
-    case CrmLeadStatus.Contacted: return '已联系'
-    case CrmLeadStatus.Qualified: return '已确认'
-    case CrmLeadStatus.Disqualified: return '已淘汰'
-    case CrmLeadStatus.Converted: return '已转化'
-    default: return '新线索'
+    case CrmLeadStatus.Contacted: return t('crm.lead.contacted')
+    case CrmLeadStatus.Qualified: return t('crm.lead.qualified')
+    case CrmLeadStatus.Disqualified: return t('crm.lead.disqualified')
+    case CrmLeadStatus.Converted: return t('crm.lead.converted')
+    default: return t('crm.lead.new')
   }
 }
 
@@ -87,7 +89,7 @@ async function loadPage() {
     totalCount.value = result.page.totalCount
   }
   catch (error) {
-    toast.danger((error as Error)?.message || '线索列表加载失败')
+    toast.danger((error as Error)?.message || t('crm.lead.loadError'))
   }
   finally {
     loading.value = false
@@ -107,7 +109,7 @@ async function openEdit(row: CrmLeadListItemDto) {
   try {
     const detail = await crmLeadApi.detail(row.basicId)
     if (!detail) {
-      toast.warning('线索不存在或无权查看')
+      toast.warning(t('crm.lead.notFound'))
       return
     }
     resetForm()
@@ -128,7 +130,7 @@ async function openEdit(row: CrmLeadListItemDto) {
     editorOpen.value = true
   }
   catch (error) {
-    toast.danger((error as Error)?.message || '线索详情加载失败')
+    toast.danger((error as Error)?.message || t('crm.lead.detailError'))
   }
   finally {
     loading.value = false
@@ -148,7 +150,7 @@ async function checkDuplicates() {
   catch (error) {
     // Duplicate lookup is advisory. A lookup outage must never block an otherwise valid Lead write.
     duplicateCandidates.value = []
-    toast.warning((error as Error)?.message || '重复线索检查暂不可用，仍可继续保存')
+    toast.warning((error as Error)?.message || t('crm.lead.duplicateUnavailable'))
   }
   finally {
     duplicateChecked.value = true
@@ -157,7 +159,7 @@ async function checkDuplicates() {
 
 async function save() {
   if (!form.companyName.trim()) {
-    toast.warning('公司名称不能为空')
+    toast.warning(t('crm.lead.companyEmpty'))
     return
   }
   if (!duplicateChecked.value) {
@@ -185,18 +187,18 @@ async function save() {
         status: form.status,
       }
       await crmLeadApi.update(input)
-      toast.success('线索已更新')
+      toast.success(t('crm.lead.updateSuccess'))
     }
     else {
       const input: CrmLeadCreateDto = common
       await crmLeadApi.create(input)
-      toast.success('线索已创建')
+      toast.success(t('crm.lead.createSuccess'))
     }
     editorOpen.value = false
     await loadPage()
   }
   catch (error) {
-    toast.danger((error as Error)?.message || '保存线索失败')
+    toast.danger((error as Error)?.message || t('crm.lead.saveError'))
   }
   finally {
     submitting.value = false
@@ -205,27 +207,27 @@ async function save() {
 
 async function convert(row: CrmLeadListItemDto) {
   if (!canConvert.value || row.status === CrmLeadStatus.Converted) return
-  if (!window.confirm(`确认将“${row.companyName}”转化为客户吗？`)) return
+  if (!window.confirm(t('crm.lead.confirmConvert', { name: row.companyName }))) return
   try {
     await crmLeadApi.convert(row.basicId)
-    toast.success('线索已转化为客户')
+    toast.success(t('crm.lead.convertSuccess'))
     await loadPage()
   }
   catch (error) {
-    toast.danger((error as Error)?.message || '线索转化失败')
+    toast.danger((error as Error)?.message || t('crm.lead.convertError'))
   }
 }
 
 async function remove(row: CrmLeadListItemDto) {
   if (!canDelete.value) return
-  if (!window.confirm(`确认删除线索“${row.companyName}”吗？`)) return
+  if (!window.confirm(t('crm.lead.confirmDelete', { name: row.companyName }))) return
   try {
     await crmLeadApi.delete(row.basicId)
-    toast.success('线索已删除')
+    toast.success(t('crm.lead.deleteSuccess'))
     await loadPage()
   }
   catch (error) {
-    toast.danger((error as Error)?.message || '删除线索失败')
+    toast.danger((error as Error)?.message || t('crm.lead.deleteError'))
   }
 }
 
@@ -241,47 +243,47 @@ onMounted(loadPage)
   <main class="crm-lead-page">
     <header class="page-header">
       <div>
-        <h1>销售线索</h1>
-        <p>管理潜在客户、检查重复记录，并将合格线索转化为客户。</p>
+        <h1>{{ t('crm.lead.title') }}</h1>
+        <p>{{ t('crm.lead.description') }}</p>
       </div>
       <button v-if="canCreate" class="primary-button" type="button" @click="openCreate">
-        新建线索
+        {{ t('crm.lead.create') }}
       </button>
     </header>
 
-    <section class="toolbar" aria-label="线索筛选">
+    <section class="toolbar"  :aria-label="t('crm.lead.title')">
       <input
         v-model="keyword"
-        aria-label="搜索线索"
-        placeholder="搜索公司、联系人或邮箱"
+         :aria-label="t('crm.lead.searchPlaceholder')"
+        :placeholder="t('crm.lead.searchPlaceholder')"
         @keydown.enter="search"
       >
       <select v-model="statusFilter" aria-label="线索状态">
-        <option value="">全部状态</option>
+        <option value="">{{ t('crm.lead.allStatuses') }}</option>
         <option :value="CrmLeadStatus.New">新线索</option>
         <option :value="CrmLeadStatus.Contacted">已联系</option>
         <option :value="CrmLeadStatus.Qualified">已确认</option>
         <option :value="CrmLeadStatus.Disqualified">已淘汰</option>
         <option :value="CrmLeadStatus.Converted">已转化</option>
       </select>
-      <button type="button" @click="search">查询</button>
-      <button type="button" :disabled="loading" @click="loadPage">刷新</button>
+      <button type="button" @click="search">{{ t('crm.lead.query') }}</button>
+      <button type="button" :disabled="loading" @click="loadPage">{{ t('crm.lead.refresh') }}</button>
     </section>
 
     <section class="table-wrap" aria-live="polite">
-      <div v-if="loading && rows.length === 0" class="empty-state">正在加载线索…</div>
-      <div v-else-if="rows.length === 0" class="empty-state">暂无线索记录</div>
+      <div v-if="loading && rows.length === 0" class="empty-state">{{ t('crm.lead.loading') }}</div>
+      <div v-else-if="rows.length === 0" class="empty-state">{{ t('crm.lead.empty') }}</div>
       <table v-else>
         <thead>
           <tr>
-            <th>公司</th>
-            <th>联系人</th>
-            <th>邮箱 / 电话</th>
-            <th>国家/地区</th>
-            <th>来源</th>
-            <th>状态</th>
-            <th>评分</th>
-            <th>操作</th>
+            <th>{{ t('crm.lead.company') }}</th>
+            <th>{{ t('crm.lead.contact') }}</th>
+            <th>{{ t('crm.lead.emailPhone') }}</th>
+            <th>{{ t('crm.lead.countryRegion') }}</th>
+            <th>{{ t('crm.lead.source') }}</th>
+            <th>{{ t('crm.lead.status') }}</th>
+            <th>{{ t('crm.lead.score') }}</th>
+            <th>{{ t('crm.lead.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -300,9 +302,9 @@ onMounted(loadPage)
             <td><span class="status-pill" :data-status="row.status">{{ statusLabel(row.status) }}</span></td>
             <td>{{ row.score }}</td>
             <td class="actions">
-              <button v-if="canUpdate" type="button" @click="openEdit(row)">编辑</button>
-              <button v-if="canConvert && row.status !== CrmLeadStatus.Converted" type="button" @click="convert(row)">转化</button>
-              <button v-if="canDelete" class="danger-action" type="button" @click="remove(row)">删除</button>
+              <button v-if="canUpdate" type="button" @click="openEdit(row)">{{ t('crm.lead.edit') }}</button>
+              <button v-if="canConvert && row.status !== CrmLeadStatus.Converted" type="button" @click="convert(row)">{{ t('crm.lead.convert') }}</button>
+              <button v-if="canDelete" class="danger-action" type="button" @click="remove(row)">{{ t('crm.lead.delete') }}</button>
             </td>
           </tr>
         </tbody>
@@ -310,24 +312,24 @@ onMounted(loadPage)
     </section>
 
     <footer class="pagination">
-      <span>共 {{ totalCount }} 条 · 第 {{ pageIndex }} / {{ totalPages }} 页</span>
+      <span>{{ t('crm.lead.total', { count: totalCount }) }} · {{ t('crm.lead.page', { current: pageIndex, total: totalPages }) }}</span>
       <div>
-        <button type="button" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">上一页</button>
-        <button type="button" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">下一页</button>
+        <button type="button" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.lead.previous') }}</button>
+        <button type="button" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.lead.next') }}</button>
       </div>
     </footer>
 
     <div v-if="editorOpen" class="modal-backdrop" @click.self="editorOpen = false">
-      <section class="editor" role="dialog" aria-modal="true" :aria-label="editingId ? '编辑销售线索' : '新建销售线索'">
+      <section class="editor" role="dialog" aria-modal="true" :aria-label="editingId ? t('crm.lead.editTitle') : t('crm.lead.createTitle')">
         <header>
           <div>
-            <h2>{{ editingId ? '编辑销售线索' : '新建销售线索' }}</h2>
-            <p>保存前会检查可能重复的线索；重复提示不会阻止正常录入。</p>
+            <h2>{{ editingId ? t('crm.lead.editTitle') : t('crm.lead.createTitle') }}</h2>
+            <p>{{ t('crm.lead.duplicateTip') }}</p>
           </div>
           <button type="button" aria-label="关闭" @click="editorOpen = false">×</button>
         </header>
         <form @submit.prevent="save">
-          <label>公司名称 *<input v-model="form.companyName" required maxlength="200"></label>
+          <label>{{ t('crm.lead.companyRequired') }}<input v-model="form.companyName" required maxlength="200"></label>
           <label>联系人<input v-model="form.contactName" maxlength="200"></label>
           <label>邮箱<input v-model="form.email" type="email" maxlength="254"></label>
           <label>电话<input v-model="form.phone" maxlength="40"></label>
@@ -335,7 +337,7 @@ onMounted(loadPage)
           <label>国家/地区<input v-model="form.countryRegion" maxlength="100"></label>
           <label>线索来源<input v-model="form.source" maxlength="80"></label>
           <label>来源备注<input v-model="form.sourceReference" maxlength="500"></label>
-          <label>负责人用户 ID<input v-model="form.ownerUserId" inputmode="numeric"></label>
+          <label>{{ t('crm.lead.ownerId') }}<input v-model="form.ownerUserId" inputmode="numeric"></label>
           <label v-if="editingId">状态
             <select v-model.number="form.status">
               <option :value="CrmLeadStatus.New">新线索</option>
@@ -344,23 +346,23 @@ onMounted(loadPage)
               <option :value="CrmLeadStatus.Disqualified">已淘汰</option>
             </select>
           </label>
-          <label class="wide">备注<textarea v-model="form.notes" rows="3" /></label>
+          <label class="wide">{{ t('crm.lead.notes') }}<textarea v-model="form.notes" rows="3" /></label>
 
           <aside v-if="duplicateCandidates.length" class="duplicate-notice">
-            <strong>发现 {{ duplicateCandidates.length }} 条可能重复的线索</strong>
+            <strong>{{ t('crm.lead.duplicateFound', { count: duplicateCandidates.length }) }}</strong>
             <ul>
               <li v-for="item in duplicateCandidates" :key="item.candidate.basicId">
                 {{ item.candidate.companyName }} · {{ item.candidate.email || item.candidate.phone || '匹配信息' }}
                 （{{ item.score }} 分，{{ item.confidence }}）
               </li>
             </ul>
-            <small>这是辅助提示，仍可继续保存。</small>
+            <small>{{ t('crm.lead.duplicateHint') }}</small>
           </aside>
 
           <footer>
-            <button type="button" @click="editorOpen = false">取消</button>
+            <button type="button" @click="editorOpen = false">{{ t('crm.lead.cancel') }}</button>
             <button class="primary-button" type="submit" :disabled="submitting">
-              {{ submitting ? '正在保存…' : duplicateCandidates.length ? '确认仍然保存' : '保存线索' }}
+              {{ submitting ? '{{ t('crm.lead.saving') }}' : duplicateCandidates.length ? '{{ t('crm.lead.duplicateContinue') }}' : '{{ t('crm.lead.save') }}' }}
             </button>
           </footer>
         </form>
