@@ -125,6 +125,20 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("Quotation-derived order lines are immutable", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void DraftUpdate_ShouldPreserveQuoteLinkedCustomerContextAndCurrency()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var start = source.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", StringComparison.Ordinal);
+        var end = source.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
+        var method = source[start..end];
+        Assert.Contains("order.SourceQuoteId.HasValue", method, StringComparison.Ordinal);
+        Assert.Contains("input.CustomerId != order.CustomerId", method, StringComparison.Ordinal);
+        Assert.Contains("input.ContactId != order.ContactId", method, StringComparison.Ordinal);
+        Assert.Contains("input.OpportunityId != order.OpportunityId", method, StringComparison.Ordinal);
+        Assert.Contains("currency, order.Currency", method, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
