@@ -131,7 +131,7 @@ public sealed class CrmShipmentAppService(
         var lines = (await shipmentLines.GetByShipmentIdAsync(shipment.BasicId, cancellationToken))
             .OrderBy(line => line.SalesOrderLineId)
             .ToArray();
-        if (lines.Count == 0)
+        if (lines.Length == 0)
             throw new InvalidOperationException("Shipment has no lines and cannot change fulfillment status.");
 
         if (target == CrmShipmentStatus.Cancelled)
