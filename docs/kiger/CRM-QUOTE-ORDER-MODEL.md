@@ -50,3 +50,16 @@ The first application command is now wired:
 - A maximum of 500 lines is accepted per quote.
 
 This is source implementation, not a completed runtime verification. Query/list/detail, update-as-new-version, status transitions and quote-to-order conversion remain follow-up work.
+
+## Quote lifecycle implementation status
+
+The quote application service now also exposes an authorized status-change command:
+
+- `Draft → Sent`
+- `Sent → Accepted`
+- `Sent → Rejected`
+- `Sent → Expired`, only after the configured validity date has passed
+
+The status command requires the CRM execute permission, checks record owner data scope and field-level update access, and runs inside a UnitOfWork. Terminal states cannot be changed through this command. Accepted-to-Converted is intentionally reserved for the atomic quote-to-order conversion workflow; it is not exposed as a manual status update.
+
+Source-wiring tests cover these rules, but have not been executed. Concurrent status changes still require a database-backed concurrency strategy before the workflow is considered production-ready.
