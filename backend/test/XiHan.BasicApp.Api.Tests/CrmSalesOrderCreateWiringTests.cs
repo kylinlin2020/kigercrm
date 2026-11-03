@@ -110,6 +110,21 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("revise the quotation and create a new order", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void DraftUpdate_ShouldCompareQuotationSnapshotFieldsAgainstPersistedSourceMarker()
+    {
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var dto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmSalesOrderUpdateDto.cs");
+        var start = service.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", StringComparison.Ordinal);
+        var end = service.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
+        var method = service[start..end];
+        Assert.Contains("existing.SourceQuoteLineId.HasValue", method, StringComparison.Ordinal);
+        Assert.Contains("existing.UnitPrice != lineInput.UnitPrice", method, StringComparison.Ordinal);
+        Assert.Contains("existing.Quantity != lineInput.Quantity", method, StringComparison.Ordinal);
+        Assert.Contains("SourceQuoteLineId", dto, StringComparison.Ordinal);
+        Assert.Contains("Quotation-derived order lines are immutable", method, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
