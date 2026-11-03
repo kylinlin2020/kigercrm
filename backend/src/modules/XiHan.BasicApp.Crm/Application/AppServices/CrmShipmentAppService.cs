@@ -171,6 +171,9 @@ public sealed class CrmShipmentAppService(
                 throw new InvalidOperationException("The source sales order is not eligible for dispatch.");
             order.FulfillmentRevision++;
             order = await orders.UpdateAsync(order, cancellationToken);
+            // Reload the row-version token after acquiring the aggregate lock before the final status update.
+            order = await orders.GetByIdAsync(order.BasicId, cancellationToken)
+                ?? throw new InvalidOperationException("Source sales order disappeared after its fulfillment lock was acquired.");
 
             foreach (var shipmentLine in lines)
             {
