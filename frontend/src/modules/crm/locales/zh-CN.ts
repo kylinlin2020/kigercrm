@@ -329,7 +329,7 @@ export default {
       "next": "下一页",
       "query": "查询",
       "refresh": "刷新"
-    }
+    },
     "quote": {
       "title": "报价管理", "description": "创建客户报价并管理审核状态。", "create": "新建报价", "search": "搜索报价编号或客户", "allStatuses": "全部状态", "query": "查询", "refresh": "刷新", "loading": "正在加载报价…", "empty": "暂无报价", "number": "报价编号", "customer": "客户", "version": "版本", "status": "状态", "date": "报价日期", "total": "总金额", "actions": "操作", "markSent": "标记已发送", "accept": "接受", "reject": "拒绝", "newTitle": "创建报价", "customerId": "客户 ID", "issueDate": "报价日期", "validUntil": "有效期至", "currency": "币种", "descriptionLine": "明细描述", "quantity": "数量", "unitPrice": "单价", "required": "请填写必填字段，并确保数量和价格有效。", "created": "报价已创建", "saveError": "创建报价失败", "statusSaved": "报价状态已更新", "statusError": "更新报价状态失败", "cancel": "取消", "save": "保存报价", "saving": "正在保存…", "previous": "上一页", "next": "下一页", "totalCount": "共 {count} 条", "page": "第 {current} / {total} 页", "status0": "草稿", "status1": "已发送", "status2": "已接受", "status3": "已拒绝", "status4": "已过期", "status5": "已转订单"
     },
