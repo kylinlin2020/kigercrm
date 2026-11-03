@@ -166,3 +166,7 @@ Manual sales-order status edits can no longer set Processing → PartiallyShippe
 Expanded source-wiring coverage for revision immutability and authorization: revisions build a new command from the source quote identity, create a new Draft header and newly persisted lines, and do not update the original quote record. The application endpoint checks source record visibility, assignable ownership and field-security creation permissions. Runtime behavior and concurrent same-version attempts still require database-backed tests; the tenant/quote/version unique index remains the final duplicate-version guard.
 
 - Added a regression guard confirming the shipment status API exposes cancellation only; it cannot set Dispatched or Delivered until the cumulative shipped-quantity ledger and concurrency-safe dispatch operation exist.
+
+## Sales-order quote-line uniqueness guard
+
+Added a tenant-scoped unique index over sales order + source quote line + deletion state. Together with the existing unique source-quote index on sales-order headers, this prevents a quote line from being copied twice into the same converted order and prevents a second order from being linked to the same quote. Nullable source quote-line values are intended for manually created order lines; database-specific nullable unique-index behavior must be verified on the deployment database.
