@@ -39,8 +39,9 @@ public sealed class CrmSalesOrderAppService(
         {
             CrmSalesOrderStatus.Draft => target is CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Cancelled,
             CrmSalesOrderStatus.Confirmed => target is CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.Cancelled,
-            CrmSalesOrderStatus.Processing => target is CrmSalesOrderStatus.PartiallyShipped or CrmSalesOrderStatus.Completed,
-            CrmSalesOrderStatus.PartiallyShipped => target == CrmSalesOrderStatus.Completed,
+            // Fulfillment-derived states are written only by shipment workflows, never by manual status edits.
+            CrmSalesOrderStatus.Processing => false,
+            CrmSalesOrderStatus.PartiallyShipped => false,
             _ => false
         };
         if (!allowed)
