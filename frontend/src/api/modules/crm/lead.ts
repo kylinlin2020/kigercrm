@@ -11,12 +11,10 @@ import type {
 import {
   createCommandApi,
   createDynamicApiClient,
-  createReadApi,
 } from '../../base'
 
 const leadQueryApi = createDynamicApiClient('CrmLeadQuery')
 const leadCommandApi = createCommandApi<CrmLeadCreateDto, CrmLeadUpdateDto, CrmLeadDetailDto>('CrmLead', 'CrmLead')
-const leadReadApi = createReadApi<CrmLeadListItemDto, CrmLeadDetailDto, CrmLeadPageQueryDto>('CrmLeadQuery', 'CrmLead')
 
 const duplicateQueryApi = createDynamicApiClient('CrmLeadDuplicateQuery')
 
@@ -34,10 +32,10 @@ export const crmLeadApi = {
     return leadCommandApiAction<CrmLeadDetailDto>('Convert', { id })
   },
   detail(id: ApiId) {
-    return leadReadApi.detail(id)
+    return leadQueryApi.get<CrmLeadDetailDto | null>('GetDetail', { id })
   },
   page(input: CrmLeadPageQueryDto) {
-    return leadReadApi.page(input)
+    return leadQueryApi.post<PageResult<CrmLeadListItemDto>, CrmLeadPageQueryDto>('GetPage', input)
   },
   findPotentialDuplicates(input: CrmLeadDuplicateCheckDto) {
     return duplicateQueryApi.post<CrmLeadDuplicateCandidateDto[], CrmLeadDuplicateCheckDto>('FindPotentialDuplicates', input)
