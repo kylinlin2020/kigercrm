@@ -146,3 +146,5 @@ This is persistence groundwork only. No shipment create/dispatch/deliver command
 - The shipment owner defaults to the source order owner and is checked against the caller's assignable data scope.
 
 Important limitation: this creates a Draft manifest only. It does not reserve stock, dispatch goods, mark quantities shipped, or prevent cumulative over-shipment across multiple draft manifests. Dispatch must remain blocked until transactional cumulative shipped-quantity checks and concurrency protection are implemented.
+
+- Added a guarded cancellation command: only Draft shipments can transition to Cancelled; it requires Execute permission, owner-scope access and field-security update authorization. Dispatch/delivery transitions remain intentionally unavailable pending cumulative shipped-quantity validation.
