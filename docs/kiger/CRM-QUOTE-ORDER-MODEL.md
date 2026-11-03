@@ -152,3 +152,11 @@ Important limitation: this creates a Draft manifest only. It does not reserve st
 ## Fulfillment state ownership hardening
 
 Manual sales-order status edits can no longer set Processing → PartiallyShipped/Completed or PartiallyShipped → Completed. These states represent physical fulfillment and must be derived from validated shipment dispatch/delivery operations, not an unrestricted status command. The shipment workflow will own those transitions after cumulative quantity and concurrency protections are complete.
+
+## Immutable quote revision command
+
+- Added a Create-authorized, transactional revision API for an existing quote.
+- Only Sent, Rejected or Expired source quotes can be revised. Draft, Accepted and Converted quotes are rejected.
+- A revision reuses the original quote number and commercial identity (customer, contact, opportunity, currency and owner), increments the version, and records PreviousVersionId.
+- The revised terms, dates, notes and full line set are supplied as a new draft; amounts are recalculated by the existing server-side quote creation domain service.
+- The tenant-scoped unique index on tenant + quote number + version remains the final duplicate-version guard. Concurrent revision attempts for the same source may race; one will be rejected by the database uniqueness constraint. A dedicated version allocator/locking strategy and runtime database verification remain outstanding.
