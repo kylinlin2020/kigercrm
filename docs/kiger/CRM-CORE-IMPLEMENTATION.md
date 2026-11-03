@@ -366,3 +366,16 @@ Validation boundary:
 A follow-up audit across all six application services found the same insertion defect in Customer, Contact, Opportunity, Activity and Task that had first been corrected in Lead: the create method had two identical scope checks and the update method had none. All five services are now corrected so create and update each perform exactly one check. Lead was already corrected in the preceding commit.
 
 The API test project's source-wiring regression now checks both write methods for all six services and excludes Task status-only transitions, which do not change the assignee. This test has not yet been executed; source review confirms the expected guard placement, but compilation and runtime authorization remain open.
+
+
+## Existing-record data-scope enforcement on CRM mutations (2026-11-03)
+
+A security audit found that validating only the requested new owner/assignee did not prevent a caller from addressing another user's existing CRM record by ID. The application layer now loads the current tenant-scoped record and checks its current owner/assignee against the caller's resolved user data scope before mutating it:
+
+- Customer, Contact, Opportunity and Activity: Update and Delete.
+- Lead: Update, Convert and Delete.
+- Task: Update, ChangeStatus and Delete.
+
+The shared `CrmAssignmentAuthorization.EnsureRecordAccessibleAsync` denies records with no owner/assignee to restricted scopes, matching the existing query-side `CanReadOwnedRecord` rule. Unrestricted scopes remain unrestricted. Target owner/assignee validation remains separate, so the old and new ownership checks are both applied on reassignment.
+
+A source-wiring regression test now covers every listed mutation endpoint. It has not been executed. This is application-layer protection; repository-level tests and actual database/provider validation remain outstanding.
