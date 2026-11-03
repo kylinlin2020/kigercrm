@@ -93,6 +93,101 @@ public sealed class CrmSalesOrderAppService(
         return ToListItem(saved);
     }
 
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Update)]
+    public async Task<CrmSalesOrderListItemDto> UpdateDraftAsync(CrmSalesOrderUpdateDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (input.Id <= 0 || input.CustomerId <= 0) throw new ArgumentOutOfRangeException(nameof(input.Id));
+        if (input.Lines is null || input.Lines.Count == 0 || input.Lines.Count > 500)
+            throw new ArgumentException("A sales order requires between 1 and 500 lines.", nameof(input.Lines));
+        if (input.Lines.Any(x => x is null || x.Id <= 0) || input.Lines.Select(x => x.Id).Distinct().Count() != input.Lines.Count)
+            throw new ArgumentException("Every edited order line must have one unique existing line ID.", nameof(input.Lines));
+
+        var order = await repository.GetByIdAsync(input.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Sales order does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken);
+        if (order.Status != CrmSalesOrderStatus.Draft)
+            throw new InvalidOperationException("Only draft sales orders can be edited.");
+        await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmSalesOrder), order.BasicId, input, cancellationToken);
+
+        // Serialize edits with shipment reservation/dispatch operations before reading the line ledger.
+        order.FulfillmentRevision++;
+        order = await repository.UpdateAsync(order, cancellationToken);
+        var existingLines = (await orderLines.ListForOrderAsync(order.BasicId, cancellationToken)).ToDictionary(x => x.BasicId);
+        if (existingLines.Count != input.Lines.Count || input.Lines.Any(x => !existingLines.ContainsKey(x.Id)))
+            throw new InvalidOperationException("The submitted lines must match the current order lines; adding or removing lines is not supported by this edit operation.");
+
+        foreach (var lineInput in input.Lines)
+        {
+            var existing = existingLines[lineInput.Id];
+            if (existing.SalesOrderId != order.BasicId)
+                throw new InvalidOperationException("An order line does not belong to the selected order.");
+            if (existing.ReservedQuantity > 0 || existing.ShippedQuantity > 0)
+                throw new InvalidOperationException("An order with reserved or shipped quantities cannot have its lines edited.");
+            var calculated = CalculateLine(new CrmSalesOrderLineCreateDto
+            {
+                ProductCode = lineInput.ProductCode,
+                Description = lineInput.Description,
+                Quantity = lineInput.Quantity,
+                Unit = lineInput.Unit,
+                UnitPrice = lineInput.UnitPrice,
+                DiscountRate = lineInput.DiscountRate,
+                TaxRate = lineInput.TaxRate,
+                SortOrder = lineInput.SortOrder
+            });
+            calculated.BasicId = existing.BasicId;
+            calculated.SalesOrderId = order.BasicId;
+            calculated.ReservedQuantity = existing.ReservedQuantity;
+            calculated.ShippedQuantity = existing.ShippedQuantity;
+            await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmSalesOrderLine), existing.BasicId, lineInput, cancellationToken);
+            await orderLines.UpdateAsync(calculated, cancellationToken);
+        }
+
+        var customer = await customers.GetByIdAsync(input.CustomerId, cancellationToken)
+            ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
+        if (input.ContactId.HasValue)
+        {
+            var contact = await contacts.GetByIdAsync(input.ContactId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Contact does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
+            if (contact.CustomerId != customer.BasicId)
+                throw new InvalidOperationException("Contact must belong to the selected customer.");
+        }
+        if (input.OpportunityId.HasValue)
+        {
+            var opportunity = await opportunities.GetByIdAsync(input.OpportunityId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Opportunity does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId, cancellationToken);
+            if (opportunity.CustomerId != customer.BasicId)
+                throw new InvalidOperationException("Opportunity must belong to the selected customer.");
+        }
+
+        var currency = NormalizeRequired(input.Currency, 3, nameof(input.Currency)).ToUpperInvariant();
+        if (currency.Length != 3 || currency.Any(c => c is < 'A' or > 'Z'))
+            throw new ArgumentException("Currency must be a three-letter alphabetic code.", nameof(input.Currency));
+        var updatedLines = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
+        order.CustomerId = customer.BasicId;
+        order.CustomerNameSnapshot = customer.Name;
+        order.ContactId = input.ContactId;
+        order.OpportunityId = input.OpportunityId;
+        order.OrderDate = input.OrderDate == default ? order.OrderDate : input.OrderDate;
+        order.Currency = currency;
+        order.Subtotal = updatedLines.Sum(x => x.LineSubtotal);
+        order.DiscountTotal = updatedLines.Sum(x => x.LineDiscount);
+        order.TaxTotal = updatedLines.Sum(x => x.LineTax);
+        order.GrandTotal = updatedLines.Sum(x => x.LineTotal);
+        order.CustomerPurchaseOrderNumber = NormalizeOptional(input.CustomerPurchaseOrderNumber, 100, nameof(input.CustomerPurchaseOrderNumber));
+        order.PaymentTerms = NormalizeOptional(input.PaymentTerms, 500, nameof(input.PaymentTerms));
+        order.DeliveryTerms = NormalizeOptional(input.DeliveryTerms, 500, nameof(input.DeliveryTerms));
+        order.Notes = input.Notes;
+        var saved = await repository.UpdateAsync(order, cancellationToken);
+        return ToListItem(saved);
+    }
+
     private static SysCrmSalesOrderLine CalculateLine(CrmSalesOrderLineCreateDto input)
     {
         ArgumentNullException.ThrowIfNull(input);
