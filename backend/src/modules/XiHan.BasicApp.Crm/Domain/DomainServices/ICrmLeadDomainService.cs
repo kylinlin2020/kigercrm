@@ -6,6 +6,7 @@ public interface ICrmLeadDomainService
 {
     Task<SysCrmLead> CreateAsync(CrmLeadCreateCommand command, CancellationToken cancellationToken = default);
     Task<SysCrmLead> UpdateAsync(CrmLeadUpdateCommand command, CancellationToken cancellationToken = default);
+    Task<SysCrmLead> ConvertAsync(long id, CancellationToken cancellationToken = default);
     Task DeleteAsync(long id, CancellationToken cancellationToken = default);
 }
 
