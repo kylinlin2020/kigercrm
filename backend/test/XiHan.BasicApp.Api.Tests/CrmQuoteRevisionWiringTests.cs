@@ -26,6 +26,29 @@ public sealed class CrmQuoteRevisionWiringTests
         Assert.Contains("CrmQuoteStatus.Converted", domain, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void RevisionDomain_ShouldKeepSourceImmutableAndCreateFreshDraftLines()
+    {
+        var domain = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "DomainServices", "Implementations", "CrmQuoteDomainService.cs");
+        Assert.Contains("var revision = command with", domain, StringComparison.Ordinal);
+        Assert.Contains("return await CreateAsync(revision, cancellationToken)", domain, StringComparison.Ordinal);
+        Assert.Contains("Status = CrmQuoteStatus.Draft", domain, StringComparison.Ordinal);
+        Assert.Contains("foreach (var line in calculated)", domain, StringComparison.Ordinal);
+        Assert.Contains("line.QuoteId = quote.BasicId", domain, StringComparison.Ordinal);
+        Assert.Contains("await quoteLines.AddAsync(line, cancellationToken)", domain, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RevisionEndpoint_ShouldValidateSourceOwnerAndFieldSecurity()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        Assert.Contains("records.GetByIdAsync(sourceQuoteId, cancellationToken)", app, StringComparison.Ordinal);
+        Assert.Contains("EnsureRecordAccessibleAsync(dataScope, source.OwnerUserId", app, StringComparison.Ordinal);
+        Assert.Contains("EnsureAssignableAsync(dataScope, source.OwnerUserId", app, StringComparison.Ordinal);
+        Assert.Contains("EnsureCreatableAsync(typeof(SysCrmQuoteLine)", app, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
