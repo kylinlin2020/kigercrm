@@ -4,7 +4,8 @@ export default {
     "crm_customers": "ग्राहक",
     "crm_leads": "बिक्री लीड",
     "crm_opportunities": "अवसर",
-    "crm_tasks": "कार्य"
+    "crm_tasks": "कार्य",
+    "crm_contacts": "संपर्क"
   },
   "crm": {
     "lead": {
@@ -227,6 +228,50 @@ export default {
       "priority3": "सामान्य",
       "priority4": "उच्च",
       "priority5": "अत्यावश्यक"
+    },
+    "contact": {
+      "title": "संपर्क",
+      "description": "ग्राहक खातों से जुड़े लोगों, भूमिकाओं और संपर्क माध्यमों का प्रबंधन करें।",
+      "create": "नया संपर्क",
+      "search": "नाम, ईमेल, फ़ोन या WhatsApp खोजें",
+      "customerId": "ग्राहक ID",
+      "loading": "संपर्क लोड हो रहे हैं…",
+      "empty": "कोई संपर्क रिकॉर्ड नहीं",
+      "name": "नाम",
+      "firstName": "पहला नाम",
+      "lastName": "उपनाम",
+      "jobTitle": "पद",
+      "email": "ईमेल",
+      "phone": "फ़ोन",
+      "whatsApp": "WhatsApp",
+      "primary": "प्राथमिक संपर्क",
+      "yes": "हाँ",
+      "ownerId": "मालिक उपयोगकर्ता ID",
+      "notes": "नोट्स",
+      "actions": "कार्रवाइयाँ",
+      "edit": "संपादित करें",
+      "delete": "हटाएँ",
+      "newTitle": "संपर्क बनाएँ",
+      "editTitle": "संपर्क संपादित करें",
+      "save": "संपर्क सहेजें",
+      "saving": "सहेजा जा रहा है…",
+      "cancel": "रद्द करें",
+      "requiredFields": "ग्राहक ID, पहला नाम और उपनाम आवश्यक हैं",
+      "loadError": "संपर्क लोड नहीं हो सके",
+      "detailError": "संपर्क विवरण लोड नहीं हो सके",
+      "saveError": "संपर्क सहेजा नहीं जा सका",
+      "createSuccess": "संपर्क बनाया गया",
+      "updateSuccess": "संपर्क अपडेट किया गया",
+      "deleteSuccess": "संपर्क हटाया गया",
+      "deleteError": "संपर्क हटाया नहीं जा सका",
+      "confirmDelete": "संपर्क “{name}” हटाएँ?",
+      "notFound": "संपर्क नहीं मिला या पहुँच अस्वीकृत",
+      "total": "{count} रिकॉर्ड",
+      "page": "पृष्ठ {current} / {total}",
+      "previous": "पिछला",
+      "next": "अगला",
+      "query": "खोजें",
+      "refresh": "रीफ़्रेश"
     }
   }
 }
