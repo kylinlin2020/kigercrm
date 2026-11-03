@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, dev, kiger-dev]
   pull_request:
-    branches: [main, dev]
+    branches: [main, dev, kiger-dev]
 
 # 同一分支上新推送取消尚未完成的旧运行
 concurrency:
@@ -70,7 +70,7 @@ jobs:
           package_json_file: frontend/package.json
 
       # 本仓库不跟踪 pnpm-lock.yaml，缓存键改用版本事实源：catalog 所在的
-      # pnpm-workspace.yaml 与入口清单 package.json，二者任一变动即失效重装。
+      # pnpm-workspace.yaml 与入口清单 package.json，二者任一变动即失效重装
       - name: 安装 Node
         uses: actions/setup-node@v7
         with:
