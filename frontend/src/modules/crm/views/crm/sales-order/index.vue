@@ -33,7 +33,7 @@ async function createOrder(){
 }
 
 
-function newEditLine():CrmSalesOrderLineUpdateDto{return {id:0,productCode:'',description:'',quantity:1,unit:'',unitPrice:0,discountRate:0,taxRate:0,sortOrder:editLines.value.length}}
+function newEditLine():CrmSalesOrderLineUpdateDto{return {id:'0',productCode:'',description:'',quantity:1,unit:'',unitPrice:0,discountRate:0,taxRate:0,sortOrder:editLines.value.length}}
 function addEditLine(){if(!editQuoteLinked.value&&editLines.value.length<500)editLines.value.push(newEditLine())}
 function removeEditLine(index:number){if(editLines.value.length>1&&!editLines.value[index]?.sourceQuoteLineId)editLines.value.splice(index,1)}
 async function openEdit(row:CrmSalesOrderListItemDto){
