@@ -32,7 +32,8 @@ public sealed class CrmShipmentCreationWiringTests
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", source, StringComparison.Ordinal);
         Assert.Contains("shipment.Status != CrmShipmentStatus.Draft", source, StringComparison.Ordinal);
-        Assert.Contains("shipment.Status = CrmShipmentStatus.Cancelled", source, StringComparison.Ordinal);
+        Assert.Contains("target == CrmShipmentStatus.Cancelled", source, StringComparison.Ordinal);
+        Assert.Contains("shipment.Status = target", source, StringComparison.Ordinal);
         Assert.Contains("EnsureRecordAccessibleAsync", source, StringComparison.Ordinal);
         Assert.Contains("EnsureUpdatableAsync(typeof(SysCrmShipment)", source, StringComparison.Ordinal);
     }
