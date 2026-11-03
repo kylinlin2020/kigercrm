@@ -54,8 +54,8 @@ public sealed class CrmOpportunityQueryService(
         if (input.Conditions?.Sorts is { Count: > 0 } sorts) _ = request.Conditions.AddSorts(sorts);
         if (input.Conditions?.Filters is { Count: > 0 } filters) _ = request.Conditions.AddFilters(filters);
 
-        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmOpportunity x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
         await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmOpportunity), cancellationToken);
+        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmOpportunity x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
         if (request.Conditions.Sorts.Count == 0)
             request.Conditions.AddSort((SysCrmOpportunity x) => x.CreatedTime, SortDirection.Descending, 0);
 
