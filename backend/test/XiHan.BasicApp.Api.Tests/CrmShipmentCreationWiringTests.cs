@@ -50,6 +50,8 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("CrmShipmentStatus.Delivered", source, StringComparison.Ordinal);
         Assert.Contains("orders.UpdateAsync(order", source, StringComparison.Ordinal);
         Assert.Contains("ListForOrderAsync", source, StringComparison.Ordinal);
+        Assert.Contains("order.FulfillmentRevision++", source, StringComparison.Ordinal);
+        Assert.Contains("orders.UpdateAsync(order", source, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
