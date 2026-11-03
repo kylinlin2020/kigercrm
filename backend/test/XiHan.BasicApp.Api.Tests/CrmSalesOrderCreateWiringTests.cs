@@ -167,6 +167,39 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("CreateNoTenantQueryable()", repository, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void FulfillmentMutations_ShouldUseAuditedRowVersionedAggregateUpdates()
+    {
+        var orderEntity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrder.cs");
+        var orderLineEntity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrderLine.cs");
+        var shipmentEntity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmShipment.cs");
+        var shipmentLineEntity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmShipmentLine.cs");
+        var orderService = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var shipmentService = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        Assert.Contains(": BasicAppFullAuditedEntity", orderEntity, StringComparison.Ordinal);
+        Assert.Contains(": BasicAppFullAuditedEntity", orderLineEntity, StringComparison.Ordinal);
+        Assert.Contains(": BasicAppFullAuditedEntity", shipmentEntity, StringComparison.Ordinal);
+        Assert.Contains(": BasicAppFullAuditedEntity", shipmentLineEntity, StringComparison.Ordinal);
+        Assert.Contains("repository.UpdateAsync(order, cancellationToken)", orderService, StringComparison.Ordinal);
+        Assert.Contains("orders.UpdateAsync(order, cancellationToken)", shipmentService, StringComparison.Ordinal);
+        Assert.Contains("shipments.UpdateAsync(shipment, cancellationToken)", shipmentService, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ShipmentDispatch_ShouldReloadOrderRowVersionAfterAggregateLock()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var start = source.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", StringComparison.Ordinal);
+        var end = source.IndexOf("else\n        {", start, StringComparison.Ordinal);
+        var dispatch = source[start..end];
+        var lockUpdate = dispatch.IndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal);
+        var reload = dispatch.IndexOf("orders.GetByIdAsync(order.BasicId, cancellationToken)", StringComparison.Ordinal);
+        var lineMutation = dispatch.IndexOf("orderLine.ReservedQuantity -= shipmentLine.Quantity", StringComparison.Ordinal);
+        var finalUpdate = dispatch.LastIndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal);
+        Assert.True(lockUpdate >= 0 && reload > lockUpdate && lineMutation > reload && finalUpdate > lineMutation);
+        Assert.Contains("row-version token after acquiring the aggregate lock", dispatch, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
