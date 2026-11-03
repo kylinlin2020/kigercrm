@@ -2,7 +2,7 @@
   <!-- 项目属性 -->
   <PropertyGroup>
     <!-- 设置程序集的版本信息 -->
-    <AssemblyVersion>5.9.3</AssemblyVersion>
+    <AssemblyVersion>5.9.5</AssemblyVersion>
     <FileVersion>5.9.3</FileVersion>
     <Version>5.9.3</Version>
   </PropertyGroup>
