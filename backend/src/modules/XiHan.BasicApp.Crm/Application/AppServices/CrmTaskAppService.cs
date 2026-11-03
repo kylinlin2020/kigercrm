@@ -4,6 +4,7 @@ using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Application.Mappers;
 using XiHan.BasicApp.Crm.Domain.DomainServices;
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.Framework.Application.Attributes;
@@ -11,7 +12,7 @@ using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Tasks")]
-public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
+public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, ICrmTaskRepository records, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmTaskAppService
 {
     [UnitOfWork(true)]
@@ -28,6 +29,9 @@ public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFiel
     public async Task<CrmTaskDto> UpdateAsync(CrmTaskUpdateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        var existing = await records.GetByIdAsync(input.BasicId, cancellationToken)
+            ?? throw new InvalidOperationException("CRM record does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.AssigneeUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.AssigneeUserId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmTask), input.BasicId, input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.UpdateAsync(input.BasicId, CrmTaskCommandMapper.ToCommand(input), cancellationToken));
@@ -37,10 +41,19 @@ public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFiel
     public async Task<CrmTaskDto> ChangeStatusAsync(CrmTaskStatusUpdateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        var existing = await records.GetByIdAsync(input.Id, cancellationToken)
+            ?? throw new InvalidOperationException("CRM record does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.AssigneeUserId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmTask), input.Id, input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.ChangeStatusAsync(input.Id, input.Status, cancellationToken));
     }
     [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Delete)]
-    public Task DeleteAsync(long id, CancellationToken cancellationToken = default) => domainService.DeleteAsync(id, cancellationToken);
+    public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var existing = await records.GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException("CRM record does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.AssigneeUserId, cancellationToken);
+        await domainService.DeleteAsync(id, cancellationToken);
+    }
 }
