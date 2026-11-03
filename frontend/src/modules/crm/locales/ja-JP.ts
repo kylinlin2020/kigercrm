@@ -4,7 +4,8 @@ export default {
     "crm_customers": "顧客",
     "crm_leads": "営業リード",
     "crm_opportunities": "商談",
-    "crm_tasks": "タスク"
+    "crm_tasks": "タスク",
+    "crm_contacts": "連絡先"
   },
   "crm": {
     "lead": {
@@ -227,6 +228,50 @@ export default {
       "priority3": "通常",
       "priority4": "高",
       "priority5": "緊急"
+    },
+    "contact": {
+      "title": "連絡先",
+      "description": "顧客アカウントに紐づく担当者、役職、連絡先情報を管理します。",
+      "create": "連絡先を追加",
+      "search": "氏名、メール、電話、WhatsAppで検索",
+      "customerId": "顧客 ID",
+      "loading": "連絡先を読み込み中…",
+      "empty": "連絡先がありません",
+      "name": "氏名",
+      "firstName": "名",
+      "lastName": "姓",
+      "jobTitle": "役職",
+      "email": "メール",
+      "phone": "電話",
+      "whatsApp": "WhatsApp",
+      "primary": "主担当者",
+      "yes": "はい",
+      "ownerId": "担当者ユーザー ID",
+      "notes": "メモ",
+      "actions": "操作",
+      "edit": "編集",
+      "delete": "削除",
+      "newTitle": "連絡先を作成",
+      "editTitle": "連絡先を編集",
+      "save": "連絡先を保存",
+      "saving": "保存中…",
+      "cancel": "キャンセル",
+      "requiredFields": "顧客 ID、名、姓は必須です",
+      "loadError": "連絡先を読み込めませんでした",
+      "detailError": "連絡先の詳細を読み込めませんでした",
+      "saveError": "連絡先を保存できませんでした",
+      "createSuccess": "連絡先を作成しました",
+      "updateSuccess": "連絡先を更新しました",
+      "deleteSuccess": "連絡先を削除しました",
+      "deleteError": "連絡先を削除できませんでした",
+      "confirmDelete": "連絡先「{name}」を削除しますか？",
+      "notFound": "連絡先が見つからないか、アクセス権がありません",
+      "total": "{count} 件",
+      "page": "{current} / {total} ページ",
+      "previous": "前へ",
+      "next": "次へ",
+      "query": "検索",
+      "refresh": "更新"
     }
   }
 }
