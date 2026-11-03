@@ -12,7 +12,7 @@ using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Tasks")]
-public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, ICrmTaskRepository records, ICrmCustomerRepository customers, ICrmContactRepository contacts, ICrmLeadRepository leads, ICrmOpportunityRepository opportunities, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
+public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, ICrmTaskRepository records, ICrmCustomerRepository customers, ICrmContactRepository contacts, ICrmLeadRepository leads, ICrmOpportunityRepository opportunities, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope, IOperationPermissionGuard permissionGuard)
     : CrmApplicationService, ICrmTaskAppService
 {
     [UnitOfWork(true)]
@@ -33,6 +33,7 @@ public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, ICrmT
         var existing = await records.GetByIdAsync(input.BasicId, cancellationToken)
             ?? throw new InvalidOperationException("CRM record does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.AssigneeUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureTransferPermissionAsync(permissionGuard, existing.AssigneeUserId, input.AssigneeUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.AssigneeUserId, cancellationToken);
         await EnsureRelatedRecordAccessibleAsync(input.RelatedEntityType, input.RelatedEntityId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmTask), input.BasicId, input, cancellationToken);
