@@ -14,7 +14,7 @@ using XiHan.BasicApp.Saas.Application.Services;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Customers")]
-public sealed class CrmCustomerAppService(ICrmCustomerDomainService domainService, ICrmCustomerRepository records, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
+public sealed class CrmCustomerAppService(ICrmCustomerDomainService domainService, ICrmCustomerRepository records, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope, IOperationPermissionGuard permissionGuard)
     : CrmApplicationService, ICrmCustomerAppService
 {
     [UnitOfWork(true)]
@@ -37,6 +37,7 @@ public sealed class CrmCustomerAppService(ICrmCustomerDomainService domainServic
         var existing = await records.GetByIdAsync(input.BasicId, cancellationToken)
             ?? throw new InvalidOperationException("CRM record does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureTransferPermissionAsync(permissionGuard, existing.OwnerUserId, input.OwnerUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmCustomer), input.BasicId, input, cancellationToken);
