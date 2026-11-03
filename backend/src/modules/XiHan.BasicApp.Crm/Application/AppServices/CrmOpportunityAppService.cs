@@ -1,3 +1,4 @@
+using XiHan.BasicApp.Saas.Application.QueryServices;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Application.Mappers;
@@ -12,7 +13,7 @@ using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Opportunities")]
-public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domainService, IFieldSecurityService fieldSecurity)
+public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domainService, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmOpportunityAppService
 {
     [UnitOfWork(true)]
@@ -20,6 +21,8 @@ public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domain
     public async Task<CrmOpportunityDto> CreateAsync(CrmOpportunityCreateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmOpportunity), input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.CreateAsync(CrmOpportunityCommandMapper.ToCommand(input), cancellationToken));
     }
