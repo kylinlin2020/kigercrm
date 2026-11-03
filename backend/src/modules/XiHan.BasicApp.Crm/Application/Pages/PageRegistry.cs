@@ -18,6 +18,9 @@ public static class PageRegistry
         new("crm_leads", "Leads", "menu.crm_leads", MenuType.Menu, "/crm/leads", "CrmLead", "Crm/Lead/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:user-round-search", 520),
         new("crm_opportunities", "Opportunities", "menu.crm_opportunities", MenuType.Menu, "/crm/opportunities", "CrmOpportunity", "Crm/Opportunity/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:chart-no-axes-combined", 530),
         new("crm_tasks", "Tasks", "menu.crm_tasks", MenuType.Menu, "/crm/tasks", "CrmTask", "Crm/Task/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:list-checks", 540),
+        new("crm_quotes", "Quotes", "menu.crm_quotes", MenuType.Menu, "/crm/quotes", "CrmQuote", "Crm/Quote/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:file-text", 550),
+        new("crm_sales_orders", "Sales Orders", "menu.crm_sales_orders", MenuType.Menu, "/crm/sales-orders", "CrmSalesOrder", "Crm/SalesOrder/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:shopping-cart", 560),
+        new("crm_shipments", "Shipments", "menu.crm_shipments", MenuType.Menu, "/crm/shipments", "CrmShipment", "Crm/Shipment/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:truck", 570),
     ];
 
     public static IReadOnlyList<ButtonDescriptor> Buttons { get; } =
@@ -41,5 +44,10 @@ public static class PageRegistry
         new("crm_tasks.create", "Create", "crm_tasks", CrmPermissionCodes.Create, 1),
         new("crm_tasks.update", "Edit", "crm_tasks", CrmPermissionCodes.Update, 2),
         new("crm_tasks.delete", "Delete", "crm_tasks", CrmPermissionCodes.Delete, 3),
+        new("crm_quotes.create", "Create", "crm_quotes", CrmPermissionCodes.Create, 1),
+        new("crm_quotes.execute", "Execute", "crm_quotes", CrmPermissionCodes.Execute, 2),
+        new("crm_sales_orders.execute", "Execute", "crm_sales_orders", CrmPermissionCodes.Execute, 1),
+        new("crm_shipments.create", "Create", "crm_shipments", CrmPermissionCodes.Create, 1),
+        new("crm_shipments.execute", "Execute", "crm_shipments", CrmPermissionCodes.Execute, 2),
     ];
 }
