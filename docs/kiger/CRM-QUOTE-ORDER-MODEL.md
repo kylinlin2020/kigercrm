@@ -175,3 +175,6 @@ Added a tenant-scoped unique index over sales order + source quote line + deleti
 ## Existing-database index migration
 
 The sales-order source-quote and source-quote-line unique indexes are declared in entity metadata for new databases. Existing databases are not altered by CodeFirst, so PostgreSQL migration `5.9.4/5.9.4.sql` creates both indexes after checking for duplicate active source links. If duplicates exist, startup migration fails with an actionable exception instead of silently installing an incomplete uniqueness guarantee. PostgreSQL is the repository's supported migration dialect; other database engines require equivalent deployment migrations. The indexes allow multiple manually entered lines/orders with NULL source references under PostgreSQL NULL-distinct unique-index semantics.
+
+
+Migration hardening note: duplicate preflight groups by the complete unique-index key, including `IsDeleted`. This is intentional because the declared indexes include the soft-delete flag; multiple historical deleted rows with the same source reference would also prevent index creation and must be reported before migration.
