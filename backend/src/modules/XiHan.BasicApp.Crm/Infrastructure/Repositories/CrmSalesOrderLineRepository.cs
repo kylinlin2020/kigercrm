@@ -1,13 +1,21 @@
+using System.Linq.Expressions;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Repositories;
-using XiHan.BasicApp.Saas.Infrastructure.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using XiHan.Framework.Data.SqlSugar.Repository;
 
 namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 
-/// <summary>SqlSugar implementation; tenant and soft-delete filters come from SaasRepository.</summary>
+/// <summary>SqlSugar implementation with tenant filters and audited soft deletion.</summary>
 public sealed class CrmSalesOrderLineRepository(ISqlSugarClientResolver clientResolver)
-    : SaasRepository<SysCrmSalesOrderLine>(clientResolver), ICrmSalesOrderLineRepository {
+    : SqlSugarSoftDeleteRepository<SysCrmSalesOrderLine, long>(clientResolver), ICrmSalesOrderLineRepository
+{
+    public async Task<bool> AnyIgnoreTenantAsync(Expression<Func<SysCrmSalesOrderLine, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(predicate);
+        cancellationToken.ThrowIfCancellationRequested();
+        return await CreateNoTenantQueryable().Where(predicate).AnyAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<SysCrmSalesOrderLine>> ListForOrderAsync(long orderId, CancellationToken cancellationToken = default)
     {
