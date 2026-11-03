@@ -51,6 +51,7 @@ public sealed class CrmRelatedRecordDataScopeTests
         var source = Read("CrmQuoteAppService.cs");
         Assert.Contains("EnsureRelatedRecordsAccessibleAsync(input.CustomerId, input.ContactId, input.OpportunityId", source, StringComparison.Ordinal);
         Assert.Contains("EnsureRelatedRecordsAccessibleAsync(source.CustomerId, source.ContactId, source.OpportunityId", source, StringComparison.Ordinal);
+        Assert.Contains("EnsureRelatedRecordsAccessibleAsync(quote.CustomerId, quote.ContactId, quote.OpportunityId", source, StringComparison.Ordinal);
         Assert.Contains("customers.GetByIdAsync(customerId", source, StringComparison.Ordinal);
         Assert.Contains("contacts.GetByIdAsync(contactId.Value", source, StringComparison.Ordinal);
         Assert.Contains("opportunities.GetByIdAsync(opportunityId.Value", source, StringComparison.Ordinal);
