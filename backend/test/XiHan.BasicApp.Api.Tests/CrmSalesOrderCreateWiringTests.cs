@@ -82,7 +82,8 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Update)]", method, StringComparison.Ordinal);
         Assert.Contains("order.Status != CrmSalesOrderStatus.Draft", method, StringComparison.Ordinal);
         Assert.Contains("existing.ReservedQuantity > 0 || existing.ShippedQuantity > 0", method, StringComparison.Ordinal);
-        Assert.Contains("submitted lines must match the current order lines", method, StringComparison.Ordinal);
+        Assert.Contains("Existing order line IDs must be unique and new lines must use ID zero", method, StringComparison.Ordinal);
+        Assert.Contains("An edited order line does not belong to the selected order", method, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -137,6 +138,31 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("input.ContactId != order.ContactId", method, StringComparison.Ordinal);
         Assert.Contains("input.OpportunityId != order.OpportunityId", method, StringComparison.Ordinal);
         Assert.Contains("currency, order.Currency", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DraftUpdate_ShouldSoftDeleteOnlyUnreservedManualLinesAndAddNewLines()
+    {
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var start = service.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", StringComparison.Ordinal);
+        var end = service.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
+        var method = service[start..end];
+        Assert.Contains("var addedLineCount = input.Lines.Count(x => x.Id == 0)", method, StringComparison.Ordinal);
+        Assert.Contains("removedLines.Any(x => x.ReservedQuantity > 0 || x.ShippedQuantity > 0)", method, StringComparison.Ordinal);
+        Assert.Contains("removedLines.Any(x => x.SourceQuoteLineId.HasValue)", method, StringComparison.Ordinal);
+        Assert.Contains("await orderLines.SoftDeleteAsync(removed, cancellationToken)", method, StringComparison.Ordinal);
+        Assert.Contains("await orderLines.AddAsync(added, cancellationToken)", method, StringComparison.Ordinal);
+        Assert.Contains("order.SourceQuoteId.HasValue && (removedLines.Length > 0 || addedLineCount > 0)", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SalesOrderLineRepository_ShouldUseAuditedSoftDeleteImplementation()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmSalesOrderLineRepository.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmSalesOrderLineRepository.cs");
+        Assert.Contains("ISoftDeleteRepositoryBase<SysCrmSalesOrderLine, long>", contract, StringComparison.Ordinal);
+        Assert.Contains("SqlSugarSoftDeleteRepository<SysCrmSalesOrderLine, long>", repository, StringComparison.Ordinal);
+        Assert.Contains("CreateNoTenantQueryable()", repository, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
