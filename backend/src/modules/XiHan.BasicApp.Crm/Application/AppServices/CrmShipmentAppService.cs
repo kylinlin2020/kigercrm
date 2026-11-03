@@ -52,8 +52,11 @@ public sealed class CrmShipmentAppService(
         order.FulfillmentRevision++;
         order = await orders.UpdateAsync(order, cancellationToken);
 
-        var resolvedLines = new List<SysCrmSalesOrderLine>(input.Lines.Count);
-        foreach (var requested in input.Lines)
+        // Acquire order-line optimistic locks in a stable key order to reduce deadlocks
+        // when concurrent multi-line shipments overlap on the same sales order.
+        var requestedLines = input.Lines.OrderBy(line => line.SalesOrderLineId).ToArray();
+        var resolvedLines = new List<SysCrmSalesOrderLine>(requestedLines.Length);
+        foreach (var requested in requestedLines)
         {
             var orderLine = await orderLines.GetByIdAsync(requested.SalesOrderLineId, cancellationToken)
                 ?? throw new InvalidOperationException($"Sales-order line {requested.SalesOrderLineId} does not exist in the current tenant.");
@@ -82,13 +85,13 @@ public sealed class CrmShipmentAppService(
         };
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmShipment), input, cancellationToken);
         var saved = await shipments.AddAsync(shipment, cancellationToken);
-        for (var i = 0; i < input.Lines.Count; i++)
+        for (var i = 0; i < requestedLines.Length; i++)
         {
             var line = new SysCrmShipmentLine
             {
                 ShipmentId = saved.BasicId,
                 SalesOrderLineId = resolvedLines[i].BasicId,
-                Quantity = input.Lines[i].Quantity
+                Quantity = requestedLines[i].Quantity
             };
             await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmShipmentLine), line, cancellationToken);
             await shipmentLines.AddAsync(line, cancellationToken);
@@ -125,7 +128,9 @@ public sealed class CrmShipmentAppService(
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmShipment), input.Id, input, cancellationToken);
 
         var target = (CrmShipmentStatus)input.Status;
-        var lines = await shipmentLines.GetByShipmentIdAsync(shipment.BasicId, cancellationToken);
+        var lines = (await shipmentLines.GetByShipmentIdAsync(shipment.BasicId, cancellationToken))
+            .OrderBy(line => line.SalesOrderLineId)
+            .ToArray();
         if (lines.Count == 0)
             throw new InvalidOperationException("Shipment has no lines and cannot change fulfillment status.");
 
