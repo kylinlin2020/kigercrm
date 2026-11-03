@@ -222,3 +222,21 @@ Validation and policy gaps:
 - Primary-contact uniqueness per customer is not yet enforced; it needs a transactional rule and concurrency-safe test before production.
 - Owner assignment authorization, data-scope behavior and soft-delete semantics still require integration tests.
 - Lead commands/conversion, migrations, frontend and Go CRM integration remain pending.
+
+
+## Lead command workflow increment (2026-11-03)
+
+This section supersedes earlier delivery-status bullets that described Customer/Contact/Lead command APIs as pending.
+
+Implemented on `kiger-dev`:
+- Lead create/update DTOs, application contract, command mapper and application service.
+- Lead domain command interface and implementation for create/update/delete.
+- Create/update enforce CRM permissions, unit-of-work boundaries and field-security guards.
+- Lead creation initializes status to `New` and score to `0`; score remains system-managed rather than client-controlled.
+- Lead update validates lifecycle values and does not permit clients to set `Converted`; converted leads cannot be edited or deleted through generic CRUD.
+- Email is trimmed and normalized to lowercase; optional field lengths and positive owner IDs are validated.
+
+Remaining limitations:
+- Lead conversion into Customer/Contact is not implemented yet. The generic CRUD path deliberately cannot mark a lead converted.
+- Duplicate detection, owner assignment authorization and data-scope policy still need explicit enforcement and integration tests.
+- No successful .NET restore/build/test or database execution is claimed. As requested, final pull/build/test validation remains for the user's actual machine.
