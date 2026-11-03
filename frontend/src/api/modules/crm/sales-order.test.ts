@@ -23,6 +23,12 @@ describe('crmSalesOrderApi', () => {
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrderQuery/CrmSalesOrderLinesPage', lines, undefined)
   })
 
+  it('uses the direct order creation command route', async () => {
+    const input = { orderNumber: 'SO-MANUAL-1', customerId: '5', currency: 'USD', lines: [{ description: 'Generator', quantity: 2, unitPrice: 100 }] } as never
+    await crmSalesOrderApi.create(input)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrder/Create', input, undefined)
+  })
+
   it('uses the order lifecycle command route', async () => {
     const input = { id: '9', status: 1 } as never
     await crmSalesOrderApi.changeStatus(input)
