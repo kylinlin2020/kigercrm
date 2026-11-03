@@ -12,7 +12,7 @@ const totalPages=computed(()=>Math.max(1,Math.ceil(totalCount.value/pageSize)));
 
 const canCreate=computed(()=>hasPermission('crm_sales_orders.create'))
 const customerOptions=ref<CrmCustomerListItemDto[]>([]); const contactOptions=ref<CrmContactListItemDto[]>([]); const opportunityOptions=ref<CrmOpportunityListItemDto[]>([]); const customerSearch=ref(''); const loadingRelations=ref(false)
-const createOpen=ref(false); const saving=ref(false); const createIdempotencyKey=ref('') const editOpen=ref(false); const editSaving=ref(false); const editForm=ref({id:'',customerId:'',contactId:'',opportunityId:'',orderDate:'',currency:'USD',customerPurchaseOrderNumber:'',paymentTerms:'',deliveryTerms:'',notes:''}); const editLines=ref<CrmSalesOrderLineUpdateDto[]>([]); const editQuoteLinked=ref(false); let customerSearchRequest=0; let relationRequest=0
+const createOpen=ref(false); const saving=ref(false); const createIdempotencyKey=ref(''); const editOpen=ref(false); const editSaving=ref(false); const editForm=ref({id:'',customerId:'',contactId:'',opportunityId:'',orderDate:'',currency:'USD',customerPurchaseOrderNumber:'',paymentTerms:'',deliveryTerms:'',notes:''}); const editLines=ref<CrmSalesOrderLineUpdateDto[]>([]); const editQuoteLinked=ref(false); let customerSearchRequest=0; let relationRequest=0
 const form=ref({orderNumber:'',customerId:'',contactId:'',opportunityId:'',orderDate:new Date().toISOString().slice(0,10),currency:'USD',customerPurchaseOrderNumber:'',paymentTerms:'',deliveryTerms:'',notes:''})
 function newLine():CrmSalesOrderLineCreateDto{return {productCode:'',description:'',quantity:1,unit:'',unitPrice:0,discountRate:0,taxRate:0,sortOrder:0}}
 const draftLines=ref<CrmSalesOrderLineCreateDto[]>([newLine()])
