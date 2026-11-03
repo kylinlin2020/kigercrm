@@ -7,6 +7,7 @@ import type {
   CrmSalesOrderListItemDto,
   CrmSalesOrderPageQueryDto,
   CrmSalesOrderStatusUpdateDto,
+  CrmSalesOrderUpdateDto,
 } from './sales-order.types'
 import { createDynamicApiClient } from '../../base'
 
@@ -17,7 +18,7 @@ export const crmSalesOrderApi = {
   create(input: CrmSalesOrderCreateDto) {
     return orderCommandApi.post<CrmSalesOrderListItemDto, CrmSalesOrderCreateDto>('Create', input)
   },
-  page(input: CrmSalesOrderPageQueryDto) {
+  updateDraft(input: CrmSalesOrderUpdateDto) {\n    return orderCommandApi.post<CrmSalesOrderListItemDto, CrmSalesOrderUpdateDto>('UpdateDraft', input)\n  },\n  page(input: CrmSalesOrderPageQueryDto) {
     return orderQueryApi.post<PageResult<CrmSalesOrderListItemDto>, CrmSalesOrderPageQueryDto>('CrmSalesOrderPage', input)
   },
   detail(id: ApiId) {
