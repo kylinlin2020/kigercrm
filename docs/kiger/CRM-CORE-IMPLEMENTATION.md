@@ -359,3 +359,10 @@ Validation boundary:
 - Corrected Lead create/update assignment authorization: Create now performs exactly one owner-scope check; Update now performs the same check before field-security validation and domain mutation.
 - Added a source-wiring regression test covering Customer, Contact, Lead, Opportunity, Activity and Task create/update methods. It asserts exactly one owner/assignee scope check per write endpoint, catching both missing and duplicated checks.
 - This is a static source-wiring test; it has been committed but not executed. Runtime authorization and compilation remain unverified until CI or the requested Windows machine validation.
+
+
+## Full CRM assignment guard audit correction (2026-11-03)
+
+A follow-up audit across all six application services found the same insertion defect in Customer, Contact, Opportunity, Activity and Task that had first been corrected in Lead: the create method had two identical scope checks and the update method had none. All five services are now corrected so create and update each perform exactly one check. Lead was already corrected in the preceding commit.
+
+The API test project's source-wiring regression now checks both write methods for all six services and excludes Task status-only transitions, which do not change the assignee. This test has not yet been executed; source review confirms the expected guard placement, but compilation and runtime authorization remain open.
