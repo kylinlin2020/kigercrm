@@ -1,0 +1,76 @@
+<script setup lang="ts">
+import type { CrmQuoteListItemDto } from '@/api'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { createPageRequest, CrmQuoteStatus, crmQuoteApi } from '@/api'
+import { toast } from '~/composables'
+import { usePermission } from '~/hooks'
+
+defineOptions({ name: 'CrmQuotePage' })
+const { t } = useI18n()
+const { hasPermission } = usePermission()
+const rows = ref<CrmQuoteListItemDto[]>([])
+const loading = ref(false)
+const keyword = ref('')
+const status = ref<CrmQuoteStatus | ''>('')
+const pageIndex = ref(1)
+const totalCount = ref(0)
+const pageSize = 20
+const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize)))
+const canCreate = computed(() => hasPermission('crm_quotes.create'))
+const canExecute = computed(() => hasPermission('crm_quotes.execute'))
+const createOpen = ref(false)
+const saving = ref(false)
+const form = ref({ quoteNumber: '', customerId: '', issueDate: new Date().toISOString().slice(0, 10), validUntil: '', currency: 'USD', description: '', quantity: '1', unitPrice: '0' })
+
+async function loadPage() {
+  loading.value = true
+  try {
+    const page = createPageRequest({ page: { pageIndex: pageIndex.value, pageSize } })
+    const result = await crmQuoteApi.page({ ...page, keyword: keyword.value.trim() || null, status: status.value === '' ? null : status.value })
+    rows.value = result.items
+    totalCount.value = result.page.totalCount
+  }
+  catch (error) { toast.danger((error as Error)?.message || t('crm.quote.loadError')) }
+  finally { loading.value = false }
+}
+function search() { pageIndex.value = 1; void loadPage() }
+async function createQuote() {
+  const quantity = Number(form.value.quantity)
+  const unitPrice = Number(form.value.unitPrice)
+  if (!form.value.quoteNumber.trim() || !form.value.customerId.trim() || !form.value.description.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0) {
+    toast.warning(t('crm.quote.required')); return
+  }
+  saving.value = true
+  try {
+    await crmQuoteApi.create({
+      quoteNumber: form.value.quoteNumber.trim(), customerId: form.value.customerId.trim(),
+      issueDate: `${form.value.issueDate}T00:00:00`, validUntil: form.value.validUntil ? `${form.value.validUntil}T23:59:59` : null,
+      currency: form.value.currency.trim().toUpperCase(),
+      lines: [{ description: form.value.description.trim(), quantity, unitPrice, discountRate: 0, taxRate: 0, sortOrder: 0 }],
+    })
+    toast.success(t('crm.quote.created')); createOpen.value = false; await loadPage()
+  }
+  catch (error) { toast.danger((error as Error)?.message || t('crm.quote.saveError')) }
+  finally { saving.value = false }
+}
+async function changeStatus(row: CrmQuoteListItemDto, next: CrmQuoteStatus) {
+  try { await crmQuoteApi.changeStatus({ id: row.basicId, status: next }); toast.success(t('crm.quote.statusSaved')); await loadPage() }
+  catch (error) { toast.danger((error as Error)?.message || t('crm.quote.statusError')) }
+}
+function statusLabel(value: number) { return t(`crm.quote.status${value}`) }
+onMounted(loadPage)
+</script>
+
+<template>
+  <main class="crm-workflow-page">
+    <header class="page-header"><div><h1>{{ t('crm.quote.title') }}</h1><p>{{ t('crm.quote.description') }}</p></div><button v-if="canCreate" class="primary-button" @click="createOpen = true">{{ t('crm.quote.create') }}</button></header>
+    <section class="toolbar"><input v-model="keyword" :placeholder="t('crm.quote.search')" @keydown.enter="search"><select v-model="status"><option value="">{{ t('crm.quote.allStatuses') }}</option><option v-for="s in [0,1,2,3,4,5]" :key="s" :value="s">{{ statusLabel(s) }}</option></select><button @click="search">{{ t('crm.quote.query') }}</button><button :disabled="loading" @click="loadPage">{{ t('crm.quote.refresh') }}</button></section>
+    <section class="table-wrap"><div v-if="loading && !rows.length" class="empty">{{ t('crm.quote.loading') }}</div><div v-else-if="!rows.length" class="empty">{{ t('crm.quote.empty') }}</div><table v-else><thead><tr><th>{{ t('crm.quote.number') }}</th><th>{{ t('crm.quote.customer') }}</th><th>{{ t('crm.quote.version') }}</th><th>{{ t('crm.quote.status') }}</th><th>{{ t('crm.quote.date') }}</th><th>{{ t('crm.quote.total') }}</th><th>{{ t('crm.quote.actions') }}</th></tr></thead><tbody><tr v-for="row in rows" :key="row.basicId"><td>{{ row.quoteNumber }}</td><td>{{ row.customerNameSnapshot }} (#{{ row.customerId }})</td><td>{{ row.version }}</td><td>{{ statusLabel(row.status) }}</td><td>{{ new Date(row.issueDate).toLocaleDateString() }}</td><td>{{ row.grandTotal.toLocaleString() }} {{ row.currency }}</td><td class="actions"><button v-if="canExecute && row.status === CrmQuoteStatus.Draft" @click="changeStatus(row, CrmQuoteStatus.Sent)">{{ t('crm.quote.markSent') }}</button><button v-if="canExecute && row.status === CrmQuoteStatus.Sent" @click="changeStatus(row, CrmQuoteStatus.Accepted)">{{ t('crm.quote.accept') }}</button><button v-if="canExecute && row.status === CrmQuoteStatus.Sent" @click="changeStatus(row, CrmQuoteStatus.Rejected)">{{ t('crm.quote.reject') }}</button></td></tr></tbody></table></section>
+    <footer class="pagination"><span>{{ t('crm.quote.total', { count: totalCount }) }} · {{ t('crm.quote.page', { current: pageIndex, total: totalPages }) }}</span><div><button :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.quote.previous') }}</button><button :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.quote.next') }}</button></div></footer>
+    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false"><section class="editor"><header><h2>{{ t('crm.quote.newTitle') }}</h2><button @click="createOpen = false">×</button></header><form @submit.prevent="createQuote"><label>{{ t('crm.quote.number') }} *<input v-model="form.quoteNumber" required maxlength="40"></label><label>{{ t('crm.quote.customerId') }} *<input v-model="form.customerId" required inputmode="numeric"></label><label>{{ t('crm.quote.issueDate') }} *<input v-model="form.issueDate" type="date" required></label><label>{{ t('crm.quote.validUntil') }}<input v-model="form.validUntil" type="date"></label><label>{{ t('crm.quote.currency') }}<input v-model="form.currency" maxlength="3" required></label><label>{{ t('crm.quote.descriptionLine') }} *<input v-model="form.description" required maxlength="500"></label><label>{{ t('crm.quote.quantity') }} *<input v-model="form.quantity" type="number" min="0.0001" step="0.0001" required></label><label>{{ t('crm.quote.unitPrice') }} *<input v-model="form.unitPrice" type="number" min="0" step="0.01" required></label><footer><button type="button" @click="createOpen = false">{{ t('crm.quote.cancel') }}</button><button class="primary-button" type="submit" :disabled="saving">{{ saving ? t('crm.quote.saving') : t('crm.quote.save') }}</button></footer></form></section></div>
+  </main>
+</template>
+<style scoped>
+.crm-workflow-page{display:flex;flex-direction:column;gap:16px;min-height:100%;padding:20px;color:hsl(var(--foreground))}.page-header,.toolbar,.pagination,.editor header,.editor footer{display:flex;align-items:center;justify-content:space-between;gap:12px}.page-header h1,.editor h2{margin:0;font-size:20px;font-weight:650}.page-header p{margin:5px 0 0;color:hsl(var(--muted-foreground));font-size:12px}button,input,select{font:inherit}button{border:1px solid hsl(var(--border));border-radius:7px;padding:7px 11px;background:hsl(var(--card));cursor:pointer}button:disabled{opacity:.55}.primary-button{background:hsl(var(--primary));color:hsl(var(--primary-foreground))}.toolbar{justify-content:flex-start;flex-wrap:wrap}.toolbar input,.toolbar select,.editor input{border:1px solid hsl(var(--border));border-radius:7px;padding:8px 10px;background:hsl(var(--card));color:inherit}.table-wrap{overflow:auto;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--card))}table{width:100%;border-collapse:collapse;min-width:800px;text-align:left;font-size:13px}th,td{padding:11px 12px;border-bottom:1px solid hsl(var(--border))}th{color:hsl(var(--muted-foreground));font-size:11px}.actions{white-space:nowrap}.actions button{margin-right:4px;font-size:11px}.empty{padding:44px;text-align:center;color:hsl(var(--muted-foreground))}.pagination{font-size:12px;color:hsl(var(--muted-foreground))}.pagination div{display:flex;gap:6px}.modal-backdrop{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:20px;background:rgb(0 0 0 / 42%)}.editor{width:min(720px,100%);max-height:90vh;overflow:auto;border:1px solid hsl(var(--border));border-radius:12px;padding:20px;background:hsl(var(--card))}.editor form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:18px}.editor label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:hsl(var(--muted-foreground))}.editor label input{box-sizing:border-box;width:100%;color:hsl(var(--foreground))}.editor form footer{grid-column:1/-1;justify-content:flex-end}@media(max-width:680px){.crm-workflow-page{padding:12px}.editor form{grid-template-columns:1fr}.editor form footer{grid-column:auto}}
+</style>
