@@ -10,7 +10,7 @@ public sealed class CrmCustomerPageQueryDto : BasicAppPRDto
     public long? OwnerUserId { get; set; }
 }
 
-public sealed class CrmCustomerListItemDto : BasicAppDto
+public class CrmCustomerListItemDto : BasicAppDto
 {
     public string Name { get; set; } = string.Empty;
     public string? Website { get; set; }
