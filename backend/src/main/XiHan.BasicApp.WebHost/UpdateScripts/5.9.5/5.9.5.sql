@@ -16,6 +16,19 @@ BEGIN
         FROM information_schema.tables
         WHERE table_schema = current_schema()
           AND table_name = 'crm_sales_order_line'
+    ) AND EXISTS (
+        SELECT 1
+        FROM crm_sales_order_line
+        WHERE quantity <= 0
+    ) THEN
+        RAISE EXCEPTION 'CRM migration 5.9.5 blocked: sales-order lines with non-positive quantities exist. Correct the legacy quantities, then retry.';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = current_schema()
+          AND table_name = 'crm_sales_order_line'
     ) AND NOT EXISTS (
         SELECT 1
         FROM pg_constraint
