@@ -63,6 +63,8 @@ public sealed class CrmQuoteCreationWiringTests
         Assert.Contains("NumberingIdempotencyKey", dto, StringComparison.Ordinal);
         Assert.Contains("INumberGenerator numberGenerator", service, StringComparison.Ordinal);
         Assert.Contains("CrmNumberingRuleCodes.Quote", service, StringComparison.Ordinal);
+        Assert.Contains("NumberingScope.Auto", service, StringComparison.Ordinal);
+        Assert.Contains('"CRM_QUOTE"', service, StringComparison.Ordinal);
         Assert.Contains("command = command with { QuoteNumber = allocation.Numbers.Single() }", service, StringComparison.Ordinal);
     }
 
