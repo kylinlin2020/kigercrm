@@ -13,6 +13,7 @@ public sealed class CrmContactDomainService(ICrmContactRepository contacts, ICrm
         var entity = new SysCrmContact();
         Apply(entity, command.FirstName, command.LastName, command.JobTitle, command.Email, command.Phone, command.WhatsApp, command.OwnerUserId, command.IsPrimary, command.Notes);
         entity.CustomerId = command.CustomerId;
+        entity.PrimaryCustomerId = command.IsPrimary ? command.CustomerId : null;
         return await contacts.AddAsync(entity, cancellationToken);
     }
 
@@ -26,6 +27,7 @@ public sealed class CrmContactDomainService(ICrmContactRepository contacts, ICrm
             ?? throw new InvalidOperationException("Contact does not exist.");
         Apply(entity, command.FirstName, command.LastName, command.JobTitle, command.Email, command.Phone, command.WhatsApp, command.OwnerUserId, command.IsPrimary, command.Notes);
         entity.CustomerId = command.CustomerId;
+        entity.PrimaryCustomerId = command.IsPrimary ? command.CustomerId : null;
         return await contacts.UpdateAsync(entity, cancellationToken);
     }
 
