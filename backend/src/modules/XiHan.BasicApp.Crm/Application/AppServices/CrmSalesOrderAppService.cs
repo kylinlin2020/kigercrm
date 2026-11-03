@@ -121,6 +121,9 @@ public sealed class CrmSalesOrderAppService(
         // Serialize edits with shipment reservation/dispatch operations before reading the line ledger.
         order.FulfillmentRevision++;
         order = await repository.UpdateAsync(order, cancellationToken);
+        // Reload the persisted row-version token before the final order-header update.
+        order = await repository.GetByIdAsync(order.BasicId, cancellationToken)
+            ?? throw new InvalidOperationException("Sales order disappeared after its fulfillment lock was acquired.");
         var existingLines = (await orderLines.ListForOrderAsync(order.BasicId, cancellationToken)).ToDictionary(x => x.BasicId);
         if (input.Lines.Any(x => x.Id > 0 && !existingLines.ContainsKey(x.Id)))
             throw new InvalidOperationException("An edited order line does not belong to the selected order.");
