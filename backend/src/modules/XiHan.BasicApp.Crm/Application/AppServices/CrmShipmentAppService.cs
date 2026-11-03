@@ -101,6 +101,39 @@ public sealed class CrmShipmentAppService(
         };
     }
 
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmShipmentDto> ChangeStatusAsync(CrmShipmentStatusUpdateDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.Id <= 0) throw new ArgumentOutOfRangeException(nameof(input.Id));
+        if (input.Status != (int)CrmShipmentStatus.Cancelled)
+            throw new InvalidOperationException("Only cancellation of a draft shipment is currently supported.");
+
+        var shipment = await shipments.GetByIdAsync(input.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Shipment does not exist in the current tenant.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, shipment.OwnerUserId, cancellationToken);
+        await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmShipment), input.Id, input, cancellationToken);
+        if (shipment.Status != CrmShipmentStatus.Draft)
+            throw new InvalidOperationException("Only a draft shipment can be cancelled.");
+
+        shipment.Status = CrmShipmentStatus.Cancelled;
+        var saved = await shipments.UpdateAsync(shipment, cancellationToken);
+        return new CrmShipmentDto
+        {
+            BasicId = saved.BasicId,
+            ShipmentNumber = saved.ShipmentNumber,
+            SalesOrderId = saved.SalesOrderId,
+            Status = (int)saved.Status,
+            ShipmentDate = saved.ShipmentDate,
+            Carrier = saved.Carrier,
+            TrackingNumber = saved.TrackingNumber,
+            OwnerUserId = saved.OwnerUserId,
+            CreatedTime = saved.CreatedTime
+        };
+    }
+
     private static string NormalizeRequired(string value, int maxLength, string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
