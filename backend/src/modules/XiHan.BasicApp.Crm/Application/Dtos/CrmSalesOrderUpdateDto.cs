@@ -3,6 +3,7 @@ namespace XiHan.BasicApp.Crm.Application.Dtos;
 public sealed class CrmSalesOrderLineUpdateDto
 {
     public long Id { get; set; }
+    public long? SourceQuoteLineId { get; set; }
     public string? ProductCode { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
