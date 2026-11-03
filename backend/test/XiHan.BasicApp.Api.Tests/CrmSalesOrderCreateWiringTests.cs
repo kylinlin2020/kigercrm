@@ -71,6 +71,33 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("CrmSalesOrderStatus.PartiallyShipped", dispatch, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void DraftUpdate_ShouldRequireUpdatePermissionAndRejectNonDraftOrders()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var start = source.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", StringComparison.Ordinal);
+        var end = source.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
+        var method = source[start..end];
+        Assert.Contains("[UnitOfWork(true)]", method, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Update)]", method, StringComparison.Ordinal);
+        Assert.Contains("order.Status != CrmSalesOrderStatus.Draft", method, StringComparison.Ordinal);
+        Assert.Contains("existing.ReservedQuantity > 0 || existing.ShippedQuantity > 0", method, StringComparison.Ordinal);
+        Assert.Contains("submitted lines must match the current order lines", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DraftUpdate_ShouldRecalculateTotalsAndPreserveExistingLineIdentity()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var start = source.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", StringComparison.Ordinal);
+        var end = source.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
+        var method = source[start..end];
+        Assert.Contains("existing.LineSubtotal = calculated.LineSubtotal", method, StringComparison.Ordinal);
+        Assert.Contains("existing.ReservedQuantity", method, StringComparison.Ordinal);
+        Assert.Contains("updatedLines.Sum(x => x.LineTotal)", method, StringComparison.Ordinal);
+        Assert.Contains("EnsureUpdatableAsync(typeof(SysCrmSalesOrderLine)", method, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
