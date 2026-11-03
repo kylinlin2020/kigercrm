@@ -22,7 +22,6 @@ public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domain
     {
         ArgumentNullException.ThrowIfNull(input);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
-        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmOpportunity), input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.CreateAsync(CrmOpportunityCommandMapper.ToCommand(input), cancellationToken));
     }
@@ -32,6 +31,7 @@ public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domain
     public async Task<CrmOpportunityDto> UpdateAsync(CrmOpportunityUpdateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmOpportunity), input.BasicId, input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.UpdateAsync(CrmOpportunityCommandMapper.ToCommand(input), cancellationToken));
     }
