@@ -57,8 +57,11 @@ public sealed class CrmShipmentAppService(
                 throw new InvalidOperationException("Every shipment line must belong to the selected sales order.");
             if (decimal.Round(requested.Quantity, 4, MidpointRounding.AwayFromZero) != requested.Quantity)
                 throw new ArgumentOutOfRangeException(nameof(input.Lines), "Shipment quantities support at most four decimal places.");
-            if (requested.Quantity > orderLine.Quantity)
-                throw new InvalidOperationException("A shipment line quantity cannot exceed the ordered quantity.");
+            var availableQuantity = orderLine.Quantity - orderLine.ReservedQuantity - orderLine.ShippedQuantity;
+            if (requested.Quantity > availableQuantity)
+                throw new InvalidOperationException("Shipment quantity exceeds the remaining unshipped and unreserved order quantity.");
+            orderLine.ReservedQuantity += requested.Quantity;
+            await orderLines.UpdateAsync(orderLine, cancellationToken);
             resolvedLines.Add(orderLine);
         }
 
@@ -94,6 +97,7 @@ public sealed class CrmShipmentAppService(
             SalesOrderId = saved.SalesOrderId,
             Status = (int)saved.Status,
             ShipmentDate = saved.ShipmentDate,
+            DeliveredDate = saved.DeliveredDate,
             Carrier = saved.Carrier,
             TrackingNumber = saved.TrackingNumber,
             OwnerUserId = saved.OwnerUserId,
@@ -108,17 +112,69 @@ public sealed class CrmShipmentAppService(
     {
         ArgumentNullException.ThrowIfNull(input);
         if (input.Id <= 0) throw new ArgumentOutOfRangeException(nameof(input.Id));
-        if (input.Status != (int)CrmShipmentStatus.Cancelled)
-            throw new InvalidOperationException("Only cancellation of a draft shipment is currently supported.");
+        if (input.Status is not ((int)CrmShipmentStatus.Cancelled) and not ((int)CrmShipmentStatus.Dispatched) and not ((int)CrmShipmentStatus.Delivered))
+            throw new ArgumentOutOfRangeException(nameof(input.Status));
 
         var shipment = await shipments.GetByIdAsync(input.Id, cancellationToken)
             ?? throw new InvalidOperationException("Shipment does not exist in the current tenant.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, shipment.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmShipment), input.Id, input, cancellationToken);
-        if (shipment.Status != CrmShipmentStatus.Draft)
-            throw new InvalidOperationException("Only a draft shipment can be cancelled.");
 
-        shipment.Status = CrmShipmentStatus.Cancelled;
+        var target = (CrmShipmentStatus)input.Status;
+        var lines = await shipmentLines.GetByShipmentIdAsync(shipment.BasicId, cancellationToken);
+        if (lines.Count == 0)
+            throw new InvalidOperationException("Shipment has no lines and cannot change fulfillment status.");
+
+        if (target == CrmShipmentStatus.Cancelled)
+        {
+            if (shipment.Status != CrmShipmentStatus.Draft)
+                throw new InvalidOperationException("Only a draft shipment can be cancelled.");
+            foreach (var shipmentLine in lines)
+            {
+                var orderLine = await orderLines.GetByIdAsync(shipmentLine.SalesOrderLineId, cancellationToken)
+                    ?? throw new InvalidOperationException("A source sales-order line no longer exists.");
+                if (orderLine.SalesOrderId != shipment.SalesOrderId || orderLine.ReservedQuantity < shipmentLine.Quantity)
+                    throw new InvalidOperationException("Shipment reservation ledger is inconsistent; cancellation was stopped.");
+                orderLine.ReservedQuantity -= shipmentLine.Quantity;
+                await orderLines.UpdateAsync(orderLine, cancellationToken);
+            }
+        }
+        else if (target == CrmShipmentStatus.Dispatched)
+        {
+            if (shipment.Status != CrmShipmentStatus.Draft)
+                throw new InvalidOperationException("Only a draft shipment can be dispatched.");
+            foreach (var shipmentLine in lines)
+            {
+                var orderLine = await orderLines.GetByIdAsync(shipmentLine.SalesOrderLineId, cancellationToken)
+                    ?? throw new InvalidOperationException("A source sales-order line no longer exists.");
+                if (orderLine.SalesOrderId != shipment.SalesOrderId
+                    || orderLine.ReservedQuantity < shipmentLine.Quantity
+                    || orderLine.ShippedQuantity + shipmentLine.Quantity > orderLine.Quantity)
+                    throw new InvalidOperationException("Shipment reservation ledger is inconsistent; dispatch was stopped.");
+                orderLine.ReservedQuantity -= shipmentLine.Quantity;
+                orderLine.ShippedQuantity += shipmentLine.Quantity;
+                await orderLines.UpdateAsync(orderLine, cancellationToken);
+            }
+
+            var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
+                ?? throw new InvalidOperationException("Source sales order no longer exists.");
+            var orderLineRows = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
+            if (orderLineRows.Count == 0)
+                throw new InvalidOperationException("Source sales order has no lines.");
+            order.Status = orderLineRows.All(x => x.ShippedQuantity >= x.Quantity)
+                ? CrmSalesOrderStatus.Completed
+                : CrmSalesOrderStatus.PartiallyShipped;
+            await orders.UpdateAsync(order, cancellationToken);
+            shipment.ShipmentDate ??= DateTime.UtcNow;
+        }
+        else
+        {
+            if (shipment.Status != CrmShipmentStatus.Dispatched)
+                throw new InvalidOperationException("Only a dispatched shipment can be marked delivered.");
+            shipment.DeliveredDate ??= DateTime.UtcNow;
+        }
+
+        shipment.Status = target;
         var saved = await shipments.UpdateAsync(shipment, cancellationToken);
         return new CrmShipmentDto
         {
@@ -127,6 +183,7 @@ public sealed class CrmShipmentAppService(
             SalesOrderId = saved.SalesOrderId,
             Status = (int)saved.Status,
             ShipmentDate = saved.ShipmentDate,
+            DeliveredDate = saved.DeliveredDate,
             Carrier = saved.Carrier,
             TrackingNumber = saved.TrackingNumber,
             OwnerUserId = saved.OwnerUserId,
