@@ -42,8 +42,9 @@ public sealed class CrmCustomerQueryService(
         if (input.Conditions?.Sorts is { Count: > 0 } sorts) _ = request.Conditions.AddSorts(sorts);
         if (input.Conditions?.Filters is { Count: > 0 } filters) _ = request.Conditions.AddFilters(filters);
 
-        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmCustomer x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
         await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmCustomer), cancellationToken);
+        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmCustomer x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
+        
         if (request.Conditions.Sorts.Count == 0)
             request.Conditions.AddSort((SysCrmCustomer x) => x.CreatedTime, SortDirection.Descending, 0);
 
