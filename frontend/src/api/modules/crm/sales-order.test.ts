@@ -36,6 +36,13 @@ describe('crmSalesOrderApi', () => {
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrder/UpdateDraft', input, undefined)
   })
 
+
+  it('passes new draft line ID zero through the update command unchanged', async () => {
+    const input = { id: '9', customerId: '5', currency: 'USD', lines: [{ id: 0, description: 'Replacement pump', quantity: 1, unitPrice: 250 }] } as never
+    await crmSalesOrderApi.updateDraft(input)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrder/UpdateDraft', input, undefined)
+  })
+
   it('uses the order lifecycle command route', async () => {
     const input = { id: '9', status: 1 } as never
     await crmSalesOrderApi.changeStatus(input)
