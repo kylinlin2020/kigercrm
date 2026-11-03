@@ -9,7 +9,6 @@ using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.Data.SqlSugar.Extensions;
 using XiHan.Framework.Domain.Entities.Abstracts;
-using XiHan.Framework.MultiTenancy;
 using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.BasicApp.Api.Tests;
