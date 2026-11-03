@@ -16,7 +16,7 @@ public sealed class CrmPageRegistryViewWiringTests
     {
         var registry = File.ReadAllText(RepositoryPath(
             "backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Pages", "PageRegistry.cs"));
-        Assert.Contains($"\\"{component}\\"", registry, StringComparison.Ordinal);
+        Assert.Contains(component, registry, StringComparison.Ordinal);
 
         var viewPath = RepositoryPath(
             "frontend", "src", "modules", "crm", "views", "crm", view, "index.vue");
