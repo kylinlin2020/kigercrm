@@ -48,6 +48,9 @@ public sealed class CrmSalesOrderLineDto : BasicAppDto
     public string? ProductCode { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal Quantity { get; set; }
+    public decimal ReservedQuantity { get; set; }
+    public decimal ShippedQuantity { get; set; }
+    public decimal RemainingQuantity => Quantity - ReservedQuantity - ShippedQuantity;
     public string? Unit { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal DiscountRate { get; set; }
