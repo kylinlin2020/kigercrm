@@ -111,6 +111,7 @@ public sealed class CrmQuoteQueryService(
             TermsAndConditions = quote.TermsAndConditions,
             Notes = quote.Notes,
             ConvertedOrderId = quote.ConvertedOrderId,
+            PreviousVersionId = quote.PreviousVersionId,
             CreatedTime = quote.CreatedTime
         };
     }
