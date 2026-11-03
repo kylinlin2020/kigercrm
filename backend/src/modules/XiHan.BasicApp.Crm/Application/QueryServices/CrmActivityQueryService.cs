@@ -53,9 +53,10 @@ public sealed class CrmActivityQueryService(ICrmActivityRepository repository, I
         if (!string.IsNullOrWhiteSpace(input.Keyword)) request.Conditions.SetKeyword<SysCrmActivity>(input.Keyword.Trim(), x => x.Subject, x => x.Content, x => x.ExternalId);
         if (input.Conditions?.Sorts is { Count: > 0 } sorts) _ = request.Conditions.AddSorts(sorts);
         if (input.Conditions?.Filters is { Count: > 0 } filters) _ = request.Conditions.AddFilters(filters);
-        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmActivity x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
-        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmActivity x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
         await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmActivity), cancellationToken);
+        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmActivity x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
+        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmActivity x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
+        
         if (request.Conditions.Sorts.Count == 0) request.Conditions.AddSort((SysCrmActivity x) => x.OccurredAt, SortDirection.Descending, 0);
         var page = await repository.GetPagedAsync(request, cancellationToken);
         var items = page.Items.Select(x => new CrmActivityListItemDto
