@@ -25,6 +25,14 @@ public sealed class SysCrmSalesOrderLine : BasicAppFullAuditedEntity, IStrictMul
     [SugarColumn(ColumnName = "Quantity", ColumnDataType = "decimal(18,4)", IsNullable = false)]
     public decimal Quantity { get; set; }
 
+    /// <summary>Quantity reserved by draft shipments; released on cancellation or consumed on dispatch.</summary>
+    [SugarColumn(ColumnName = "Reserved_Quantity", ColumnDataType = "decimal(18,4)", IsNullable = false, DefaultValue = "0")]
+    public decimal ReservedQuantity { get; set; }
+
+    /// <summary>Quantity physically dispatched against this order line.</summary>
+    [SugarColumn(ColumnName = "Shipped_Quantity", ColumnDataType = "decimal(18,4)", IsNullable = false, DefaultValue = "0")]
+    public decimal ShippedQuantity { get; set; }
+
     [SugarColumn(ColumnName = "Unit", Length = 30, IsNullable = true)]
     public string? Unit { get; set; }
 
