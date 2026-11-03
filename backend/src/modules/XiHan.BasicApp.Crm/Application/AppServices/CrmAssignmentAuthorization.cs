@@ -22,6 +22,21 @@ internal static class CrmAssignmentAuthorization
         }
     }
 
+    public static async Task EnsureTransferPermissionAsync(
+        XiHan.BasicApp.Saas.Application.Services.IOperationPermissionGuard permissionGuard,
+        long? currentUserId,
+        long? targetUserId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(permissionGuard);
+        if (currentUserId != targetUserId)
+        {
+            await permissionGuard.EnsureGrantedAsync(
+                XiHan.BasicApp.Crm.Domain.Permissions.CrmPermissionCodes.Execute,
+                cancellationToken);
+        }
+    }
+
     public static async Task EnsureAssignableAsync(
         IUserDataScopeFilterService dataScope,
         long? targetUserId,
