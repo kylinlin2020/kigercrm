@@ -230,4 +230,4 @@ Sales orders may now also be created directly without a source quotation. The tr
 - Creates the order in Draft state and inserts all line snapshots in the same UnitOfWork.
 - Applies field-security create checks to the order header and each line.
 
-The API contract and frontend API client are wired. The sales-order management page still needs its direct-create form, and runtime/API integration tests plus Windows/PostgreSQL acceptance remain outstanding. Order numbers are caller-supplied and protected by the existing tenant-scoped unique index; a tenant-aware number sequence is still a separate follow-up.
+The API contract, frontend API client, and sales-order management page direct-create form are wired. The form supports header terms, customer/contact/opportunity references, multi-line entry, line removal, client-side validation and an indicative total; authoritative totals remain server-calculated. Runtime/API integration tests plus Windows/PostgreSQL acceptance remain outstanding. Order numbers are caller-supplied and protected by the existing tenant-scoped unique index; a tenant-aware number sequence is still a separate follow-up.
