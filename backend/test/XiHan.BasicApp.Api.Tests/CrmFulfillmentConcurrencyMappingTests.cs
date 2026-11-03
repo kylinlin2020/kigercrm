@@ -9,6 +9,10 @@ public sealed class CrmFulfillmentConcurrencyMappingTests
     [Theory]
     [InlineData(typeof(SysCrmSalesOrder))]
     [InlineData(typeof(SysCrmSalesOrderLine))]
+    [InlineData(typeof(SysCrmQuote))]
+    [InlineData(typeof(SysCrmQuoteLine))]
+    [InlineData(typeof(SysCrmShipment))]
+    [InlineData(typeof(SysCrmShipmentLine))]
     public void FulfillmentEntities_ShouldMapRowVersionAsSqlSugarOptimisticLock(Type entityType)
     {
         var rowVersion = entityType.GetProperty(nameof(SysCrmSalesOrder.RowVersion));
