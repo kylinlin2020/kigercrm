@@ -7,9 +7,9 @@ export default {
     "crm_tasks": "Aufgaben",
     "crm_activities": "Aktivitäten",
     "crm_contacts": "Kontakte",
-    "crm_quotes": "Quotes",
-    "crm_sales_orders": "Sales orders",
-    "crm_shipments": "Shipments"
+    "crm_quotes": "Angebote",
+    "crm_sales_orders": "Verkaufsaufträge",
+    "crm_shipments": "Lieferungen"
   },
   "crm": {
     "lead": {
