@@ -142,6 +142,7 @@ public sealed class CrmShipmentAppService(
             // Keep the aggregate lock order consistent: order header first, then order lines.
             var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
                 ?? throw new InvalidOperationException("Source sales order no longer exists.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken);
             order.FulfillmentRevision++;
             await orders.UpdateAsync(order, cancellationToken);
 
@@ -165,6 +166,7 @@ public sealed class CrmShipmentAppService(
             // This matches draft reservation and cancellation and prevents lock-order deadlocks.
             var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
                 ?? throw new InvalidOperationException("Source sales order no longer exists.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken);
             if (order.Status is not (CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.PartiallyShipped))
                 throw new InvalidOperationException("The source sales order is not eligible for dispatch.");
             order.FulfillmentRevision++;
