@@ -107,6 +107,30 @@ public sealed class CrmShipmentCreationWiringTests
             < dispatch.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal));
     }
 
+
+    [Fact]
+    public void ShipmentFulfillment_ShouldRecheckSourceOrderOwnerScopeBeforeMutation()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var cancellationStart = source.IndexOf("if (target == CrmShipmentStatus.Cancelled)", StringComparison.Ordinal);
+        var dispatchStart = source.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", cancellationStart, StringComparison.Ordinal);
+        var deliveredStart = source.IndexOf("else\\n        {\\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
+
+        Assert.True(cancellationStart >= 0);
+        Assert.True(dispatchStart > cancellationStart);
+        Assert.True(deliveredStart > dispatchStart);
+
+        var cancellation = source[cancellationStart..dispatchStart];
+        var dispatch = source[dispatchStart..deliveredStart];
+        const string parentScopeCheck = "EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken)";
+        Assert.Contains(parentScopeCheck, cancellation, StringComparison.Ordinal);
+        Assert.Contains(parentScopeCheck, dispatch, StringComparison.Ordinal);
+        Assert.True(cancellation.IndexOf("GetByIdAsync(shipment.SalesOrderId", StringComparison.Ordinal)
+            < cancellation.IndexOf(parentScopeCheck, StringComparison.Ordinal));
+        Assert.True(dispatch.IndexOf("GetByIdAsync(shipment.SalesOrderId", StringComparison.Ordinal)
+            < dispatch.IndexOf(parentScopeCheck, StringComparison.Ordinal));
+    }
+
     [Fact]
     public void ShipmentStatusChange_ShouldUseArrayLengthWhenCheckingShipmentLines()
     {
