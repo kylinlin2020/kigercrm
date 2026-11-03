@@ -7,4 +7,5 @@ namespace XiHan.BasicApp.Crm.Domain.Repositories;
 public interface ICrmShipmentLineRepository : ISaasRepository<SysCrmShipmentLine>
 {
     Task<IReadOnlyList<SysCrmShipmentLine>> GetByShipmentIdAsync(long shipmentId, CancellationToken cancellationToken = default);
+    Task<bool> AnyForSalesOrderLineAsync(long salesOrderLineId, CancellationToken cancellationToken = default);
 }
