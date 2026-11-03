@@ -82,6 +82,8 @@ export interface CrmSalesOrderLineCreateDto {
 
 export interface CrmSalesOrderCreateDto {
   orderNumber: string
+  /** Stable key reused when retrying the same logical create request. */
+  numberingIdempotencyKey?: string
   customerId: ApiId
   contactId?: ApiId | null
   opportunityId?: ApiId | null
