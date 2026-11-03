@@ -76,11 +76,6 @@ public sealed class CrmActivityQueryService(ICrmActivityRepository repository, I
             var scope = await dataScope.ResolveAccessibleUsersAsync(DateTimeOffset.UtcNow, cancellationToken);
             if (!scope.CanReadOwnedRecord(entity.OwnerUserId)) return null;
         }
-        if (entity is not null)
-        {
-            var scope = await dataScope.ResolveAccessibleUsersAsync(DateTimeOffset.UtcNow, cancellationToken);
-            if (!scope.CanReadOwnedRecord(entity.OwnerUserId)) return null;
-        }
         return entity is null ? null : CrmCoreMapper.ToDto(entity);
     }
 }
