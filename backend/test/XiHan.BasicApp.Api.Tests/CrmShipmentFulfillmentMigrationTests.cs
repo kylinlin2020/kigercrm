@@ -23,9 +23,21 @@ public sealed class CrmShipmentFulfillmentMigrationTests
 
         Assert.Contains("IF NOT EXISTS (", sql, StringComparison.Ordinal);
         Assert.Contains("ck_crm_sales_order_line_fulfillment_qty", sql, StringComparison.Ordinal);
+        Assert.Contains("quantity > 0", sql, StringComparison.Ordinal);
         Assert.Contains("reserved_quantity >= 0", sql, StringComparison.Ordinal);
         Assert.Contains("shipped_quantity >= 0", sql, StringComparison.Ordinal);
         Assert.Contains("reserved_quantity + shipped_quantity <= quantity", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Migration_ShouldFailWithActionableMessageForLegacyNonPositiveOrderQuantities()
+    {
+        var sql = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
+            "UpdateScripts", "5.9.5", "5.9.5.sql")));
+
+        Assert.Contains("WHERE quantity <= 0", sql, StringComparison.Ordinal);
+        Assert.Contains("Correct the legacy quantities, then retry.", sql, StringComparison.Ordinal);
     }
 
     private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string filePath = "") =>
