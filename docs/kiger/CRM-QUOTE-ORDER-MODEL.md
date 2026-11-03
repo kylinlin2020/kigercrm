@@ -239,3 +239,8 @@ The sales-order direct-create form now uses customer search backed by the CRM cu
 ### Shipment fulfillment regression guards
 
 Added source-level regression tests for the shipment/order quantity ledger: draft shipment creation acquires the order-level fulfillment revision, processes order lines in stable ID order, and reserves only unreserved/unshipped quantity; cancelling a draft shipment releases its reservations; dispatch consumes reservations into shipped quantities and derives the sales-order state as partially shipped or completed from all order lines. These tests are source-wiring guards and still require execution in the repository's normal .NET test environment.
+
+
+### Draft sales-order editing
+
+Draft orders now expose a dedicated update command guarded by the CRM update permission and a transaction. The command rechecks tenant/owner access for the order, customer, contact and opportunity, recalculates all line amounts and header totals on the server, and preserves existing line entity identity/audit metadata while applying edits. Editing is blocked once the order is no longer Draft or any line has reserved or shipped quantity. The submitted line IDs must exactly match the current order line set; this first iteration deliberately supports editing existing lines only, not adding/removing lines, so fulfillment and source-line relationships cannot be silently detached. The frontend exposes the edit action only to users with the registered `crm_sales_orders.update` permission and only for draft orders. The edit form and backend command both guard fulfillment-locked lines. Localization is provided in zh-CN, en-US, zh-TW and ko-KR.
