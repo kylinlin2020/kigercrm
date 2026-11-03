@@ -37,7 +37,7 @@ public sealed class CrmPageRegistryViewWiringTests
         Assert.Contains("protected override IReadOnlyList<PageDescriptor> Pages => PageRegistry.All;", source, StringComparison.Ordinal);
         Assert.Contains("protected override IReadOnlyList<ButtonDescriptor> Buttons => PageRegistry.Buttons;", source, StringComparison.Ordinal);
         var registry = File.ReadAllText(RepositoryPath("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Pages", "PageRegistry.cs"));
-        Assert.Contains('new("crm_sales_orders.create", "Create", "crm_sales_orders", CrmPermissionCodes.Create', registry, StringComparison.Ordinal);
+        Assert.Contains("new(\"crm_sales_orders.create\", \"Create\", \"crm_sales_orders\", CrmPermissionCodes.Create", registry, StringComparison.Ordinal);
     }
 
     private static string RepositoryPath(params string[] segments) =>
