@@ -23,6 +23,6 @@ public sealed class CrmShipmentLineRepository(ISqlSugarClientResolver clientReso
     {
         if (salesOrderLineId <= 0) throw new ArgumentOutOfRangeException(nameof(salesOrderLineId));
         cancellationToken.ThrowIfCancellationRequested();
-        return await CreateQueryable().AnyAsync(line => line.SalesOrderLineId == salesOrderLineId, cancellationToken);
+        return await CreateQueryable().Where(line => line.SalesOrderLineId == salesOrderLineId).AnyAsync(cancellationToken);
     }
 }
