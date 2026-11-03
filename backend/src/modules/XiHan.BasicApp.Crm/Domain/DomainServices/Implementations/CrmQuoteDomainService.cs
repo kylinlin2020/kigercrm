@@ -92,19 +92,23 @@ public sealed class CrmQuoteDomainService(
         if (input.DiscountRate is < 0 or > 100) throw new ArgumentOutOfRangeException(nameof(input.DiscountRate));
         if (input.TaxRate is < 0 or > 100) throw new ArgumentOutOfRangeException(nameof(input.TaxRate));
         if (input.SortOrder < 0) throw new ArgumentOutOfRangeException(nameof(input.SortOrder));
-        var subtotal = Money(input.Quantity * input.UnitPrice);
-        var discount = Money(subtotal * input.DiscountRate / 100m);
+        var quantity = decimal.Round(input.Quantity, 4, MidpointRounding.AwayFromZero);
+        var unitPrice = decimal.Round(input.UnitPrice, 4, MidpointRounding.AwayFromZero);
+        var discountRate = decimal.Round(input.DiscountRate, 4, MidpointRounding.AwayFromZero);
+        var taxRate = decimal.Round(input.TaxRate, 4, MidpointRounding.AwayFromZero);
+        var subtotal = Money(quantity * unitPrice);
+        var discount = Money(subtotal * discountRate / 100m);
         var taxable = subtotal - discount;
-        var tax = Money(taxable * input.TaxRate / 100m);
+        var tax = Money(taxable * taxRate / 100m);
         return new SysCrmQuoteLine
         {
             ProductCode = string.IsNullOrWhiteSpace(input.ProductCode) ? null : NormalizeRequired(input.ProductCode, 100, nameof(input.ProductCode)),
             Description = description,
-            Quantity = decimal.Round(input.Quantity, 4, MidpointRounding.AwayFromZero),
+            Quantity = quantity,
             Unit = string.IsNullOrWhiteSpace(input.Unit) ? null : NormalizeRequired(input.Unit, 30, nameof(input.Unit)),
-            UnitPrice = decimal.Round(input.UnitPrice, 4, MidpointRounding.AwayFromZero),
-            DiscountRate = input.DiscountRate,
-            TaxRate = input.TaxRate,
+            UnitPrice = unitPrice,
+            DiscountRate = discountRate,
+            TaxRate = taxRate,
             LineSubtotal = subtotal,
             LineDiscount = discount,
             LineTax = tax,
