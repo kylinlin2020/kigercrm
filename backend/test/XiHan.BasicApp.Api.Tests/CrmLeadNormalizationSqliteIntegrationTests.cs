@@ -25,7 +25,7 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
     private readonly string _connectionString = $"Data Source=kiger-crm-lead-normalization-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
     private readonly SqliteConnection _keepAlive;
     private readonly SqlSugarScope _db;
-    private readonly CurrentTenant _tenant = new(AsyncLocalCurrentTenantAccessor.Instance);
+    private readonly ProbeCurrentTenant _tenant = new();
     private readonly CrmLeadDomainService _service;
 
     public CrmLeadNormalizationSqliteIntegrationTests()
@@ -45,8 +45,8 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
             db =>
             {
                 db.QueryFilter.AddTableFilter<ISoftDelete>(entity => !entity.IsDeleted);
-                db.QueryFilter.AddTableFilter<IMultiTenantEntity>(entity => entity.TenantId == 0 || entity.TenantId == ScopeId());
-                db.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(entity => entity.TenantId == ScopeId());
+                db.QueryFilter.AddTableFilter<IMultiTenantEntity>(entity => entity.TenantId == 0 || entity.TenantId == ScopeId(tenant));
+                db.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(entity => entity.TenantId == ScopeId(tenant));
                 db.Aop.DataExecuting = (_, entityInfo) =>
                 {
                     if (entityInfo.OperationType == DataFilterType.InsertByObject)
@@ -98,6 +98,24 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
                 .CountAsync(lead => lead.WebsiteHost == "acme.example"));
             Assert.Equal(CrmLeadStatus.New, stored.Status);
             Assert.Equal(TenantId, stored.TenantId);
+
+            var updated = await _service.UpdateAsync(new CrmLeadUpdateCommand(
+                created.BasicId,
+                "Acme Industrial",
+                "Jordan Smith",
+                " SALES@ACME.EXAMPLE ",
+                "+1-212-555-0199",
+                "http://www.acme.example/about",
+                "US",
+                "Website",
+                null,
+                (int)CrmLeadStatus.Qualified,
+                null,
+                null));
+
+            Assert.Equal("sales@acme.example", updated.DuplicateEmailNormalized);
+            Assert.Equal("12125550199", updated.PhoneDigits);
+            Assert.Equal("acme.example", updated.WebsiteHost);
         }
     }
 
@@ -107,6 +125,24 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
         _keepAlive.Dispose();
     }
 
-    private static long ScopeId() =>
-        AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0;
+    private static long ScopeId(ProbeCurrentTenant tenant) => tenant.Id ?? 0;
+
+    private sealed class ProbeCurrentTenant : ICurrentTenant
+    {
+        public bool IsAvailable => Id is > 0;
+        public long? Id { get; private set; }
+        public string? Name { get; private set; }
+
+        public IDisposable Change(long? id, string? name = null)
+        {
+            var (previousId, previousName) = (Id, Name);
+            (Id, Name) = (id, name);
+            return new Restore(() => (Id, Name) = (previousId, previousName));
+        }
+
+        private sealed class Restore(Action restore) : IDisposable
+        {
+            public void Dispose() => restore();
+        }
+    }
 }
