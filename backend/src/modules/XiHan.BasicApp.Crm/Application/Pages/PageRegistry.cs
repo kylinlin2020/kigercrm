@@ -46,7 +46,8 @@ public static class PageRegistry
         new("crm_tasks.delete", "Delete", "crm_tasks", CrmPermissionCodes.Delete, 3),
         new("crm_quotes.create", "Create", "crm_quotes", CrmPermissionCodes.Create, 1),
         new("crm_quotes.execute", "Execute", "crm_quotes", CrmPermissionCodes.Execute, 2),
-        new("crm_sales_orders.execute", "Execute", "crm_sales_orders", CrmPermissionCodes.Execute, 1),
+        new("crm_sales_orders.create", "Create", "crm_sales_orders", CrmPermissionCodes.Create, 1),
+        new("crm_sales_orders.execute", "Execute", "crm_sales_orders", CrmPermissionCodes.Execute, 2),
         new("crm_shipments.create", "Create", "crm_shipments", CrmPermissionCodes.Create, 1),
         new("crm_shipments.execute", "Execute", "crm_shipments", CrmPermissionCodes.Execute, 2),
     ];
