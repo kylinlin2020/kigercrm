@@ -9,6 +9,9 @@ public sealed class CrmQuoteConversionMigrationTests
             RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
             "UpdateScripts", "5.9.4", "5.9.4.sql")));
 
+        Assert.Contains("ux_crm_quote_teid_no_ve_isde", sql, StringComparison.Ordinal);
+        Assert.Contains("tenant_id, quote_number, version, is_deleted", sql, StringComparison.Ordinal);
+        Assert.Contains("duplicate quote version keys exist", sql, StringComparison.Ordinal);
         Assert.Contains("ux_crm_sales_order_teid_sq_isde", sql, StringComparison.Ordinal);
         Assert.Contains("ux_crm_sales_order_line_teid_or_sql_isde", sql, StringComparison.Ordinal);
         Assert.Contains("tenant_id, source_quote_id, is_deleted", sql, StringComparison.Ordinal);
