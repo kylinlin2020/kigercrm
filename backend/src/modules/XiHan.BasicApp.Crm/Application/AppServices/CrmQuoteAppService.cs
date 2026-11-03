@@ -26,6 +26,9 @@ public sealed class CrmQuoteAppService(
         ArgumentNullException.ThrowIfNull(input);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmQuote), input, cancellationToken);
+        if (input.Lines is null) throw new ArgumentException("Quotation lines are required.", nameof(input.Lines));
+        foreach (var line in input.Lines)
+            await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmQuoteLine), line, cancellationToken);
         var quote = await domainService.CreateAsync(CrmQuoteCommandMapper.ToCommand(input), cancellationToken);
         return new CrmQuoteDto
         {
