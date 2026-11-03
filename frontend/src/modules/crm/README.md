@@ -17,4 +17,4 @@ Customer, Contact, Activity, Lead, Opportunity and Task pages use typed API cont
 All seven supported locale files include the CRM menu and management strings. Backend page registration is covered by `CrmPageRegistryViewWiringTests`.
 
 
-Quote and Sales Order persistence models are being introduced in the backend. Their API contracts, menu routes and frontend pages are intentionally not listed until the transactional quote-to-order workflow is implemented.
+Quotation, Sales Order and Shipment backend workflows now expose typed frontend API clients and route-contract tests under `src/api/modules/crm`. Their menu registration and management views remain the next frontend delivery slice; no menu entry is enabled before a working page is available.
