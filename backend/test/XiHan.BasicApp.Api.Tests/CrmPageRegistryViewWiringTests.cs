@@ -9,6 +9,7 @@ public sealed class CrmPageRegistryViewWiringTests
 {
     [Theory]
     [InlineData("Crm/Customer/Index", "customer")]
+    [InlineData("Crm/Contact/Index", "contact")]
     [InlineData("Crm/Lead/Index", "lead")]
     [InlineData("Crm/Opportunity/Index", "opportunity")]
     [InlineData("Crm/Task/Index", "task")]
