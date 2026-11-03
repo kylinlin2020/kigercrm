@@ -150,6 +150,8 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("var addedLineCount = input.Lines.Count(x => x.Id == 0)", method, StringComparison.Ordinal);
         Assert.Contains("removedLines.Any(x => x.ReservedQuantity > 0 || x.ShippedQuantity > 0)", method, StringComparison.Ordinal);
         Assert.Contains("removedLines.Any(x => x.SourceQuoteLineId.HasValue)", method, StringComparison.Ordinal);
+        Assert.Contains("shipmentLines.AnyForSalesOrderLineAsync(removed.BasicId, cancellationToken)", method, StringComparison.Ordinal);
+        Assert.Contains("including lines from cancelled shipments", method, StringComparison.Ordinal);
         Assert.Contains("await orderLines.SoftDeleteAsync(removed, cancellationToken)", method, StringComparison.Ordinal);
         Assert.Contains("await orderLines.AddAsync(added, cancellationToken)", method, StringComparison.Ordinal);
         Assert.Contains("order.SourceQuoteId.HasValue && (removedLines.Length > 0 || addedLineCount > 0)", method, StringComparison.Ordinal);
