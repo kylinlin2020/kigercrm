@@ -9,6 +9,7 @@ import type {
   CrmQuotePageQueryDto,
   CrmQuoteStatusUpdateDto,
 } from './quote.types'
+import type { CrmSalesOrderListItemDto } from './sales-order.types'
 import { createDynamicApiClient } from '../../base'
 
 const quoteQueryApi = createDynamicApiClient('CrmQuoteQuery')
@@ -23,6 +24,9 @@ export const crmQuoteApi = {
   },
   changeStatus(input: CrmQuoteStatusUpdateDto) {
     return quoteCommandApi.post<CrmQuoteCommandResultDto, CrmQuoteStatusUpdateDto>('ChangeStatus', input)
+  },
+  convertToSalesOrder(quoteId: ApiId) {
+    return quoteCommandApi.post<CrmSalesOrderListItemDto, never>('ConvertToSalesOrder', undefined as never, { params: { quoteId } })
   },
   page(input: CrmQuotePageQueryDto) {
     return quoteQueryApi.post<PageResult<CrmQuoteListItemDto>, CrmQuotePageQueryDto>('CrmQuotePage', input)
