@@ -211,6 +211,7 @@ onMounted(loadPage)
             <td>{{ row.shipmentDate ? new Date(row.shipmentDate).toLocaleString() : '—' }}</td>
             <td>{{ row.deliveredDate ? new Date(row.deliveredDate).toLocaleString() : '—' }}</td>
             <td class="actions">
+              <button @click="openDetails(row)">{{ t('crm.shipment.viewDetails') }}</button>
               <button v-if="canExecute && row.status === CrmShipmentStatus.Draft" @click="changeStatus(row, CrmShipmentStatus.Dispatched)">{{ t('crm.shipment.dispatch') }}</button>
               <button v-if="canExecute && row.status === CrmShipmentStatus.Draft" @click="changeStatus(row, CrmShipmentStatus.Cancelled)">{{ t('crm.shipment.cancelDraft') }}</button>
               <button v-if="canExecute && row.status === CrmShipmentStatus.Dispatched" @click="changeStatus(row, CrmShipmentStatus.Delivered)">{{ t('crm.shipment.deliver') }}</button>
@@ -224,7 +225,19 @@ onMounted(loadPage)
       <div><button :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.shipment.previous') }}</button><button :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.shipment.next') }}</button></div>
     </footer>
 
-    <div v-if="detailShipment || detailLoading" class="modal-backdrop" @click.self="detailShipment = null">\n      <section class="editor detail-editor">\n        <header><h2>{{ detailShipment?.shipmentNumber || t('crm.shipment.detailTitle') }}</h2><button type="button" @click="detailShipment = null">×</button></header>\n        <div v-if="detailLoading" class="empty">{{ t('crm.shipment.loadingDetails') }}</div>\n        <template v-else-if="detailShipment">\n          <p class="order-context">{{ t('crm.shipment.orderId') }}: {{ detailShipment.salesOrderId }} · {{ label(detailShipment.status) }}</p>\n          <p class="order-context">{{ t('crm.shipment.carrier') }}: {{ detailShipment.carrier || '—' }} · {{ t('crm.shipment.tracking') }}: {{ detailShipment.trackingNumber || '—' }}</p>\n          <div class="table-wrap"><table><thead><tr><th>{{ t('crm.shipment.orderLineId') }}</th><th>{{ t('crm.shipment.quantity') }}</th></tr></thead><tbody><tr v-for="line in detailLines" :key="line.basicId"><td>{{ line.salesOrderLineId }}</td><td>{{ line.quantity }}</td></tr><tr v-if="!detailLines.length"><td colspan="2" class="empty">{{ t('crm.shipment.noLines') }}</td></tr></tbody></table></div>\n        </template>\n      </section>\n    </div>\n\n    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
+    <div v-if="detailShipment || detailLoading" class="modal-backdrop" @click.self="detailShipment = null">
+      <section class="editor detail-editor">
+        <header><h2>{{ detailShipment?.shipmentNumber || t('crm.shipment.detailTitle') }}</h2><button type="button" @click="detailShipment = null">×</button></header>
+        <div v-if="detailLoading" class="empty">{{ t('crm.shipment.loadingDetails') }}</div>
+        <template v-else-if="detailShipment">
+          <p class="order-context">{{ t('crm.shipment.orderId') }}: {{ detailShipment.salesOrderId }} · {{ label(detailShipment.status) }}</p>
+          <p class="order-context">{{ t('crm.shipment.carrier') }}: {{ detailShipment.carrier || '—' }} · {{ t('crm.shipment.tracking') }}: {{ detailShipment.trackingNumber || '—' }}</p>
+          <div class="table-wrap"><table><thead><tr><th>{{ t('crm.shipment.orderLineId') }}</th><th>{{ t('crm.shipment.quantity') }}</th></tr></thead><tbody><tr v-for="line in detailLines" :key="line.basicId"><td>{{ line.salesOrderLineId }}</td><td>{{ line.quantity }}</td></tr><tr v-if="!detailLines.length"><td colspan="2" class="empty">{{ t('crm.shipment.noLines') }}</td></tr></tbody></table></div>
+        </template>
+      </section>
+    </div>
+
+    <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
       <section class="editor">
         <header><h2>{{ t('crm.shipment.newTitle') }}</h2><button type="button" @click="createOpen = false">×</button></header>
         <form @submit.prevent="createShipment">
