@@ -301,3 +301,30 @@ The application services invoke the generator only after basic input and relatio
 
 
 The quote, sales-order and shipment creation screens now generate one client request key when a new create dialog is opened and retain that same key across failed submissions in the dialog. Successful creation clears the key; opening a fresh create dialog generates a new key. The screens no longer require users to type document numbers: numbers are allocated by the server. The API types and route tests cover forwarding the key. This is request-level retry support for number allocation; it does not replace the durable create replay mapping described above.
+
+
+## CRM 单据编号规则配置与重试边界
+
+报价、销售订单和发货单创建命令现在支持可选的服务端编号请求键。启用该字段时，服务端分别使用以下编号规则编码，并通过 SaaS 编号服务的 `NumberingScope.Auto` 解析规则：
+
+| 单据 | 规则编码 | 编号前缀建议 |
+| --- | --- | --- |
+| 报价 | `CRM_QUOTE` | `QT` |
+| 销售订单 | `CRM_SALES_ORDER` | `SO` |
+| 发货单 | `CRM_SHIPMENT` | `SHP` |
+
+### 首次部署配置
+
+编号规则由现有 SaaS「设置 → 编号规则」功能管理，不由 CRM 迁移脚本静默创建。每个实际使用 CRM 的租户都必须确保三条规则可解析且处于启用状态。推荐优先在当前租户上下文创建租户私有规则（Scope = Tenant）；若组织明确希望跨租户共享同一编号序列，可在平台上下文建立全局规则，并开启「允许租户使用」，再由 Auto 解析回退到该全局规则。不要同时为同一租户配置同编码的租户规则和全局规则后再假定全局序列会被使用：Auto 始终优先租户私有规则。
+
+建议初始格式为：日期格式 `yyyyMMdd`、流水位数 5 或 6、每日重置、分隔符 `-`、时区使用业务约定的 IANA/运行环境支持标识；前缀可按上表配置。正式启用前先用规则预览确认最终编号格式。规则一旦成功发号，格式字段会被冻结；变更编号格式应新建规则编码并安排业务切换，不应尝试直接改写已使用规则。
+
+若规则不存在、停用、全局规则未允许租户使用或规则解析失败，启用服务端编号的创建请求会失败，不会悄悄退回客户端手工编号。未提供 `NumberingIdempotencyKey` 的旧 API 调用仍保持手工编号兼容行为。
+
+### 幂等保证范围
+
+前端在打开新建窗口时生成请求键，并在同一次提交失败后的重试中复用该键。SaaS 编号服务将规则、请求租户、幂等键和请求指纹绑定；同键同参数可重放首次分配的编号，同键异参数会被拒绝。分配记录是 append-only 审计事实。
+
+这只保证**编号分配幂等**，不等同于 CRM 单据创建幂等。编号服务在独立事务中提交，随后 CRM 单据写入若失败，已分配编号不会回收，允许出现编号空洞。若 CRM 单据已成功提交但 HTTP 响应丢失，使用同一键重试时，当前实现仍可能因单号唯一约束而返回创建冲突，而不是读取并返回原单据。要实现完整创建重放，后续必须在 CRM 业务事务内持久化请求键与 payload fingerprint 到单据的映射，并在相同键同指纹时返回原单据、相同键不同指纹时拒绝；该映射必须与单据同事务提交，不能复用独立提交的编号 allocation 记录来冒充原子映射。
+
+当前源码测试覆盖服务端编号接线与规则编码，但尚未执行测试、构建或真实数据库验证。租户规则初始化、编号格式预览、并发重放及完整创建请求映射仍需在部署验收中验证/后续实现。
