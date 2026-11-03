@@ -24,7 +24,7 @@ describe('crmQuoteApi', () => {
   })
 
   it('uses quote command routes for create, revision and status changes', async () => {
-    const input = { quoteNumber: 'Q-100', customerId: '5', lines: [] } as never
+    const input = { quoteNumber: '', numberingIdempotencyKey: 'quote-create-key', customerId: '5', lines: [] } as never
     await crmQuoteApi.create(input)
     await crmQuoteApi.revise('9', input)
     await crmQuoteApi.changeStatus({ id: '9', status: 1 } as never)
