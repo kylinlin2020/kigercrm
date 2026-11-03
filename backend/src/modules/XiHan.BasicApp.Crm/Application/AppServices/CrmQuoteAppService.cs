@@ -1,0 +1,51 @@
+using XiHan.BasicApp.Crm.Application.Contracts;
+using XiHan.BasicApp.Crm.Application.Dtos;
+using XiHan.BasicApp.Crm.Application.Mappers;
+using XiHan.BasicApp.Crm.Domain.DomainServices;
+using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Permissions;
+using XiHan.BasicApp.Saas.Application.QueryServices;
+using XiHan.BasicApp.Saas.Application.Services;
+using XiHan.Framework.Application.Attributes;
+using XiHan.Framework.Authorization.AspNetCore;
+using XiHan.Framework.Uow.Attributes;
+
+namespace XiHan.BasicApp.Crm.Application.AppServices;
+
+[DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Quotes")]
+public sealed class CrmQuoteAppService(
+    ICrmQuoteDomainService domainService,
+    IFieldSecurityService fieldSecurity,
+    IUserDataScopeFilterService dataScope)
+    : CrmApplicationService, ICrmQuoteAppService
+{
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Create)]
+    public async Task<CrmQuoteDto> CreateAsync(CrmQuoteCreateDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
+        await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmQuote), input, cancellationToken);
+        var quote = await domainService.CreateAsync(CrmQuoteCommandMapper.ToCommand(input), cancellationToken);
+        return new CrmQuoteDto
+        {
+            BasicId = quote.BasicId,
+            QuoteNumber = quote.QuoteNumber,
+            Version = quote.Version,
+            CustomerId = quote.CustomerId,
+            ContactId = quote.ContactId,
+            OpportunityId = quote.OpportunityId,
+            CustomerNameSnapshot = quote.CustomerNameSnapshot,
+            ContactNameSnapshot = quote.ContactNameSnapshot,
+            Status = (int)quote.Status,
+            IssueDate = quote.IssueDate,
+            ValidUntil = quote.ValidUntil,
+            Currency = quote.Currency,
+            Subtotal = quote.Subtotal,
+            DiscountTotal = quote.DiscountTotal,
+            TaxTotal = quote.TaxTotal,
+            GrandTotal = quote.GrandTotal,
+            OwnerUserId = quote.OwnerUserId
+        };
+    }
+}
