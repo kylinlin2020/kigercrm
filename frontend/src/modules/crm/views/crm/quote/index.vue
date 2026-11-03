@@ -26,6 +26,7 @@ const detailLines = ref<CrmQuoteLineDto[]>([])
 const reviseOpen = ref(false)
 const revising = ref(false)
 const reviseSourceId = ref<string | null>(null)
+const revisionBase = ref<{ quoteNumber: string, customerId: string, currency: string } | null>(null)
 const reviseForm = ref({ issueDate: new Date().toISOString().slice(0, 10), validUntil: '', termsAndConditions: '', notes: '' })
 const reviseLines = ref<CrmQuoteLineCreateDto[]>([])
 const createOpen = ref(false)
@@ -82,17 +83,18 @@ function closeDetails() { detailOpen.value = false; detailQuote.value = null }
 function openRevision() {
   if (!detailQuote.value) return
   reviseSourceId.value = String(detailQuote.value.basicId)
+  revisionBase.value = { quoteNumber: detailQuote.value.quoteNumber, customerId: String(detailQuote.value.customerId), currency: detailQuote.value.currency }
   reviseForm.value = { issueDate: new Date().toISOString().slice(0, 10), validUntil: detailQuote.value.validUntil ? detailQuote.value.validUntil.slice(0, 10) : '', termsAndConditions: detailQuote.value.termsAndConditions || '', notes: detailQuote.value.notes || '' }
   reviseLines.value = detailLines.value.map((line, index) => ({ productCode: line.productCode, description: line.description, quantity: line.quantity, unit: line.unit, unitPrice: line.unitPrice, discountRate: line.discountRate, taxRate: line.taxRate, sortOrder: line.sortOrder ?? index }))
   closeDetails(); reviseOpen.value = true
 }
 async function saveRevision() {
-  if (!reviseSourceId.value || reviseLines.value.length === 0 || reviseLines.value.some(line => !line.description.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitPrice) || line.unitPrice < 0)) { toast.warning(t('crm.quote.revisionRequired')); return }
+  if (!reviseSourceId.value || !revisionBase.value || reviseLines.value.length === 0 || reviseLines.value.some(line => !line.description.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitPrice) || line.unitPrice < 0)) { toast.warning(t('crm.quote.revisionRequired')); return }
   revising.value = true
   try {
-    const input: CrmQuoteCreateDto = { quoteNumber: '', customerId: '1', issueDate: `${reviseForm.value.issueDate}T00:00:00`, validUntil: reviseForm.value.validUntil ? `${reviseForm.value.validUntil}T23:59:59` : null, currency: detailQuote.value?.currency || 'USD', termsAndConditions: reviseForm.value.termsAndConditions || null, notes: reviseForm.value.notes || null, lines: reviseLines.value }
+    const input: CrmQuoteCreateDto = { quoteNumber: revisionBase.value.quoteNumber, customerId: revisionBase.value.customerId, issueDate: `${reviseForm.value.issueDate}T00:00:00`, validUntil: reviseForm.value.validUntil ? `${reviseForm.value.validUntil}T23:59:59` : null, currency: revisionBase.value.currency, termsAndConditions: reviseForm.value.termsAndConditions || null, notes: reviseForm.value.notes || null, lines: reviseLines.value }
     await crmQuoteApi.revise(reviseSourceId.value, input)
-    toast.success(t('crm.quote.revised')); reviseOpen.value = false; reviseSourceId.value = null; await loadPage()
+    toast.success(t('crm.quote.revised')); reviseOpen.value = false; reviseSourceId.value = null; revisionBase.value = null; await loadPage()
   }
   catch (error) { toast.danger((error as Error)?.message || t('crm.quote.revisionError')) }
   finally { revising.value = false }
