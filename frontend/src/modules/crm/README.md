@@ -17,4 +17,4 @@ Customer, Contact, Activity, Lead, Opportunity and Task pages use typed API cont
 All seven supported locale files include the CRM menu and management strings. Backend page registration is covered by `CrmPageRegistryViewWiringTests`.
 
 
-Quotation, Sales Order and Shipment backend workflows now expose typed frontend API clients and route-contract tests under `src/api/modules/crm`. Their menu registration and management views remain the next frontend delivery slice; no menu entry is enabled before a working page is available.
+Quotation, Sales Order and Shipment backend workflows now expose typed frontend API clients and route-contract tests under `src/api/modules/crm`. Their management pages are now registered in the CRM page registry and include quotation creation/status handling, sales-order status and fulfillment-line review, and shipment creation/dispatch/delivery. Shipment creation currently accepts one order line per draft; multi-line editing and quote-to-order conversion UX remain follow-up work.
