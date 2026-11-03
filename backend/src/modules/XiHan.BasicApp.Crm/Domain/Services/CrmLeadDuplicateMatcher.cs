@@ -114,13 +114,13 @@ public static partial class CrmLeadDuplicateMatcher
     private static bool Same(string? left, string? right) =>
         left is not null && right is not null && string.Equals(left, right, StringComparison.Ordinal);
 
-    [GeneratedRegex(@"\\D+", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\D+", RegexOptions.CultureInvariant)]
     private static partial Regex NonDigits();
 
-    [GeneratedRegex(@"[^\\p{L}\\p{N}]+", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"[^\p{L}\p{N}]+", RegexOptions.CultureInvariant)]
     private static partial Regex NonCompanyCharacters();
 
-    [GeneratedRegex(@"\\s+", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"\s+", RegexOptions.CultureInvariant)]
     private static partial Regex Whitespace();
 }
 
