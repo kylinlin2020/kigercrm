@@ -1,3 +1,4 @@
+using XiHan.BasicApp.Saas.Application.QueryServices;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Application.Mappers;
@@ -12,7 +13,7 @@ using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Contacts")]
-public sealed class CrmContactAppService(ICrmContactDomainService domainService, IFieldSecurityService fieldSecurity)
+public sealed class CrmContactAppService(ICrmContactDomainService domainService, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmContactAppService
 {
     [UnitOfWork(true)]
@@ -20,6 +21,8 @@ public sealed class CrmContactAppService(ICrmContactDomainService domainService,
     public async Task<CrmContactDto> CreateAsync(CrmContactCreateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmContact), input, cancellationToken);
         var entity = await domainService.CreateAsync(CrmContactCommandMapper.ToCommand(input), cancellationToken);
