@@ -36,6 +36,7 @@ public sealed class CrmQuoteDetailDto : CrmQuoteListItemDto
     public string? TermsAndConditions { get; set; }
     public string? Notes { get; set; }
     public long? ConvertedOrderId { get; set; }
+    public long? PreviousVersionId { get; set; }
 }
 
 public sealed class CrmQuoteLinePageQueryDto : BasicAppPRDto
