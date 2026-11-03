@@ -21,6 +21,9 @@ public sealed class CrmQuoteAppService(
     ICrmQuoteLineRepository quoteLines,
     ICrmSalesOrderRepository salesOrders,
     ICrmSalesOrderLineRepository salesOrderLines,
+    ICrmCustomerRepository customers,
+    ICrmContactRepository contacts,
+    ICrmOpportunityRepository opportunities,
     IFieldSecurityService fieldSecurity,
     IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmQuoteAppService
@@ -31,6 +34,7 @@ public sealed class CrmQuoteAppService(
     {
         ArgumentNullException.ThrowIfNull(input);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
+        await EnsureRelatedRecordsAccessibleAsync(input.CustomerId, input.ContactId, input.OpportunityId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmQuote), input, cancellationToken);
         if (input.Lines is null) throw new ArgumentException("Quotation lines are required.", nameof(input.Lines));
         foreach (var line in input.Lines)
@@ -49,6 +53,7 @@ public sealed class CrmQuoteAppService(
             ?? throw new InvalidOperationException("Source quote does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, source.OwnerUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, source.OwnerUserId, cancellationToken);
+        await EnsureRelatedRecordsAccessibleAsync(source.CustomerId, source.ContactId, source.OpportunityId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmQuote), input, cancellationToken);
         if (input.Lines is null) throw new ArgumentException("Quotation lines are required.", nameof(input.Lines));
         foreach (var line in input.Lines)
@@ -154,6 +159,25 @@ public sealed class CrmQuoteAppService(
             OwnerUserId = createdOrder.OwnerUserId,
             CreatedTime = createdOrder.CreatedTime
         };
+    }
+
+    private async Task EnsureRelatedRecordsAccessibleAsync(long customerId, long? contactId, long? opportunityId, CancellationToken cancellationToken)
+    {
+        var customer = await customers.GetByIdAsync(customerId, cancellationToken)
+            ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
+        if (contactId is > 0)
+        {
+            var contact = await contacts.GetByIdAsync(contactId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Contact does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
+        }
+        if (opportunityId is > 0)
+        {
+            var opportunity = await opportunities.GetByIdAsync(opportunityId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Opportunity does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId, cancellationToken);
+        }
     }
 
     private static CrmQuoteDto ToDto(SysCrmQuote quote) => new()
