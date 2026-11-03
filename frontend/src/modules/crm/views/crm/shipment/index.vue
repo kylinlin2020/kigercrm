@@ -116,7 +116,7 @@ async function createShipment() {
   const invalidLine = selectedLines.value.find(line => {
     const quantity = Number(quantities[String(line.basicId)])
     return !Number.isFinite(quantity) || quantity <= 0 || quantity > availableQuantity(line)
-      || Math.round(quantity * 10000) !== quantity * 10000
+      || Math.abs(quantity * 10000 - Math.round(quantity * 10000)) > 1e-8
   })
   if (invalidLine) {
     toast.warning(t('crm.shipment.quantityInvalid'))
