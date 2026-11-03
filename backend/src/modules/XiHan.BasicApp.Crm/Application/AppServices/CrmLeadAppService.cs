@@ -38,6 +38,14 @@ public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, IFiel
     }
 
     [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Update)]
+    public async Task<CrmLeadDetailDto> ConvertAsync(long id, CancellationToken cancellationToken = default)
+    {
+        var entity = await domainService.ConvertAsync(id, cancellationToken);
+        return CrmLeadMapper.ToDetailDto(entity);
+    }
+
+    [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Delete)]
     public Task DeleteAsync(long id, CancellationToken cancellationToken = default) => domainService.DeleteAsync(id, cancellationToken);
 }
