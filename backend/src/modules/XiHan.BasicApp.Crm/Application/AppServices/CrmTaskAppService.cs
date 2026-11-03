@@ -31,8 +31,12 @@ public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFiel
     }
     [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Update)]
-    public async Task<CrmTaskDto> ChangeStatusAsync(long id, int status, CancellationToken cancellationToken = default) =>
-        CrmCoreMapper.ToDto(await domainService.ChangeStatusAsync(id, status, cancellationToken));
+    public async Task<CrmTaskDto> ChangeStatusAsync(CrmTaskStatusUpdateDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmTask), input.Id, input, cancellationToken);
+        return CrmCoreMapper.ToDto(await domainService.ChangeStatusAsync(input.Id, input.Status, cancellationToken));
+    }
     [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Delete)]
     public Task DeleteAsync(long id, CancellationToken cancellationToken = default) => domainService.DeleteAsync(id, cancellationToken);
