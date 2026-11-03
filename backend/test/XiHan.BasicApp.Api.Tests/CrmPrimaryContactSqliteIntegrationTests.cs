@@ -52,10 +52,22 @@ public sealed class CrmPrimaryContactSqliteIntegrationTests : IDisposable
     {
         using (_tenant.Change(TenantA))
         {
-            await InsertAsync(100, isPrimary: true);
+            var originalPrimaryId = await InsertAsync(100, isPrimary: true);
             await InsertAsync(100, isPrimary: false);
             await InsertAsync(100, isPrimary: false);
             await Assert.ThrowsAnyAsync<Exception>(() => InsertAsync(100, isPrimary: true));
+
+            var originalPrimary = await _db.Queryable<SysCrmContact>()
+                .SingleAsync(contact => contact.BasicId == originalPrimaryId);
+            originalPrimary.IsPrimary = false;
+            originalPrimary.PrimaryCustomerId = null;
+            originalPrimary.IsDeleted = true;
+            _ = await _db.Updateable(originalPrimary).ExecuteCommandAsync();
+
+            // A deleted primary releases the active slot; deleted history may accumulate without blocking reuse.
+            await InsertAsync(100, isPrimary: true);
+            await InsertAsync(100, isPrimary: false, isDeleted: true);
+            await InsertAsync(100, isPrimary: false, isDeleted: true);
             await InsertAsync(101, isPrimary: true);
         }
 
@@ -71,7 +83,7 @@ public sealed class CrmPrimaryContactSqliteIntegrationTests : IDisposable
         _keepAlive.Dispose();
     }
 
-    private async Task InsertAsync(long customerId, bool isPrimary)
+    private async Task<long> InsertAsync(long customerId, bool isPrimary, bool isDeleted = false)
     {
         var contact = new SysCrmContact
         {
@@ -79,9 +91,11 @@ public sealed class CrmPrimaryContactSqliteIntegrationTests : IDisposable
             FirstName = "Test",
             LastName = "Contact",
             IsPrimary = isPrimary,
-            PrimaryCustomerId = isPrimary ? customerId : null
+            PrimaryCustomerId = isPrimary && !isDeleted ? customerId : null,
+            IsDeleted = isDeleted
         };
         _ = await _db.Insertable(contact).ExecuteCommandAsync();
+        return contact.BasicId;
     }
 
     private sealed class ProbeCurrentTenant : ICurrentTenant
