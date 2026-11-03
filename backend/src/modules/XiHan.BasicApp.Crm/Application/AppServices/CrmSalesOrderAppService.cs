@@ -103,8 +103,9 @@ public sealed class CrmSalesOrderAppService(
         if (input.Id <= 0 || input.CustomerId <= 0) throw new ArgumentOutOfRangeException(nameof(input.Id));
         if (input.Lines is null || input.Lines.Count == 0 || input.Lines.Count > 500)
             throw new ArgumentException("A sales order requires between 1 and 500 lines.", nameof(input.Lines));
-        if (input.Lines.Any(x => x is null || x.Id <= 0) || input.Lines.Select(x => x.Id).Distinct().Count() != input.Lines.Count)
-            throw new ArgumentException("Every edited order line must have one unique existing line ID.", nameof(input.Lines));
+        if (input.Lines.Any(x => x is null || x.Id < 0) ||
+            input.Lines.Where(x => x.Id > 0).Select(x => x.Id).Distinct().Count() != input.Lines.Count(x => x.Id > 0))
+            throw new ArgumentException("Existing order line IDs must be unique and new lines must use ID zero.", nameof(input.Lines));
 
         var order = await repository.GetByIdAsync(input.Id, cancellationToken)
             ?? throw new InvalidOperationException("Sales order does not exist.");
@@ -120,11 +121,39 @@ public sealed class CrmSalesOrderAppService(
         order.FulfillmentRevision++;
         order = await repository.UpdateAsync(order, cancellationToken);
         var existingLines = (await orderLines.ListForOrderAsync(order.BasicId, cancellationToken)).ToDictionary(x => x.BasicId);
-        if (existingLines.Count != input.Lines.Count || input.Lines.Any(x => !existingLines.ContainsKey(x.Id)))
-            throw new InvalidOperationException("The submitted lines must match the current order lines; adding or removing lines is not supported by this edit operation.");
+        if (input.Lines.Any(x => x.Id > 0 && !existingLines.ContainsKey(x.Id)))
+            throw new InvalidOperationException("An edited order line does not belong to the selected order.");
+        var submittedExistingIds = input.Lines.Where(x => x.Id > 0).Select(x => x.Id).ToHashSet();
+        var removedLines = existingLines.Values.Where(x => !submittedExistingIds.Contains(x.BasicId)).ToArray();
+        var addedLineCount = input.Lines.Count(x => x.Id == 0);
+        if (order.SourceQuoteId.HasValue && (removedLines.Length > 0 || addedLineCount > 0))
+            throw new InvalidOperationException("Quotation-derived order lines cannot be added or removed; revise the quotation and create a new order.");
+        if (removedLines.Any(x => x.ReservedQuantity > 0 || x.ShippedQuantity > 0))
+            throw new InvalidOperationException("An order line with reserved or shipped quantities cannot be removed.");
+        if (removedLines.Any(x => x.SourceQuoteLineId.HasValue))
+            throw new InvalidOperationException("Quotation-derived order lines cannot be removed.");
 
         foreach (var lineInput in input.Lines)
         {
+            if (lineInput.Id == 0)
+            {
+                var added = CalculateLine(new CrmSalesOrderLineCreateDto
+                {
+                    ProductCode = lineInput.ProductCode,
+                    Description = lineInput.Description,
+                    Quantity = lineInput.Quantity,
+                    Unit = lineInput.Unit,
+                    UnitPrice = lineInput.UnitPrice,
+                    DiscountRate = lineInput.DiscountRate,
+                    TaxRate = lineInput.TaxRate,
+                    SortOrder = lineInput.SortOrder
+                });
+                added.SalesOrderId = order.BasicId;
+                await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmSalesOrderLine), added, cancellationToken);
+                await orderLines.AddAsync(added, cancellationToken);
+                continue;
+            }
+
             var existing = existingLines[lineInput.Id];
             if (existing.SalesOrderId != order.BasicId)
                 throw new InvalidOperationException("An order line does not belong to the selected order.");
@@ -166,6 +195,9 @@ public sealed class CrmSalesOrderAppService(
             await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmSalesOrderLine), existing.BasicId, lineInput, cancellationToken);
             await orderLines.UpdateAsync(existing, cancellationToken);
         }
+
+        foreach (var removed in removedLines)
+            await orderLines.SoftDeleteAsync(removed, cancellationToken);
 
         var customer = await customers.GetByIdAsync(input.CustomerId, cancellationToken)
             ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
