@@ -13,6 +13,7 @@ public sealed class CrmQuoteCreationWiringTests
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Create)]", source, StringComparison.Ordinal);
         Assert.Contains("EnsureAssignableAsync", source, StringComparison.Ordinal);
         Assert.Contains("EnsureCreatableAsync(typeof(SysCrmQuote)", source, StringComparison.Ordinal);
+        Assert.Contains("EnsureCreatableAsync(typeof(SysCrmQuoteLine)", source, StringComparison.Ordinal);
         Assert.Contains("domainService.CreateAsync", source, StringComparison.Ordinal);
     }
 
