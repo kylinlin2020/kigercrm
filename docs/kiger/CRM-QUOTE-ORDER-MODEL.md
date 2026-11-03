@@ -212,3 +212,8 @@ The sales-order number is deterministically generated from the source quote reco
 ## Shipment creation experience
 
 The shipment management page now loads eligible sales orders (Confirmed, Processing, PartiallyShipped) and fetches the selected order's lines. Users can select multiple lines and enter a quantity per line. The page displays each line's currently available quantity (`ordered - reserved - shipped`) and performs a client-side positive-quantity, four-decimal and available-balance check before submitting one multi-line draft shipment. The backend remains authoritative and revalidates every line inside its transactional reservation workflow, including concurrency and ledger constraints. The selector fetches up to 100 eligible orders per status and up to 500 lines for the selected order; very large tenants/orders may require server-side searchable selectors and paging in a later iteration.
+
+
+## Quotation version history UI
+
+The quotation detail query now returns `PreviousVersionId` alongside the converted sales-order reference. The quote page displays the complete commercial line snapshot, terms, notes and conversion reference, and allows navigation to the previous quote version. Users with quote-create permission can start a new revision from Sent, Rejected or Expired quotes. The revision editor copies all source lines and allows editing descriptions, quantities, prices, discounts, tax rates, validity dates, terms and notes; the backend enforces the allowed source status and creates the next immutable version linked by `PreviousVersionId`. The frontend validates line quantities, decimal precision, prices, discount/tax ranges and date order before submission.
