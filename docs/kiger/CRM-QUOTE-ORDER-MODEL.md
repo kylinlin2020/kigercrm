@@ -116,3 +116,15 @@ This avoids loading unbounded line collections into a single detail response. So
 ## Sales order source-quote uniqueness guard
 
 The sales-order header now has a tenant-scoped unique index over `TenantId + SourceQuoteId + IsDeleted`. Since `SourceQuoteId` is nullable, orders entered independently may leave it null; database engines supported by this project permit multiple null values in a unique index. For a non-null source quote, the index is a final database-level guard against creating more than one order from the same quote, including concurrent requests. The index does not replace application authorization, transaction boundaries, or quote status checks; accepted-quote conversion still needs to create the order and update the quote in one transaction. Existing databases need CodeFirst/index synchronization before this guard is active.
+
+## Shipment fulfillment persistence foundation
+
+The CRM module now includes tenant-scoped shipment headers and shipment-line quantity records.
+
+- Shipment headers reference a sales order and retain a unique tenant shipment number, status, shipment/delivery dates, carrier and tracking number.
+- Shipment lines reference sales-order lines and store shipped quantity at four decimal places.
+- A tenant-scoped unique index prevents duplicate references to the same sales-order line inside one shipment; an additional index supports lookup by order line for future cumulative-shipment validation.
+- Both entities are registered with CRM field-security metadata and use the existing SaaS tenant-aware repository base.
+- Initial statuses are Draft, Dispatched, Delivered and Cancelled.
+
+This is persistence groundwork only. No shipment create/dispatch/deliver commands, cumulative shipped-quantity validation, stock deduction, carrier integration, or automatic sales-order status roll-up is implemented yet. Existing order status transitions still do not prove physical fulfillment. CodeFirst synchronization and runtime database validation remain pending.
