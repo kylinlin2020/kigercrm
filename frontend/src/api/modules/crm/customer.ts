@@ -6,9 +6,10 @@ import type {
   CrmCustomerPageQueryDto,
   CrmCustomerUpdateDto,
 } from './customer.types'
-import { createCommandApi, createDynamicApiClient } from '../../base'
+import { createCommandApi, createDynamicApiClient, createReadApi } from '../../base'
 
-const customerQueryApi = createDynamicApiClient('CrmCustomerQuery')
+const customerQueryApi = createReadApi<CrmCustomerListItemDto, CrmCustomerDetailDto, CrmCustomerPageQueryDto>('CrmCustomerQuery', 'CrmCustomer')
+const customerCommandRouteApi = createDynamicApiClient('CrmCustomer')
 const customerCommandApi = createCommandApi<CrmCustomerCreateDto, CrmCustomerUpdateDto, CrmCustomerDetailDto>('CrmCustomer', 'CrmCustomer')
 
 export const crmCustomerApi = {
@@ -19,12 +20,12 @@ export const crmCustomerApi = {
     return customerCommandApi.update(input)
   },
   delete(id: ApiId) {
-    return customerCommandApi.delete(id)
+    return customerCommandRouteApi.delete<void>('CrmCustomer', { id })
   },
   detail(id: ApiId) {
-    return customerQueryApi.get<CrmCustomerDetailDto | null>('GetDetail', { id })
+    return customerQueryApi.detail(id)
   },
   page(input: CrmCustomerPageQueryDto) {
-    return customerQueryApi.post<PageResult<CrmCustomerListItemDto>, CrmCustomerPageQueryDto>('GetPage', input)
+    return customerQueryApi.page(input)
   },
 }
