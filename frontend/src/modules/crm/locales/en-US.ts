@@ -4,7 +4,8 @@ export default {
     "crm_customers": "Customers",
     "crm_leads": "Leads",
     "crm_opportunities": "Opportunities",
-    "crm_tasks": "Tasks"
+    "crm_tasks": "Tasks",
+    "crm_contacts": "Contacts"
   },
   "crm": {
     "lead": {
@@ -227,6 +228,50 @@ export default {
       "priority3": "Normal",
       "priority4": "High",
       "priority5": "Urgent"
+    },
+    "contact": {
+      "title": "Contacts",
+      "description": "Manage people, roles, and contact channels associated with customer accounts.",
+      "create": "New contact",
+      "search": "Search name, email, phone, or WhatsApp",
+      "customerId": "Customer ID",
+      "loading": "Loading contacts…",
+      "empty": "No contact records",
+      "name": "Name",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "jobTitle": "Job title",
+      "email": "Email",
+      "phone": "Phone",
+      "whatsApp": "WhatsApp",
+      "primary": "Primary contact",
+      "yes": "Yes",
+      "ownerId": "Owner user ID",
+      "notes": "Notes",
+      "actions": "Actions",
+      "edit": "Edit",
+      "delete": "Delete",
+      "newTitle": "Create contact",
+      "editTitle": "Edit contact",
+      "save": "Save contact",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "requiredFields": "Customer ID, first name, and last name are required",
+      "loadError": "Could not load contacts",
+      "detailError": "Could not load contact details",
+      "saveError": "Could not save contact",
+      "createSuccess": "Contact created",
+      "updateSuccess": "Contact updated",
+      "deleteSuccess": "Contact deleted",
+      "deleteError": "Could not delete contact",
+      "confirmDelete": "Delete contact “{name}”?",
+      "notFound": "Contact not found or access denied",
+      "total": "{count} records",
+      "page": "Page {current} / {total}",
+      "previous": "Previous",
+      "next": "Next",
+      "query": "Search",
+      "refresh": "Refresh"
     }
   }
 }
