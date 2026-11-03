@@ -27,4 +27,5 @@ Contact create/update maintains the uniqueness slot. Attempting to mark a second
 ## Validation status
 
 - Entity mapping, write-path maintenance and migration regression test source are committed.
-- No .NET build/test or PostgreSQL migration execution has been performed yet.
+- Added a SQLite integration test source that exercises the CodeFirst unique index: multiple non-primary contacts are allowed, a second primary for the same tenant/customer is rejected, and separate customers/tenants can each have a primary.
+- Tests are committed but not executed. No .NET build/test or PostgreSQL migration execution has been performed yet.
