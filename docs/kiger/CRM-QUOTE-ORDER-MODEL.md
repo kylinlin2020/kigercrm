@@ -75,3 +75,15 @@ A paged quotation list query is now available through the CRM dynamic API:
 - Return quote version, customer snapshot, status, validity, currency and grand total for list views.
 
 Quote detail with line retrieval, version revision, and quote-to-order conversion are not implemented yet. The list query has source-wiring tests only; compilation and database query execution remain unverified.
+
+## Sales order list query implementation status
+
+A paged sales order list dynamic API is now available:
+
+- Search by order number, customer snapshot name or currency.
+- Filter by customer, order status and owner.
+- Enforce CRM read permission, owner-data scope and field-level query guards before paging.
+- Return source quote reference, customer snapshot, order date, currency and grand total.
+- Default sorting is newest-created first.
+
+This is a list-query slice only. Sales order creation from accepted quotations, order detail/lines and order lifecycle commands remain pending. Source-wiring tests were added; compilation and database query execution have not been run in this session.
