@@ -7,4 +7,15 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 
 /// <summary>SqlSugar implementation; tenant and soft-delete filters come from SaasRepository.</summary>
 public sealed class CrmShipmentLineRepository(ISqlSugarClientResolver clientResolver)
-    : SaasRepository<SysCrmShipmentLine>(clientResolver), ICrmShipmentLineRepository { }
+    : SaasRepository<SysCrmShipmentLine>(clientResolver), ICrmShipmentLineRepository
+{
+    public async Task<IReadOnlyList<SysCrmShipmentLine>> GetByShipmentIdAsync(long shipmentId, CancellationToken cancellationToken = default)
+    {
+        if (shipmentId <= 0) throw new ArgumentOutOfRangeException(nameof(shipmentId));
+        cancellationToken.ThrowIfCancellationRequested();
+        return await CreateQueryable()
+            .Where(line => line.ShipmentId == shipmentId)
+            .OrderBy(line => line.BasicId)
+            .ToListAsync(cancellationToken);
+    }
+}
