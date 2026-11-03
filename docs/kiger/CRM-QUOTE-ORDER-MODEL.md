@@ -148,3 +148,7 @@ This is persistence groundwork only. No shipment create/dispatch/deliver command
 Important limitation: this creates a Draft manifest only. It does not reserve stock, dispatch goods, mark quantities shipped, or prevent cumulative over-shipment across multiple draft manifests. Dispatch must remain blocked until transactional cumulative shipped-quantity checks and concurrency protection are implemented.
 
 - Added a guarded cancellation command: only Draft shipments can transition to Cancelled; it requires Execute permission, owner-scope access and field-security update authorization. Dispatch/delivery transitions remain intentionally unavailable pending cumulative shipped-quantity validation.
+
+## Fulfillment state ownership hardening
+
+Manual sales-order status edits can no longer set Processing → PartiallyShipped/Completed or PartiallyShipped → Completed. These states represent physical fulfillment and must be derived from validated shipment dispatch/delivery operations, not an unrestricted status command. The shipment workflow will own those transitions after cumulative quantity and concurrency protections are complete.
