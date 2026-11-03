@@ -1,3 +1,4 @@
+using XiHan.BasicApp.Saas.Application.QueryServices;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Application.Mappers;
@@ -10,7 +11,7 @@ using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Tasks")]
-public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFieldSecurityService fieldSecurity)
+public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmTaskAppService
 {
     [UnitOfWork(true)]
@@ -18,6 +19,8 @@ public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFiel
     public async Task<CrmTaskDto> CreateAsync(CrmTaskCreateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.AssigneeUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.AssigneeUserId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmTask), input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.CreateAsync(CrmTaskCommandMapper.ToCommand(input), cancellationToken));
     }
