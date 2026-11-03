@@ -47,7 +47,7 @@ describe('crmLeadApi', () => {
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmLead/CrmLead', create, undefined)
     expect(requestMocks.put).toHaveBeenCalledWith('/CrmLead/CrmLead', expect.objectContaining({ basicId: 42 }), undefined)
     expect(requestMocks.delete).toHaveBeenCalledWith('/CrmLead/CrmLead', expect.objectContaining({ params: { id: 42 } }))
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLead/Convert', null, expect.objectContaining({ params: { id: 42 } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLead/Convert', undefined, expect.objectContaining({ params: { id: 42 } }))
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmLeadDuplicateQuery/FindPotentialDuplicates', duplicate, undefined)
   })
 })
