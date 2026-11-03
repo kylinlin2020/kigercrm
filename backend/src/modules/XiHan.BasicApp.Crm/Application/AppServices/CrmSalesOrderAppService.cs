@@ -34,7 +34,9 @@ public sealed class CrmSalesOrderAppService(
     {
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
-        var number = NormalizeRequired(input.OrderNumber, 40, nameof(input.OrderNumber));
+        var number = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
+            ? NormalizeRequired(input.OrderNumber, 40, nameof(input.OrderNumber))
+            : string.Empty;
         var currency = NormalizeRequired(input.Currency, 3, nameof(input.Currency)).ToUpperInvariant();
         if (currency.Length != 3 || currency.Any(c => c is < 'A' or > 'Z'))
             throw new ArgumentException("Currency must be a three-letter alphabetic code.", nameof(input.Currency));
