@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as crmBarrel from './index'
+import { crmContactApi } from './contact'
 import { crmCustomerApi } from './customer'
 import { crmLeadApi } from './lead'
 import { crmOpportunityApi } from './opportunity'
@@ -7,6 +8,7 @@ import { crmTaskApi } from './task'
 
 describe('CRM API barrel', () => {
   it('exports all CRM resource clients from the shared CRM module entry', () => {
+    expect(crmBarrel.crmContactApi).toBe(crmContactApi)
     expect(crmBarrel.crmCustomerApi).toBe(crmCustomerApi)
     expect(crmBarrel.crmLeadApi).toBe(crmLeadApi)
     expect(crmBarrel.crmOpportunityApi).toBe(crmOpportunityApi)
