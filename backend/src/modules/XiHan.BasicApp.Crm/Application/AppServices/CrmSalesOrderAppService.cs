@@ -138,12 +138,20 @@ public sealed class CrmSalesOrderAppService(
                 TaxRate = lineInput.TaxRate,
                 SortOrder = lineInput.SortOrder
             });
-            calculated.BasicId = existing.BasicId;
-            calculated.SalesOrderId = order.BasicId;
-            calculated.ReservedQuantity = existing.ReservedQuantity;
-            calculated.ShippedQuantity = existing.ShippedQuantity;
+            existing.ProductCode = calculated.ProductCode;
+            existing.Description = calculated.Description;
+            existing.Quantity = calculated.Quantity;
+            existing.Unit = calculated.Unit;
+            existing.UnitPrice = calculated.UnitPrice;
+            existing.DiscountRate = calculated.DiscountRate;
+            existing.TaxRate = calculated.TaxRate;
+            existing.LineSubtotal = calculated.LineSubtotal;
+            existing.LineDiscount = calculated.LineDiscount;
+            existing.LineTax = calculated.LineTax;
+            existing.LineTotal = calculated.LineTotal;
+            existing.SortOrder = calculated.SortOrder;
             await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmSalesOrderLine), existing.BasicId, lineInput, cancellationToken);
-            await orderLines.UpdateAsync(calculated, cancellationToken);
+            await orderLines.UpdateAsync(existing, cancellationToken);
         }
 
         var customer = await customers.GetByIdAsync(input.CustomerId, cancellationToken)
