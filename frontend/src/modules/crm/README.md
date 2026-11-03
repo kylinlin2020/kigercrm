@@ -1,6 +1,6 @@
 # CRM frontend module
 
-This module provides six CRM management routes registered by the backend `PageRegistry`:
+This module currently provides six CRM management routes registered by the backend `PageRegistry`:
 
 - Customer: `Crm/Customer/Index` (`/crm/customers`)
 - Contact: `Crm/Contact/Index` (`/crm/contacts`)
@@ -15,3 +15,6 @@ This module provides six CRM management routes registered by the backend `PageRe
 Customer, Contact, Activity, Lead, Opportunity and Task pages use typed API contracts and the shared API facade at `@/api`. Contacts support customer-scoped filtering, primary-contact designation, email, phone and WhatsApp channels. Activities record calls, emails, meetings, notes, WhatsApp and other interactions against customers, contacts, leads or opportunities. Leads support advisory duplicate detection and conversion to Customer. Opportunities support pipeline stages, amount/currency, close date, probability and loss-reason validation. Tasks support related records, due dates, priorities, assignees and status transitions.
 
 All seven supported locale files include the CRM menu and management strings. Backend page registration is covered by `CrmPageRegistryViewWiringTests`.
+
+
+Quote and Sales Order persistence models are being introduced in the backend. Their API contracts, menu routes and frontend pages are intentionally not listed until the transactional quote-to-order workflow is implemented.
