@@ -25,6 +25,11 @@ public sealed class CrmSalesOrderQueryWiringTests
         Assert.Contains("GrandTotal", dto, StringComparison.Ordinal);
         Assert.Contains("SourceQuoteId", dto, StringComparison.Ordinal);
         Assert.Contains("OrderDate", dto, StringComparison.Ordinal);
+        Assert.Contains("ReservedQuantity", dto, StringComparison.Ordinal);
+        Assert.Contains("ShippedQuantity", dto, StringComparison.Ordinal);
+        Assert.Contains("RemainingQuantity", dto, StringComparison.Ordinal);
+        Assert.Contains("ReservedQuantity = x.ReservedQuantity", source, StringComparison.Ordinal);
+        Assert.Contains("ShippedQuantity = x.ShippedQuantity", source, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
