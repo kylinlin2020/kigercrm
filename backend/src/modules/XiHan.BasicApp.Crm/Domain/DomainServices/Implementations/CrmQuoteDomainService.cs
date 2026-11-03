@@ -21,6 +21,8 @@ public sealed class CrmQuoteDomainService(
         var currency = NormalizeCurrency(command.Currency);
         if (command.CustomerId <= 0) throw new ArgumentOutOfRangeException(nameof(command.CustomerId));
         if (command.OwnerUserId is <= 0) throw new ArgumentOutOfRangeException(nameof(command.OwnerUserId));
+        if (command.IssueDate == default) throw new ArgumentOutOfRangeException(nameof(command.IssueDate));
+        if (command.Lines is { Count: > 500 }) throw new ArgumentOutOfRangeException(nameof(command.Lines), "A quotation cannot contain more than 500 lines.");
         if (command.ValidUntil.HasValue && command.ValidUntil.Value.Date < command.IssueDate.Date)
             throw new ArgumentException("Quote validity date cannot precede its issue date.", nameof(command.ValidUntil));
         if (command.Lines is null || command.Lines.Count == 0)
