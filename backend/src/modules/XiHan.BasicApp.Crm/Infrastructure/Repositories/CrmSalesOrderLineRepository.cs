@@ -7,4 +7,5 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 
 /// <summary>SqlSugar implementation; tenant and soft-delete filters come from SaasRepository.</summary>
 public sealed class CrmSalesOrderLineRepository(ISqlSugarClientResolver clientResolver)
-    : SaasRepository<SysCrmSalesOrderLine>(clientResolver), ICrmSalesOrderLineRepository { }
+    : SaasRepository<SysCrmSalesOrderLine>(clientResolver), ICrmSalesOrderLineRepository {
+}
