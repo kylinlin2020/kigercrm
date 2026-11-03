@@ -253,7 +253,7 @@ onMounted(loadPage)
       <section class="editor">
         <header><h2>{{ t('crm.shipment.newTitle') }}</h2><button type="button" @click="createOpen = false">×</button></header>
         <form @submit.prevent="createShipment">
-          <label>{{ t('crm.shipment.number') }} *<input v-model="form.shipmentNumber" required maxlength="40"></label>
+          
           <label>{{ t('crm.shipment.orderSelect') }} *
             <select v-model="form.salesOrderId" required :disabled="loadingOrders" @change="onOrderSelected">
               <option value="">{{ loadingOrders ? t('crm.shipment.loadingOrders') : t('crm.shipment.selectOrder') }}</option>
