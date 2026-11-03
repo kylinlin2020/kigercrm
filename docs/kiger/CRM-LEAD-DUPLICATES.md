@@ -9,10 +9,26 @@ Implemented on `kiger-dev`:
 - The source lead ID can be excluded, cancellation is propagated, inputs are length-validated, and empty identity input is rejected.
 - Company-name matching remains a suggestion only; no create operation is blocked and no uniqueness constraint is introduced.
 
-Known preselection limitation (important):
-- Candidate retrieval is a bounded prefilter, not a full-table fuzzy scan. Email is queried after normalization; company name uses the platform keyword search; phone and website currently use exact stored-value preselection. The scoring engine can normalize phone formatting and website hosts only after a row has been selected, so formatting/path variants may not be retrieved in this first API increment. A follow-up should add provider-safe indexed normalization/search or dedicated normalized columns with a migration before claiming exhaustive duplicate detection.
-- The per-signal 100-row cap means very large collision groups are intentionally bounded; the UI must present this as a candidate warning, not as proof that no duplicate exists when the result is empty.
+## Normalized candidate lookup (5.9.2)
 
-Validation:
-- Source committed to `kiger-dev`.
-- No .NET restore/build/test or database execution has been performed. The Windows validation gate remains open.
+Phone and website candidate preselection now use persisted normalized keys instead of exact raw-value equality:
+
+- `duplicate_email_normalized`: trimmed, lowercase email with a trailing domain dot removed.
+- `phone_digits`: ASCII digits only; country-code digits are preserved.
+- `website_host`: lowercase host, without scheme, path, query, `www.`, or a numeric port.
+- The Lead domain service refreshes all three keys on create and update.
+- PostgreSQL migration `5.9.2/5.9.2.sql` adds nullable columns, backfills existing CRM Lead rows, and adds tenant-prefixed lookup indexes.
+- These are ordinary non-unique indexes. No email, phone, company, or website uniqueness constraint is added.
+
+## Remaining limits
+
+- Candidate retrieval remains bounded to 100 rows per signal. Large collision groups can be truncated; an empty result is not proof that no duplicate exists.
+- Company-name lookup still uses the platform keyword search and remains a weaker signal.
+- The website host backfill handles common DNS hostnames and numeric ports. Internationalized hostnames and unusual URL authorities should be covered by integration tests before claiming complete equivalence with .NET URI normalization.
+- Normalized keys are maintained through the Lead domain service. Any future bulk import or direct repository write path must use the same normalization helper or update the keys explicitly.
+- The API is advisory only; it does not block Lead creation or conversion.
+
+## Validation status
+
+- Source and PostgreSQL migration committed to `kiger-dev`.
+- No .NET restore/build/test or PostgreSQL migration execution has been performed. The Windows validation gate remains open.
