@@ -46,6 +46,31 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("Lines.Count > 500", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ShipmentCreate_ShouldReserveOnlyRemainingOrderQuantityUnderOrderLock()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var method = source[source.IndexOf("CreateAsync(CrmShipmentCreateDto", StringComparison.Ordinal)..source.IndexOf("ChangeStatusAsync(CrmShipmentStatusUpdateDto", StringComparison.Ordinal)];
+        Assert.Contains("order.FulfillmentRevision++", method, StringComparison.Ordinal);
+        Assert.Contains("orderLine.Quantity - orderLine.ReservedQuantity - orderLine.ShippedQuantity", method, StringComparison.Ordinal);
+        Assert.Contains("requested.Quantity > availableQuantity", method, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ReservedQuantity += requested.Quantity", method, StringComparison.Ordinal);
+        Assert.Contains("OrderBy(line => line.SalesOrderLineId)", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ShipmentLifecycle_ShouldReleaseReservationsOnCancelAndConsumeThemOnDispatch()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var cancel = source[source.IndexOf("if (target == CrmShipmentStatus.Cancelled)", StringComparison.Ordinal)..source.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", StringComparison.Ordinal)];
+        var dispatch = source[source.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", StringComparison.Ordinal)..source.IndexOf("else\n        {", source.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", StringComparison.Ordinal), StringComparison.Ordinal)];
+        Assert.Contains("orderLine.ReservedQuantity -= shipmentLine.Quantity", cancel, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ReservedQuantity -= shipmentLine.Quantity", dispatch, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ShippedQuantity += shipmentLine.Quantity", dispatch, StringComparison.Ordinal);
+        Assert.Contains("CrmSalesOrderStatus.Completed", dispatch, StringComparison.Ordinal);
+        Assert.Contains("CrmSalesOrderStatus.PartiallyShipped", dispatch, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
