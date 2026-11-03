@@ -44,10 +44,11 @@ public sealed class CrmPrimaryContactUniquenessTests
             "5.9.3", "5.9.3.sql"));
 
         Assert.Contains("ADD COLUMN IF NOT EXISTS primary_customer_id bigint", source, StringComparison.Ordinal);
-        Assert.Contains("WHEN is_primary THEN customer_id", source, StringComparison.Ordinal);
+        Assert.Contains("WHEN is_primary AND is_deleted = FALSE THEN customer_id", source, StringComparison.Ordinal);
         Assert.Contains("WHERE is_primary = TRUE AND is_deleted = FALSE", source, StringComparison.Ordinal);
         Assert.Contains("GROUP BY tenant_id, customer_id", source, StringComparison.Ordinal);
         Assert.Contains("HAVING COUNT(*) > 1", source, StringComparison.Ordinal);
+        Assert.Contains("ON crm_contact (tenant_id, primary_customer_id, is_deleted)", source, StringComparison.Ordinal);
         Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_contact_teid_prcuid", source, StringComparison.Ordinal);
     }
 
