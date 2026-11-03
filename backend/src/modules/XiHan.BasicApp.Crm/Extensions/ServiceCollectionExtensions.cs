@@ -25,7 +25,11 @@ public static class ServiceCollectionExtensions
             .Add<SysCrmLead>()
             .Add<SysCrmOpportunity>()
             .Add<SysCrmActivity>()
-            .Add<SysCrmTask>());
+            .Add<SysCrmTask>()
+            .Add<SysCrmQuote>()
+            .Add<SysCrmQuoteLine>()
+            .Add<SysCrmSalesOrder>()
+            .Add<SysCrmSalesOrderLine>());
         
     }
 
