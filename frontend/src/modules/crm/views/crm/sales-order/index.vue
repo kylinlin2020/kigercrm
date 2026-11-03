@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmCustomerListItemDto, CrmContactListItemDto, CrmOpportunityListItemDto, CrmSalesOrderCreateDto, CrmSalesOrderDetailDto, CrmSalesOrderListItemDto, CrmSalesOrderLineCreateDto, CrmSalesOrderLineDto, CrmSalesOrderLineUpdateDto from '@/api'
+import type { CrmCustomerListItemDto, CrmContactListItemDto, CrmOpportunityListItemDto, CrmSalesOrderCreateDto, CrmSalesOrderDetailDto, CrmSalesOrderListItemDto, CrmSalesOrderLineCreateDto, CrmSalesOrderLineDto, CrmSalesOrderLineUpdateDto } from '@/api'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPageRequest, CrmSalesOrderStatus, crmSalesOrderApi, crmCustomerApi, crmContactApi, crmOpportunityApi } from '@/api'
@@ -39,7 +39,7 @@ async function openEdit(row:CrmSalesOrderListItemDto){
   if(!detail||detail.status!==CrmSalesOrderStatus.Draft){toast.warning(t('crm.salesOrder.editDraftOnly'));return}
   if(result.items.some(line=>line.reservedQuantity>0||line.shippedQuantity>0)){toast.warning(t('crm.salesOrder.editFulfillmentLocked'));return}
   editForm.value={id:String(detail.basicId),customerId:String(detail.customerId),contactId:detail.contactId?String(detail.contactId):'',opportunityId:detail.opportunityId?String(detail.opportunityId):'',orderDate:new Date(detail.orderDate).toISOString().slice(0,10),currency:detail.currency,customerPurchaseOrderNumber:detail.customerPurchaseOrderNumber||'',paymentTerms:detail.paymentTerms||'',deliveryTerms:detail.deliveryTerms||'',notes:detail.notes||''};
-  editLines.value=result.items.map(line=>({id:line.basicId,productCode:line.productCode||'',description:line.description,quantity:line.quantity,unit:line.unit||'',unitPrice:line.unitPrice,discountRate:line.discountRate,taxRate:line.taxRate,sortOrder:line.sortOrder}));
+  editLines.value=result.items.map(line=>({id:line.basicId,sourceQuoteLineId:line.sourceQuoteLineId||null,productCode:line.productCode||'',description:line.description,quantity:line.quantity,unit:line.unit||'',unitPrice:line.unitPrice,discountRate:line.discountRate,taxRate:line.taxRate,sortOrder:line.sortOrder}));
   editOpen.value=true;
  }catch(e){toast.danger((e as Error)?.message||t('crm.salesOrder.editLoadError'))}
 }
