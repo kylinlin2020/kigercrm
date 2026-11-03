@@ -23,6 +23,9 @@ public sealed class CrmQuoteConversionMigrationTests
             "UpdateScripts", "5.9.4", "5.9.4.sql")));
 
         Assert.Contains("HAVING COUNT(*) > 1", sql, StringComparison.Ordinal);
+        Assert.Contains("GROUP BY tenant_id, source_quote_id, is_deleted", sql, StringComparison.Ordinal);
+        Assert.Contains("GROUP BY tenant_id, sales_order_id, source_quote_line_id, is_deleted", sql, StringComparison.Ordinal);
+        Assert.Contains("including soft-deleted rows", sql, StringComparison.Ordinal);
         Assert.Contains("Resolve duplicates, then retry.", sql, StringComparison.Ordinal);
         Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS", sql, StringComparison.Ordinal);
     }
