@@ -272,3 +272,20 @@ Validation status:
 - Source changes are committed; no .NET build, test, or database execution has been performed or claimed.
 - Opportunity field-level masking on detail responses and owner/data-scope enforcement need explicit integration coverage.
 - Activity and Task application workflows, migrations, frontend, and Go CRM connector remain pending.
+
+
+## Activity and Task command workflows (2026-11-03)
+
+Implemented on `kiger-dev`:
+- Activity: repository, create/update DTOs, command contract/mapper, domain service and permission-protected application service for Call, Email, Meeting, Note, WhatsApp and Other records.
+- Task: repository, create/update DTOs, command contract/mapper, domain service and permission-protected application service for task creation, editing, status changes and deletion.
+- Task status changes maintain `CompletedAt`: set when entering Completed and clear when leaving Completed.
+- Both Activity and Task now have explicit field-security entity registration alongside Customer, Contact, Lead and Opportunity.
+- Task validation covers related-reference pair consistency, title length, status enum, priority range 1–5 and positive assignee IDs. Activity validation covers related type/id shape, activity enum, subject length and optional external identifier lengths.
+
+Important remaining work / validation:
+- Activity and Task paginated list/detail query APIs are not yet implemented.
+- Activity related-record IDs and Task optional related-record IDs are shape-validated but are not yet resolved against the corresponding tenant-scoped Customer/Contact/Lead/Opportunity repositories. This must be added before production.
+- Owner/assignee authorization, data-scope enforcement, field-level masking on returned DTOs, and soft-delete behavior need integration tests.
+- No .NET build/test or database execution is claimed.
+- Go CRM REST Connector is explicitly out of scope: KIGER is the integrated CRM product; no separate Go CRM connector will be built.
