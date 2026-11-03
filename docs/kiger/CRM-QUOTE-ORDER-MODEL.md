@@ -193,3 +193,17 @@ The 5.9.4 PostgreSQL upgrade also installs the entity-declared tenant + quote nu
 - Delivery is allowed only from Dispatched and records DeliveredDate. Repeated or out-of-order transitions are rejected.
 - The 5.9.5 PostgreSQL migration adds the order-level fulfillment revision and non-negative reserved/shipped columns and a database check that their sum never exceeds the ordered quantity. New databases receive the columns from entity metadata.
 - Source-wiring regression tests were updated for the ledger, order-level serialization and transitions. Sales-order line query DTOs expose reserved, shipped and remaining quantities. No backend build, automated test run, PostgreSQL migration run, or real-device verification has been observed yet. A concurrent multi-connection integration test remains a release gate.
+
+
+## Accepted quote to sales-order conversion
+
+The CRM quote application service now exposes `ConvertToSalesOrderAsync`:
+
+- Requires Execute permission, current-tenant quote lookup, owner-data-scope access and quote field-level update authorization.
+- Accepts only an `Accepted` quote with no existing converted-order reference.
+- Copies the quote header's customer/contact/opportunity, currency, commercial totals and owner snapshot into a Draft sales order.
+- Copies every quote line into a sales-order line, retaining the source quote-line ID and all quantity, price, discount, tax and calculated amount snapshots.
+- Links the sales order back to the source quote, then changes the quote to `Converted` and stores `ConvertedOrderId`.
+- The complete operation is enclosed in one transactional UnitOfWork. The tenant-scoped unique source-quote index is the database-level guard against concurrent duplicate conversion; a failed insert or optimistic quote update must roll back the order header and all lines.
+
+The sales-order number is deterministically generated from the source quote record ID (`SO-{quoteId}`) so separate accepted quote versions do not collide merely because they share a human quote number. The operation has source-wiring regression coverage only; PostgreSQL concurrency/rollback, compilation and frontend integration remain unverified.
