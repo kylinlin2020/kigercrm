@@ -36,6 +36,14 @@ public sealed class CrmSalesOrderLifecycleWiringTests
         Assert.Contains("Cancel all draft shipments before cancelling this sales order", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void StatusCommand_ShouldSerializeLifecycleChangesAndRejectAlreadyShippedOrders()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        Assert.Contains("order.FulfillmentRevision++", source, StringComparison.Ordinal);
+        Assert.Contains("line.ReservedQuantity > 0 || line.ShippedQuantity > 0", source, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
