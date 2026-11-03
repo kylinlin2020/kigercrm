@@ -289,3 +289,21 @@ Important remaining work / validation:
 - Owner/assignee authorization, data-scope enforcement, field-level masking on returned DTOs, and soft-delete behavior need integration tests.
 - No .NET build/test or database execution is claimed.
 - Go CRM REST Connector is explicitly out of scope: KIGER is the integrated CRM product; no separate Go CRM connector will be built.
+
+
+## Activity / Task query and relation validation increment (2026-11-03)
+
+Implemented on `kiger-dev`:
+- Activity page/detail query API with related-record, activity-type, owner, occurrence-window and keyword filters; read permission, tenant repository scope, field-security query guard and occurrence-time ordering.
+- Task page/detail query API with related-record, status, priority, assignee, due-window, overdue-only and keyword filters; read permission, tenant repository scope, field-security query guard and due-time ordering.
+- Activity create/update now resolves the related record against tenant-scoped Customer, Contact, Lead or Opportunity repositories; unsupported types and missing records are rejected.
+- Task create/update now validates optional linked records against the same tenant-scoped CRM repositories; a type/id pair must be supplied together.
+
+Project scope clarification:
+- Go CRM REST Connector is excluded. KIGER is the CRM product and the internal CRM module is the system of record.
+
+Remaining:
+- Detail DTO field-level masking needs an explicit supported response-guard implementation and tests; list query guards are present.
+- Owner/assignee assignment authorization and row-level data-scope policies still need dedicated enforcement and tests.
+- Verify SqlSugar date comparison overloads and repository/DTO API signatures during the final machine build; no build or test pass is claimed.
+- Database migration generation, integration tests, duplicate detection and frontend workflows remain in progress.
