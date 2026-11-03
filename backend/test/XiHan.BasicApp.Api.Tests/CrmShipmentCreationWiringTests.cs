@@ -39,13 +39,16 @@ public sealed class CrmShipmentCreationWiringTests
 
 
     [Fact]
-    public void ShipmentStatusCommand_ShouldNotExposeDispatchOrDeliveryBeforeQuantityLedgerExists()
+    public void ShipmentFulfillment_ShouldReserveReleaseAndConsumeOrderQuantities()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
-        Assert.Contains("if (input.Status != (int)CrmShipmentStatus.Cancelled)", source, StringComparison.Ordinal);
-        Assert.Contains("Only cancellation of a draft shipment is currently supported.", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("shipment.Status = CrmShipmentStatus.Dispatched", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("shipment.Status = CrmShipmentStatus.Delivered", source, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ReservedQuantity += requested.Quantity", source, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ReservedQuantity -= shipmentLine.Quantity", source, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ShippedQuantity += shipmentLine.Quantity", source, StringComparison.Ordinal);
+        Assert.Contains("CrmShipmentStatus.Dispatched", source, StringComparison.Ordinal);
+        Assert.Contains("CrmShipmentStatus.Delivered", source, StringComparison.Ordinal);
+        Assert.Contains("orders.UpdateAsync(order", source, StringComparison.Ordinal);
+        Assert.Contains("ListForOrderAsync", source, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
