@@ -48,13 +48,14 @@ public sealed class CrmSalesOrderAppService(
         if (target == CrmSalesOrderStatus.Cancelled)
         {
             var lines = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
-            if (lines.Any(line => line.ReservedQuantity > 0))
+            if (lines.Any(line => line.ReservedQuantity > 0 || line.ShippedQuantity > 0))
                 throw new InvalidOperationException("Cancel all draft shipments before cancelling this sales order; reserved quantities must be released first.");
         }
         if (!allowed)
             throw new InvalidOperationException($"Sales order status transition from {order.Status} to {target} is not allowed.");
 
         order.Status = target;
+        order.FulfillmentRevision++;
         var saved = await repository.UpdateAsync(order, cancellationToken);
         return new CrmSalesOrderListItemDto
         {
