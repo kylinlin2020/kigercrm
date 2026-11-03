@@ -1,3 +1,4 @@
+using XiHan.BasicApp.Saas.Application.QueryServices;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Application.Mappers;
@@ -12,7 +13,7 @@ using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Leads")]
-public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, IFieldSecurityService fieldSecurity)
+public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmLeadAppService
 {
     [UnitOfWork(true)]
@@ -20,6 +21,8 @@ public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, IFiel
     public async Task<CrmLeadDetailDto> CreateAsync(CrmLeadCreateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmLead), input, cancellationToken);
         var entity = await domainService.CreateAsync(CrmLeadCommandMapper.ToCommand(input), cancellationToken);
