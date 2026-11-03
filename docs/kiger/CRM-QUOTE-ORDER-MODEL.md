@@ -87,3 +87,17 @@ A paged sales order list dynamic API is now available:
 - Default sorting is newest-created first.
 
 This is a list-query slice only. Sales order creation from accepted quotations, order detail/lines and order lifecycle commands remain pending. Source-wiring tests were added; compilation and database query execution have not been run in this session.
+
+## Sales order lifecycle command implementation status
+
+An authorized sales order status command is now exposed through the CRM dynamic API:
+
+- Draft → Confirmed or Cancelled.
+- Confirmed → Processing or Cancelled.
+- Processing → PartiallyShipped or Completed.
+- PartiallyShipped → Completed.
+- Completed and Cancelled are terminal states.
+
+The command requires Execute permission, runs inside a transactional unit of work, validates tenant-scoped order existence through the repository, enforces owner data access and field-level update permission, and rejects all unlisted transitions. Shipment quantities, partial-shipment records, inventory reservation and fulfillment integrations are not implied by status changes; they require dedicated domain records and workflows.
+
+Source-wiring tests were added. Concurrent state-change protection and runtime/database verification remain outstanding.
