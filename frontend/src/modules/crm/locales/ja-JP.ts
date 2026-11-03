@@ -7,9 +7,9 @@ export default {
     "crm_tasks": "タスク",
     "crm_activities": "活動履歴",
     "crm_contacts": "連絡先",
-    "crm_quotes": "Quotes",
-    "crm_sales_orders": "Sales orders",
-    "crm_shipments": "Shipments"
+    "crm_quotes": "見積",
+    "crm_sales_orders": "販売注文",
+    "crm_shipments": "出荷"
   },
   "crm": {
     "lead": {
