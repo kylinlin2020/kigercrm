@@ -5,8 +5,11 @@ namespace XiHan.BasicApp.Crm.Application.Mappers;
 
 public static class CrmQuoteCommandMapper
 {
-    public static CrmQuoteCreateCommand ToCommand(CrmQuoteCreateDto input) =>
-        new(
+    public static CrmQuoteCreateCommand ToCommand(CrmQuoteCreateDto input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(input.Lines);
+        return new(
             input.QuoteNumber,
             input.CustomerId,
             input.ContactId,
@@ -26,4 +29,5 @@ public static class CrmQuoteCommandMapper
                 x.DiscountRate,
                 x.TaxRate,
                 x.SortOrder)).ToList());
+    }
 }
