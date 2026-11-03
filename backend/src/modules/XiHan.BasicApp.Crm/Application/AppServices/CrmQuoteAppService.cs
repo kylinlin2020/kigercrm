@@ -55,6 +55,23 @@ public sealed class CrmQuoteAppService(
     }
 
     [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Create)]
+    public async Task<CrmQuoteDto> ReviseAsync(long sourceQuoteId, CrmQuoteCreateDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (sourceQuoteId <= 0) throw new ArgumentOutOfRangeException(nameof(sourceQuoteId));
+        var source = await records.GetByIdAsync(sourceQuoteId, cancellationToken)
+            ?? throw new InvalidOperationException("Source quote does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, source.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, source.OwnerUserId, cancellationToken);
+        await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmQuote), input, cancellationToken);
+        if (input.Lines is null) throw new ArgumentException("Quotation lines are required.", nameof(input.Lines));
+        foreach (var line in input.Lines)
+            await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmQuoteLine), line, cancellationToken);
+        return ToDto(await domainService.CreateRevisionAsync(sourceQuoteId, CrmQuoteCommandMapper.ToCommand(input), cancellationToken));
+    }
+
+    [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public async Task<CrmQuoteDto> ChangeStatusAsync(CrmQuoteStatusUpdateDto input, CancellationToken cancellationToken = default)
     {
