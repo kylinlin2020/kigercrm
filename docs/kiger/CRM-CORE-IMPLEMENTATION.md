@@ -258,3 +258,17 @@ Validation and concurrency caveats:
 - Contact creation during conversion is currently conditional on a non-empty ContactName; lead email/phone alone do not create a contact.
 - Opportunity CRUD is implemented, but list/detail query APIs and full tenant/data-scope/owner authorization tests remain outstanding.
 - Activity and Task application services, migrations, frontend, Go CRM connector and AI sales workflows remain outstanding.
+
+
+## Opportunity pipeline query increment (2026-11-03)
+
+Implemented on `kiger-dev`:
+- Added a paginated Opportunity query contract and query DTO with Customer, Stage, Owner and keyword filters.
+- Added list/detail response projections and a Dynamic API query service.
+- The list query applies CRM Read permission, tenant-scoped repository access, field-security query guarding, validation of supplied filter identifiers/stages, and deterministic CreatedTime descending ordering.
+- Detail queries reuse the explicit Opportunity response mapper.
+
+Validation status:
+- Source changes are committed; no .NET build, test, or database execution has been performed or claimed.
+- Opportunity field-level masking on detail responses and owner/data-scope enforcement need explicit integration coverage.
+- Activity and Task application workflows, migrations, frontend, and Go CRM connector remain pending.
