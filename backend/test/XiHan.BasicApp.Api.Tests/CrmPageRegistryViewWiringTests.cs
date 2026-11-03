@@ -14,6 +14,9 @@ public sealed class CrmPageRegistryViewWiringTests
     [InlineData("Crm/Lead/Index", "lead")]
     [InlineData("Crm/Opportunity/Index", "opportunity")]
     [InlineData("Crm/Task/Index", "task")]
+    [InlineData("Crm/Quote/Index", "quote")]
+    [InlineData("Crm/SalesOrder/Index", "sales-order")]
+    [InlineData("Crm/Shipment/Index", "shipment")]
     public void RegisteredCrmComponent_ShouldResolveToAnExistingModuleView(string component, string view)
     {
         var registry = File.ReadAllText(RepositoryPath(
