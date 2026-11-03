@@ -170,3 +170,8 @@ Expanded source-wiring coverage for revision immutability and authorization: rev
 ## Sales-order quote-line uniqueness guard
 
 Added a tenant-scoped unique index over sales order + source quote line + deletion state. Together with the existing unique source-quote index on sales-order headers, this prevents a quote line from being copied twice into the same converted order and prevents a second order from being linked to the same quote. Nullable source quote-line values are intended for manually created order lines; database-specific nullable unique-index behavior must be verified on the deployment database.
+
+
+## Existing-database index migration
+
+The sales-order source-quote and source-quote-line unique indexes are declared in entity metadata for new databases. Existing databases are not altered by CodeFirst, so PostgreSQL migration `5.9.4/5.9.4.sql` creates both indexes after checking for duplicate active source links. If duplicates exist, startup migration fails with an actionable exception instead of silently installing an incomplete uniqueness guarantee. PostgreSQL is the repository's supported migration dialect; other database engines require equivalent deployment migrations. The indexes allow multiple manually entered lines/orders with NULL source references under PostgreSQL NULL-distinct unique-index semantics.
