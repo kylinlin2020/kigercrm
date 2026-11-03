@@ -17,6 +17,7 @@ namespace XiHan.BasicApp.Crm.Application.AppServices;
 public sealed class CrmSalesOrderAppService(
     ICrmSalesOrderRepository repository,
     ICrmSalesOrderLineRepository orderLines,
+    ICrmShipmentLineRepository shipmentLines,
     ICrmCustomerRepository customers,
     ICrmContactRepository contacts,
     ICrmOpportunityRepository opportunities,
@@ -132,6 +133,11 @@ public sealed class CrmSalesOrderAppService(
             throw new InvalidOperationException("An order line with reserved or shipped quantities cannot be removed.");
         if (removedLines.Any(x => x.SourceQuoteLineId.HasValue))
             throw new InvalidOperationException("Quotation-derived order lines cannot be removed.");
+        foreach (var removed in removedLines)
+        {
+            if (await shipmentLines.AnyForSalesOrderLineAsync(removed.BasicId, cancellationToken))
+                throw new InvalidOperationException("An order line referenced by shipment history cannot be removed, including lines from cancelled shipments.");
+        }
 
         foreach (var lineInput in input.Lines)
         {
