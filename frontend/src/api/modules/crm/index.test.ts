@@ -1,0 +1,21 @@
+import { describe, expect, it } from 'vitest'
+import * as crmBarrel from './index'
+import { crmCustomerApi } from './customer'
+import { crmLeadApi } from './lead'
+import { crmOpportunityApi } from './opportunity'
+import { crmTaskApi } from './task'
+
+describe('CRM API barrel', () => {
+  it('exports all CRM resource clients from the shared CRM module entry', () => {
+    expect(crmBarrel.crmCustomerApi).toBe(crmCustomerApi)
+    expect(crmBarrel.crmLeadApi).toBe(crmLeadApi)
+    expect(crmBarrel.crmOpportunityApi).toBe(crmOpportunityApi)
+    expect(crmBarrel.crmTaskApi).toBe(crmTaskApi)
+  })
+
+  it('exports the CRM workflow enums from the same entry', () => {
+    expect(crmBarrel.CrmLeadStatus).toBeDefined()
+    expect(crmBarrel.CrmOpportunityStage).toBeDefined()
+    expect(crmBarrel.CrmTaskStatus).toBeDefined()
+  })
+})
