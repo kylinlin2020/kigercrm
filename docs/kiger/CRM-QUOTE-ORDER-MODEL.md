@@ -127,7 +127,7 @@ The CRM module now includes tenant-scoped shipment headers and shipment-line qua
 - Both entities are registered with CRM field-security metadata and use the existing SaaS tenant-aware repository base.
 - Initial statuses are Draft, Dispatched, Delivered and Cancelled.
 
-This is persistence groundwork only. No shipment create/dispatch/deliver commands, cumulative shipped-quantity validation, stock deduction, carrier integration, or automatic sales-order status roll-up is implemented yet. Existing order status transitions still do not prove physical fulfillment. CodeFirst synchronization and runtime database validation remain pending.
+Shipment create, cancel, dispatch and delivery commands are implemented with a transactional order-line fulfillment ledger and automatic sales-order fulfillment status roll-up. Warehouse stock deduction and carrier integration remain out of scope. CodeFirst synchronization and runtime database validation remain pending.
 
 ## Shipment query endpoints
 
@@ -164,7 +164,7 @@ Manual sales-order status edits cannot set PartiallyShipped or Completed. These 
 
 Expanded source-wiring coverage for revision immutability and authorization: revisions build a new command from the source quote identity, create a new Draft header and newly persisted lines, and do not update the original quote record. The application endpoint checks source record visibility, assignable ownership and field-security creation permissions. Runtime behavior and concurrent same-version attempts still require database-backed tests; the tenant/quote/version unique index remains the final duplicate-version guard.
 
-- Added a regression guard confirming the shipment status API exposes cancellation only; it cannot set Dispatched or Delivered until the cumulative shipped-quantity ledger and concurrency-safe dispatch operation exist.
+- Shipment lifecycle regression coverage now verifies Draft cancellation, Dispatched quantity consumption and Delivered timestamp transitions; runtime database-backed concurrency tests remain outstanding.
 
 ## Sales-order quote-line uniqueness guard
 
