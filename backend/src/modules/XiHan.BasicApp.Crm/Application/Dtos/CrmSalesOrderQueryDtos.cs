@@ -10,7 +10,7 @@ public sealed class CrmSalesOrderPageQueryDto : BasicAppPRDto
     public long? OwnerUserId { get; set; }
 }
 
-public sealed class CrmSalesOrderListItemDto : BasicAppDto
+public class CrmSalesOrderListItemDto : BasicAppDto
 {
     public string OrderNumber { get; set; } = string.Empty;
     public long? SourceQuoteId { get; set; }
