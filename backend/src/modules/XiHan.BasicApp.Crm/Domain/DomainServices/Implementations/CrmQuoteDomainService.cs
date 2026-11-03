@@ -13,6 +13,31 @@ public sealed class CrmQuoteDomainService(
     ICrmContactRepository contacts,
     ICrmOpportunityRepository opportunities) : ICrmQuoteDomainService
 {
+    public async Task<SysCrmQuote> ChangeStatusAsync(long id, int status, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
+        if (!Enum.IsDefined(typeof(CrmQuoteStatus), status)) throw new ArgumentOutOfRangeException(nameof(status));
+        var quote = await quotes.GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException("Quote does not exist.");
+        var target = (CrmQuoteStatus)status;
+        var today = DateTime.UtcNow.Date;
+        var allowed = quote.Status switch
+        {
+            CrmQuoteStatus.Draft => target == CrmQuoteStatus.Sent,
+            CrmQuoteStatus.Sent => target is CrmQuoteStatus.Accepted or CrmQuoteStatus.Rejected
+                || target == CrmQuoteStatus.Expired && quote.ValidUntil.HasValue && quote.ValidUntil.Value.Date < today,
+            _ => false
+        };
+        if (!allowed)
+            throw new InvalidOperationException($"Quote status transition from {quote.Status} to {target} is not allowed.");
+        if (quote.Status == CrmQuoteStatus.Sent && quote.ValidUntil.HasValue && quote.ValidUntil.Value.Date < today
+            && target != CrmQuoteStatus.Expired)
+            throw new InvalidOperationException("An expired quote cannot be accepted or rejected.");
+        quote.Status = target;
+        return await quotes.UpdateAsync(quote, cancellationToken);
+    }
+
     public async Task<SysCrmQuote> CreateAsync(CrmQuoteCreateCommand command, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
