@@ -69,7 +69,7 @@ onMounted(loadPage)
 <header><h2>{{t('crm.salesOrder.createTitle')}}</h2><button type="button" :disabled="saving" @click="createOpen=false">×</button></header>
 <form @submit.prevent="createOrder">
 <div class="form-grid">
-<label>{{t('crm.salesOrder.number')}} *<input v-model="form.orderNumber" maxlength="40" required></label>
+
 <label class="customer-picker">{{t('crm.salesOrder.customer')}} *<div class="picker-search"><input v-model="customerSearch" :placeholder="t('crm.salesOrder.customerSearch')" @keydown.enter.prevent="searchCustomers"><button type="button" @click="searchCustomers">{{t('crm.salesOrder.searchCustomers')}}</button></div><select v-model="form.customerId" required @change="loadCustomerRelations(form.customerId)"><option value="">{{t('crm.salesOrder.selectCustomer')}}</option><option v-for="customer in customerOptions" :key="customer.basicId" :value="String(customer.basicId)">{{customer.name}} (#{{customer.basicId}})</option></select></label>
 <label>{{t('crm.salesOrder.contactId')}}<select v-model="form.contactId" :disabled="!form.customerId||loadingRelations"><option value="">{{t('crm.salesOrder.noContact')}}</option><option v-for="contact in contactOptions" :key="contact.basicId" :value="String(contact.basicId)">{{contact.fullName}} (#{{contact.basicId}})</option></select></label>
 <label>{{t('crm.salesOrder.opportunityId')}}<select v-model="form.opportunityId" :disabled="!form.customerId||loadingRelations"><option value="">{{t('crm.salesOrder.noOpportunity')}}</option><option v-for="opportunity in opportunityOptions" :key="opportunity.basicId" :value="String(opportunity.basicId)">{{opportunity.name}} (#{{opportunity.basicId}})</option></select></label>
