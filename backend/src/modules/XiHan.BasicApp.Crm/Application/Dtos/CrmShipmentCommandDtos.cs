@@ -9,6 +9,8 @@ public sealed class CrmShipmentLineCreateDto
 public sealed class CrmShipmentCreateDto
 {
     public string ShipmentNumber { get; set; } = string.Empty;
+    /// <summary>Optional stable retry key; when supplied, the server allocates the shipment number.</summary>
+    public string? NumberingIdempotencyKey { get; set; }
     public long SalesOrderId { get; set; }
     public DateTime? ShipmentDate { get; set; }
     public string? Carrier { get; set; }
