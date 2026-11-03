@@ -11,7 +11,7 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 /// </summary>
 [SugarTable(TableName = "Crm_Contact", TableDescription = "KIGER CRM customer contacts")]
 [SugarIndex("IX_{table}_TeId_CuId", nameof(TenantId), OrderByType.Asc, nameof(CustomerId), OrderByType.Asc)]
-[SugarIndex("UX_{table}_TeId_PrCuId", nameof(TenantId), OrderByType.Asc, nameof(PrimaryCustomerId), OrderByType.Asc, true)]
+[SugarIndex("UX_{table}_TeId_PrCuId", nameof(TenantId), OrderByType.Asc, nameof(PrimaryCustomerId), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_TeId_OwId", nameof(TenantId), OrderByType.Asc, nameof(OwnerUserId), OrderByType.Asc)]
 public sealed class SysCrmContact : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
 {
