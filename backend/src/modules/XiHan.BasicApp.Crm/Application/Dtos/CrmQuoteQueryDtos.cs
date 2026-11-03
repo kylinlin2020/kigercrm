@@ -10,7 +10,7 @@ public sealed class CrmQuotePageQueryDto : BasicAppPRDto
     public long? OwnerUserId { get; set; }
 }
 
-public sealed class CrmQuoteListItemDto : BasicAppDto
+public class CrmQuoteListItemDto : BasicAppDto
 {
     public string QuoteNumber { get; set; } = string.Empty;
     public int Version { get; set; }
