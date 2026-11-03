@@ -20,7 +20,6 @@ public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFiel
     {
         ArgumentNullException.ThrowIfNull(input);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.AssigneeUserId, cancellationToken);
-        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.AssigneeUserId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmTask), input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.CreateAsync(CrmTaskCommandMapper.ToCommand(input), cancellationToken));
     }
@@ -29,6 +28,7 @@ public sealed class CrmTaskAppService(ICrmTaskDomainService domainService, IFiel
     public async Task<CrmTaskDto> UpdateAsync(CrmTaskUpdateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.AssigneeUserId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmTask), input.BasicId, input, cancellationToken);
         return CrmCoreMapper.ToDto(await domainService.UpdateAsync(input.BasicId, CrmTaskCommandMapper.ToCommand(input), cancellationToken));
     }
