@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmQuoteDetailDto, CrmQuoteLineDto, CrmQuoteListItemDto } from '@/api'
+import type { CrmQuoteCreateDto, CrmQuoteDetailDto, CrmQuoteLineCreateDto, CrmQuoteLineDto, CrmQuoteListItemDto } from '@/api'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPageRequest, CrmQuoteStatus, crmQuoteApi } from '@/api'
@@ -23,6 +23,11 @@ const detailOpen = ref(false)
 const detailLoading = ref(false)
 const detailQuote = ref<CrmQuoteDetailDto | null>(null)
 const detailLines = ref<CrmQuoteLineDto[]>([])
+const reviseOpen = ref(false)
+const revising = ref(false)
+const reviseSourceId = ref<string | null>(null)
+const reviseForm = ref({ issueDate: new Date().toISOString().slice(0, 10), validUntil: '', termsAndConditions: '', notes: '' })
+const reviseLines = ref<CrmQuoteLineCreateDto[]>([])
 const createOpen = ref(false)
 const saving = ref(false)
 const form = ref({ quoteNumber: '', customerId: '', issueDate: new Date().toISOString().slice(0, 10), validUntil: '', currency: 'USD', description: '', quantity: '1', unitPrice: '0' })
@@ -74,6 +79,24 @@ async function openDetails(row: CrmQuoteListItemDto) {
   finally { detailLoading.value = false }
 }
 function closeDetails() { detailOpen.value = false; detailQuote.value = null }
+function openRevision() {
+  if (!detailQuote.value) return
+  reviseSourceId.value = String(detailQuote.value.basicId)
+  reviseForm.value = { issueDate: new Date().toISOString().slice(0, 10), validUntil: detailQuote.value.validUntil ? detailQuote.value.validUntil.slice(0, 10) : '', termsAndConditions: detailQuote.value.termsAndConditions || '', notes: detailQuote.value.notes || '' }
+  reviseLines.value = detailLines.value.map((line, index) => ({ productCode: line.productCode, description: line.description, quantity: line.quantity, unit: line.unit, unitPrice: line.unitPrice, discountRate: line.discountRate, taxRate: line.taxRate, sortOrder: line.sortOrder ?? index }))
+  closeDetails(); reviseOpen.value = true
+}
+async function saveRevision() {
+  if (!reviseSourceId.value || reviseLines.value.length === 0 || reviseLines.value.some(line => !line.description.trim() || !Number.isFinite(line.quantity) || line.quantity <= 0 || !Number.isFinite(line.unitPrice) || line.unitPrice < 0)) { toast.warning(t('crm.quote.revisionRequired')); return }
+  revising.value = true
+  try {
+    const input: CrmQuoteCreateDto = { quoteNumber: '', customerId: '1', issueDate: `${reviseForm.value.issueDate}T00:00:00`, validUntil: reviseForm.value.validUntil ? `${reviseForm.value.validUntil}T23:59:59` : null, currency: detailQuote.value?.currency || 'USD', termsAndConditions: reviseForm.value.termsAndConditions || null, notes: reviseForm.value.notes || null, lines: reviseLines.value }
+    await crmQuoteApi.revise(reviseSourceId.value, input)
+    toast.success(t('crm.quote.revised')); reviseOpen.value = false; reviseSourceId.value = null; await loadPage()
+  }
+  catch (error) { toast.danger((error as Error)?.message || t('crm.quote.revisionError')) }
+  finally { revising.value = false }
+}
 async function convertToOrder(row: CrmQuoteListItemDto) {
   try { const order = await crmQuoteApi.convertToSalesOrder(row.basicId); toast.success(`${t('crm.quote.converted')}: ${order.orderNumber}`); await loadPage() }
   catch (error) { toast.danger((error as Error)?.message || t('crm.quote.convertError')) }
@@ -107,12 +130,34 @@ onMounted(loadPage)
           </tbody></table></div>
           <p v-if="detailQuote.termsAndConditions" class="detail-notes">{{ t('crm.quote.terms') }}: {{ detailQuote.termsAndConditions }}</p>
           <p v-if="detailQuote.notes" class="detail-notes">{{ t('crm.quote.notes') }}: {{ detailQuote.notes }}</p>
+          <footer class="detail-actions"><button v-if="canCreate && [CrmQuoteStatus.Sent, CrmQuoteStatus.Rejected, CrmQuoteStatus.Expired].includes(detailQuote.status)" @click="openRevision">{{ t('crm.quote.createRevision') }}</button></footer>
         </template>
+      </section>
+    </div>
+    <div v-if="reviseOpen" class="modal-backdrop" @click.self="reviseOpen = false">
+      <section class="editor revision-editor">
+        <header><h2>{{ t('crm.quote.revisionTitle') }}</h2><button type="button" @click="reviseOpen = false">×</button></header>
+        <form @submit.prevent="saveRevision">
+          <label>{{ t('crm.quote.issueDate') }} *<input v-model="reviseForm.issueDate" type="date" required></label>
+          <label>{{ t('crm.quote.validUntil') }}<input v-model="reviseForm.validUntil" type="date"></label>
+          <label class="full-width">{{ t('crm.quote.terms') }}<textarea v-model="reviseForm.termsAndConditions" rows="2"></textarea></label>
+          <label class="full-width">{{ t('crm.quote.notes') }}<textarea v-model="reviseForm.notes" rows="2"></textarea></label>
+          <div class="revision-lines full-width"><strong>{{ t('crm.quote.revisionLines') }} ({{ reviseLines.length }})</strong>
+            <div v-for="(line, index) in reviseLines" :key="index" class="revision-line">
+              <label>{{ t('crm.quote.descriptionLine') }}<input v-model="line.description" required maxlength="500"></label>
+              <label>{{ t('crm.quote.quantity') }}<input v-model.number="line.quantity" type="number" min="0.0001" step="0.0001" required></label>
+              <label>{{ t('crm.quote.unitPrice') }}<input v-model.number="line.unitPrice" type="number" min="0" step="0.0001" required></label>
+              <label>{{ t('crm.quote.discountRate') }}<input v-model.number="line.discountRate" type="number" min="0" max="100" step="0.0001"></label>
+              <label>{{ t('crm.quote.taxRate') }}<input v-model.number="line.taxRate" type="number" min="0" max="100" step="0.0001"></label>
+            </div>
+          </div>
+          <footer><button type="button" @click="reviseOpen = false">{{ t('crm.quote.cancel') }}</button><button class="primary-button" type="submit" :disabled="revising">{{ revising ? t('crm.quote.saving') : t('crm.quote.saveRevision') }}</button></footer>
+        </form>
       </section>
     </div>
     <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false"><section class="editor"><header><h2>{{ t('crm.quote.newTitle') }}</h2><button @click="createOpen = false">×</button></header><form @submit.prevent="createQuote"><label>{{ t('crm.quote.number') }} *<input v-model="form.quoteNumber" required maxlength="40"></label><label>{{ t('crm.quote.customerId') }} *<input v-model="form.customerId" required inputmode="numeric"></label><label>{{ t('crm.quote.issueDate') }} *<input v-model="form.issueDate" type="date" required></label><label>{{ t('crm.quote.validUntil') }}<input v-model="form.validUntil" type="date"></label><label>{{ t('crm.quote.currency') }}<input v-model="form.currency" maxlength="3" required></label><label>{{ t('crm.quote.descriptionLine') }} *<input v-model="form.description" required maxlength="500"></label><label>{{ t('crm.quote.quantity') }} *<input v-model="form.quantity" type="number" min="0.0001" step="0.0001" required></label><label>{{ t('crm.quote.unitPrice') }} *<input v-model="form.unitPrice" type="number" min="0" step="0.01" required></label><footer><button type="button" @click="createOpen = false">{{ t('crm.quote.cancel') }}</button><button class="primary-button" type="submit" :disabled="saving">{{ saving ? t('crm.quote.saving') : t('crm.quote.save') }}</button></footer></form></section></div>
   </main>
 </template>
 <style scoped>
-.crm-workflow-page{display:flex;flex-direction:column;gap:16px;min-height:100%;padding:20px;color:hsl(var(--foreground))}.page-header,.toolbar,.pagination,.editor header,.editor footer{display:flex;align-items:center;justify-content:space-between;gap:12px}.page-header h1,.editor h2{margin:0;font-size:20px;font-weight:650}.page-header p{margin:5px 0 0;color:hsl(var(--muted-foreground));font-size:12px}button,input,select{font:inherit}button{border:1px solid hsl(var(--border));border-radius:7px;padding:7px 11px;background:hsl(var(--card));cursor:pointer}button:disabled{opacity:.55}.primary-button{background:hsl(var(--primary));color:hsl(var(--primary-foreground))}.toolbar{justify-content:flex-start;flex-wrap:wrap}.toolbar input,.toolbar select,.editor input{border:1px solid hsl(var(--border));border-radius:7px;padding:8px 10px;background:hsl(var(--card));color:inherit}.table-wrap{overflow:auto;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--card))}table{width:100%;border-collapse:collapse;min-width:800px;text-align:left;font-size:13px}th,td{padding:11px 12px;border-bottom:1px solid hsl(var(--border))}th{color:hsl(var(--muted-foreground));font-size:11px}.actions{white-space:nowrap}.actions button{margin-right:4px;font-size:11px}.empty{padding:44px;text-align:center;color:hsl(var(--muted-foreground))}.pagination{font-size:12px;color:hsl(var(--muted-foreground))}.pagination div{display:flex;gap:6px}.modal-backdrop{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:20px;background:rgb(0 0 0 / 42%)}.editor{width:min(720px,100%);max-height:90vh;overflow:auto;border:1px solid hsl(var(--border));border-radius:12px;padding:20px;background:hsl(var(--card))}.quote-detail-editor{width:min(900px,100%)}.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;font-size:12px}.detail-grid p,.detail-notes{margin:5px 0;color:hsl(var(--muted-foreground))}.quote-detail-editor .table-wrap{margin-top:12px}.editor form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:18px}.editor label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:hsl(var(--muted-foreground))}.editor label input{box-sizing:border-box;width:100%;color:hsl(var(--foreground))}.editor form footer{grid-column:1/-1;justify-content:flex-end}@media(max-width:680px){.crm-workflow-page{padding:12px}.editor form{grid-template-columns:1fr}.editor form footer{grid-column:auto}}
+.crm-workflow-page{display:flex;flex-direction:column;gap:16px;min-height:100%;padding:20px;color:hsl(var(--foreground))}.page-header,.toolbar,.pagination,.editor header,.editor footer{display:flex;align-items:center;justify-content:space-between;gap:12px}.page-header h1,.editor h2{margin:0;font-size:20px;font-weight:650}.page-header p{margin:5px 0 0;color:hsl(var(--muted-foreground));font-size:12px}button,input,select{font:inherit}button{border:1px solid hsl(var(--border));border-radius:7px;padding:7px 11px;background:hsl(var(--card));cursor:pointer}button:disabled{opacity:.55}.primary-button{background:hsl(var(--primary));color:hsl(var(--primary-foreground))}.toolbar{justify-content:flex-start;flex-wrap:wrap}.toolbar input,.toolbar select,.editor input{border:1px solid hsl(var(--border));border-radius:7px;padding:8px 10px;background:hsl(var(--card));color:inherit}.table-wrap{overflow:auto;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--card))}table{width:100%;border-collapse:collapse;min-width:800px;text-align:left;font-size:13px}th,td{padding:11px 12px;border-bottom:1px solid hsl(var(--border))}th{color:hsl(var(--muted-foreground));font-size:11px}.actions{white-space:nowrap}.actions button{margin-right:4px;font-size:11px}.empty{padding:44px;text-align:center;color:hsl(var(--muted-foreground))}.pagination{font-size:12px;color:hsl(var(--muted-foreground))}.pagination div{display:flex;gap:6px}.modal-backdrop{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:20px;background:rgb(0 0 0 / 42%)}.editor{width:min(720px,100%);max-height:90vh;overflow:auto;border:1px solid hsl(var(--border));border-radius:12px;padding:20px;background:hsl(var(--card))}.quote-detail-editor{width:min(900px,100%)}.detail-actions{display:flex;justify-content:flex-end;margin-top:12px}.revision-editor{width:min(900px,100%)}.revision-editor textarea{border:1px solid hsl(var(--border));border-radius:7px;padding:8px;background:hsl(var(--card));color:inherit}.full-width{grid-column:1/-1}.revision-lines{border:1px solid hsl(var(--border));border-radius:8px;padding:12px}.revision-line{display:grid;grid-template-columns:2fr repeat(4,minmax(90px,1fr));gap:8px;padding:10px 0;border-top:1px solid hsl(var(--border))}.revision-line label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:hsl(var(--muted-foreground))}.revision-line input{min-width:0;width:100%;box-sizing:border-box}.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;font-size:12px}.detail-grid p,.detail-notes{margin:5px 0;color:hsl(var(--muted-foreground))}.quote-detail-editor .table-wrap{margin-top:12px}.editor form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:18px}.editor label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:hsl(var(--muted-foreground))}.editor label input{box-sizing:border-box;width:100%;color:hsl(var(--foreground))}.editor form footer{grid-column:1/-1;justify-content:flex-end}@media(max-width:680px){.crm-workflow-page{padding:12px}.editor form{grid-template-columns:1fr}.editor form footer{grid-column:auto}.revision-line{grid-template-columns:1fr 1fr}.full-width{grid-column:auto}.detail-grid{grid-template-columns:1fr}}
 </style>
