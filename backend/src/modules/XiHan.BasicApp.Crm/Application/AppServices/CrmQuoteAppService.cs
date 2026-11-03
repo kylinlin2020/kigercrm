@@ -6,7 +6,9 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Saas.Application.Contracts;
 using XiHan.BasicApp.Saas.Application.QueryServices;
+using XiHan.BasicApp.Saas.Domain.Enums;
 using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
@@ -25,7 +27,8 @@ public sealed class CrmQuoteAppService(
     ICrmContactRepository contacts,
     ICrmOpportunityRepository opportunities,
     IFieldSecurityService fieldSecurity,
-    IUserDataScopeFilterService dataScope)
+    IUserDataScopeFilterService dataScope,
+    INumberGenerator numberGenerator)
     : CrmApplicationService, ICrmQuoteAppService
 {
     [UnitOfWork(true)]
@@ -39,7 +42,19 @@ public sealed class CrmQuoteAppService(
         if (input.Lines is null) throw new ArgumentException("Quotation lines are required.", nameof(input.Lines));
         foreach (var line in input.Lines)
             await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmQuoteLine), line, cancellationToken);
-        var quote = await domainService.CreateAsync(CrmQuoteCommandMapper.ToCommand(input), cancellationToken);
+        var command = CrmQuoteCommandMapper.ToCommand(input);
+        if (!string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey))
+        {
+            var allocation = await numberGenerator.GenerateAsync(
+                new NumberGenerateRequest(
+                    CrmNumberingRuleCodes.Quote,
+                    NumberingScope.Auto,
+                    input.NumberingIdempotencyKey,
+                    "CRM_QUOTE"),
+                cancellationToken);
+            command = command with { QuoteNumber = allocation.Numbers.Single() };
+        }
+        var quote = await domainService.CreateAsync(command, cancellationToken);
         return ToDto(quote);
     }
 
