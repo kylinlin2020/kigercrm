@@ -34,6 +34,9 @@ public sealed class CrmPrimaryContactSqliteIntegrationTests : IDisposable
             },
             db =>
             {
+                // Mirror the production audited-entity insert pipeline: IDs and TenantId
+                // must both be populated, otherwise the cross-tenant uniqueness assertion
+                // below would accidentally exercise tenant 0 for every inserted row.
                 db.Aop.DataExecuting = (_, entityInfo) =>
                 {
                     if (entityInfo.OperationType == DataFilterType.InsertByObject)
