@@ -227,6 +227,43 @@ public sealed partial class FieldSecurityEntityWiringTests
         }
     }
 
+    /// <summary>
+    /// CRM create/update commands must validate owner or assignee assignment exactly once.
+    /// This catches missing checks as well as duplicated checks that can cause unnecessary scope queries.
+    /// </summary>
+    [Fact]
+    public void CrmWriteEndpoints_ShouldEnforceAssignmentScopeExactlyOnce()
+    {
+        var ownerField = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["CrmCustomerAppService.cs"] = "OwnerUserId",
+            ["CrmContactAppService.cs"] = "OwnerUserId",
+            ["CrmLeadAppService.cs"] = "OwnerUserId",
+            ["CrmOpportunityAppService.cs"] = "OwnerUserId",
+            ["CrmActivityAppService.cs"] = "OwnerUserId",
+            ["CrmTaskAppService.cs"] = "AssigneeUserId"
+        };
+
+        var violations = new List<string>();
+        foreach (var (file, field) in ownerField)
+        {
+            var source = Sources.Value.SingleOrDefault(item => item.File == file).Text;
+            Assert.False(string.IsNullOrWhiteSpace(source), $"缺少 CRM 应用服务源码：{file}");
+            foreach (Match method in WriteMethod().Matches(source))
+            {
+                var body = MethodBody(source, method.Index);
+                var count = Regex.Matches(body,
+                    $@"CrmAssignmentAuthorization\.EnsureAssignableAsync\(dataScope, input\.{field}, cancellationToken\)").Count;
+                if (count != 1)
+                {
+                    violations.Add($"{file}：{method.Groups["name"].Value} 应恰好执行一次负责人范围检查，实际 {count} 次");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
+    }
+
     private static FieldSecurityEntityOptions BuildOptions()
     {
         var options = new FieldSecurityEntityOptions();
