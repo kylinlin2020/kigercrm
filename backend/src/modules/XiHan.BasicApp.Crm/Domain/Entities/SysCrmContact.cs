@@ -11,6 +11,7 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 /// </summary>
 [SugarTable(TableName = "Crm_Contact", TableDescription = "KIGER CRM customer contacts")]
 [SugarIndex("IX_{table}_TeId_CuId", nameof(TenantId), OrderByType.Asc, nameof(CustomerId), OrderByType.Asc)]
+[SugarIndex("UX_{table}_TeId_PrCuId", nameof(TenantId), OrderByType.Asc, nameof(PrimaryCustomerId), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_TeId_OwId", nameof(TenantId), OrderByType.Asc, nameof(OwnerUserId), OrderByType.Asc)]
 public sealed class SysCrmContact : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
 {
@@ -40,6 +41,10 @@ public sealed class SysCrmContact : BasicAppFullAuditedEntity, IStrictMultiTenan
 
     [SugarColumn(ColumnName = "Is_Primary", ColumnDescription = "Primary contact")]
     public bool IsPrimary { get; set; }
+
+    /// <summary>Customer id only while this contact is primary; null permits multiple non-primary contacts.</summary>
+    [SugarColumn(ColumnName = "Primary_Customer_Id", ColumnDescription = "Unique primary-contact slot", IsNullable = true)]
+    public long? PrimaryCustomerId { get; set; }
 
     [SugarColumn(ColumnName = "Notes", ColumnDescription = "Internal notes", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
     public string? Notes { get; set; }
