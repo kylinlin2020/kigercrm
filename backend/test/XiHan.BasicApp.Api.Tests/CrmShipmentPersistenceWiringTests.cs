@@ -37,6 +37,16 @@ public sealed class CrmShipmentPersistenceWiringTests
     }
 
     [Fact]
+    public void FulfillmentLedgerMigration_ShouldAddNonNegativeAndBoundedQuantities()
+    {
+        var source = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.5", "5.9.5.sql");
+        Assert.Contains("reserved_quantity", source, StringComparison.Ordinal);
+        Assert.Contains("shipped_quantity", source, StringComparison.Ordinal);
+        Assert.Contains("reserved_quantity + shipped_quantity <= quantity", source, StringComparison.Ordinal);
+        Assert.Contains("IF NOT EXISTS", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ShipmentEntities_ShouldBeRegisteredForFieldSecurity()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
