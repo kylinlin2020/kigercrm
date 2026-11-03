@@ -27,6 +27,12 @@ public sealed class CrmQuoteCreateDto
     public List<CrmQuoteLineCreateDto> Lines { get; set; } = [];
 }
 
+public sealed class CrmQuoteStatusUpdateDto
+{
+    public long Id { get; set; }
+    public int Status { get; set; }
+}
+
 public sealed class CrmQuoteDto
 {
     public long BasicId { get; set; }
