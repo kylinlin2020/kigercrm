@@ -159,6 +159,18 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("shipment.Status = target", method, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ShipmentCreation_ShouldSupportOptionalIdempotentServerNumbering()
+    {
+        var dto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmShipmentCommandDtos.cs");
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        Assert.Contains("NumberingIdempotencyKey", dto, StringComparison.Ordinal);
+        Assert.Contains("INumberGenerator numberGenerator", service, StringComparison.Ordinal);
+        Assert.Contains("CrmNumberingRuleCodes.Shipment", service, StringComparison.Ordinal);
+        Assert.Contains("allocation.Numbers.Single()", service, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
