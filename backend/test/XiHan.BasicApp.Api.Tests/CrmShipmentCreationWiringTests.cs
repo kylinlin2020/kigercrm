@@ -20,7 +20,7 @@ public sealed class CrmShipmentCreationWiringTests
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
         Assert.Contains("EnsureRecordAccessibleAsync", source, StringComparison.Ordinal);
         Assert.Contains("orderLine.SalesOrderId != order.BasicId", source, StringComparison.Ordinal);
-        Assert.Contains("requested.Quantity > orderLine.Quantity", source, StringComparison.Ordinal);
+        Assert.Contains("requested.Quantity > availableQuantity", source, StringComparison.Ordinal);
         Assert.Contains("Distinct().Count()", source, StringComparison.Ordinal);
         Assert.Contains("CrmSalesOrderStatus.Confirmed", source, StringComparison.Ordinal);
     }
