@@ -307,3 +307,12 @@ Remaining:
 - Owner/assignee assignment authorization and row-level data-scope policies still need dedicated enforcement and tests.
 - Verify SqlSugar date comparison overloads and repository/DTO API signatures during the final machine build; no build or test pass is claimed.
 - Database migration generation, integration tests, duplicate detection and frontend workflows remain in progress.
+
+
+## Task status field-security and tenant-index regression guard (2026-11-03)
+
+- Task status changes now accept a dedicated `CrmTaskStatusUpdateDto` rather than primitive route arguments.
+- The application service invokes `EnsureUpdatableAsync(typeof(SysCrmTask), input.Id, input, ...)` before the domain transition, so the Status field is subject to field-security write policy.
+- The API test suite's cross-module unique-index guard now includes the CRM module. CRM tenant-scoped unique indexes are therefore covered by the same TenantId / IsDeleted regression checks as other platform modules.
+- The existing Customer unique index is tenant-scoped and includes IsDeleted. Other CRM indexes inspected in this increment are non-unique lookup indexes; primary-contact uniqueness still needs a database-safe filtered-unique strategy rather than an unsafe composite index that would also constrain non-primary contacts.
+- No test execution or build success is claimed; these regression checks are added for the final real-machine validation.
