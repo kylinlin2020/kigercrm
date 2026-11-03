@@ -26,6 +26,8 @@ const detailLoading = ref(false)
 
 const createOpen = ref(false)
 const saving = ref(false)
+const createIdempotencyKey = ref('')
+function newIdempotencyKey() { return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}` }
 const loadingOrders = ref(false)
 const loadingLines = ref(false)
 const form = ref({ shipmentNumber: '', salesOrderId: '', carrier: '', trackingNumber: '' })
@@ -59,6 +61,7 @@ async function loadPage() {
 }
 
 async function openCreate() {
+  createIdempotencyKey.value = newIdempotencyKey()
   form.value = { shipmentNumber: '', salesOrderId: '', carrier: '', trackingNumber: '' }
   orderLines.value = []
   selectedLineIds.value = []
@@ -113,7 +116,7 @@ function toggleLine(line: CrmSalesOrderLineDto) {
 }
 
 async function createShipment() {
-  if (!form.value.shipmentNumber.trim() || !form.value.salesOrderId || selectedLines.value.length === 0) {
+  if (!form.value.salesOrderId || selectedLines.value.length === 0) {
     toast.warning(t('crm.shipment.required'))
     return
   }
@@ -130,6 +133,7 @@ async function createShipment() {
   try {
     await crmShipmentApi.create({
       shipmentNumber: form.value.shipmentNumber.trim(),
+      numberingIdempotencyKey: createIdempotencyKey.value,
       salesOrderId: form.value.salesOrderId,
       carrier: form.value.carrier.trim() || null,
       trackingNumber: form.value.trackingNumber.trim() || null,
@@ -140,6 +144,7 @@ async function createShipment() {
     })
     toast.success(t('crm.shipment.created'))
     createOpen.value = false
+    createIdempotencyKey.value = ''
     await loadPage()
   }
   catch (e) {
