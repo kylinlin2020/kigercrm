@@ -54,6 +54,20 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("orders.UpdateAsync(order", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ShipmentCancellation_ShouldAdvanceTheSourceOrderFulfillmentRevision()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var cancellationStart = source.IndexOf("if (target == CrmShipmentStatus.Cancelled)", StringComparison.Ordinal);
+        var dispatchStart = source.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", cancellationStart, StringComparison.Ordinal);
+
+        Assert.True(cancellationStart >= 0);
+        Assert.True(dispatchStart > cancellationStart);
+        var cancellationBranch = source[cancellationStart..dispatchStart];
+        Assert.Contains("order.FulfillmentRevision++", cancellationBranch, StringComparison.Ordinal);
+        Assert.Contains("orders.UpdateAsync(order, cancellationToken)", cancellationBranch, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
