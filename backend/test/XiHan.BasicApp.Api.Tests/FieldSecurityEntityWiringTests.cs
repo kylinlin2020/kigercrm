@@ -266,24 +266,36 @@ public sealed partial class FieldSecurityEntityWiringTests
     }
 
     /// <summary>
-    /// Lead update, conversion and deletion must first prove that the existing record belongs to the caller's data scope.
-    /// Checking only the requested new owner would allow changing or converting another user's lead by ID.
+    /// Every CRM mutation must prove access to the existing record, not merely validate the requested new owner.
     /// </summary>
     [Fact]
-    public void LeadMutations_ShouldEnforceExistingRecordDataScope()
+    public void CrmMutations_ShouldEnforceExistingRecordDataScope()
     {
-        var source = Sources.Value.Single(item => item.File == "CrmLeadAppService.cs").Text;
-        Assert.Contains("ICrmLeadRepository leads", source, StringComparison.Ordinal);
-
-        foreach (var methodName in new[] { "UpdateAsync", "ConvertAsync", "DeleteAsync" })
+        var expected = new Dictionary<string, (string Repository, string Owner, string[] Methods)>(StringComparer.Ordinal)
         {
-            var signature = Regex.Match(source, $@"public async Task(?:<[^>]+>)?\s+{methodName}\(");
-            Assert.True(signature.Success, $"Lead {methodName} endpoint was not found.");
-            var body = MethodBody(source, signature.Index);
-            Assert.Contains(
-                "CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken)",
-                body,
-                StringComparison.Ordinal);
+            ["Customer"] = ("ICrmCustomerRepository records", "OwnerUserId", ["UpdateAsync", "DeleteAsync"]),
+            ["Contact"] = ("ICrmContactRepository records", "OwnerUserId", ["UpdateAsync", "DeleteAsync"]),
+            ["Lead"] = ("ICrmLeadRepository leads", "OwnerUserId", ["UpdateAsync", "ConvertAsync", "DeleteAsync"]),
+            ["Opportunity"] = ("ICrmOpportunityRepository records", "OwnerUserId", ["UpdateAsync", "DeleteAsync"]),
+            ["Activity"] = ("ICrmActivityRepository records", "OwnerUserId", ["UpdateAsync", "DeleteAsync"]),
+            ["Task"] = ("ICrmTaskRepository records", "AssigneeUserId", ["UpdateAsync", "ChangeStatusAsync", "DeleteAsync"])
+        };
+
+        foreach (var (module, contract) in expected)
+        {
+            var source = Sources.Value.Single(item => item.File == $"Crm{module}AppService.cs").Text;
+            Assert.Contains(contract.Repository, source, StringComparison.Ordinal);
+
+            foreach (var methodName in contract.Methods)
+            {
+                var signature = Regex.Match(source, $@"public async Task(?:<[^>]+>)?\\s+{methodName}\\(");
+                Assert.True(signature.Success, $"CRM {module}.{methodName} endpoint was not found.");
+                var body = MethodBody(source, signature.Index);
+                Assert.Contains(
+                    $"CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.{contract.Owner}, cancellationToken)",
+                    body,
+                    StringComparison.Ordinal);
+            }
         }
     }
 
