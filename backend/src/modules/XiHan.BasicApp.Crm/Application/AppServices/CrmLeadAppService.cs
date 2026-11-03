@@ -45,7 +45,7 @@ public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, ICrmL
     }
 
     [UnitOfWork(true)]
-    [PermissionAuthorize(CrmPermissionCodes.Update)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public async Task<CrmLeadDetailDto> ConvertAsync(long id, CancellationToken cancellationToken = default)
     {
         var existing = await leads.GetByIdAsync(id, cancellationToken)
