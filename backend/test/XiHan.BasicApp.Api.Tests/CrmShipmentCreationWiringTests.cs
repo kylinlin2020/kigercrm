@@ -68,6 +68,17 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("orders.UpdateAsync(order, cancellationToken)", cancellationBranch, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ShipmentFulfillment_ShouldAcquireOrderLineLocksInStableKeyOrder()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        Assert.Contains("input.Lines.OrderBy(line => line.SalesOrderLineId).ToArray()", source, StringComparison.Ordinal);
+        Assert.Contains(".OrderBy(line => line.SalesOrderLineId)", source, StringComparison.Ordinal);
+        Assert.Contains("var requestedLines = input.Lines.OrderBy", source, StringComparison.Ordinal);
+        Assert.Contains("GetByShipmentIdAsync(shipment.BasicId, cancellationToken))", source, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
