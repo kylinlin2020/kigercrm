@@ -234,3 +234,8 @@ The API contract, frontend API client, and sales-order management page direct-cr
 
 
 The sales-order direct-create form now uses customer search backed by the CRM customer query API. After selecting a customer, contact and opportunity options are loaded from their respective query APIs filtered by that customer; the user no longer needs to manually type related-record IDs. The selector labels and error states are localized in zh-CN, en-US, zh-TW and ko-KR.
+
+
+### Shipment fulfillment regression guards
+
+Added source-level regression tests for the shipment/order quantity ledger: draft shipment creation acquires the order-level fulfillment revision, processes order lines in stable ID order, and reserves only unreserved/unshipped quantity; cancelling a draft shipment releases its reservations; dispatch consumes reservations into shipped quantities and derives the sales-order state as partially shipped or completed from all order lines. These tests are source-wiring guards and still require execution in the repository's normal .NET test environment.
