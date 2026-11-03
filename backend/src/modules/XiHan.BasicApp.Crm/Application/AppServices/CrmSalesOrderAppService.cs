@@ -40,6 +40,7 @@ public sealed class CrmSalesOrderAppService(
 
         var customer = await customers.GetByIdAsync(input.CustomerId, cancellationToken)
             ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
         var owner = input.OwnerUserId ?? customer.OwnerUserId;
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, owner, cancellationToken);
 
@@ -47,6 +48,7 @@ public sealed class CrmSalesOrderAppService(
         {
             var contact = await contacts.GetByIdAsync(input.ContactId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("Contact does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
             if (contact.CustomerId != customer.BasicId)
                 throw new InvalidOperationException("Contact must belong to the selected customer.");
         }
@@ -54,6 +56,7 @@ public sealed class CrmSalesOrderAppService(
         {
             var opportunity = await opportunities.GetByIdAsync(input.OpportunityId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("Opportunity does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId, cancellationToken);
             if (opportunity.CustomerId != customer.BasicId)
                 throw new InvalidOperationException("Opportunity must belong to the selected customer.");
         }
