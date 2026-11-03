@@ -16,6 +16,7 @@ namespace XiHan.BasicApp.Crm.Application.AppServices;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Sales Orders")]
 public sealed class CrmSalesOrderAppService(
     ICrmSalesOrderRepository repository,
+    ICrmSalesOrderLineRepository orderLines,
     IFieldSecurityService fieldSecurity,
     IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmSalesOrderAppService
@@ -44,6 +45,12 @@ public sealed class CrmSalesOrderAppService(
             CrmSalesOrderStatus.PartiallyShipped => false,
             _ => false
         };
+        if (target == CrmSalesOrderStatus.Cancelled)
+        {
+            var lines = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
+            if (lines.Any(line => line.ReservedQuantity > 0))
+                throw new InvalidOperationException("Cancel all draft shipments before cancelling this sales order; reserved quantities must be released first.");
+        }
         if (!allowed)
             throw new InvalidOperationException($"Sales order status transition from {order.Status} to {target} is not allowed.");
 
