@@ -23,8 +23,9 @@ public static class ServiceCollectionExtensions
             .Add<SysCrmCustomer>()
             .Add<SysCrmContact>()
             .Add<SysCrmLead>()
-            .Add<SysCrmOpportunity>());
-        // Activity and Task remain deferred until guarded application services ship.
+            .Add<SysCrmOpportunity>()
+            .Add<SysCrmActivity>());
+        // Task remains deferred until its guarded application services ship.
     }
 
     /// <summary>Registers CRM permission and navigation seeders.</summary>
