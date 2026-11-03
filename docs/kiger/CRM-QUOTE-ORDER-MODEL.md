@@ -128,3 +128,11 @@ The CRM module now includes tenant-scoped shipment headers and shipment-line qua
 - Initial statuses are Draft, Dispatched, Delivered and Cancelled.
 
 This is persistence groundwork only. No shipment create/dispatch/deliver commands, cumulative shipped-quantity validation, stock deduction, carrier integration, or automatic sales-order status roll-up is implemented yet. Existing order status transitions still do not prove physical fulfillment. CodeFirst synchronization and runtime database validation remain pending.
+
+## Shipment query endpoints
+
+- Added paged shipment list query with keyword (shipment number, carrier, tracking number), sales-order, status and owner filters.
+- Added shipment detail query and paged shipment-line query.
+- Read permission, tenant-aware repository filtering, owner data scope and field-security query guards are applied.
+- Shipment-line reads first authorize access to the parent shipment, preventing direct line-ID/page access from bypassing parent record scope.
+- These are read APIs only. Shipment creation, dispatch/delivery commands and cumulative quantity enforcement remain pending.
