@@ -15,7 +15,7 @@ BEGIN
     ) THEN
         UPDATE crm_lead
         SET duplicate_email_normalized =
-                NULLIF(regexp_replace(lower(btrim(email)), '@([^@]+)\.$', '@\1'), ''),
+                NULLIF(regexp_replace(lower(btrim(email)), '@([^@]+)\\.$', '@\\1'), ''),
             phone_digits =
                 NULLIF(regexp_replace(phone, '[^0-9]', '', 'g'), ''),
             website_host =
@@ -26,15 +26,15 @@ BEGIN
                                 lower(split_part(split_part(
                                     regexp_replace(btrim(website), '^[a-zA-Z][a-zA-Z0-9+.-]*://', ''),
                                     '/', 1), '?', 1)),
-                                '^www\.', ''),
+                                '^www\\.', ''),
                             ':[0-9]+$', ''),
-                        '\.$', ''),
+                        '\\.$', ''),
                     '');
     END IF;
 END
 $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.tables
@@ -48,4 +48,4 @@ BEGIN
             ON crm_lead (tenant_id, website_host);
     END IF;
 END
-$;
+$$;
