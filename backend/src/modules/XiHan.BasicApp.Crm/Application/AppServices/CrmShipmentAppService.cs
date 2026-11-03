@@ -4,7 +4,9 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Saas.Application.Contracts;
 using XiHan.BasicApp.Saas.Application.QueryServices;
+using XiHan.BasicApp.Saas.Domain.Enums;
 using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
@@ -20,7 +22,8 @@ public sealed class CrmShipmentAppService(
     ICrmSalesOrderRepository orders,
     ICrmSalesOrderLineRepository orderLines,
     IFieldSecurityService fieldSecurity,
-    IUserDataScopeFilterService dataScope)
+    IUserDataScopeFilterService dataScope,
+    INumberGenerator numberGenerator)
     : CrmApplicationService, ICrmShipmentAppService
 {
     [UnitOfWork(true)]
@@ -70,6 +73,18 @@ public sealed class CrmShipmentAppService(
             orderLine.ReservedQuantity += requested.Quantity;
             await orderLines.UpdateAsync(orderLine, cancellationToken);
             resolvedLines.Add(orderLine);
+        }
+
+        if (!string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey))
+        {
+            var allocation = await numberGenerator.GenerateAsync(
+                new NumberGenerateRequest(
+                    CrmNumberingRuleCodes.Shipment,
+                    NumberingScope.Auto,
+                    input.NumberingIdempotencyKey,
+                    "CRM_SHIPMENT"),
+                cancellationToken);
+            number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
         }
 
         var shipment = new SysCrmShipment
