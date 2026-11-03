@@ -4,7 +4,8 @@ export default {
     "crm_customers": "Kunden",
     "crm_leads": "Verkaufschancen",
     "crm_opportunities": "Geschäftsmöglichkeiten",
-    "crm_tasks": "Aufgaben"
+    "crm_tasks": "Aufgaben",
+    "crm_contacts": "Kontakte"
   },
   "crm": {
     "lead": {
@@ -227,6 +228,50 @@ export default {
       "priority3": "Normal",
       "priority4": "Hoch",
       "priority5": "Dringend"
+    },
+    "contact": {
+      "title": "Kontakte",
+      "description": "Personen, Rollen und Kontaktkanäle der Kundenkonten verwalten.",
+      "create": "Kontakt erstellen",
+      "search": "Name, E-Mail, Telefon oder WhatsApp suchen",
+      "customerId": "Kunden-ID",
+      "loading": "Kontakte werden geladen…",
+      "empty": "Keine Kontakte vorhanden",
+      "name": "Name",
+      "firstName": "Vorname",
+      "lastName": "Nachname",
+      "jobTitle": "Position",
+      "email": "E-Mail",
+      "phone": "Telefon",
+      "whatsApp": "WhatsApp",
+      "primary": "Hauptkontakt",
+      "yes": "Ja",
+      "ownerId": "Benutzer-ID des Verantwortlichen",
+      "notes": "Notizen",
+      "actions": "Aktionen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "newTitle": "Kontakt erstellen",
+      "editTitle": "Kontakt bearbeiten",
+      "save": "Kontakt speichern",
+      "saving": "Wird gespeichert…",
+      "cancel": "Abbrechen",
+      "requiredFields": "Kunden-ID, Vorname und Nachname sind erforderlich",
+      "loadError": "Kontakte konnten nicht geladen werden",
+      "detailError": "Kontaktdetails konnten nicht geladen werden",
+      "saveError": "Kontakt konnte nicht gespeichert werden",
+      "createSuccess": "Kontakt erstellt",
+      "updateSuccess": "Kontakt aktualisiert",
+      "deleteSuccess": "Kontakt gelöscht",
+      "deleteError": "Kontakt konnte nicht gelöscht werden",
+      "confirmDelete": "Kontakt „{name}“ löschen?",
+      "notFound": "Kontakt nicht gefunden oder kein Zugriff",
+      "total": "{count} Einträge",
+      "page": "Seite {current} / {total}",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "query": "Suchen",
+      "refresh": "Aktualisieren"
     }
   }
 }
