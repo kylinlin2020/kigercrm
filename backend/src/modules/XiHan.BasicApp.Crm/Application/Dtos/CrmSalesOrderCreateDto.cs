@@ -15,6 +15,8 @@ public sealed class CrmSalesOrderLineCreateDto
 public sealed class CrmSalesOrderCreateDto
 {
     public string OrderNumber { get; set; } = string.Empty;
+    /// <summary>Optional stable retry key; when supplied, the server allocates the order number through the shared numbering service.</summary>
+    public string? NumberingIdempotencyKey { get; set; }
     public long CustomerId { get; set; }
     public long? ContactId { get; set; }
     public long? OpportunityId { get; set; }
