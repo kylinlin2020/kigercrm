@@ -142,6 +142,13 @@ public sealed class CrmShipmentAppService(
                 orderLine.ReservedQuantity -= shipmentLine.Quantity;
                 await orderLines.UpdateAsync(orderLine, cancellationToken);
             }
+
+            // Releasing reservations is an order-level fulfillment mutation too.
+            // Advance the aggregate revision in the same transaction as the ledger updates.
+            var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
+                ?? throw new InvalidOperationException("Source sales order no longer exists.");
+            order.FulfillmentRevision++;
+            await orders.UpdateAsync(order, cancellationToken);
         }
         else if (target == CrmShipmentStatus.Dispatched)
         {
