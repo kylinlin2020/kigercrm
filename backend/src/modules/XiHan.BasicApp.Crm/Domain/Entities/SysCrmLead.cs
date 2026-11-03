@@ -10,6 +10,9 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 [SugarIndex("IX_{table}_TeId_St_CrTi", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 [SugarIndex("IX_{table}_TeId_OwId", nameof(TenantId), OrderByType.Asc, nameof(OwnerUserId), OrderByType.Asc)]
 [SugarIndex("IX_{table}_TeId_Em", nameof(TenantId), OrderByType.Asc, nameof(Email), OrderByType.Asc)]
+[SugarIndex("IX_{table}_TeId_DupEm", nameof(TenantId), OrderByType.Asc, nameof(DuplicateEmailNormalized), OrderByType.Asc)]
+[SugarIndex("IX_{table}_TeId_PhoneD", nameof(TenantId), OrderByType.Asc, nameof(PhoneDigits), OrderByType.Asc)]
+[SugarIndex("IX_{table}_TeId_WebHost", nameof(TenantId), OrderByType.Asc, nameof(WebsiteHost), OrderByType.Asc)]
 public sealed class SysCrmLead : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
 {
     [SugarColumn(ColumnName = "Company_Name", Length = 200, IsNullable = false)]
@@ -26,6 +29,15 @@ public sealed class SysCrmLead : BasicAppFullAuditedEntity, IStrictMultiTenantEn
 
     [SugarColumn(ColumnName = "Website", Length = 500, IsNullable = true)]
     public string? Website { get; set; }
+
+    [SugarColumn(ColumnName = "Duplicate_Email_Normalized", Length = 254, IsNullable = true)]
+    public string? DuplicateEmailNormalized { get; set; }
+
+    [SugarColumn(ColumnName = "Phone_Digits", Length = 40, IsNullable = true)]
+    public string? PhoneDigits { get; set; }
+
+    [SugarColumn(ColumnName = "Website_Host", Length = 500, IsNullable = true)]
+    public string? WebsiteHost { get; set; }
 
     [SugarColumn(ColumnName = "Country_Region", Length = 100, IsNullable = true)]
     public string? CountryRegion { get; set; }
