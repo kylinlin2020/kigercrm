@@ -8,6 +8,7 @@ using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Saas.Application.Extensions;
 using XiHan.BasicApp.Saas.Application.Services;
+using XiHan.BasicApp.Saas.Application.QueryServices;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Domain.Shared.Paging.Dtos;
@@ -20,7 +21,8 @@ namespace XiHan.BasicApp.Crm.Application.QueryServices;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Leads")]
 public sealed class CrmLeadQueryService(
     ICrmLeadRepository repository,
-    IFieldSecurityService fieldSecurity)
+    IFieldSecurityService fieldSecurity,
+    IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmLeadQueryService
 {
     [PermissionAuthorize(CrmPermissionCodes.Read)]
@@ -67,6 +69,7 @@ public sealed class CrmLeadQueryService(
             _ = request.Conditions.AddFilters(filters);
         }
 
+        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmLead x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
         await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmLead), cancellationToken);
 
         if (request.Conditions.Sorts.Count == 0)
@@ -92,6 +95,11 @@ public sealed class CrmLeadQueryService(
 
         cancellationToken.ThrowIfCancellationRequested();
         var entity = await repository.GetByIdAsync(id, cancellationToken);
+        if (entity is not null)
+        {
+            var scope = await dataScope.ResolveAccessibleUsersAsync(DateTimeOffset.UtcNow, cancellationToken);
+            if (!scope.CanReadOwnedRecord(entity.OwnerUserId)) return null;
+        }
         if (entity is null)
         {
             return null;
