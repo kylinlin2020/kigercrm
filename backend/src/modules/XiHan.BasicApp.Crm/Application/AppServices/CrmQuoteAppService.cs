@@ -89,6 +89,7 @@ public sealed class CrmQuoteAppService(
         var quote = await records.GetByIdAsync(quoteId, cancellationToken)
             ?? throw new InvalidOperationException("CRM quote does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, quote.OwnerUserId, cancellationToken);
+        await EnsureRelatedRecordsAccessibleAsync(quote.CustomerId, quote.ContactId, quote.OpportunityId, cancellationToken);
         if (quote.Status != CrmQuoteStatus.Accepted || quote.ConvertedOrderId.HasValue)
             throw new InvalidOperationException("Only an accepted, unconverted quote can be converted to a sales order.");
 
