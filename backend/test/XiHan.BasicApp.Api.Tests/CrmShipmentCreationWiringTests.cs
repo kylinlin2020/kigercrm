@@ -107,6 +107,13 @@ public sealed class CrmShipmentCreationWiringTests
             < dispatch.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void ShipmentStatusChange_ShouldUseArrayLengthWhenCheckingShipmentLines()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        Assert.Contains(".OrderBy(line => line.SalesOrderLineId)\n            .ToArray();\n        if (lines.Length == 0)", source, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
