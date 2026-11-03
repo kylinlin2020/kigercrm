@@ -77,6 +77,14 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains(".OrderBy(line => line.SalesOrderLineId)", source, StringComparison.Ordinal);
         Assert.Contains("var requestedLines = input.Lines.OrderBy", source, StringComparison.Ordinal);
         Assert.Contains("GetByShipmentIdAsync(shipment.BasicId, cancellationToken))", source, StringComparison.Ordinal);
+
+        var createStart = source.IndexOf("public async Task<CrmShipmentDto> CreateAsync", StringComparison.Ordinal);
+        var statusStart = source.IndexOf("public async Task<CrmShipmentDto> ChangeStatusAsync", createStart, StringComparison.Ordinal);
+        Assert.True(createStart >= 0);
+        Assert.True(statusStart > createStart);
+        var create = source[createStart..statusStart];
+        Assert.True(create.IndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal)
+            < create.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal));
     }
 
     [Fact]
