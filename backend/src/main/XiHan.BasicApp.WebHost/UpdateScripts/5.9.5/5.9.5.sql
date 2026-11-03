@@ -2,6 +2,9 @@
 -- Draft shipment quantities are reserved; dispatch moves reservations to shipped quantities.
 -- Existing orders start with zero reserved and shipped quantities.
 
+ALTER TABLE IF EXISTS crm_sales_order
+    ADD COLUMN IF NOT EXISTS fulfillment_revision integer NOT NULL DEFAULT 0;
+
 ALTER TABLE IF EXISTS crm_sales_order_line
     ADD COLUMN IF NOT EXISTS reserved_quantity numeric(18,4) NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS shipped_quantity numeric(18,4) NOT NULL DEFAULT 0;
