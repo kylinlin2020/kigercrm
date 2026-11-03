@@ -7,4 +7,6 @@ namespace XiHan.BasicApp.Crm.Application.Contracts;
 public interface ICrmSalesOrderQueryService : IApplicationService
 {
     Task<PageResultDtoBase<CrmSalesOrderListItemDto>> GetPageAsync(CrmSalesOrderPageQueryDto input, CancellationToken cancellationToken = default);
+    Task<CrmSalesOrderDetailDto?> GetDetailAsync(long id, CancellationToken cancellationToken = default);
+    Task<PageResultDtoBase<CrmSalesOrderLineDto>> GetLinesPageAsync(CrmSalesOrderLinePageQueryDto input, CancellationToken cancellationToken = default);
 }
