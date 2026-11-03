@@ -14,7 +14,7 @@ using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Leads")]
-public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, ICrmLeadRepository leads, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
+public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, ICrmLeadRepository leads, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope, IOperationPermissionGuard permissionGuard)
     : CrmApplicationService, ICrmLeadAppService
 {
     [UnitOfWork(true)]
@@ -37,6 +37,7 @@ public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, ICrmL
         var existing = await leads.GetByIdAsync(input.BasicId, cancellationToken)
             ?? throw new InvalidOperationException("Lead does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureTransferPermissionAsync(permissionGuard, existing.OwnerUserId, input.OwnerUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmLead), input.BasicId, input, cancellationToken);
