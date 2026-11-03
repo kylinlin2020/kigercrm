@@ -31,6 +31,8 @@ const reviseForm = ref({ issueDate: new Date().toISOString().slice(0, 10), valid
 const reviseLines = ref<CrmQuoteLineCreateDto[]>([])
 const createOpen = ref(false)
 const saving = ref(false)
+const createIdempotencyKey = ref('')
+function newIdempotencyKey() { return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}` }
 const form = ref({ quoteNumber: '', customerId: '', issueDate: new Date().toISOString().slice(0, 10), validUntil: '', currency: 'USD', description: '', quantity: '1', unitPrice: '0' })
 
 async function loadPage() {
@@ -48,18 +50,18 @@ function search() { pageIndex.value = 1; void loadPage() }
 async function createQuote() {
   const quantity = Number(form.value.quantity)
   const unitPrice = Number(form.value.unitPrice)
-  if (!form.value.quoteNumber.trim() || !form.value.customerId.trim() || !form.value.description.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0) {
+  if (!form.value.customerId.trim() || !form.value.description.trim() || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0) {
     toast.warning(t('crm.quote.required')); return
   }
   saving.value = true
   try {
     await crmQuoteApi.create({
-      quoteNumber: form.value.quoteNumber.trim(), customerId: form.value.customerId.trim(),
+      quoteNumber: form.value.quoteNumber.trim(), numberingIdempotencyKey: createIdempotencyKey.value, customerId: form.value.customerId.trim(),
       issueDate: `${form.value.issueDate}T00:00:00`, validUntil: form.value.validUntil ? `${form.value.validUntil}T23:59:59` : null,
       currency: form.value.currency.trim().toUpperCase(),
       lines: [{ description: form.value.description.trim(), quantity, unitPrice, discountRate: 0, taxRate: 0, sortOrder: 0 }],
     })
-    toast.success(t('crm.quote.created')); createOpen.value = false; await loadPage()
+    toast.success(t('crm.quote.created')); createOpen.value = false; createIdempotencyKey.value = ''; await loadPage()
   }
   catch (error) { toast.danger((error as Error)?.message || t('crm.quote.saveError')) }
   finally { saving.value = false }
@@ -113,7 +115,7 @@ onMounted(loadPage)
 
 <template>
   <main class="crm-workflow-page">
-    <header class="page-header"><div><h1>{{ t('crm.quote.title') }}</h1><p>{{ t('crm.quote.description') }}</p></div><button v-if="canCreate" class="primary-button" @click="createOpen = true">{{ t('crm.quote.create') }}</button></header>
+    <header class="page-header"><div><h1>{{ t('crm.quote.title') }}</h1><p>{{ t('crm.quote.description') }}</p></div><button v-if="canCreate" class="primary-button" @click="createIdempotencyKey = newIdempotencyKey(); createOpen = true">{{ t('crm.quote.create') }}</button></header>
     <section class="toolbar"><input v-model="keyword" :placeholder="t('crm.quote.search')" @keydown.enter="search"><select v-model="status"><option value="">{{ t('crm.quote.allStatuses') }}</option><option v-for="s in [0,1,2,3,4,5]" :key="s" :value="s">{{ statusLabel(s) }}</option></select><button @click="search">{{ t('crm.quote.query') }}</button><button :disabled="loading" @click="loadPage">{{ t('crm.quote.refresh') }}</button></section>
     <section class="table-wrap"><div v-if="loading && !rows.length" class="empty">{{ t('crm.quote.loading') }}</div><div v-else-if="!rows.length" class="empty">{{ t('crm.quote.empty') }}</div><table v-else><thead><tr><th>{{ t('crm.quote.number') }}</th><th>{{ t('crm.quote.customer') }}</th><th>{{ t('crm.quote.version') }}</th><th>{{ t('crm.quote.status') }}</th><th>{{ t('crm.quote.date') }}</th><th>{{ t('crm.quote.total') }}</th><th>{{ t('crm.quote.actions') }}</th></tr></thead><tbody><tr v-for="row in rows" :key="row.basicId"><td>{{ row.quoteNumber }}</td><td>{{ row.customerNameSnapshot }} (#{{ row.customerId }})</td><td>{{ row.version }}</td><td>{{ statusLabel(row.status) }}</td><td>{{ new Date(row.issueDate).toLocaleDateString() }}</td><td>{{ row.grandTotal.toLocaleString() }} {{ row.currency }}</td><td class="actions"><button @click="openDetails(row)">{{ t('crm.quote.viewDetails') }}</button><button v-if="canExecute && row.status === CrmQuoteStatus.Draft" @click="changeStatus(row, CrmQuoteStatus.Sent)">{{ t('crm.quote.markSent') }}</button><button v-if="canExecute && row.status === CrmQuoteStatus.Sent" @click="changeStatus(row, CrmQuoteStatus.Accepted)">{{ t('crm.quote.accept') }}</button><button v-if="canExecute && row.status === CrmQuoteStatus.Sent" @click="changeStatus(row, CrmQuoteStatus.Rejected)">{{ t('crm.quote.reject') }}</button><button v-if="canExecute && row.status === CrmQuoteStatus.Accepted" @click="convertToOrder(row)">{{ t('crm.quote.convert') }}</button></td></tr></tbody></table></section>
     <footer class="pagination"><span>{{ t('crm.quote.totalCount', { count: totalCount }) }} · {{ t('crm.quote.page', { current: pageIndex, total: totalPages }) }}</span><div><button :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.quote.previous') }}</button><button :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.quote.next') }}</button></div></footer>
