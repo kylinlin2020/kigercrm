@@ -127,6 +127,16 @@ public sealed class CrmSalesOrderAppService(
                 throw new InvalidOperationException("An order line does not belong to the selected order.");
             if (existing.ReservedQuantity > 0 || existing.ShippedQuantity > 0)
                 throw new InvalidOperationException("An order with reserved or shipped quantities cannot have its lines edited.");
+            if (existing.SourceQuoteLineId.HasValue &&
+                (existing.ProductCode != NormalizeOptional(lineInput.ProductCode, 100, nameof(lineInput.ProductCode)) ||
+                 existing.Description != NormalizeRequired(lineInput.Description, 500, nameof(lineInput.Description)) ||
+                 existing.Quantity != lineInput.Quantity ||
+                 existing.Unit != NormalizeOptional(lineInput.Unit, 30, nameof(lineInput.Unit)) ||
+                 existing.UnitPrice != lineInput.UnitPrice ||
+                 existing.DiscountRate != lineInput.DiscountRate ||
+                 existing.TaxRate != lineInput.TaxRate ||
+                 existing.SortOrder != lineInput.SortOrder))
+                throw new InvalidOperationException("Quotation-derived order lines are immutable; revise the quotation and create a new order if commercial lines must change.");
             var calculated = CalculateLine(new CrmSalesOrderLineCreateDto
             {
                 ProductCode = lineInput.ProductCode,
