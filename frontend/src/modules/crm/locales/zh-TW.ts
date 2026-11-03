@@ -8,8 +8,8 @@ export default {
     "crm_activities": "活動記錄",
     "crm_contacts": "聯絡人",
     "crm_quotes": "報價",
-    "crm_sales_orders": "销售订单",
-    "crm_shipments": "发货管理"
+    "crm_sales_orders": "銷售訂單",
+    "crm_shipments": "出貨管理"
   },
   "crm": {
     "lead": {
