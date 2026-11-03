@@ -49,6 +49,8 @@ export interface CrmShipmentLineCreateDto {
 
 export interface CrmShipmentCreateDto {
   shipmentNumber: string
+  /** Stable key reused when retrying the same logical create request. */
+  numberingIdempotencyKey?: string
   salesOrderId: ApiId
   shipmentDate?: DateTimeString | null
   carrier?: string | null
