@@ -63,3 +63,15 @@ The quote application service now also exposes an authorized status-change comma
 The status command requires the CRM execute permission, checks record owner data scope and field-level update access, and runs inside a UnitOfWork. Terminal states cannot be changed through this command. Accepted-to-Converted is intentionally reserved for the atomic quote-to-order conversion workflow; it is not exposed as a manual status update.
 
 Source-wiring tests cover these rules, but have not been executed. Concurrent status changes still require a database-backed concurrency strategy before the workflow is considered production-ready.
+
+## Quote list query implementation status
+
+A paged quotation list query is now available through the CRM dynamic API:
+
+- Search by quote number, customer snapshot name or currency.
+- Filter by customer, quote status and owner.
+- Apply caller owner-data scope and field-level query guards before repository paging.
+- Require CRM read permission and default to newest-created first.
+- Return quote version, customer snapshot, status, validity, currency and grand total for list views.
+
+Quote detail with line retrieval, version revision, and quote-to-order conversion are not implemented yet. The list query has source-wiring tests only; compilation and database query execution remain unverified.
