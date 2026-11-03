@@ -15,7 +15,7 @@ public sealed class CrmPrimaryContactUniquenessTests
             .Where(attribute => attribute.IsUnique));
 
         Assert.Equal(
-            new[] { nameof(SysCrmContact.TenantId), nameof(SysCrmContact.PrimaryCustomerId) },
+            new[] { nameof(SysCrmContact.TenantId), nameof(SysCrmContact.PrimaryCustomerId), nameof(SysCrmContact.IsDeleted) },
             index.IndexFields.Keys.ToArray());
         var slot = typeof(SysCrmContact).GetProperty(nameof(SysCrmContact.PrimaryCustomerId));
         Assert.NotNull(slot);
@@ -29,6 +29,8 @@ public sealed class CrmPrimaryContactUniquenessTests
             "backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain",
             "DomainServices", "Implementations", "CrmContactDomainService.cs"));
 
+        Assert.Contains("entity.PrimaryCustomerId = null;", source, StringComparison.Ordinal);
+        Assert.Contains("contacts.UpdateAsync(entity, cancellationToken)", source, StringComparison.Ordinal);
         Assert.Equal(2, source.Split(
             "entity.PrimaryCustomerId = command.IsPrimary ? command.CustomerId : null;",
             StringSplitOptions.None).Length - 1);
@@ -43,6 +45,7 @@ public sealed class CrmPrimaryContactUniquenessTests
 
         Assert.Contains("ADD COLUMN IF NOT EXISTS primary_customer_id bigint", source, StringComparison.Ordinal);
         Assert.Contains("WHEN is_primary THEN customer_id", source, StringComparison.Ordinal);
+        Assert.Contains("WHERE is_primary = TRUE AND is_deleted = FALSE", source, StringComparison.Ordinal);
         Assert.Contains("GROUP BY tenant_id, customer_id", source, StringComparison.Ordinal);
         Assert.Contains("HAVING COUNT(*) > 1", source, StringComparison.Ordinal);
         Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_contact_teid_prcuid", source, StringComparison.Ordinal);
