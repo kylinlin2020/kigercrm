@@ -316,3 +316,10 @@ Remaining:
 - The API test suite's cross-module unique-index guard now includes the CRM module. CRM tenant-scoped unique indexes are therefore covered by the same TenantId / IsDeleted regression checks as other platform modules.
 - The existing Customer unique index is tenant-scoped and includes IsDeleted. Other CRM indexes inspected in this increment are non-unique lookup indexes; primary-contact uniqueness still needs a database-safe filtered-unique strategy rather than an unsafe composite index that would also constrain non-primary contacts.
 - No test execution or build success is claimed; these regression checks are added for the final real-machine validation.
+
+
+## CRM security regression-test coverage (2026-11-03)
+
+- Corrected the field-security wiring test to recognize both `fieldSecurity` and `_fieldSecurity` service-field naming conventions. CRM application/query services use the former; without this, the test could miss CRM query guards and write guards.
+- Added the CRM module assembly to the entity-placement test inventory so CRM entities are checked for strict tenant-database isolation alongside the other business modules.
+- These are test-suite changes only; they have not been executed in this environment. The final Windows pull/build/test remains required.
