@@ -43,8 +43,9 @@ public sealed class CrmContactQueryService(
         if (input.Conditions?.Sorts is { Count: > 0 } sorts) _ = request.Conditions.AddSorts(sorts);
         if (input.Conditions?.Filters is { Count: > 0 } filters) _ = request.Conditions.AddFilters(filters);
 
-        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmContact x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
         await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmContact), cancellationToken);
+        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmContact x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
+        
         if (request.Conditions.Sorts.Count == 0)
             request.Conditions.AddSort((SysCrmContact x) => x.CreatedTime, SortDirection.Descending, 0);
 
