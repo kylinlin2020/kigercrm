@@ -231,3 +231,6 @@ Sales orders may now also be created directly without a source quotation. The tr
 - Applies field-security create checks to the order header and each line.
 
 The API contract, frontend API client, and sales-order management page direct-create form are wired. The form supports header terms, customer/contact/opportunity references, multi-line entry, line removal, client-side validation and an indicative total; authoritative totals remain server-calculated. The order-line detail modal now also loads the full order snapshot and displays customer PO, contact/opportunity references, payment/delivery terms, notes, subtotal, discount and tax totals. Runtime/API integration tests plus Windows/PostgreSQL acceptance remain outstanding. Order numbers are caller-supplied and protected by the existing tenant-scoped unique index; a tenant-aware number sequence is still a separate follow-up.
+
+
+The sales-order direct-create form now uses customer search backed by the CRM customer query API. After selecting a customer, contact and opportunity options are loaded from their respective query APIs filtered by that customer; the user no longer needs to manually type related-record IDs. The selector labels and error states are localized in zh-CN, en-US, zh-TW and ko-KR.
