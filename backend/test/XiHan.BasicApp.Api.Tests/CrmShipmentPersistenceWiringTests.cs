@@ -37,9 +37,18 @@ public sealed class CrmShipmentPersistenceWiringTests
     }
 
     [Fact]
+    public void SalesOrder_ShouldPersistFulfillmentRevisionForOrderLevelSerialization()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrder.cs");
+        Assert.Contains("Fulfillment_Revision", source, StringComparison.Ordinal);
+        Assert.Contains("FulfillmentRevision", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FulfillmentLedgerMigration_ShouldAddNonNegativeAndBoundedQuantities()
     {
         var source = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.5", "5.9.5.sql");
+        Assert.Contains("fulfillment_revision", source, StringComparison.Ordinal);
         Assert.Contains("reserved_quantity", source, StringComparison.Ordinal);
         Assert.Contains("shipped_quantity", source, StringComparison.Ordinal);
         Assert.Contains("reserved_quantity + shipped_quantity <= quantity", source, StringComparison.Ordinal);
