@@ -112,7 +112,7 @@ public sealed class CrmShipmentAppService(
     {
         ArgumentNullException.ThrowIfNull(input);
         if (input.Id <= 0) throw new ArgumentOutOfRangeException(nameof(input.Id));
-        if (input.Status is not ((int)CrmShipmentStatus.Cancelled) and not ((int)CrmShipmentStatus.Dispatched) and not ((int)CrmShipmentStatus.Delivered))
+        if (input.Status != (int)CrmShipmentStatus.Cancelled && input.Status != (int)CrmShipmentStatus.Dispatched && input.Status != (int)CrmShipmentStatus.Delivered)
             throw new ArgumentOutOfRangeException(nameof(input.Status));
 
         var shipment = await shipments.GetByIdAsync(input.Id, cancellationToken)
@@ -158,6 +158,8 @@ public sealed class CrmShipmentAppService(
 
             var order = await orders.GetByIdAsync(shipment.SalesOrderId, cancellationToken)
                 ?? throw new InvalidOperationException("Source sales order no longer exists.");
+            if (order.Status is not (CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.PartiallyShipped))
+                throw new InvalidOperationException("The source sales order is not eligible for dispatch.");
             var orderLineRows = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
             if (orderLineRows.Count == 0)
                 throw new InvalidOperationException("Source sales order has no lines.");
