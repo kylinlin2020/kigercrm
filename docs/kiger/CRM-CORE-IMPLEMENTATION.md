@@ -352,3 +352,10 @@ Validation boundary:
 - Source-level wiring has been re-read from the branch after commit. No .NET restore/build/test or runtime authorization test has been executed; the final Windows validation gate remains open.
 - The platform's data-scope resolver is trusted as the authority for allowed user IDs. Integration tests must verify restricted, unrestricted, empty-scope, and changed-team-membership cases.
 - Lead duplicate recognition and database-safe conversion concurrency protection remain open; no provider-specific uniqueness or locking strategy is being guessed before the actual database provider and migration conventions are validated.
+
+
+## CRM command-side assignment guard correction and regression test (2026-11-03)
+
+- Corrected Lead create/update assignment authorization: Create now performs exactly one owner-scope check; Update now performs the same check before field-security validation and domain mutation.
+- Added a source-wiring regression test covering Customer, Contact, Lead, Opportunity, Activity and Task create/update methods. It asserts exactly one owner/assignee scope check per write endpoint, catching both missing and duplicated checks.
+- This is a static source-wiring test; it has been committed but not executed. Runtime authorization and compilation remain unverified until CI or the requested Windows machine validation.
