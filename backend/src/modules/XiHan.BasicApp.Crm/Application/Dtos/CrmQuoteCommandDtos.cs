@@ -15,6 +15,8 @@ public sealed class CrmQuoteLineCreateDto
 public sealed class CrmQuoteCreateDto
 {
     public string QuoteNumber { get; set; } = string.Empty;
+    /// <summary>Optional stable retry key; used only when creating a new quotation number.</summary>
+    public string? NumberingIdempotencyKey { get; set; }
     public long CustomerId { get; set; }
     public long? ContactId { get; set; }
     public long? OpportunityId { get; set; }
