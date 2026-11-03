@@ -122,7 +122,7 @@ The sales-order header now has a tenant-scoped unique index over `TenantId + Sou
 The CRM module now includes tenant-scoped shipment headers and shipment-line quantity records.
 
 - Shipment headers reference a sales order and retain a unique tenant shipment number, status, shipment/delivery dates, carrier and tracking number.
-- Shipment lines reference sales-order lines and store shipped quantity at four decimal places.
+- Shipment lines reference sales-order lines and store fulfillment quantity at four decimal places. Sales-order lines maintain reserved and dispatched quantities separately.
 - A tenant-scoped unique index prevents duplicate references to the same sales-order line inside one shipment; an additional index supports lookup by order line for future cumulative-shipment validation.
 - Both entities are registered with CRM field-security metadata and use the existing SaaS tenant-aware repository base.
 - Initial statuses are Draft, Dispatched, Delivered and Cancelled.
@@ -135,23 +135,22 @@ This is persistence groundwork only. No shipment create/dispatch/deliver command
 - Added shipment detail query and paged shipment-line query.
 - Read permission, tenant-aware repository filtering, owner data scope and field-security query guards are applied.
 - Shipment-line reads first authorize access to the parent shipment, preventing direct line-ID/page access from bypassing parent record scope.
-- These are read APIs only. Shipment creation, dispatch/delivery commands and cumulative quantity enforcement remain pending.
+- Shipment list/detail/line read APIs remain tenant-scoped and owner-authorized; write-side fulfillment rules are implemented in the transactional command described below.
 
 ## Draft shipment creation command
 
 - Added a transactional Create shipment command with Create permission.
 - Validates the source sales order exists in the current tenant, is within the caller's owner data scope, and is Confirmed, Processing or PartiallyShipped.
-- Requires 1–500 unique sales-order line references; each line must belong to the selected order and each requested quantity must be positive, use at most four decimal places, and not exceed that line's ordered quantity.
-- Creates the shipment header and all draft shipment lines within one application UnitOfWork; applies field-security creation checks to both entity types.
+- Requires 1–500 unique sales-order line references; each line must belong to the selected order and each requested quantity must be positive, use at most four decimal places, and fit within the line's remaining quantity after existing reservations and dispatched quantities.
+- In the same UnitOfWork, increments each order line's reserved quantity before inserting the Draft header and shipment lines.
+- Each reservation update uses the order-line entity's persistent RowVersion optimistic lock, so concurrent draft creation cannot both reserve the same remaining quantity.
 - The shipment owner defaults to the source order owner and is checked against the caller's assignable data scope.
 
-Important limitation: this creates a Draft manifest only. It does not reserve stock, dispatch goods, mark quantities shipped, or prevent cumulative over-shipment across multiple draft manifests. Dispatch must remain blocked until transactional cumulative shipped-quantity checks and concurrency protection are implemented.
-
-- Added a guarded cancellation command: only Draft shipments can transition to Cancelled; it requires Execute permission, owner-scope access and field-security update authorization. Dispatch/delivery transitions remain intentionally unavailable pending cumulative shipped-quantity validation.
+The ledger does not deduct warehouse stock; it tracks customer-order fulfillment only. Dispatch and delivery are separate authorized state transitions.
 
 ## Fulfillment state ownership hardening
 
-Manual sales-order status edits can no longer set Processing → PartiallyShipped/Completed or PartiallyShipped → Completed. These states represent physical fulfillment and must be derived from validated shipment dispatch/delivery operations, not an unrestricted status command. The shipment workflow will own those transitions after cumulative quantity and concurrency protections are complete.
+Manual sales-order status edits cannot set PartiallyShipped or Completed. These states are derived from the shipment dispatch workflow, not client-supplied status changes. Dispatch updates the order to PartiallyShipped or Completed based on all order-line shipped quantities.
 
 ## Immutable quote revision command
 
@@ -183,3 +182,14 @@ Migration hardening note: duplicate preflight groups by the complete unique-inde
 ## Quote version uniqueness migration
 
 The 5.9.4 PostgreSQL upgrade also installs the entity-declared tenant + quote number + version + IsDeleted unique index for existing databases. It checks the complete key (including soft-deleted history) before index creation. This is the database-level final guard against concurrent revision attempts producing the same version. The migration is guarded for tenant databases where the quote table exists; non-PostgreSQL deployments need equivalent DDL.
+
+
+## Shipment fulfillment command implementation
+
+- Draft creation reserves the requested quantity on each sales-order line and checks the remaining balance: ordered quantity minus already reserved quantity minus dispatched quantity.
+- Reservation writes use the existing SqlSugar optimistic RowVersion update path inside the application UnitOfWork. A stale concurrent update raises a concurrency conflict; the transaction rolls back the entire shipment header, lines and earlier line reservations.
+- Draft cancellation releases its exact reserved quantities in the same transaction. Dispatched shipments cannot be cancelled.
+- Dispatch is allowed only from Draft. It atomically moves each shipment line quantity from reserved to shipped, verifies the source order is still eligible, and updates the sales-order lifecycle to PartiallyShipped or Completed after reading all order lines.
+- Delivery is allowed only from Dispatched and records DeliveredDate. Repeated or out-of-order transitions are rejected.
+- The 5.9.5 PostgreSQL migration adds non-negative reserved/shipped columns and a database check that their sum never exceeds the ordered quantity. New databases receive the columns from entity metadata.
+- Source-wiring regression tests were updated for the ledger and transitions. No backend build, automated test run, PostgreSQL migration run, or real-device verification has been observed yet. A concurrent multi-connection integration test remains a release gate.
