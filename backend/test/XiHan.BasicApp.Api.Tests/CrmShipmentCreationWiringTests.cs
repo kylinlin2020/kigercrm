@@ -138,6 +138,27 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains(".OrderBy(line => line.SalesOrderLineId)\n            .ToArray();\n        if (lines.Length == 0)", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ShipmentStatusChange_ShouldRejectRepeatedAndOutOfOrderTransitions()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var start = source.IndexOf("public async Task<CrmShipmentDto> ChangeStatusAsync", StringComparison.Ordinal);
+        var method = source[start..];
+        var cancelStart = method.IndexOf("if (target == CrmShipmentStatus.Cancelled)", StringComparison.Ordinal);
+        var dispatchStart = method.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", cancelStart, StringComparison.Ordinal);
+        var deliveredStart = method.IndexOf("else\n        {\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
+
+        Assert.True(cancelStart >= 0 && dispatchStart > cancelStart && deliveredStart > dispatchStart);
+        var cancellation = method[cancelStart..dispatchStart];
+        var dispatch = method[dispatchStart..deliveredStart];
+        var delivery = method[deliveredStart..];
+
+        Assert.Contains("shipment.Status != CrmShipmentStatus.Draft", cancellation, StringComparison.Ordinal);
+        Assert.Contains("shipment.Status != CrmShipmentStatus.Draft", dispatch, StringComparison.Ordinal);
+        Assert.Contains("shipment.Status != CrmShipmentStatus.Dispatched", delivery, StringComparison.Ordinal);
+        Assert.Contains("shipment.Status = target", method, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
