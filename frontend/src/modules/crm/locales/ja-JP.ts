@@ -329,7 +329,7 @@ export default {
       "next": "次へ",
       "query": "検索",
       "refresh": "更新"
-    }
+    },
     "quote": {
       "title": "Quotations", "description": "Prepare customer quotations and manage review status.", "create": "New quotation", "search": "Search quote number or customer", "allStatuses": "All statuses", "query": "Search", "refresh": "Refresh", "loading": "Loading quotations…", "empty": "No quotations found", "number": "Quote #", "customer": "Customer", "version": "Version", "status": "Status", "date": "Issue date", "total": "Total", "actions": "Actions", "markSent": "Mark sent", "accept": "Accept", "reject": "Reject", "newTitle": "Create quotation", "customerId": "Customer ID", "issueDate": "Issue date", "validUntil": "Valid until", "currency": "Currency", "descriptionLine": "Line description", "quantity": "Quantity", "unitPrice": "Unit price", "required": "Complete the required fields with valid quantities and prices.", "created": "Quotation created", "saveError": "Could not save quotation", "statusSaved": "Quotation status updated", "statusError": "Could not update quotation status", "cancel": "Cancel", "save": "Save quotation", "saving": "Saving…", "previous": "Previous", "next": "Next", "totalCount": "{count} records", "page": "Page {current} / {total}", "status0": "Draft", "status1": "Sent", "status2": "Accepted", "status3": "Rejected", "status4": "Expired", "status5": "Converted"
     },
