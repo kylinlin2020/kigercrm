@@ -17,7 +17,7 @@ BEGIN
         SELECT 1
         FROM pg_constraint
         WHERE conname = 'ck_crm_sales_order_line_fulfillment_qty'
-          AND conrelid = 'crm_sales_order_line'::regclass
+          AND conrelid = to_regclass('crm_sales_order_line')
     ) THEN
         ALTER TABLE crm_sales_order_line
             ADD CONSTRAINT ck_crm_sales_order_line_fulfillment_qty
