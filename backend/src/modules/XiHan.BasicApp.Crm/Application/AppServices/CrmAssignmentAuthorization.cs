@@ -6,6 +6,22 @@ namespace XiHan.BasicApp.Crm.Application.AppServices;
 /// <summary>Prevents callers from assigning CRM records outside their resolved user data scope.</summary>
 internal static class CrmAssignmentAuthorization
 {
+    public static async Task EnsureRecordAccessibleAsync(
+        IUserDataScopeFilterService dataScope,
+        long? currentOwnerUserId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(dataScope);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var scope = await dataScope.ResolveAccessibleUsersAsync(DateTimeOffset.UtcNow, cancellationToken);
+        if (!scope.Unrestricted
+            && (!currentOwnerUserId.HasValue || !scope.UserIds.Contains(currentOwnerUserId.Value)))
+        {
+            throw new UnauthorizedAccessException("The CRM record is outside the caller's allowed data scope.");
+        }
+    }
+
     public static async Task EnsureAssignableAsync(
         IUserDataScopeFilterService dataScope,
         long? targetUserId,
