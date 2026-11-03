@@ -6,6 +6,22 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.tables
+        WHERE table_schema = current_schema() AND table_name = 'crm_quote'
+    ) THEN
+        IF EXISTS (
+            SELECT 1 FROM crm_quote
+            GROUP BY tenant_id, quote_number, version, is_deleted
+            HAVING COUNT(*) > 1
+        ) THEN
+            RAISE EXCEPTION 'CRM migration 5.9.4 blocked: duplicate quote version keys exist (including soft-deleted rows). Resolve duplicates, then retry.';
+        END IF;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_quote_teid_no_ve_isde
+            ON crm_quote (tenant_id, quote_number, version, is_deleted);
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
         WHERE table_schema = current_schema() AND table_name = 'crm_sales_order'
     ) THEN
         IF EXISTS (
