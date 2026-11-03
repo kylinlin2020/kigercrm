@@ -4,7 +4,8 @@ export default {
     "crm_customers": "고객",
     "crm_leads": "영업 리드",
     "crm_opportunities": "영업 기회",
-    "crm_tasks": "작업"
+    "crm_tasks": "작업",
+    "crm_contacts": "연락처"
   },
   "crm": {
     "lead": {
@@ -227,6 +228,50 @@ export default {
       "priority3": "보통",
       "priority4": "높음",
       "priority5": "긴급"
+    },
+    "contact": {
+      "title": "연락처",
+      "description": "고객 계정에 연결된 담당자, 직책 및 연락 채널을 관리합니다.",
+      "create": "새 연락처",
+      "search": "이름, 이메일, 전화 또는 WhatsApp 검색",
+      "customerId": "고객 ID",
+      "loading": "연락처 불러오는 중…",
+      "empty": "연락처가 없습니다",
+      "name": "이름",
+      "firstName": "이름",
+      "lastName": "성",
+      "jobTitle": "직책",
+      "email": "이메일",
+      "phone": "전화",
+      "whatsApp": "WhatsApp",
+      "primary": "주 담당자",
+      "yes": "예",
+      "ownerId": "담당자 사용자 ID",
+      "notes": "메모",
+      "actions": "작업",
+      "edit": "편집",
+      "delete": "삭제",
+      "newTitle": "연락처 만들기",
+      "editTitle": "연락처 편집",
+      "save": "연락처 저장",
+      "saving": "저장 중…",
+      "cancel": "취소",
+      "requiredFields": "고객 ID, 이름, 성은 필수입니다",
+      "loadError": "연락처를 불러오지 못했습니다",
+      "detailError": "연락처 상세 정보를 불러오지 못했습니다",
+      "saveError": "연락처를 저장하지 못했습니다",
+      "createSuccess": "연락처가 생성되었습니다",
+      "updateSuccess": "연락처가 업데이트되었습니다",
+      "deleteSuccess": "연락처가 삭제되었습니다",
+      "deleteError": "연락처를 삭제하지 못했습니다",
+      "confirmDelete": "연락처 “{name}”을(를) 삭제할까요?",
+      "notFound": "연락처를 찾을 수 없거나 접근 권한이 없습니다",
+      "total": "총 {count}개",
+      "page": "{current} / {total} 페이지",
+      "previous": "이전",
+      "next": "다음",
+      "query": "검색",
+      "refresh": "새로고침"
     }
   }
 }
