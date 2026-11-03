@@ -240,3 +240,21 @@ Remaining limitations:
 - Lead conversion into Customer/Contact is not implemented yet. The generic CRUD path deliberately cannot mark a lead converted.
 - Duplicate detection, owner assignment authorization and data-scope policy still need explicit enforcement and integration tests.
 - No successful .NET restore/build/test or database execution is claimed. As requested, final pull/build/test validation remains for the user's actual machine.
+
+
+## Lead conversion and Opportunity command increment (2026-11-03)
+
+Implemented on `kiger-dev`:
+- Added a dedicated Lead `ConvertAsync` operation, separate from generic lead updates. It creates a tenant-scoped Customer and, when a contact name is present, a related Contact; it stores both generated IDs and marks the lead Converted in the same application unit-of-work.
+- A repeated conversion request for an already-converted lead returns its existing linked records after verifying those references remain resolvable in the current tenant. Disqualified leads cannot be converted.
+- Added Opportunity create/update/delete DTOs, contracts, mapper, tenant-scoped repository and domain/application services.
+- Opportunity writes validate customer and optional primary-contact references within the current tenant, and require the primary contact to belong to the selected customer.
+- Opportunity amount cannot be negative; currency is normalized to a three-letter uppercase code; probability is constrained to 0–100; Lost stage requires a reason.
+- Opportunity entity is now registered in the field-security entity catalog because guarded write operations and explicit response mapping exist.
+
+Validation and concurrency caveats:
+- These changes have not been compiled or executed against a database. The user has explicitly reserved real-machine pull/build/test for the final validation stage.
+- Lead conversion is protected by the application Unit of Work, but a simultaneous double-submit race has not yet been proven safe. A database-level concurrency/idempotency guard and integration test are still required before production.
+- Contact creation during conversion is currently conditional on a non-empty ContactName; lead email/phone alone do not create a contact.
+- Opportunity CRUD is implemented, but list/detail query APIs and full tenant/data-scope/owner authorization tests remain outstanding.
+- Activity and Task application services, migrations, frontend, Go CRM connector and AI sales workflows remain outstanding.
