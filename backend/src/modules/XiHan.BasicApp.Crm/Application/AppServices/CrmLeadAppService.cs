@@ -22,9 +22,6 @@ public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, ICrmL
     public async Task<CrmLeadDetailDto> CreateAsync(CrmLeadCreateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
-        var existing = await leads.GetByIdAsync(input.BasicId, cancellationToken)
-            ?? throw new InvalidOperationException("Lead does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmLead), input, cancellationToken);
@@ -37,6 +34,9 @@ public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, ICrmL
     public async Task<CrmLeadDetailDto> UpdateAsync(CrmLeadUpdateDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+        var existing = await leads.GetByIdAsync(input.BasicId, cancellationToken)
+            ?? throw new InvalidOperationException("Lead does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmLead), input.BasicId, input, cancellationToken);
