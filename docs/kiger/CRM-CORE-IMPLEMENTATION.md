@@ -337,3 +337,18 @@ Implemented on `kiger-dev`:
 Important validation boundary:
 - This increment covers query-time visibility only. Create/update assignment authorization (whether a caller may assign an owner or assignee outside their allowed user set) remains a separate command-side task and must be completed before production release.
 - No successful .NET restore/build/test has been observed yet. The change is committed to the draft branch but remains unverified by runtime tests.
+
+
+## Command-side owner and assignee data-scope enforcement (2026-11-03)
+
+Implemented on `kiger-dev`:
+- Added a shared application-layer assignment authorization guard using BasicApp's `IUserDataScopeFilterService.ResolveAccessibleUsersAsync`.
+- Customer, Contact, Lead, Opportunity and Activity create/update operations now reject a requested `OwnerUserId` outside the caller's resolved user data scope.
+- Task create/update operations now reject a requested `AssigneeUserId` outside the caller's resolved user data scope.
+- Null owner/assignee remains allowed; it does not grant visibility because query-time data-scope filtering continues to exclude unassigned records for restricted scopes.
+- The authorization check runs before domain writes and is independent of field-security write guards.
+
+Validation boundary:
+- Source-level wiring has been re-read from the branch after commit. No .NET restore/build/test or runtime authorization test has been executed; the final Windows validation gate remains open.
+- The platform's data-scope resolver is trusted as the authority for allowed user IDs. Integration tests must verify restricted, unrestricted, empty-scope, and changed-team-membership cases.
+- Lead duplicate recognition and database-safe conversion concurrency protection remain open; no provider-specific uniqueness or locking strategy is being guessed before the actual database provider and migration conventions are validated.
