@@ -5,6 +5,7 @@ namespace XiHan.BasicApp.Crm.Domain.DomainServices;
 public interface ICrmQuoteDomainService
 {
     Task<SysCrmQuote> CreateAsync(CrmQuoteCreateCommand command, CancellationToken cancellationToken = default);
+    Task<SysCrmQuote> ChangeStatusAsync(long id, int status, CancellationToken cancellationToken = default);
 }
 
 public sealed record CrmQuoteLineCommand(
