@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmLeadCreateDto, CrmLeadDetailDto, CrmLeadListItemDto, CrmLeadUpdateDto } from '@/api'
+import type { CrmLeadCreateDto, CrmLeadListItemDto, CrmLeadUpdateDto } from '@/api'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPageRequest, CrmLeadStatus, crmLeadApi } from '@/api'
