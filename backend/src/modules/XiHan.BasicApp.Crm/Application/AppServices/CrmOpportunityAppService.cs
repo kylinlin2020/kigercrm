@@ -14,7 +14,7 @@ using XiHan.Framework.Uow.Attributes;
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Opportunities")]
-public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domainService, ICrmOpportunityRepository records, ICrmCustomerRepository customers, ICrmContactRepository contacts, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope)
+public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domainService, ICrmOpportunityRepository records, ICrmCustomerRepository customers, ICrmContactRepository contacts, IFieldSecurityService fieldSecurity, IUserDataScopeFilterService dataScope, IOperationPermissionGuard permissionGuard)
     : CrmApplicationService, ICrmOpportunityAppService
 {
     [UnitOfWork(true)]
@@ -36,6 +36,7 @@ public sealed class CrmOpportunityAppService(ICrmOpportunityDomainService domain
         var existing = await records.GetByIdAsync(input.BasicId, cancellationToken)
             ?? throw new InvalidOperationException("CRM record does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureTransferPermissionAsync(permissionGuard, existing.OwnerUserId, input.OwnerUserId, cancellationToken);
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         await EnsureRelatedRecordsAccessibleAsync(input.CustomerId, input.PrimaryContactId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmOpportunity), input.BasicId, input, cancellationToken);
