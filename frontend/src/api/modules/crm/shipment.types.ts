@@ -26,6 +26,18 @@ export interface CrmShipmentListItemDto extends BasicDto {
   createdTime: DateTimeString
 }
 
+export interface CrmShipmentCommandResultDto extends BasicDto {
+  shipmentNumber: string
+  salesOrderId: ApiId
+  status: CrmShipmentStatus
+  shipmentDate?: DateTimeString | null
+  deliveredDate?: DateTimeString | null
+  carrier?: string | null
+  trackingNumber?: string | null
+  ownerUserId?: ApiId | null
+  createdTime: DateTimeString
+}
+
 export interface CrmShipmentDetailDto extends CrmShipmentListItemDto {
   notes?: string | null
 }
