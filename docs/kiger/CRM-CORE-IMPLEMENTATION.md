@@ -190,3 +190,19 @@ Required behaviors:
 ## 9. Source migration constraints
 
 Haituo CRM is an Express/TypeScript application with MySQL-oriented persistence and team/owner semantics. Port business rules and contracts selectively. Do not copy its persistence implementation directly. WhatsApp transport and GPL-sensitive dependencies remain isolated pending license review; prefer evaluating the official Meta WhatsApp Business API for production integration.
+
+
+## Customer command workflow increment (2026-11-03)
+
+Implemented on `kiger-dev`:
+- Customer create/update DTOs and application contracts.
+- Customer domain command interface and implementation with normalized required name, bounded optional field lengths, positive owner-id validation, and entity existence checks.
+- Customer application command service with Create/Update/Delete permission attributes, unit-of-work boundaries, and field-security create/update guards.
+- Explicit command mapping from API DTOs into domain commands.
+- Customer create/update responses reuse the established detail projection.
+
+Important validation limits:
+- This increment has not been compiled or executed against a database; no successful build/test is claimed.
+- Tenant scoping relies on the platform `SaasRepository` and authenticated tenant context. This must be proven by integration tests.
+- Contact CRUD, database migrations, frontend pages, Go CRM integration and lead conversion remain pending.
+- Owner assignment authorization and customer/contact relationship policies still require explicit tests and, if needed, server-side policy enforcement before production.
