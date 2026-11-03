@@ -69,8 +69,9 @@ public sealed class CrmLeadQueryService(
             _ = request.Conditions.AddFilters(filters);
         }
 
-        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmLead x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
         await fieldSecurity.GuardQueryAsync(request.Conditions, typeof(SysCrmLead), cancellationToken);
+        await request.Conditions.ApplyOwnerScopeAsync(dataScope, (SysCrmLead x) => x.OwnerUserId, DateTimeOffset.UtcNow, cancellationToken);
+        
 
         if (request.Conditions.Sorts.Count == 0)
         {
