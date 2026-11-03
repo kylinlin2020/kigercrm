@@ -21,6 +21,9 @@ describe('CRM API barrel', () => {
     expect(crmBarrel.crmQuoteApi).toBe(crmQuoteApi)
     expect(crmBarrel.crmSalesOrderApi).toBe(crmSalesOrderApi)
     expect(crmBarrel.crmShipmentApi).toBe(crmShipmentApi)
+    expect(crmBarrel.crmQuoteApi).toBe(crmQuoteApi)
+    expect(crmBarrel.crmSalesOrderApi).toBe(crmSalesOrderApi)
+    expect(crmBarrel.crmShipmentApi).toBe(crmShipmentApi)
   })
 
   it('exports the CRM workflow enums from the same entry', () => {
@@ -28,6 +31,9 @@ describe('CRM API barrel', () => {
     expect(crmBarrel.CrmLeadStatus).toBeDefined()
     expect(crmBarrel.CrmOpportunityStage).toBeDefined()
     expect(crmBarrel.CrmTaskStatus).toBeDefined()
+    expect(crmBarrel.CrmQuoteStatus).toBeDefined()
+    expect(crmBarrel.CrmSalesOrderStatus).toBeDefined()
+    expect(crmBarrel.CrmShipmentStatus).toBeDefined()
     expect(crmBarrel.CrmQuoteStatus).toBeDefined()
     expect(crmBarrel.CrmSalesOrderStatus).toBeDefined()
     expect(crmBarrel.CrmShipmentStatus).toBeDefined()
