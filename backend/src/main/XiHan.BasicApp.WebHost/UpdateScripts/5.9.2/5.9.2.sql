@@ -34,9 +34,18 @@ BEGIN
 END
 $$;
 
-CREATE INDEX IF NOT EXISTS ix_crm_lead_tenant_duplicate_email_normalized
-    ON crm_lead (tenant_id, duplicate_email_normalized);
-CREATE INDEX IF NOT EXISTS ix_crm_lead_tenant_phone_digits
-    ON crm_lead (tenant_id, phone_digits);
-CREATE INDEX IF NOT EXISTS ix_crm_lead_tenant_website_host
-    ON crm_lead (tenant_id, website_host);
+DO $
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = current_schema() AND table_name = 'crm_lead'
+    ) THEN
+        CREATE INDEX IF NOT EXISTS ix_crm_lead_tenant_duplicate_email_normalized
+            ON crm_lead (tenant_id, duplicate_email_normalized);
+        CREATE INDEX IF NOT EXISTS ix_crm_lead_tenant_phone_digits
+            ON crm_lead (tenant_id, phone_digits);
+        CREATE INDEX IF NOT EXISTS ix_crm_lead_tenant_website_host
+            ON crm_lead (tenant_id, website_host);
+    END IF;
+END
+$;
