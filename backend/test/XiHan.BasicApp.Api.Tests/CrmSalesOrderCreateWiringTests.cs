@@ -225,6 +225,8 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("INumberGenerator numberGenerator", service, StringComparison.Ordinal);
         Assert.Contains("CrmNumberingRuleCodes.SalesOrder", service, StringComparison.Ordinal);
         Assert.Contains("NumberingScope.Auto", service, StringComparison.Ordinal);
+        Assert.Contains('"CRM_SALES_ORDER"', service, StringComparison.Ordinal);
+        Assert.Contains("NumberingScope.Auto", service, StringComparison.Ordinal);
         Assert.Contains("input.NumberingIdempotencyKey", service, StringComparison.Ordinal);
         Assert.Contains("allocation.Numbers.Single()", service, StringComparison.Ordinal);
     }
