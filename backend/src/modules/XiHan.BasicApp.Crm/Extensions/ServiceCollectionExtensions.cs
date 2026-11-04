@@ -40,7 +40,8 @@ public static class ServiceCollectionExtensions
             .Add<SysCrmProspectingCampaign>()
             .Add<SysCrmProspectingStrategy>()
             .Add<SysCrmProspectingRun>()
-            .Add<SysCrmProspectingCandidate>());
+            .Add<SysCrmProspectingCandidate>()
+            .Add<SysCrmProspectingEvidence>());
         
     }
 
