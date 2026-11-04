@@ -549,6 +549,27 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingWorkerHeartbeat_ShouldUseIndependentTenantScopeAndCancelOnLeaseFailure()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("RunLeaseHeartbeatAsync(", worker, StringComparison.Ordinal);
+        var heartbeat = worker.IndexOf("private async Task RunLeaseHeartbeatAsync", StringComparison.Ordinal);
+        Assert.True(heartbeat >= 0);
+        var method = worker[heartbeat..];
+        Assert.Contains("new PeriodicTimer(TimeSpan.FromMinutes(2))", method, StringComparison.Ordinal);
+        Assert.Contains("_scopeFactory.CreateScope()", method, StringComparison.Ordinal);
+        Assert.Contains("GetRequiredService<ICurrentTenant>().Change(tenantId)", method, StringComparison.Ordinal);
+        Assert.Contains("GetRequiredService<ICrmProspectingRunRepository>()", method, StringComparison.Ordinal);
+        Assert.Contains("runCancellation.Cancel()", method, StringComparison.Ordinal);
+        Assert.Contains("heartbeat failed; cancelling Run", method, StringComparison.Ordinal);
+        Assert.Contains("leaseHeartbeatCts.Cancel()", worker, StringComparison.Ordinal);
+        Assert.Contains("await leaseHeartbeatTask", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingFencedTerminalTransitions_ShouldUseDatabaseClockAndExactLeaseIdentity()
     {
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
