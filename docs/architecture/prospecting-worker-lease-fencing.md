@@ -36,9 +36,7 @@ A worker may execute only when it has the returned token/version. A read after a
 
 ## Heartbeat protocol
 
-Heartbeat updates must match tenant + Run ID + Lease_Token + Fencing_Version + Running status. Extend expiry only when the current token/version still matches. A zero-row update means ownership was lost: cancel provider work and stop all persistence immediately.
-
-Heartbeat interval should be no more than one third of the lease duration. Lease duration must exceed expected transient database latency and be configurable with validated lower/upper bounds.
+Lease renewal updates match tenant + Run ID + Lease_Token + Fencing_Version + Running status and require an unexpired lease. The worker renews before and after provider requests and every 25 candidate records. A zero-row update means ownership was lost: stop processing and reject later writes. This is work-boundary renewal, not an independent heartbeat loop; provider timeouts are bounded below the 10-minute lease.
 
 ## Fencing every write
 
