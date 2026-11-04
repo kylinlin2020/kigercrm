@@ -65,3 +65,5 @@
 - CRM 自动获客 Run 请求指纹从 5.9.12 起由 `5.9.12/5.9.12.sql` 为既有租户库增加 `payload_hash`；新库由实体 CodeFirst 创建。启动 Run 时绑定 Campaign 当前已激活且已审批的策略版本，租户内 RequestKey 永久唯一；相同 key + 相同策略快照返回既有 Run，不同快照拒绝。历史 Run 的空指纹不视为可安全重放。
 
 - CRM 自动获客 Run 的原始 Provider 结果快照从 5.9.13 起由 `5.9.13/5.9.13.sql` 为既有 CRM 租户库增加可空 `raw_results_json`（PostgreSQL text）；新库由 Run 实体 CodeFirst 创建。只有 Worker 完成 Provider 调用后才写入该字段，候选数仍为 0，原始结果不等于已审核线索。
+
+- CRM 自动获客候选审核表从 5.9.14 起由 `5.9.14/5.9.14.sql` 为已有 CRM 租户库创建（要求 `crm_lead` 与 `crm_prospecting_run` 已存在）；新库由 `SysCrmProspectingCandidate` CodeFirst 创建。候选与 CRM Lead 分表保存，必须经人工审核后才允许转为 Lead。
