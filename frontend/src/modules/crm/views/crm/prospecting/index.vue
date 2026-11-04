@@ -10,6 +10,7 @@ import {
 import type {
   CrmProspectingCampaignDto,
   CrmProspectingCandidateDto,
+  CrmProspectingCandidateReviewDetailDto,
   CrmProspectingRunDto,
   CrmProspectingStrategyDto,
 } from '@/api'
@@ -27,6 +28,8 @@ const selectedCampaignId = ref<string>('')
 const strategies = ref<CrmProspectingStrategyDto[]>([])
 const runs = ref<CrmProspectingRunDto[]>([])
 const candidates = ref<CrmProspectingCandidateDto[]>([])
+const reviewDetail = ref<CrmProspectingCandidateReviewDetailDto | null>(null)
+const reviewDetailLoading = ref(false)
 const selectedRunId = ref<string>('')
 const campaignDialog = ref(false)
 const strategyDialog = ref(false)
@@ -219,6 +222,35 @@ async function cancelRun(run: CrmProspectingRunDto) {
   }
   catch (error) { toast.danger((error as Error)?.message || t('crm.prospecting.actionError')) }
 }
+
+async function openCandidateReview(candidate: CrmProspectingCandidateDto) {
+  reviewDetailLoading.value = true
+  reviewDetail.value = null
+  try {
+    reviewDetail.value = await crmProspectingApi.candidateReviewDetail(candidate.basicId)
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.reviewDetailError'))
+  }
+  finally {
+    reviewDetailLoading.value = false
+  }
+}
+
+function scorePriority(value: number) {
+  return [t('crm.prospecting.priorityHold'), 'C', 'B', 'A'][value] ?? String(value)
+}
+
+function scoreGates(value: string) {
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.join(', ') : value
+  }
+  catch {
+    return value
+  }
+}
+
 async function reviewCandidate(candidate: CrmProspectingCandidateDto, approve: boolean) {
   if (approve && candidate.status === CrmProspectingCandidateStatus.Duplicate && !window.confirm(t('crm.prospecting.confirmDuplicateOverride'))) return
   try {
@@ -321,6 +353,7 @@ onMounted(loadCampaigns)
               <td><a v-if="candidate.website" :href="candidate.website" target="_blank" rel="noopener noreferrer">{{ candidate.website }}</a><span v-else>—</span></td>
               <td>{{ candidate.source || candidate.providerCode }}</td><td>{{ candidateStatus(candidate.status) }}</td><td>{{ candidate.duplicateReason || '—' }}</td>
               <td class="actions">
+                <button type="button" @click="openCandidateReview(candidate)">{{ t('crm.prospecting.viewEvidence') }}</button>
                 <template v-if="canExecute && [CrmProspectingCandidateStatus.PendingReview, CrmProspectingCandidateStatus.Duplicate].includes(candidate.status)">
                   <button type="button" @click="reviewCandidate(candidate, true)">{{ t('crm.prospecting.approve') }}</button>
                   <button type="button" @click="reviewCandidate(candidate, false)">{{ t('crm.prospecting.reject') }}</button>
@@ -330,6 +363,36 @@ onMounted(loadCampaigns)
             </tr>
           </tbody>
         </table>
+
+      </section>
+
+      <section v-if="reviewDetailLoading || reviewDetail" class="panel review-detail">
+        <header class="section-header">
+          <div><h2>{{ t('crm.prospecting.reviewDetail') }}</h2><p>{{ reviewDetail?.candidate.companyName || '' }}</p></div>
+          <button type="button" @click="reviewDetail = null">{{ t('crm.prospecting.closeDetail') }}</button>
+        </header>
+        <div v-if="reviewDetailLoading" class="empty-state">{{ t('crm.prospecting.loadingDetails') }}</div>
+        <template v-else-if="reviewDetail">
+          <h3>{{ t('crm.prospecting.scoreHistory') }}</h3>
+          <div v-if="reviewDetail.scoreHistory.length === 0" class="empty-state">{{ t('crm.prospecting.noScore') }}</div>
+          <table v-else>
+            <thead><tr><th>{{ t('crm.prospecting.totalScore') }}</th><th>{{ t('crm.prospecting.priority') }}</th><th>{{ t('crm.prospecting.scoreVersion') }}</th><th>{{ t('crm.prospecting.scoreBreakdown') }}</th><th>{{ t('crm.prospecting.reviewGates') }}</th><th>{{ t('crm.prospecting.evaluatedAt') }}</th></tr></thead>
+            <tbody><tr v-for="score in reviewDetail.scoreHistory" :key="score.basicId">
+              <td><strong>{{ score.total }}/100</strong></td><td>{{ scorePriority(score.priority) }}</td><td>{{ score.scorecardVersion }}</td>
+              <td>{{ score.identityPoints }}/15 · {{ score.procurementPoints }}/30 · {{ score.productFitPoints }}/20 · {{ score.marketFitPoints }}/10 · {{ score.recencyPoints }}/10 · {{ score.evidencePoints }}/10 · {{ score.contactPoints }}/5</td>
+              <td>{{ scoreGates(score.reviewGatesJson) || '—' }}</td><td>{{ new Date(score.evaluatedAtUtc).toLocaleString() }}</td>
+            </tr></tbody>
+          </table>
+          <h3>{{ t('crm.prospecting.evidence') }}</h3>
+          <div v-if="reviewDetail.evidence.length === 0" class="empty-state">{{ t('crm.prospecting.noEvidence') }}</div>
+          <table v-else>
+            <thead><tr><th>{{ t('crm.prospecting.field') }}</th><th>{{ t('crm.prospecting.provider') }}</th><th>{{ t('crm.prospecting.verification') }}</th><th>{{ t('crm.prospecting.evidenceType') }}</th><th>{{ t('crm.prospecting.sourceUrl') }}</th><th>{{ t('crm.prospecting.retrievedAt') }}</th></tr></thead>
+            <tbody><tr v-for="item in reviewDetail.evidence" :key="item.basicId">
+              <td><strong>{{ item.fieldName }}</strong><small>{{ item.evidenceSummary || item.fieldValueHash || '' }}</small></td><td>{{ item.providerCode }}<small>{{ item.providerRecordId || '' }}</small></td><td>{{ item.verificationStatus }}</td><td>{{ item.evidenceType }}</td>
+              <td><a :href="item.sourceUrl" target="_blank" rel="noopener noreferrer">{{ item.sourceUrl }}</a></td><td>{{ new Date(item.retrievedAtUtc).toLocaleString() }}</td>
+            </tr></tbody>
+          </table>
+        </template>
       </section>
     </template>
     <div v-else class="empty-state">{{ t('crm.prospecting.noCampaigns') }}</div>
@@ -369,6 +432,9 @@ onMounted(loadCampaigns)
 .page-header, .section-header, .toolbar, .record-row, .editor header, .editor footer { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .page-header h1, .section-header h2, .editor h2 { margin: 0; }
 .page-header p, .section-header p, .record-main small, .hint { color: var(--xh-text-muted, #777); margin: .25rem 0 0; }
+.review-detail { display: grid; gap: .75rem; }
+.review-detail h3 { margin: .5rem 0 0; }
+.review-detail td small { display: block; max-width: 22rem; overflow-wrap: anywhere; color: var(--xh-text-muted, #777); }
 .panel { border: 1px solid var(--xh-border, #ddd); border-radius: .75rem; padding: 1rem; overflow-x: auto; }
 .record-row { border-top: 1px solid var(--xh-border, #ddd); padding: .75rem 0; flex-wrap: wrap; }
 .record-main { display: grid; gap: .2rem; min-width: 14rem; flex: 1; }
