@@ -178,11 +178,13 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 duplicateEmails, duplicateWebsiteHosts, cancellationToken);
             // Match the database unique index semantics: provider/external IDs are exact identities,
             // not case-insensitive email/domain values.
+            // Keep provider/external identity as a typed tuple. Delimiter-concatenated keys can
+            // collide when either provider-controlled value contains the delimiter.
             var existingKeys = existingCandidates
-                .Select(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}")
-                .ToHashSet(StringComparer.Ordinal);
+                .Select(candidate => (candidate.ProviderCode, candidate.ExternalId))
+                .ToHashSet();
             var existingCandidateByKey = existingCandidates
-                .ToDictionary(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}", StringComparer.Ordinal);
+                .ToDictionary(candidate => (candidate.ProviderCode, candidate.ExternalId));
             var evidenceRepository = scope.ServiceProvider.GetRequiredService<ICrmProspectingEvidenceRepository>();
             var candidateCount = existingCandidates.Count;
             var seenCandidateEmails = existingCandidates
@@ -216,7 +218,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     : record.ExternalId.Trim();
                 if (providerCode.Length > 80) throw new InvalidOperationException("Provider code exceeds 80 characters.");
                 if (externalId.Length > 200) externalId = "sha256:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(externalId)));
-                var key = $"{providerCode}::{externalId}";
+                var key = (providerCode, externalId);
                 if (existingKeys.Contains(key))
                 {
                     // Older Runs may already contain a Candidate created before evidence persistence
