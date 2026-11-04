@@ -23,6 +23,12 @@ BEGIN
 END
 $$;
 
+CREATE INDEX IF NOT EXISTS ix_crm_create_request_teid_crti
+    ON crm_create_request (tenant_id, created_time DESC);
+
+CREATE INDEX IF NOT EXISTS ix_crm_create_request_crid
+    ON crm_create_request (created_id);
+
 CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_create_request_teid_dt_rqke
     ON crm_create_request (tenant_id, document_type, request_key);
 
