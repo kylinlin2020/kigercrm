@@ -92,6 +92,19 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.DoesNotContain("is_deleted boolean", migration[migration.IndexOf("CREATE TABLE IF NOT EXISTS crm_prospecting_run", StringComparison.Ordinal)..], StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ProspectingCandidateStatusMigration_ShouldPreservePreviouslyConvertedRows()
+    {
+        var status = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.16", "5.9.16.sql");
+        Assert.Contains("Converting = 4", status, StringComparison.Ordinal);
+        Assert.Contains("Converted = 5", status, StringComparison.Ordinal);
+        Assert.Contains("SET status = 5", migration, StringComparison.Ordinal);
+        Assert.Contains("WHERE status = 4", migration, StringComparison.Ordinal);
+        Assert.Contains("to_regclass('crm_prospecting_candidate')", migration, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
