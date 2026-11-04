@@ -344,7 +344,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
 
                 existingKeys.Add(key);
-                existingCandidateByKey[key] = candidate;
+                existingCandidateByKey[key] = insertedCandidate;
                 evidenceCheckedCandidateIds.Add(insertedCandidate.BasicId);
                 if (normalizedEmail is not null) seenCandidateEmails.Add(normalizedEmail);
                 if (websiteHost is not null) seenCandidateWebsites.Add(websiteHost);
