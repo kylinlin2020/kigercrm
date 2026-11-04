@@ -23,6 +23,64 @@ public sealed class CrmProspectingScoreSnapshotFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldPersistDeterministicReferencesToTheExactEvidenceSnapshot()
+    {
+        var score = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, null, true, false), Now);
+        var evidence = new[]
+        {
+            new XiHan.BasicApp.Crm.Domain.Entities.SysCrmProspectingEvidence
+            {
+                ProviderCode = "registry",
+                ProviderRecordId = "record-2",
+                FieldName = "company_name",
+                SourceUrlHash = new string('A', 64),
+                RawPayloadHash = new string('B', 64),
+                EvidenceType = "registry",
+                VerificationStatus = "unverified"
+            },
+            new XiHan.BasicApp.Crm.Domain.Entities.SysCrmProspectingEvidence
+            {
+                ProviderCode = "registry",
+                ProviderRecordId = "record-1",
+                FieldName = "website",
+                SourceUrlHash = new string('C', 64),
+                RawPayloadHash = new string('D', 64),
+                EvidenceType = "direct",
+                VerificationStatus = "unverified"
+            }
+        };
+
+        var first = CrmProspectingScoreSnapshotFactory.Create(123, score, evidence);
+        var second = CrmProspectingScoreSnapshotFactory.Create(123, score, evidence.Reverse().ToArray());
+
+        Assert.Equal(first.EvidenceReferencesJson, second.EvidenceReferencesJson);
+        Assert.Contains("record-1", first.EvidenceReferencesJson, StringComparison.Ordinal);
+        Assert.Contains(new string('C', 64), first.EvidenceReferencesJson, StringComparison.Ordinal);
+        Assert.Contains("company_name", first.EvidenceReferencesJson, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://", first.EvidenceReferencesJson, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Create_ShouldRejectExcessiveEvidenceReferenceCount()
+    {
+        var score = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, null, false, false), Now);
+        var evidence = Enumerable.Range(0, 101)
+            .Select(index => new XiHan.BasicApp.Crm.Domain.Entities.SysCrmProspectingEvidence
+            {
+                ProviderCode = "provider",
+                ProviderRecordId = index.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                FieldName = "company_name",
+                SourceUrlHash = new string('A', 64),
+                RawPayloadHash = new string('B', 64)
+            })
+            .ToArray();
+
+        Assert.Throws<ArgumentException>(() => CrmProspectingScoreSnapshotFactory.Create(1, score, evidence));
+    }
+
+    [Fact]
     public void Create_ShouldRejectComponentTotalMismatch()
     {
         var score = CrmProspectingScorecard.Evaluate(
