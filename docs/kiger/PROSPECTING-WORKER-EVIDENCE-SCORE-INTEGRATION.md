@@ -72,3 +72,15 @@ Initial safe integration should:
 - Cancelled Runs do not start additional records after cancellation is observed.
 - PostgreSQL integration tests cover success, evidence insert failure, score insert failure, retry, duplicate race, and tenant isolation.
 - Windows pull/build/run acceptance remains a separate required gate.
+
+
+## Reviewer read API progress
+
+The application service now exposes `GetCandidateReviewDetailAsync(candidateId)` through `ICrmProspectingAppService`. It:
+- Loads the Candidate, its Run, and its Campaign.
+- Applies the existing campaign owner/data-scope authorization check before returning review material.
+- Reads tenant-scoped Evidence rows and the latest 20 immutable Score snapshots.
+- Returns source URL, provider record identity, verification status, evidence type, retrieval/publication timestamps, and hashes alongside the Candidate and score component breakdown.
+- Does not change Candidate status, approve a candidate, convert a Lead, or trigger outreach.
+
+This is an API/read-model capability only. A dedicated frontend review screen and the Worker write path are still outstanding. Until the Worker begins persisting Evidence and Score rows, the new endpoint may legitimately return empty evidence/score collections for older or not-yet-integrated candidates.
