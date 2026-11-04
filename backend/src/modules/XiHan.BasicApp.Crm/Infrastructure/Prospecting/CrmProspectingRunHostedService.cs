@@ -77,6 +77,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
         Guid? activeLeaseToken = null;
         long activeFencingVersion = 0;
+        CancellationTokenSource? leaseHeartbeatCts = null;
+        Task? leaseHeartbeatTask = null;
         try
         {
             using var scope = _scopeFactory.CreateScope();
@@ -89,6 +91,14 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 throw new InvalidOperationException("The claimed Run did not return a valid lease token and fencing version.");
             activeLeaseToken = leaseToken;
             activeFencingVersion = run.FencingVersion;
+
+            // Keep a lease alive independently of provider/record processing boundaries.
+            // The heartbeat has its own tenant scope and repository instance; if ownership
+            // is lost it cancels this Run so no further non-fenced work is started.
+            leaseHeartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cancellationToken = leaseHeartbeatCts.Token;
+            leaseHeartbeatTask = RunLeaseHeartbeatAsync(
+                message.TenantId, run.BasicId, leaseToken, activeFencingVersion, leaseHeartbeatCts);
 
             // Provider implementations are extension points; ignore malformed registrations
             // rather than letting a null/blank/oversized key crash the entire Run before dispatch.
@@ -525,6 +535,50 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             {
                 Logger.LogError(persistException, "Could not persist prospecting Run failure: {RunId}", message.RunId);
             }
+        }
+        finally
+        {
+            if (leaseHeartbeatCts is not null)
+            {
+                leaseHeartbeatCts.Cancel();
+                if (leaseHeartbeatTask is not null)
+                {
+                    try { await leaseHeartbeatTask; }
+                    catch (OperationCanceledException) { }
+                }
+                leaseHeartbeatCts.Dispose();
+            }
+        }
+    }
+
+    private async Task RunLeaseHeartbeatAsync(
+        long tenantId,
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        CancellationTokenSource runCancellation)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(runCancellation.Token))
+            {
+                using var scope = _scopeFactory.CreateScope();
+                using var tenantScope = scope.ServiceProvider.GetRequiredService<ICurrentTenant>().Change(tenantId);
+                var runs = scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>();
+                if (!await runs.RenewLeaseWithDatabaseClockAsync(
+                    runId, leaseToken, fencingVersion, RunLeaseDuration, runCancellation.Token))
+                    throw new InvalidOperationException("The prospecting Run heartbeat detected an expired or superseded lease.");
+            }
+        }
+        catch (OperationCanceledException) when (runCancellation.IsCancellationRequested)
+        {
+            // Normal shutdown, Run completion, or lease-loss cancellation.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Prospecting Run lease heartbeat failed; cancelling Run {RunId}", runId);
+            runCancellation.Cancel();
         }
     }
 
