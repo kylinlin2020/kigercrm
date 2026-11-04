@@ -96,6 +96,8 @@ public sealed class CrmProspectingApplicationWiringTests
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
         var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var candidate = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingCandidate.cs");
+        var candidateMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.14", "5.9.14.sql");
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.13", "5.9.13.sql");
         Assert.Contains("Raw_Results_Json", entity, StringComparison.Ordinal);
         Assert.Contains("RawResultsJson = rawResultsJson", repository, StringComparison.Ordinal);
@@ -109,6 +111,12 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("ADD COLUMN IF NOT EXISTS raw_results_json text", migration, StringComparison.Ordinal);
         Assert.Contains("Raw result cap reached", worker, StringComparison.Ordinal);
         Assert.Contains("5_000_000", worker, StringComparison.Ordinal);
+        Assert.Contains("PendingReview", candidate, StringComparison.Ordinal);
+        Assert.Contains("DuplicateLeadId", candidate, StringComparison.Ordinal);
+        Assert.Contains("CrmLeadDuplicateMatcher.NormalizeEmail", worker, StringComparison.Ordinal);
+        Assert.Contains("lead.WebsiteHost == websiteHost", worker, StringComparison.Ordinal);
+        Assert.Contains("crm_prospecting_candidate", candidateMigration, StringComparison.Ordinal);
+        Assert.Contains("CandidateCount = candidateCount", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs"), StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
