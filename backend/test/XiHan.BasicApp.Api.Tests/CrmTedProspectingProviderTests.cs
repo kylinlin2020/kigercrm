@@ -111,6 +111,28 @@ public sealed class CrmTedProspectingProviderTests
         Assert.InRange(exception.RetryAfterAt.Value, DateTimeOffset.UtcNow.AddMinutes(1), DateTimeOffset.UtcNow.AddMinutes(3));
     }
 
+    [Fact]
+    public async Task SearchAsync_UsesCoverageLowerBoundInPublicationDateQuery()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """{"total":0,"results":[]}""", Encoding.UTF8, "application/json")
+        });
+        var provider = new CrmTedProspectingProvider(new HttpClient(handler));
+        var lowerBound = new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero);
+
+        var result = await provider.SearchAsync(new CrmProspectingProviderRequest(
+            22, "water pump", "water pump", "", "", "{}", [])
+        {
+            CoverageSinceUtc = lowerBound
+        });
+
+        Assert.Single(handler.RequestBody);
+        Assert.Contains("PD=(20261020", handler.RequestBody, StringComparison.Ordinal);
+        Assert.True(result.IsComplete);
+    }
+
     private sealed class StubHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFactory;
