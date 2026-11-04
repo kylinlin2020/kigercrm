@@ -95,6 +95,38 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
     }
 
     [Fact]
+    public async Task FencedLeaseOperations_ShouldRemainTenantScoped()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var token = Guid.NewGuid();
+        long tenantRunId;
+        using (_tenant.Change(TenantId))
+        {
+            var run = await CreateLeasedRunAsync("tenant-fenced-lease", token, 3, now.AddMinutes(1));
+            tenantRunId = run.BasicId;
+        }
+
+        using (_tenant.Change(TenantId + 1))
+        {
+            Assert.False(await _repository.RenewLeaseAsync(
+                tenantRunId, token, 3, now, TimeSpan.FromMinutes(1)));
+            Assert.False(await _repository.CompleteFencedAsync(
+                tenantRunId, token, 3, now, "[]", 0, 0, null, now));
+            Assert.False(await _repository.FailFencedAsync(
+                tenantRunId, token, 3, now, "cross tenant", now));
+        }
+
+        using (_tenant.Change(TenantId))
+        {
+            var persisted = await _repository.GetByIdAsync(tenantRunId);
+            Assert.NotNull(persisted);
+            Assert.Equal(CrmProspectingRunStatus.Running, persisted.Status);
+            Assert.Equal(token, persisted.LeaseToken);
+            Assert.Equal(3, persisted.FencingVersion);
+        }
+    }
+
+    [Fact]
     public async Task RenewLease_ShouldRequireExactTokenVersionAndUnexpiredOwnership()
     {
         using (_tenant.Change(TenantId))
