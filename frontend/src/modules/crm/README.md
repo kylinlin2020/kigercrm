@@ -1,6 +1,6 @@
 # CRM frontend module
 
-This module currently provides nine CRM management routes registered by the backend `PageRegistry`:
+This module currently provides ten CRM management routes registered by the backend `PageRegistry`:
 
 - Customer: `Crm/Customer/Index` (`/crm/customers`)
 - Contact: `Crm/Contact/Index` (`/crm/contacts`)
