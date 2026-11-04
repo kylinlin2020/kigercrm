@@ -239,3 +239,8 @@ When cancellation wins the race against Run completion, the repository now persi
 A queued Run now stores the exact Campaign and Strategy inputs accepted at creation time: search objective, product scope, target markets, ideal-customer profile, provider plan and excluded domains. The request fingerprint is calculated from this serialized snapshot rather than only Campaign/Strategy IDs. The worker reads only the Run snapshot, so editing a Campaign or creating/activating a later Strategy cannot silently change the meaning of an already queued task.
 
 Migration 5.9.15 adds the snapshot columns for existing CRM tenant databases. Historical Runs are not backfilled from mutable Campaign rows because that would falsely claim to reproduce their original inputs; the migration defaults provider plan to an empty array and search objective to an empty string. Existing queued/interrupted Runs created before this migration may therefore fail safely at execution and should be completed before upgrade or re-created after operator review. No PostgreSQL migration execution or runtime test has been performed.
+
+
+## 22. Transactional candidate-to-Lead claim (2026-11-04)
+
+Candidate conversion now transitions Approved → Converting inside the same transactional UnitOfWork before invoking the existing CRM Lead domain service, then transitions Converting → Converted with the created Lead ID. A failed Lead creation rolls the claim back with the transaction; the entity optimistic-lock update is the concurrency guard against two requests converting the same candidate. The Converting state is an internal in-flight state and must not be treated as a terminal review decision. Database-backed two-request race and rollback tests are still required before production acceptance.
