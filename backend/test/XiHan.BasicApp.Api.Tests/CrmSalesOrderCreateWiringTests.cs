@@ -231,6 +231,60 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("allocation.Numbers.Single()", service, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void DirectSalesOrderCreation_ShouldReplayMatchingRequestBeforeCreatingHeaderOrLines()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var createStart = source.IndexOf("CreateAsync(CrmSalesOrderCreateDto", StringComparison.Ordinal);
+        var nextMethod = source.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", createStart, StringComparison.Ordinal);
+        var create = source[createStart..nextMethod];
+
+        Assert.Contains("CreateRequestFingerprint", create, StringComparison.Ordinal);
+        Assert.Contains("GetByOrderNumberAsync(number, cancellationToken)", create, StringComparison.Ordinal);
+        Assert.Contains("existingOrder.CreationRequestFingerprint", create, StringComparison.Ordinal);
+        Assert.Contains("return ToListItem(existingOrder)", create, StringComparison.Ordinal);
+        Assert.Contains("different or unverifiable create request", create, StringComparison.Ordinal);
+        Assert.True(create.IndexOf("GetByOrderNumberAsync", StringComparison.Ordinal)
+            < create.IndexOf("repository.AddAsync(order", StringComparison.Ordinal));
+        Assert.True(create.IndexOf("GetByOrderNumberAsync", StringComparison.Ordinal)
+            < create.IndexOf("orderLines.AddAsync(line", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DirectSalesOrderCreation_ShouldFingerprintNormalizedCommercialPayload()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrder.cs");
+        Assert.Contains("SHA256.HashData", source, StringComparison.Ordinal);
+        Assert.Contains("line.LineTotal", source, StringComparison.Ordinal);
+        Assert.Contains("input.CustomerId", source, StringComparison.Ordinal);
+        Assert.Contains("input.ContactId", source, StringComparison.Ordinal);
+        Assert.Contains("input.OpportunityId", source, StringComparison.Ordinal);
+        Assert.Contains("CreationRequestFingerprint = creationRequestFingerprint", source, StringComparison.Ordinal);
+        Assert.Contains("Creation_Request_Fingerprint", entity, StringComparison.Ordinal);
+        Assert.Contains("Length = 64", entity, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SalesOrderCreateFingerprintMigration_ShouldAddNullableColumnForExistingRows()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.9", "5.9.9.sql");
+        Assert.Contains("creation_request_fingerprint varchar(64) NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS", migration, StringComparison.Ordinal);
+        Assert.Contains("information_schema.tables", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SalesOrderRepository_ShouldLookupByTenantScopedOrderNumber()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmSalesOrderRepository.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmSalesOrderRepository.cs");
+        Assert.Contains("GetByOrderNumberAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("CreateQueryable()", repository, StringComparison.Ordinal);
+        Assert.Contains("order.OrderNumber == orderNumber", repository, StringComparison.Ordinal);
+        Assert.Contains("ToListAsync(cancellationToken)", repository, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
