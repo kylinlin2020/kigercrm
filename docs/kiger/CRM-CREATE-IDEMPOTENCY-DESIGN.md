@@ -145,3 +145,17 @@ Added SQLite repository integration tests for persistence, strict tenant isolati
 ### Replay stability across owner reassignment
 
 The sales-order and shipment replay branches now recompute the candidate payload fingerprint using the persisted document owner when the original request omitted `OwnerUserId`. This preserves a legitimate retry if the customer or source order's default owner has since changed. Explicitly supplied owner values remain part of the fingerprint and must match. Assignment authorization is deferred until after an existing request/document replay has been ruled out; record-access checks on the existing customer/order and the linked document still apply.
+
+
+### Migration schema alignment review
+
+The 5.9.10 PostgreSQL table definition was checked against the framework's `SugarMultiTenantCreationEntity<long>` inheritance chain:
+
+- `Basic_Id` → `basic_id bigint PRIMARY KEY`
+- `Row_Version` → `row_version bigint NOT NULL DEFAULT 0`
+- `Tenant_Id` → `tenant_id bigint NOT NULL`
+- `Created_Time` (`DateTimeOffset`) → `created_time timestamp with time zone NOT NULL`
+- `Created_Id` → nullable bigint
+- `Created_By` → nullable text
+
+The migration uses PostgreSQL's unquoted lowercase identifiers, matching the existing CRM migrations. Source-wiring coverage now guards these inherited columns and the owner-stable replay fingerprint branches. This is source-level verification only; the migration still needs execution against the supported PostgreSQL version and comparison with SqlSugar CodeFirst output.
