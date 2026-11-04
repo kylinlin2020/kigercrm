@@ -150,6 +150,18 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void GleifIdentityLookup_ShouldUseSharedLedgerAndPersistCooldown()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("const string identityProviderCode = \"gleif_identity\"", worker, StringComparison.Ordinal);
+        Assert.Contains("GetActiveCooldownUntilAsync(\n                        identityProviderCode", worker, StringComparison.Ordinal);
+        Assert.Contains("CreateStartedAsync(\n                            run.BasicId, identityProviderCode", worker, StringComparison.Ordinal);
+        Assert.Contains("identityAttempt.BasicId, \"RateLimited\"", worker, StringComparison.Ordinal);
+        Assert.Contains("identityAttempt.BasicId, \"Succeeded\"", worker, StringComparison.Ordinal);
+        Assert.Contains("retryAfterAt: rateLimitException.RetryAfterAt", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CodeFirstTenantDatabase_ShouldReceiveTheSameLedgerCheckConstraints()
     {
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingProviderRequestRepository.cs");
