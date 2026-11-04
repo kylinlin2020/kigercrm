@@ -102,3 +102,8 @@ The legacy claim, recovery, completion, and failure predicates now require all f
 ## Expired cancellation lease recovery (2026-11-04)
 
 Expired-lease recovery now handles both active states without losing cancellation intent: an expired `Running` lease is returned to `Queued`, while an expired `CancelRequested` lease is finalized as `Cancelled` with the database clock. Both paths require a non-null expired lease and tenant scope, and both clear active lease metadata. Lease-less legacy rows remain outside this recovery operation. This closes the abandoned-cancellation case where the prior fenced cancel operation correctly refused an expired lease but recovery previously ignored `CancelRequested` rows.
+
+
+## Worker tenant identity must fail closed (2026-11-04)
+
+The queue consumer rejects messages with non-positive Run IDs or Tenant IDs before creating a tenant scope or touching repositories. Startup recovery now throws when the tenant-scope runner does not provide an explicit tenant ID; it must never substitute tenant 0. This is a tenant-isolation guard, not a lease activation step. The source contract test asserts both boundaries.

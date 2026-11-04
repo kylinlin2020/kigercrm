@@ -564,6 +564,17 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingWorkerTenantIsolation_ShouldFailClosedWithoutTenantIdentity()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("message.RunId <= 0 || message.TenantId <= 0", worker, StringComparison.Ordinal);
+        Assert.Contains("Discarding malformed prospecting queue message", worker, StringComparison.Ordinal);
+        Assert.Contains("tenantId ?? throw new InvalidOperationException", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("tenantId ?? 0", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingExpiredLeaseRecovery_ShouldUseDatabaseClockAndNeverTouchLeaseLessRows()
     {
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");

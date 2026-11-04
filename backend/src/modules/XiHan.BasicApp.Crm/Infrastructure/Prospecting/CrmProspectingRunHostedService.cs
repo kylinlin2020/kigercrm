@@ -63,6 +63,15 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
     protected override async Task ProcessItemAsync(IBackgroundTaskItem item, CancellationToken cancellationToken)
     {
         var message = (CrmProspectingRunMessage)item;
+        if (message.RunId <= 0 || message.TenantId <= 0)
+        {
+            Logger.LogError(
+                "Discarding malformed prospecting queue message with RunId {RunId} and TenantId {TenantId}",
+                message.RunId,
+                message.TenantId);
+            return;
+        }
+
         try
         {
             using var scope = _scopeFactory.CreateScope();
@@ -724,7 +733,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         new CrmProspectingRunMessage
                         {
                             RunId = id,
-                            TenantId = tenantId ?? 0,
+                            TenantId = tenantId ?? throw new InvalidOperationException(
+                                "Prospecting startup recovery requires an explicit tenant context."),
                             CreatedAt = DateTimeOffset.UtcNow
                         },
                         TimeSpan.Zero,
