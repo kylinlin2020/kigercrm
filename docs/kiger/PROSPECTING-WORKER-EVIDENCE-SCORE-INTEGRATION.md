@@ -145,3 +145,35 @@ Until a database-authoritative lease with owner identity, expiry, heartbeat, and
 Required PostgreSQL acceptance cases: two independent worker processes racing to claim; startup recovery during a live claim; expired lease takeover; stale owner attempting Candidate insert and Run completion after takeover; cancellation racing with completion; and restart after partial normalization. These tests must use independent database connections and verify persisted state, not only in-memory locks or SQLite behavior.
 
 This audit is source inspection only. It is not evidence of a passing multi-process test, PostgreSQL test, build, or Windows runtime check.
+
+## 2026-11-04 explicit Worker transaction and evidence persistence
+
+The XiHan.Framework source dependency was traced to the public `XiHanFun/XiHan.Framework` repository, matching the application's `XiHan.Framework.*` 4.8.0 package references. The relevant contracts and implementation were inspected:
+
+- `IUnitOfWorkManager.Begin(XiHanUnitOfWorkOptions, requiresNew)` creates a manual unit of work; `IUnitOfWork.CompleteAsync` is the explicit commit boundary. Disposing without completion does not commit.
+- `SqlSugarClientResolver.EnlistCurrentUnitOfWork` pins the concrete SqlSugar client for a transactional unit of work and reuses it for subsequent repository calls in that unit.
+- `SaasRepository<TEntity>` derives from `SqlSugarRepositoryBase<TEntity, long>`; `AddAsync` returns the persisted entity, and `AddRangeAsync` writes a collection through the repository's resolved client.
+- The hosted Worker is a background service, not an MVC request. It must not rely on the MVC unit-of-work filter; the Worker now opens an explicit transaction for each newly normalized Candidate.
+
+### Implemented path
+
+For each new candidate, the Worker now:
+1. Opens a short transactional unit of work.
+2. Inserts the Candidate and uses the returned entity's generated `BasicId`.
+3. Maps field-level evidence from the original provider envelope through `CrmProspectingEvidenceFactory`.
+4. Inserts any valid evidence rows through `ICrmProspectingEvidenceRepository.AddRangeAsync`.
+5. Calls `CompleteAsync` only after both writes succeed.
+
+Provider network calls, result serialization, and lead duplicate lookup remain outside this short transaction. Evidence remains unverified; source URLs must pass the existing HTTPS/canonicalization checks. No Score snapshot is written yet: the current raw provider contract does not contain verified organization, direct procurement, product-fit, or target-market facts, so assigning positive score components would fabricate facts. Score persistence must wait until explicit, provenance-backed score inputs are available.
+
+A source-contract test was added to guard the explicit UoW, Candidate insert, evidence factory, evidence batch insert, and commit sequence.
+
+### Important remaining limitations
+
+- This is not yet proof that rollback works against PostgreSQL. A database-level failure injection test must prove that an evidence insert failure rolls back its Candidate row using an independent connection.
+- The current duplicate-key path still skips an already existing Candidate. It does not reconcile or repair missing/partial Evidence rows for candidates created before this wiring. A retry-safe repair path requires a stable evidence identity and database-enforced uniqueness before it can safely be added.
+- A concurrent duplicate Candidate insert can still cause the per-record transaction to fail; conflict classification and reconciliation are not yet implemented.
+- Run completion remains outside each per-candidate transaction. A crash after some committed Candidate/Evidence pairs but before Run completion leaves partial, durable progress; restart must reconcile that state rather than assuming the whole Run was atomic.
+- No Score rows are persisted by this change.
+
+The source guard test has been added but not executed. No build, unit-test run, PostgreSQL integration test, or Windows runtime acceptance is claimed.
