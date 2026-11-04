@@ -189,6 +189,25 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void CoverageCheckpoint_ShouldAdvanceAtomicallyOnlyForCompleteProviderResults()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingProviderRequestRepository.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.32", "5.9.32.sql");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingProviderCoverage.cs");
+
+        Assert.Contains("WITH finalized_request AS", repository, StringComparison.Ordinal);
+        Assert.Contains("coverage_upsert AS", repository, StringComparison.Ordinal);
+        Assert.Contains("ON CONFLICT (tenant_id, campaign_id, provider_code, coverage_scope_hash)", repository, StringComparison.Ordinal);
+        Assert.Contains("result.FailureCount == 0", worker, StringComparison.Ordinal);
+        Assert.Contains("result.Records.Count <= remainingRawRecords", worker, StringComparison.Ordinal);
+        Assert.Contains("TryFinalizeSuccessWithCoverageAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("TryFinalizeAsync(\n                        attempt.BasicId, \"Failed\"", worker, StringComparison.Ordinal);
+        Assert.Contains("PRIMARY KEY (tenant_id, campaign_id, provider_code, coverage_scope_hash)", migration, StringComparison.Ordinal);
+        Assert.Contains("CoverageScopeHash", entity, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DiagnosticSanitizer_ShouldRedactUrlCredentialsAndBoundOutput()
     {
         var input = "failed https://example.test/path?token=secret#fragment Authorization: Bearer supersecret api_key=abcdef password=hunter2";
