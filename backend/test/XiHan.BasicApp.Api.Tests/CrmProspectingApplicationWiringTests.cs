@@ -252,6 +252,25 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("already reviewed or its review state changed", app, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ProspectingWorker_ShouldKeepSingleInstanceRestrictionUntilLeaseFencingExists()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+        var runEntity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingRun.cs");
+        var runbook = Read("docs", "kiger", "PROSPECTING-WORKER-OPERATIONS.md");
+
+        Assert.Contains("await RecoverPendingAsync(stoppingToken);", worker, StringComparison.Ordinal);
+        Assert.Contains("await base.ExecuteAsync(stoppingToken);", worker, StringComparison.Ordinal);
+        Assert.Contains("run.Status == CrmProspectingRunStatus.Running", repository, StringComparison.Ordinal);
+        Assert.Contains("Status = CrmProspectingRunStatus.Queued", repository, StringComparison.Ordinal);
+        Assert.DoesNotContain("LeaseOwnerId", runEntity, StringComparison.Ordinal);
+        Assert.DoesNotContain("FencingToken", runEntity, StringComparison.Ordinal);
+        Assert.Contains("Run exactly one active application process", runbook, StringComparison.Ordinal);
+        Assert.Contains("Gate before enabling multiple workers", runbook, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
