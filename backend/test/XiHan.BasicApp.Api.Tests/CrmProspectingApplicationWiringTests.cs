@@ -126,6 +126,12 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("GetDuplicateMatchesAsync", worker, StringComparison.Ordinal);
         Assert.Contains("var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("afterProvider?.Status == CrmProspectingRunStatus.CancelRequested", worker, StringComparison.Ordinal);
+        var providerCallPosition = worker.IndexOf("result = await provider.SearchAsync", StringComparison.Ordinal);
+        var providerCatchPosition = worker.IndexOf("catch (Exception ex)", providerCallPosition, StringComparison.Ordinal);
+        var providerContinuePosition = worker.IndexOf("continue;", providerCatchPosition, StringComparison.Ordinal);
+        var postProviderCheckPosition = worker.IndexOf("var afterProvider = await runs.GetByIdAsync", StringComparison.Ordinal);
+        Assert.True(providerCallPosition >= 0 && providerCatchPosition > providerCallPosition, "Provider invocation must be isolated by its own exception handler.");
+        Assert.True(providerContinuePosition > providerCatchPosition && postProviderCheckPosition > providerContinuePosition, "Post-provider state reads must be outside the provider exception handler.");
         Assert.Contains("const int cancellationPollInterval = 25", worker, StringComparison.Ordinal);
         Assert.Contains("recordIndex % cancellationPollInterval == 0", worker, StringComparison.Ordinal);
         Assert.Contains("for (var recordIndex = 0; recordIndex < raw.Count; recordIndex++)", worker, StringComparison.Ordinal);
