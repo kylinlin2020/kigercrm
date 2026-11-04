@@ -568,7 +568,10 @@ public sealed class CrmProspectingPersistenceWiringTests
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
 
-        Assert.Contains("message.RunId <= 0 || message.TenantId <= 0", worker, StringComparison.Ordinal);
+        var invalidMessageGuard = worker.IndexOf("message.RunId <= 0 || message.TenantId <= 0", StringComparison.Ordinal);
+        var scopeCreation = worker.IndexOf("using var scope = _scopeFactory.CreateScope();", StringComparison.Ordinal);
+        Assert.True(invalidMessageGuard >= 0 && scopeCreation > invalidMessageGuard,
+            "Malformed queue messages must be rejected before opening a tenant scope.");
         Assert.Contains("Discarding malformed prospecting queue message", worker, StringComparison.Ordinal);
         Assert.Contains("tenantId ?? throw new InvalidOperationException", worker, StringComparison.Ordinal);
         Assert.DoesNotContain("tenantId ?? 0", worker, StringComparison.Ordinal);
