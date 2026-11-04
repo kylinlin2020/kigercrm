@@ -163,9 +163,9 @@ The tenant-scoped append-only entity `SysCrmProspectingProviderRequest` and addi
 
 ### Implemented: repository and Worker lifecycle
 
-`ICrmProspectingProviderRequestRepository` is registered in CRM DI. The repository allocates the next 1-based attempt number per tenant + Run + provider and inserts Started before network I/O. The database unique key is the final concurrency arbiter: if two allocations race, one insert fails closed; the Worker does not call the Provider unless the Started insert succeeded. The repository conditionally transitions Started to one terminal state and supports tenant-scoped attempt lookup.
+`ICrmProspectingProviderRequestRepository` is registered in CRM DI. The repository allocates the next 1-based attempt number per tenant + Run + provider and inserts Started before network I/O. The database unique key is the final concurrency arbiter: if two allocations race, the repository detects the winning attempt and retries allocation a bounded number of times; exhaustion fails closed. The Worker does not call the Provider unless the Started insert succeeded. The repository conditionally transitions Started to one terminal state and supports tenant-scoped attempt lookup.
 
-The Worker computes the canonical request fingerprint and creates Started before `SearchAsync`. It finalizes success, malformed result, provider exception, structured rate-limit and cancellation outcomes. A ledger write/finalization failure is fatal to the Run. Failure summaries are length-bounded, control-character sanitized, URL query/fragment values removed, and common Bearer/Basic/API-key/token/password assignments redacted. No raw HTTP headers or response bodies are stored.
+The Worker checks for a tenant/provider cooldown from the latest future `RateLimited` ledger entry, then computes the canonical request fingerprint and creates Started before `SearchAsync`. It finalizes success, malformed result, provider exception, structured rate-limit and cancellation outcomes. A ledger write/finalization failure is fatal to the Run. Failure summaries are length-bounded, control-character sanitized, URL query/fragment values removed, and common Bearer/Basic/API-key/token/password assignments redacted. No raw HTTP headers or response bodies are stored.
 
 ### Implemented: interrupted-attempt recovery
 
