@@ -80,4 +80,73 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
 
         return (requeued ? 1 : 0) + (cancelled ? 1 : 0);
     }
+
+    public async Task<bool> CompleteAsync(
+        long runId,
+        string rawResultsJson,
+        int rawRecordCount,
+        int failureCount,
+        string? failureSummary,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var status = failureCount == 0
+            ? CrmProspectingRunStatus.Succeeded
+            : rawRecordCount > 0
+                ? CrmProspectingRunStatus.PartiallySucceeded
+                : CrmProspectingRunStatus.Failed;
+
+        var completed = await UpdateAsync(
+            run => new SysCrmProspectingRun
+            {
+                Status = status,
+                RawResultsJson = rawResultsJson,
+                RawRecordCount = rawRecordCount,
+                CandidateCount = 0,
+                FailureCount = failureCount,
+                FailureSummary = failureSummary,
+                CompletedAt = completedAt
+            },
+            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.Running,
+            cancellationToken);
+        if (completed) return true;
+
+        // Cancellation wins if it changed Running to CancelRequested before completion.
+        return await UpdateAsync(
+            run => new SysCrmProspectingRun
+            {
+                Status = CrmProspectingRunStatus.Cancelled,
+                CompletedAt = completedAt
+            },
+            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.CancelRequested,
+            cancellationToken);
+    }
+
+    public async Task<bool> FailAsync(
+        long runId,
+        string failureSummary,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var failed = await UpdateAsync(
+            run => new SysCrmProspectingRun
+            {
+                Status = CrmProspectingRunStatus.Failed,
+                FailureCount = 1,
+                FailureSummary = failureSummary,
+                CompletedAt = completedAt
+            },
+            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.Running,
+            cancellationToken);
+        if (failed) return true;
+
+        return await UpdateAsync(
+            run => new SysCrmProspectingRun
+            {
+                Status = CrmProspectingRunStatus.Cancelled,
+                CompletedAt = completedAt
+            },
+            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.CancelRequested,
+            cancellationToken);
+    }
 }
