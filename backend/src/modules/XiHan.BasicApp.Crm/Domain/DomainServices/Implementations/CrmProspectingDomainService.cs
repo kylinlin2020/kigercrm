@@ -3,7 +3,6 @@ using XiHan.BasicApp.Crm.Domain.DomainServices;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Repositories;
-using XiHan.BasicApp.Crm.Domain.Repositories;
 
 namespace XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
 
