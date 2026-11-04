@@ -96,7 +96,7 @@ public sealed class CrmProspectingProviderRequestLedgerSqliteIntegrationTests : 
                 durationMs: 123,
                 resultCount: 4,
                 failureCode: "provider_exception",
-                failureSummary: "Request failed: https://api.example.test/v1/search?token=do-not-store"));
+                failureSummary: "Authorization: Bearer bearer-secret api_key=key-secret Request failed: https://api.example.test/v1/search?token=url-secret"));
 
             Assert.False(await _repository.TryFinalizeAsync(
                 attempt.BasicId,
@@ -111,7 +111,9 @@ public sealed class CrmProspectingProviderRequestLedgerSqliteIntegrationTests : 
             Assert.Equal(123, persisted.DurationMs);
             Assert.Equal(4, persisted.ResultCount);
             Assert.Equal("provider_exception", persisted.FailureCode);
-            Assert.DoesNotContain("do-not-store", persisted.FailureSummary, StringComparison.Ordinal);
+            Assert.DoesNotContain("bearer-secret", persisted.FailureSummary, StringComparison.Ordinal);
+            Assert.DoesNotContain("key-secret", persisted.FailureSummary, StringComparison.Ordinal);
+            Assert.DoesNotContain("url-secret", persisted.FailureSummary, StringComparison.Ordinal);
             Assert.Equal(completedAt, persisted.CompletedAt);
         }
     }
