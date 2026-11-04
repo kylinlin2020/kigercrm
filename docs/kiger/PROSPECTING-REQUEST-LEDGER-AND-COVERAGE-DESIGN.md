@@ -1,6 +1,6 @@
 # Prospecting Provider Request Ledger and Coverage Design
 
-> Status: request-ledger schema, repository lifecycle and Worker provider-call integration implemented on `kiger-dev`; crash recovery, PostgreSQL concurrency acceptance, coverage cursor, cache and persisted cooldown remain pending.
+> Status: request-ledger schema, repository lifecycle, Worker integration and stale Started recovery implemented on `kiger-dev`; PostgreSQL concurrency acceptance, coverage cursor, cache and persisted cooldown remain pending.
 > Target branch: `kiger-dev`. Keep PR #1 Draft and do not modify `main`.
 
 ## 1. Goals
@@ -178,7 +178,7 @@ Still pending: stale Started recovery after process death, durable rate-limit co
 
 ### Implemented slice: repository and Worker lifecycle
 
-The request ledger repository is now registered in CRM DI and called by `CrmProspectingRunHostedService`. Each configured provider attempt receives a canonical request fingerprint and a durable `Started` row before network I/O. Provider success, partial result, malformed envelope, exception and Run cancellation are finalized with conditional `Started`-only updates. Provider exception diagnostics deliberately persist only a stable classification and exception type, not arbitrary exception messages. The repository retries bounded attempt-number collisions only when a concurrent insert is observed, and sanitizes URL query strings, bearer credentials and common API-key/token assignments from diagnostics. SQLite integration tests cover sequential attempts, tenant isolation, exactly-once finalization and diagnostic redaction; PostgreSQL concurrent allocation and crash-left Started recovery remain unverified.
+The request ledger repository is now registered in CRM DI and called by `CrmProspectingRunHostedService`. Each configured provider attempt receives a canonical request fingerprint and a durable `Started` row before network I/O. Provider success, partial result, malformed envelope, exception and Run cancellation are finalized with conditional `Started`-only updates. Provider exception diagnostics deliberately persist only a stable classification and exception type, not arbitrary exception messages. The repository retries bounded attempt-number collisions only when a concurrent insert is observed, and sanitizes URL query strings, bearer credentials and common API-key/token assignments from diagnostics. SQLite integration tests cover sequential attempts, tenant isolation, exactly-once finalization and diagnostic redaction. Startup recovery marks sufficiently old Started attempts as `worker_interrupted` only when the owning Run is absent, terminal, or has an expired persisted lease; active/lease-less Running Runs are not prematurely rewritten. A source-level guard covers the recovery boundary. PostgreSQL concurrent allocation and actual recovery SQL remain unverified on a live PostgreSQL instance.
 
 
 ### Implemented slice: interrupted-attempt recovery
