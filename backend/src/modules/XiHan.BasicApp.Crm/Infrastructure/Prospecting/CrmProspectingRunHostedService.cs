@@ -81,6 +81,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
             var excludedDomains = ParseStringArray(run.SnapshotExcludedDomainsJson, "excluded domains", allowNull: true);
             var raw = new List<CrmProspectingRawEnvelope>();
+            long estimatedRawJsonBytes = 2; // JSON array delimiters
+            const long maxRawJsonBytes = 5_000_000;
+            const long maxRawRecordJsonBytes = 64_000;
             var failures = 0;
             var warnings = new List<string>();
 
@@ -146,7 +149,17 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         continue;
                     }
 
+                    if (!IsWithinRawRecordLimits(record, out var estimatedRecordBytes) ||
+                        estimatedRecordBytes > maxRawRecordJsonBytes ||
+                        estimatedRawJsonBytes + estimatedRecordBytes + 1 > maxRawJsonBytes)
+                    {
+                        failures++;
+                        AddBoundedWarning(warnings, $"{providerCode}: oversized provider record was rejected before retention.");
+                        continue;
+                    }
+
                     raw.Add(new CrmProspectingRawEnvelope(provider.ProviderCode.Trim(), record));
+                    estimatedRawJsonBytes += estimatedRecordBytes + 1;
                 }
                 if (result.Records.Count > remaining)
                 {
@@ -437,6 +450,40 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             if (warnings.Count >= MaxAggregatedWarnings) break;
             AddBoundedWarning(warnings, warning);
         }
+    }
+
+    private static bool IsWithinRawRecordLimits(CrmProspectingRawRecord record, out long estimatedJsonBytes)
+    {
+        estimatedJsonBytes = 128;
+        static bool Fits(string? value, int maxLength) => value is null || value.Length <= maxLength;
+        if (!Fits(record.ExternalId, 4096) ||
+            !Fits(record.Source, 200) ||
+            !Fits(record.Title, 300) ||
+            !Fits(record.CompanyName, 200) ||
+            !Fits(record.Website, 500) ||
+            !Fits(record.ContactName, 200) ||
+            !Fits(record.BusinessEmail, 254) ||
+            !Fits(record.Summary, 5000) ||
+            !Fits(record.SourceUrl, 2000) ||
+            !Fits(record.RawPayloadHash, 64) ||
+            !Fits(record.EvidenceType, 40))
+            return false;
+
+        // Six bytes per UTF-16 code unit safely covers JSON escaping of control characters,
+        // plus a fixed allowance for property names, quotes, separators and timestamp fields.
+        var characters = (long)(record.ExternalId?.Length ?? 0) +
+            (record.Source?.Length ?? 0) +
+            (record.Title?.Length ?? 0) +
+            (record.CompanyName?.Length ?? 0) +
+            (record.Website?.Length ?? 0) +
+            (record.ContactName?.Length ?? 0) +
+            (record.BusinessEmail?.Length ?? 0) +
+            (record.Summary?.Length ?? 0) +
+            (record.SourceUrl?.Length ?? 0) +
+            (record.RawPayloadHash?.Length ?? 0) +
+            (record.EvidenceType?.Length ?? 0);
+        estimatedJsonBytes += characters * 6;
+        return true;
     }
 
     private static string? NormalizeCandidateEmail(CrmProspectingRawRecord record)
