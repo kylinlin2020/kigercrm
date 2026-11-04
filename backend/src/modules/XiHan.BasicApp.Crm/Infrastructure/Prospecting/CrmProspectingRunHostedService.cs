@@ -367,7 +367,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                             IsKnownDuplicate: candidate.Status == CrmProspectingCandidateStatus.Duplicate,
                             IsRestrictedOrUnsafeSource: false);
                         var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
-                        var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult, evidenceRows);
+                        var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult, evidenceRows, BuildInitialScoreIdempotencyKey(insertedCandidate.BasicId, scoreResult.ScorecardVersion));
                         await scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>()
                             .AddAsync(scoreSnapshot, cancellationToken);
 
@@ -436,6 +436,24 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 Logger.LogError(persistException, "Could not persist prospecting Run failure: {RunId}", message.RunId);
             }
         }
+    }
+
+    private static bool IsScoreIdempotencyUniqueViolation(Exception exception)
+    {
+        // Initial score snapshots are deduplicated by the exact tenant-scoped unique index.
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            var type = current.GetType();
+            if (!string.Equals(type.FullName, "Npgsql.PostgresException", StringComparison.Ordinal))
+                continue;
+
+            var sqlState = type.GetProperty("SqlState")?.GetValue(current) as string;
+            var constraintName = type.GetProperty("ConstraintName")?.GetValue(current) as string;
+            return string.Equals(sqlState, "23505", StringComparison.Ordinal)
+                && string.Equals(constraintName, "ux_crm_prospecting_score_te_idemkey", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     private static bool IsEvidenceIdentityUniqueViolation(Exception exception)
@@ -558,15 +576,15 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     IsRestrictedOrUnsafeSource: false);
                 var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
                 var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(
-                    candidate.BasicId, scoreResult, scoreEvidence);
+                    candidate.BasicId, scoreResult, scoreEvidence, BuildInitialScoreIdempotencyKey(candidate.BasicId, scoreResult.ScorecardVersion));
                 await scoreRepository.AddAsync(scoreSnapshot, cancellationToken);
             }
 
             await repairUnitOfWork.CompleteAsync(cancellationToken);
         }
-        catch (Exception ex) when (repairAttempt == 0 && IsEvidenceIdentityUniqueViolation(ex))
+        catch (Exception ex) when (repairAttempt == 0 && (IsEvidenceIdentityUniqueViolation(ex) || IsScoreIdempotencyUniqueViolation(ex)))
         {
-            // The failed repair UoW has been disposed. Re-read the winner's immutable evidence
+            // The failed repair UoW has been disposed. Re-read immutable Evidence and Score
             // identities and retry once; unrelated DB errors and repeated collisions fail closed.
             await RepairCandidateProvenanceAsync(
                 serviceProvider,
@@ -577,6 +595,14 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 cancellationToken,
                 repairAttempt: 1);
         }
+    }
+
+    private static string BuildInitialScoreIdempotencyKey(long candidateId, string scorecardVersion)
+    {
+        if (candidateId <= 0) throw new ArgumentOutOfRangeException(nameof(candidateId));
+        if (string.IsNullOrWhiteSpace(scorecardVersion) || scorecardVersion.Length > 80)
+            throw new ArgumentException("Scorecard version must contain 1-80 characters.", nameof(scorecardVersion));
+        return $"initial:{candidateId}:{scorecardVersion}";
     }
 
     private const int MaxFailureSummaryLength = 2000;
