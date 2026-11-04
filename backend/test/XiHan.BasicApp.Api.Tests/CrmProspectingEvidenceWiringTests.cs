@@ -7,6 +7,7 @@ public sealed class CrmProspectingEvidenceWiringTests
     public void EvidenceEntity_ShouldBeImmutableCreationOnlyAndStrictlyTenantScoped()
     {
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
         Assert.Contains("BasicAppCreationEntity", entity, StringComparison.Ordinal);
         Assert.Contains("IStrictMultiTenantEntity", entity, StringComparison.Ordinal);
         Assert.Contains("FieldValueHash", entity, StringComparison.Ordinal);
