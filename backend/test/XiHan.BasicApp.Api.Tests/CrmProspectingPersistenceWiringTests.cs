@@ -144,6 +144,13 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("await repairUnitOfWork.CompleteAsync(cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("existingCandidateByKey[key] = insertedCandidate", worker, StringComparison.Ordinal);
+        Assert.Contains(".ToHashSet(StringComparer.Ordinal);", worker, StringComparison.Ordinal);
+
+        var insertIndex = worker.IndexOf("var insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", StringComparison.Ordinal);
+        var commitIndex = worker.IndexOf("await unitOfWork.CompleteAsync(cancellationToken)", insertIndex, StringComparison.Ordinal);
+        var identityMapIndex = worker.IndexOf("existingCandidateByKey[key] = insertedCandidate", commitIndex, StringComparison.Ordinal);
+        Assert.True(insertIndex >= 0 && commitIndex > insertIndex && identityMapIndex > commitIndex,
+            "The persisted Candidate must be added to the in-memory identity map only after its transaction commits.");
     }
 
     [Fact]
