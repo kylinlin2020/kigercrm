@@ -148,7 +148,10 @@ public sealed class CrmContractsFinderProspectingProvider : ICrmProspectingProvi
         if (!string.IsNullOrWhiteSpace(cursor))
             warnings.Add($"Contracts Finder has additional pages; this adapter stopped after {MaxPages} pages ({pagesRead * PageSize} maximum notices).");
 
-        return new CrmProspectingProviderResult(records, 0, warnings);
+        return new CrmProspectingProviderResult(records, 0, warnings)
+        {
+            IsComplete = string.IsNullOrWhiteSpace(cursor)
+        };
     }
 
     private static List<string> ExtractKeywords(CrmProspectingProviderRequest request)
