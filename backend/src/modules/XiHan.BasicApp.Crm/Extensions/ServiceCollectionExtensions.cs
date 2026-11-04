@@ -103,6 +103,23 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmFindTenderProspectingProvider>());
         }
+        // GLEIF is an identity-resolution source, not a discovery directory. It is opt-in
+        // and only used by the worker to enrich already-discovered candidate names.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableGleifIdentityResolver"], out var enableGleifIdentityResolver)
+            && enableGleifIdentityResolver)
+        {
+            services.AddSingleton<CrmGleifIdentityResolver>(provider => new CrmGleifIdentityResolver(
+                new HttpClient(new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = false,
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+                })
+                {
+                    Timeout = TimeSpan.FromSeconds(20)
+                }));
+            services.AddSingleton<ICrmProspectingIdentityResolver>(provider =>
+                provider.GetRequiredService<CrmGleifIdentityResolver>());
+        }
         services.AddDataSeeder<CrmPermissionCatalogSeeder>();
         // Menu seeding is intentionally deferred until the corresponding frontend routes/components ship.
         return services;
