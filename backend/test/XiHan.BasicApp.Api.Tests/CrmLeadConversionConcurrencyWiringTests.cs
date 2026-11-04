@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 namespace XiHan.BasicApp.Api.Tests;
 
 /// <summary>
-/// Guards the application transaction boundary and optimistic-lock write path used by Lead conversion.
+/// Guards the application transaction boundary and tenant-scoped database uniqueness used by Lead conversion.
 /// This is source-wiring coverage, not a substitute for a two-connection database concurrency test.
 /// </summary>
 public sealed class CrmLeadConversionConcurrencyWiringTests
