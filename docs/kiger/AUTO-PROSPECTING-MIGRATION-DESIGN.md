@@ -249,3 +249,8 @@ Candidate conversion now transitions Approved → Converting inside the same tra
 ## 23. Candidate status enum data migration (2026-11-04)
 
 The existing persisted enum had Converted = 4. The new in-flight Converting state occupies 4 and Converted is now 5. Migration 5.9.16 updates existing candidate rows with status 4 to status 5, guarded by candidate-table existence. Deploy this migration with the application stopped or under a coordinated deployment; do not run old and new enum versions concurrently. Source-level migration assertions were added; PostgreSQL execution is not yet verified.
+
+
+## 24. Atomic candidate claim repository test source (2026-11-04)
+
+Added a SQLite integration-test source that initializes the real candidate entity/repository and verifies: an Approved candidate can be claimed once, a repeated claim returns false after the status becomes Converting, and the conditional claim respects strict tenant filtering. This is stronger than a source-text assertion because it exercises the actual SqlSugar repository against SQLite when the test is run. It is still sequential rather than a simultaneous two-connection race, and SQLite does not validate PostgreSQL locking, transaction rollback, or migration behavior. The test has been committed but not executed.
