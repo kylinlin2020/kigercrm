@@ -6,12 +6,14 @@ namespace XiHan.BasicApp.Crm.Domain.Prospecting;
 /// <summary>Maps deterministic score output to immutable persistence without changing the score.</summary>
 public static class CrmProspectingScoreSnapshotFactory
 {
-    public static SysCrmProspectingScore Create(long candidateId, CrmProspectingScoreResult result, IReadOnlyList<SysCrmProspectingEvidence>? evidence = null)
+    public static SysCrmProspectingScore Create(long candidateId, CrmProspectingScoreResult result, IReadOnlyList<SysCrmProspectingEvidence>? evidence = null, string? idempotencyKey = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         if (candidateId <= 0) throw new ArgumentOutOfRangeException(nameof(candidateId));
         if (string.IsNullOrWhiteSpace(result.ScorecardVersion) || result.ScorecardVersion.Length > 80)
             throw new ArgumentException("Scorecard version must contain 1-80 characters.", nameof(result));
+        if (idempotencyKey is { Length: > 160 } || (idempotencyKey is not null && string.IsNullOrWhiteSpace(idempotencyKey)))
+            throw new ArgumentException("Idempotency key must be null or contain 1-160 non-blank characters.", nameof(idempotencyKey));
         if (result.Total is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(result), "Score total must be between 0 and 100.");
         if (result.EvaluatedAtUtc.Offset != TimeSpan.Zero)
@@ -67,6 +69,7 @@ public static class CrmProspectingScoreSnapshotFactory
         return new SysCrmProspectingScore
         {
             CandidateId = candidateId,
+            IdempotencyKey = idempotencyKey,
             ScorecardVersion = result.ScorecardVersion,
             Total = result.Total,
             Priority = (int)result.Priority,
