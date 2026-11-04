@@ -236,6 +236,34 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 .ToArray();
             var existingLeadMatches = await leadRepository.GetDuplicateMatchesAsync(
                 duplicateEmails, duplicateWebsiteHosts, cancellationToken);
+            var externalIdsByProvider = raw
+                .GroupBy(envelope => envelope.ProviderCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => (IReadOnlyList<string>)group
+                        .Select(envelope => CrmProspectingRecordIdentity.NormalizeExternalId(envelope.Record))
+                        .Distinct(StringComparer.Ordinal)
+                        .ToArray(),
+                    StringComparer.OrdinalIgnoreCase);
+            var crossRunCandidateMatches = await scope.ServiceProvider
+                .GetRequiredService<ICrmProspectingCandidateRepository>()
+                .GetCrossRunDuplicateMatchesAsync(
+                    run.BasicId,
+                    externalIdsByProvider,
+                    duplicateEmails,
+                    duplicateWebsiteHosts,
+                    cancellationToken);
+            var crossRunIdentityKeys = crossRunCandidateMatches
+                .Select(candidate => (candidate.ProviderCode, candidate.ExternalId))
+                .ToHashSet();
+            var crossRunCandidateEmails = crossRunCandidateMatches
+                .Where(candidate => !string.IsNullOrWhiteSpace(candidate.NormalizedEmail))
+                .Select(candidate => candidate.NormalizedEmail!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var crossRunCandidateWebsites = crossRunCandidateMatches
+                .Where(candidate => !string.IsNullOrWhiteSpace(candidate.WebsiteHost))
+                .Select(candidate => candidate.WebsiteHost!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             // Match the database unique index semantics: provider/external IDs are exact identities,
             // not case-insensitive email/domain values.
             // Keep provider/external identity as a typed tuple. Delimiter-concatenated keys can
@@ -324,6 +352,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 var candidateEmailDuplicate = normalizedEmail is not null && seenCandidateEmails.Contains(normalizedEmail);
                 var candidateWebsiteDuplicate = websiteHost is not null && seenCandidateWebsites.Contains(websiteHost);
+                var crossRunIdentityDuplicate = crossRunIdentityKeys.Contains(key);
+                var crossRunEmailDuplicate = normalizedEmail is not null && crossRunCandidateEmails.Contains(normalizedEmail);
+                var crossRunWebsiteDuplicate = websiteHost is not null && crossRunCandidateWebsites.Contains(websiteHost);
                 var duplicate = existingLeadMatches
                     .Select(lead => new
                     {
@@ -354,7 +385,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     Website = website,
                     WebsiteHost = websiteHost,
                     Summary = string.IsNullOrWhiteSpace(summary) ? null : summary[..Math.Min(summary.Length, 5000)],
-                    Status = duplicate is null && !candidateEmailDuplicate && !candidateWebsiteDuplicate
+                    Status = duplicate is null && !candidateEmailDuplicate && !candidateWebsiteDuplicate &&
+                        !crossRunIdentityDuplicate && !crossRunEmailDuplicate && !crossRunWebsiteDuplicate
                         ? CrmProspectingCandidateStatus.PendingReview
                         : CrmProspectingCandidateStatus.Duplicate,
                     DuplicateLeadId = duplicate?.Lead.BasicId,
@@ -362,7 +394,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         ? duplicate.EmailMatch && duplicate.WebsiteMatch ? "Email and website match an existing lead"
                         : duplicate.EmailMatch ? "Email matches an existing lead" : "Website domain matches an existing lead"
                         : candidateEmailDuplicate ? "Email matches another candidate in this run"
-                        : candidateWebsiteDuplicate ? "Website domain matches another candidate in this run" : null
+                        : candidateWebsiteDuplicate ? "Website domain matches another candidate in this run"
+                        : crossRunIdentityDuplicate ? "Provider notice identity already exists in an earlier Run"
+                        : crossRunEmailDuplicate ? "Email matches a candidate in an earlier Run"
+                        : crossRunWebsiteDuplicate ? "Website domain matches a candidate in an earlier Run" : null
                 };
                 // The background worker is not an HTTP request and must not rely on MVC/AOP
                 // UnitOfWork interception. Use an explicit short transaction for the candidate
