@@ -40,6 +40,9 @@ public sealed class CrmPageRegistryViewWiringTests
         var registry = File.ReadAllText(RepositoryPath("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Pages", "PageRegistry.cs"));
         Assert.Contains("new(\"crm_sales_orders.create\", \"Create\", \"crm_sales_orders\", CrmPermissionCodes.Create", registry, StringComparison.Ordinal);
         Assert.Contains("new(\"crm_sales_orders.update\", \"Edit\", \"crm_sales_orders\", CrmPermissionCodes.Update", registry, StringComparison.Ordinal);
+        Assert.Contains("new(\"crm_prospecting\", \"Prospecting\", \"menu.crm_prospecting\", MenuType.Menu, \"/crm/prospecting\"", registry, StringComparison.Ordinal);
+        Assert.Contains("new(\"crm_prospecting.create\", \"Create\", \"crm_prospecting\", CrmPermissionCodes.Create", registry, StringComparison.Ordinal);
+        Assert.Contains("new(\"crm_prospecting.execute\", \"Execute\", \"crm_prospecting\", CrmPermissionCodes.Execute", registry, StringComparison.Ordinal);
     }
 
     private static string RepositoryPath(params string[] segments) =>
