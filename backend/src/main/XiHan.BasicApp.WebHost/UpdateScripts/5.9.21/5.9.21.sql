@@ -1,6 +1,6 @@
 -- 5.9.21: align retry-safe evidence identity across CodeFirst and upgraded tenant databases.
 -- Normalize nullable identity fields so ordinary composite unique indexes have identical semantics
--- in fresh tenants and upgraded tenants. Index the SHA-256 URL fingerprint rather than a 2000-byte
+-- in fresh tenants and upgraded tenants. Index the compact MD5 URL fingerprint rather than a 2000-byte
 -- URL value to stay within PostgreSQL B-tree index tuple limits.
 DO $$
 BEGIN
