@@ -323,6 +323,21 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("CreateQueryable()", scoreRepo, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingWorker_ShouldIsolateMalformedProviderRegistrationsAndPayloads()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("!string.IsNullOrWhiteSpace(provider.ProviderCode)", worker, StringComparison.Ordinal);
+        Assert.Contains("provider.ProviderCode.Trim().Length <= 80", worker, StringComparison.Ordinal);
+        Assert.Contains(".GroupBy(provider => provider.ProviderCode.Trim(), StringComparer.OrdinalIgnoreCase)", worker, StringComparison.Ordinal);
+        Assert.Contains("if (result is null || result.Records is null)", worker, StringComparison.Ordinal);
+        Assert.Contains("provider returned an empty or malformed result envelope", worker, StringComparison.Ordinal);
+        Assert.Contains("if (record is null)", worker, StringComparison.Ordinal);
+        Assert.Contains("provider returned a null record; it was skipped", worker, StringComparison.Ordinal);
+        Assert.Contains("new CrmProspectingRawEnvelope(provider.ProviderCode.Trim(), record)", worker, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
