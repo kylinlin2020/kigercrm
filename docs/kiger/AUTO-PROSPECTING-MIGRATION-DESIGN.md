@@ -232,3 +232,10 @@ When cancellation wins the race against Run completion, the repository now persi
 - Campaign creation now defaults the owner to the current user when no owner is supplied; campaign listing applies the existing accessible-user data-scope filter and is capped at 500 records.
 - UI explicitly warns that only the synthetic `fake` provider is currently configured; no live internet search is performed.
 - This is source implementation only. Frontend type-check/build/tests, backend compilation/tests, menu seeding in a real tenant, PostgreSQL/Redis execution and Windows acceptance have not been run.
+
+
+## 21. Immutable execution input snapshot (2026-11-04)
+
+A queued Run now stores the exact Campaign and Strategy inputs accepted at creation time: search objective, product scope, target markets, ideal-customer profile, provider plan and excluded domains. The request fingerprint is calculated from this serialized snapshot rather than only Campaign/Strategy IDs. The worker reads only the Run snapshot, so editing a Campaign or creating/activating a later Strategy cannot silently change the meaning of an already queued task.
+
+Migration 5.9.15 adds the snapshot columns for existing CRM tenant databases. Historical Runs are not backfilled from mutable Campaign rows because that would falsely claim to reproduce their original inputs; the migration defaults provider plan to an empty array and search objective to an empty string. Existing queued/interrupted Runs created before this migration may therefore fail safely at execution and should be completed before upgrade or re-created after operator review. No PostgreSQL migration execution or runtime test has been performed.
