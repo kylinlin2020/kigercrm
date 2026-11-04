@@ -39,7 +39,7 @@ public sealed class CrmProspectingEvidenceFactoryTests
     [Fact]
     public void Create_ShouldNormalizeNullableIdentityFieldsForUniqueIndex()
     {
-        var record = new CrmProspectingRawRecord(null, "source", "title", "buyer", null, null, null, null)
+        var record = new CrmProspectingRawRecord(string.Empty, "source", "title", "buyer", null, null, null, null)
         {
             SourceUrl = "https://buyer.example/tender/empty",
             RawPayloadHash = "not-a-sha256"
