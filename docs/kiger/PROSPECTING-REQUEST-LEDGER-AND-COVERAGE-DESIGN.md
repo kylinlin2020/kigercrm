@@ -184,3 +184,8 @@ The request ledger repository is now registered in CRM DI and called by `CrmPros
 ### Implemented slice: interrupted-attempt recovery
 
 Startup recovery now runs after Run lease recovery and before queue reconstruction. It marks a Started attempt as Failed with the stable code `worker_interrupted` only when it is older than the Run lease duration (10 minutes) and its Run is missing, terminal/queued, or has an expired lease. It deliberately does not touch a recent Started attempt or an attempt whose Run still has a live Running/CancelRequested lease. Recovery uses PostgreSQL database time and tenant-scoped SQL. The recovery path is not yet verified against a live PostgreSQL database.
+
+
+### Implemented slice: structured rate-limit outcomes
+
+Contracts Finder, Find a Tender and EU TED now raise a typed `CrmProspectingProviderRateLimitException` for their documented 403/429/503 throttling responses (Contracts Finder also treats documented 403 as a five-minute cooldown). The exception carries the HTTP status and parsed `Retry-After` date/delta, with a bounded five-minute fallback when the provider supplies no header. The Worker persists `RateLimited`, HTTP status and retry-after timestamp rather than misclassifying these outcomes as generic failures. This is observability/classification only: a persisted cooldown scheduler that prevents the next request is still pending.
