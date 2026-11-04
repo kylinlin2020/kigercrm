@@ -70,6 +70,59 @@ Candidate uniqueness is tenant- and Run-scoped over the provider/external-record
 - A Score or priority never approves a Candidate, converts a Lead, sends outreach, or publishes website content.
 - Human review remains required before a Candidate enters the formal CRM Lead/customer workflow. External email and website publishing retain their separate manual approval gates.
 
+
+## Concurrent identity collision recovery: current gap and safe design
+
+### Run RequestKey
+
+Current `CreateRunAsync` behavior is:
+
+1. Build the immutable execution snapshot and SHA-256 `PayloadHash`.
+2. Query the tenant-scoped Run repository for `RequestKey`.
+3. If found, return it only when its `PayloadHash` matches; otherwise reject reuse.
+4. If absent, insert a Queued Run.
+
+The tenant-scoped unique index on `(tenant_id, request_key)` is the final duplicate-prevention boundary. Two concurrent requests can both observe no row; one insert wins and the other receives a database uniqueness failure. The losing request is not yet guaranteed to return the winner.
+
+Safe completion requires a repository operation that reads by RequestKey under the current tenant and a retry boundary that runs after the failed insert transaction has ended. The recovery must compare the winner's PayloadHash using ordinal equality. Matching hash returns the winner; different hash preserves the existing conflict error. If no winner is visible, propagate the original persistence error. Do not catch every database exception and suppress it merely because a row with that key happens to exist.
+
+Before implementing, establish whether the application's `[UnitOfWork]` interception wraps this domain-service call and whether the framework supports an independent/fresh UnitOfWork after a failed nested operation. A read in an aborted PostgreSQL transaction is not a valid recovery query. Prefer an explicit application-level retry boundary outside the failed UOW, or a database-native insert-on-conflict-returning operation with a provider-neutral contract and tested provider implementations.
+
+Required tests:
+- Sequential same key + same payload returns the original Run.
+- Sequential same key + different payload rejects.
+- Concurrent same key + same payload from independent connections yields exactly one row and both callers receive the same Run identity.
+- Concurrent same key + different payload yields exactly one row; the losing caller receives the payload conflict, not the raw unique exception and not the winner as a false success.
+- Tenant isolation: the same RequestKey in different tenants remains independent.
+- Non-unique database errors are propagated unchanged.
+
+### Candidate identity
+
+The Worker currently snapshots existing Candidates for the Run, then uses an in-memory tuple set `(ProviderCode, ExternalId)` to avoid duplicate work within that Run. The database unique index on tenant + Run + provider + external ID is the cross-worker boundary. Two workers/processes can both miss the in-memory/persisted row and race to insert.
+
+The per-record transaction correctly keeps a newly inserted Candidate, its eligible Evidence, and its first Score atomic. However, the losing Candidate insert currently fails the Run; it does not yet reload the winner and reconcile missing Evidence/Score.
+
+Safe recovery requirements:
+1. The failed Candidate transaction must fully roll back and dispose before reconciliation.
+2. In a fresh tenant-scoped UOW, reload by the exact tuple `(RunId, ProviderCode, ExternalId)`.
+3. Verify the returned Candidate belongs to the expected tenant and Run; do not match on email, website, company name, or fuzzy identity.
+4. Reconcile Evidence against the complete Evidence natural key and add a missing first Score snapshot if absent.
+5. If the Candidate does not exist after the fresh read, propagate the original database error.
+6. Do not overwrite review status, duplicate decision, or conversion state on the winning Candidate.
+7. Bound retries and keep all child-row repair writes transactional.
+
+Required independent-connection PostgreSQL tests:
+- Two writers race to create the same Candidate identity; one row remains.
+- The losing writer reloads and repairs Evidence/Score without changing Candidate status.
+- A different ExternalId creates a separate Candidate.
+- A different Run creates a separate Candidate.
+- Tenant isolation is preserved.
+- A failure inserting Evidence or Score rolls back only the losing transaction and does not damage the winner.
+
+### Implementation gate
+
+Do not claim Candidate or Run concurrent creation is fully idempotent until the above service-level race tests pass on PostgreSQL using independent connections/scopes. SQLite unique-index tests are useful preflight checks but are not substitutes for PostgreSQL transaction-abort and concurrency semantics. Keep the Worker single-instance restriction until database lease/fencing is implemented; recovery logic must not be used to justify multi-instance execution.
+
 ## PostgreSQL acceptance matrix
 
 The integration suite must run against PostgreSQL with independent connections (and independent scopes for race tests):
