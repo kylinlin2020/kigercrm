@@ -182,10 +182,11 @@ public sealed class CrmProspectingCandidateClaimSqliteIntegrationTests : IDispos
 
 
     [Theory]
+    [InlineData(CrmProspectingCandidateStatus.Approved)]
     [InlineData(CrmProspectingCandidateStatus.Converting)]
     [InlineData(CrmProspectingCandidateStatus.Converted)]
     [InlineData(CrmProspectingCandidateStatus.Rejected)]
-    public async Task CandidateReview_ShouldNotReopenConvertingOrTerminalStates(CrmProspectingCandidateStatus initialStatus)
+    public async Task CandidateReview_ShouldNotReopenPreviouslyReviewedOrTerminalStates(CrmProspectingCandidateStatus initialStatus)
     {
         using (_tenant.Change(TenantId))
         {
