@@ -20,6 +20,7 @@ namespace XiHan.BasicApp.Crm.Application.AppServices;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Sales Orders")]
 public sealed class CrmSalesOrderAppService(
     ICrmSalesOrderRepository repository,
+    ICrmCreateRequestRepository createRequests,
     ICrmSalesOrderLineRepository orderLines,
     ICrmShipmentLineRepository shipmentLines,
     ICrmCustomerRepository customers,
@@ -36,7 +37,10 @@ public sealed class CrmSalesOrderAppService(
     {
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
-        var number = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
+        var requestKey = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
+            ? null
+            : NormalizeRequired(input.NumberingIdempotencyKey, 128, nameof(input.NumberingIdempotencyKey));
+        var number = requestKey is null
             ? NormalizeRequired(input.OrderNumber, 40, nameof(input.OrderNumber))
             : string.Empty;
         var currency = NormalizeRequired(input.Currency, 3, nameof(input.Currency)).ToUpperInvariant();
@@ -74,19 +78,38 @@ public sealed class CrmSalesOrderAppService(
         var paymentTerms = NormalizeOptional(input.PaymentTerms, 500, nameof(input.PaymentTerms));
         var deliveryTerms = NormalizeOptional(input.DeliveryTerms, 500, nameof(input.DeliveryTerms));
         string? creationRequestFingerprint = null;
-        if (!string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey))
+        if (requestKey is not null)
         {
+            creationRequestFingerprint = CreateRequestFingerprint(
+                input, owner, currency, customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+
+            var existingRequest = await createRequests.GetByRequestKeyAsync("SALES_ORDER", requestKey, cancellationToken);
+            if (existingRequest is not null)
+            {
+                if (!string.Equals(existingRequest.PayloadHash, creationRequestFingerprint, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The sales-order idempotency key was already used with a different create request.");
+                if (!existingRequest.DocumentId.HasValue || string.IsNullOrWhiteSpace(existingRequest.DocumentNumber))
+                    throw new InvalidOperationException("The sales-order request ledger contains an incomplete committed record; manual repair is required.");
+
+                var replayOrder = await repository.GetByIdAsync(existingRequest.DocumentId.Value, cancellationToken)
+                    ?? throw new InvalidOperationException("The sales order linked to this idempotency key no longer exists or is not visible.");
+                await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, replayOrder.OwnerUserId, cancellationToken);
+                if (!string.Equals(replayOrder.OrderNumber, existingRequest.DocumentNumber, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The sales-order request ledger does not match its linked document.");
+                return ToListItem(replayOrder);
+            }
+
             var allocation = await numberGenerator.GenerateAsync(
                 new NumberGenerateRequest(
                     CrmNumberingRuleCodes.SalesOrder,
                     NumberingScope.Auto,
-                    input.NumberingIdempotencyKey,
+                    requestKey,
                     "CRM_SALES_ORDER"),
                 cancellationToken);
             number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
-            creationRequestFingerprint = CreateRequestFingerprint(
-                input, owner, currency, customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
 
+            // Bridge requests created before the permanent ledger migration. Only a matching
+            // persisted fingerprint is safe to adopt as a ledger entry.
             var existingOrder = await repository.GetByOrderNumberAsync(number, cancellationToken);
             if (existingOrder is not null)
             {
@@ -94,6 +117,15 @@ public sealed class CrmSalesOrderAppService(
                 if (existingOrder.CreationRequestFingerprint is null ||
                     !string.Equals(existingOrder.CreationRequestFingerprint, creationRequestFingerprint, StringComparison.Ordinal))
                     throw new InvalidOperationException("The sales-order idempotency key was already used with a different or unverifiable create request.");
+
+                await createRequests.AddAsync(new SysCrmCreateRequest
+                {
+                    DocumentType = "SALES_ORDER",
+                    RequestKey = requestKey,
+                    PayloadHash = creationRequestFingerprint,
+                    DocumentId = existingOrder.BasicId,
+                    DocumentNumber = existingOrder.OrderNumber
+                }, cancellationToken);
                 return ToListItem(existingOrder);
             }
         }
@@ -125,6 +157,17 @@ public sealed class CrmSalesOrderAppService(
             line.SalesOrderId = saved.BasicId;
             await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmSalesOrderLine), line, cancellationToken);
             await orderLines.AddAsync(line, cancellationToken);
+        }
+        if (requestKey is not null && creationRequestFingerprint is not null)
+        {
+            await createRequests.AddAsync(new SysCrmCreateRequest
+            {
+                DocumentType = "SALES_ORDER",
+                RequestKey = requestKey,
+                PayloadHash = creationRequestFingerprint,
+                DocumentId = saved.BasicId,
+                DocumentNumber = saved.OrderNumber
+            }, cancellationToken);
         }
         return ToListItem(saved);
     }
