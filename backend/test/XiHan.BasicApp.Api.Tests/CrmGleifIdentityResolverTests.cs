@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Net.Http.Headers;
+using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 using Xunit;
 
