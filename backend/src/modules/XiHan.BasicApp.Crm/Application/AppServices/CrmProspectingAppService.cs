@@ -9,6 +9,9 @@ using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Uow.Attributes;
+using XiHan.Framework.Uow;
+using XiHan.Framework.Caching.Distributed.Abstracts;
+using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 
 namespace XiHan.BasicApp.Crm.Application.AppServices;
 
@@ -19,7 +22,9 @@ public sealed class CrmProspectingAppService(
     ICrmProspectingStrategyRepository strategies,
     ICrmProspectingRunRepository runs,
     IFieldSecurityService fieldSecurity,
-    IUserDataScopeFilterService dataScope)
+    IUserDataScopeFilterService dataScope,
+    IRedisDelayQueue<CrmProspectingRunMessage> runQueue,
+    IUnitOfWorkManager unitOfWorkManager)
     : CrmApplicationService, ICrmProspectingAppService
 {
     [UnitOfWork(true)]
@@ -148,7 +153,18 @@ public sealed class CrmProspectingAppService(
         var campaign = await campaigns.GetByIdAsync(input.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
-        return ToDto(await domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken));
+        var run = await domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken);
+        var message = new CrmProspectingRunMessage
+        {
+            RunId = run.BasicId,
+            TenantId = run.TenantId,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        if (unitOfWorkManager.Current is { } uow)
+            uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero));
+        else
+            await runQueue.EnqueueAsync(message, TimeSpan.Zero, cancellationToken);
+        return ToDto(run);
     }
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]
