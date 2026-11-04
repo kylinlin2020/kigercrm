@@ -19,7 +19,23 @@ public sealed record CrmProspectingRawRecord(
     string? Website,
     string? ContactName,
     string? BusinessEmail,
-    string? Summary);
+    string? Summary)
+{
+    /// <summary>Canonical source record URL, not a search-result redirect.</summary>
+    public string? SourceUrl { get; init; }
+
+    /// <summary>Provider-reported publication time, normalized to UTC by the adapter.</summary>
+    public DateTimeOffset? PublishedAtUtc { get; init; }
+
+    /// <summary>UTC time at which the provider response was retrieved.</summary>
+    public DateTimeOffset? RetrievedAtUtc { get; init; }
+
+    /// <summary>Provider payload SHA-256; do not store raw provider payloads by default.</summary>
+    public string? RawPayloadHash { get; init; }
+
+    /// <summary>Evidence classification such as direct, registry, or provider_asserted.</summary>
+    public string? EvidenceType { get; init; }
+}
 
 /// <summary>Provider execution result before normalization, deduplication and human review.</summary>
 public sealed record CrmProspectingProviderResult(
