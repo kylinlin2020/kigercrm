@@ -183,6 +183,6 @@ The execution path now includes:
 - Provider plans are interpreted as JSON arrays of provider-code strings (for example, `["fake"]`). Each configured provider is resolved by its stable code and invoked sequentially.
 - Provider records and source metadata are persisted to the Run's `Raw_Results_Json`; raw-record count, provider failure count, warnings and terminal status are written together.
 - Provider failure is isolated per provider so later configured providers can still run. A Run with records and failures is PartiallySucceeded; no records plus failures is Failed; no failures is Succeeded.
-- Candidate_Count intentionally remains zero: normalization, deduplication and human-review candidate creation are not implemented by this worker.
+- Candidate_Count intentionally remains zero: normalization, deduplication and human-review candidate creation are not implemented by this worker. Raw provider records are capped at 2,000 per Run and serialized output at 5 MB; excess records cause a partial-success warning rather than unbounded storage growth.
 
 The synthetic `fake` adapter is the only registered provider. This is an end-to-end local execution smoke path, not real-world lead acquisition. External provider configuration, rate limits, credentials, candidate pipeline, human review and Lead conversion remain future phases. No build/test, Redis runtime, PostgreSQL migration or Windows validation has been executed.
