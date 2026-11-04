@@ -126,9 +126,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("EnsureRecordAccessibleAsync", app, StringComparison.Ordinal);
         Assert.Contains("EnsureCreatableAsync(typeof(SysCrmLead)", app, StringComparison.Ordinal);
         Assert.Contains("leadDomain.CreateAsync", app, StringComparison.Ordinal);
-        Assert.Contains("GetRunCandidatesAsync", contract, StringComparison.Ordinal);
-        Assert.Contains("ReviewCandidateAsync", contract, StringComparison.Ordinal);
-        Assert.Contains("ConvertApprovedCandidateToLeadAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("GetRunCandidatesAsync", app, StringComparison.Ordinal);
+        Assert.Contains("ReviewCandidateAsync", app, StringComparison.Ordinal);
+        Assert.Contains("ConvertApprovedCandidateToLeadAsync", app, StringComparison.Ordinal);
         Assert.Contains("seenCandidateEmails", worker, StringComparison.Ordinal);
         Assert.Contains("Run cancelled before candidate normalization", worker, StringComparison.Ordinal);
     }
