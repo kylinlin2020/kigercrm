@@ -33,6 +33,19 @@ public sealed class CrmQuoteConversionWiringTests
     }
 
     [Fact]
+    public void ConversionEndpoint_ShouldReturnPreviouslyCreatedOrderWhenARequestIsRetried()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        var method = app[app.IndexOf("ConvertToSalesOrderAsync", StringComparison.Ordinal)..];
+        Assert.Contains("quote.ConvertedOrderId.HasValue", method, StringComparison.Ordinal);
+        Assert.Contains("salesOrders.GetByIdAsync(quote.ConvertedOrderId.Value", method, StringComparison.Ordinal);
+        Assert.Contains("existingOrder.SourceQuoteId != quote.BasicId", method, StringComparison.Ordinal);
+        Assert.Contains("EnsureRecordAccessibleAsync(dataScope, existingOrder.OwnerUserId", method, StringComparison.Ordinal);
+        Assert.Contains("return new CrmSalesOrderListItemDto", method, StringComparison.Ordinal);
+        Assert.Contains("The quote is marked converted, but its linked sales order does not exist.", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ConversionEndpoint_ShouldApplyFieldSecurityToCreatedRecords()
     {
         var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
