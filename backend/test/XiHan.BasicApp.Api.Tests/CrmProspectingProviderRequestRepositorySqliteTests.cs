@@ -108,6 +108,29 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
     }
 
     [Fact]
+    public async Task ProviderCooldown_ShouldPersistAcrossRunsAndRemainTenantScoped()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var retryAt = now.AddMinutes(4);
+        using (_tenant.Change(TenantId))
+        {
+            var row = await _repository.CreateStartedAsync(2001, "ted", new string('3', 64), now);
+            Assert.True(await _repository.TryFinalizeAsync(
+                row.BasicId, "RateLimited", now.AddSeconds(1), 100,
+                httpStatus: 429, failureCode: "provider_rate_limited", retryAfterAt: retryAt));
+
+            Assert.Equal(retryAt, await _repository.GetActiveCooldownUntilAsync("ted", now.AddMinutes(1)));
+            Assert.Null(await _repository.GetActiveCooldownUntilAsync("ted", retryAt.AddSeconds(1)));
+        }
+
+        using (_tenant.Change(TenantId + 1))
+            Assert.Null(await _repository.GetActiveCooldownUntilAsync("ted", now.AddMinutes(1)));
+
+        using (_tenant.Change(TenantId))
+            Assert.Equal(retryAt, await _repository.GetActiveCooldownUntilAsync("ted", now.AddMinutes(2)));
+    }
+
+    [Fact]
     public async Task FailureDiagnostics_ShouldRedactUrlQueryAndFragmentSecrets()
     {
         using (_tenant.Change(TenantId))
