@@ -11,7 +11,7 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 /// Official, keyless USAspending award search. It is deliberately restricted to the fixed
 /// public API endpoint and emits procurement evidence, never CRM Leads.
 /// </summary>
-public sealed class CrmUsaSpendingProspectingProvider : ICrmProspectingProvider
+public sealed class CrmUsaSpendingProspectingProvider : ICrmProspectingProvider, IDisposable
 {
     private static readonly Uri Endpoint = new("https://api.usaspending.gov/api/v2/search/spending_by_award/");
     private static readonly string[] Fields =
@@ -28,6 +28,8 @@ public sealed class CrmUsaSpendingProspectingProvider : ICrmProspectingProvider
     }
 
     public string ProviderCode => "usaspending_awards";
+
+    public void Dispose() => _httpClient.Dispose();
 
     public async Task<CrmProspectingProviderResult> SearchAsync(
         CrmProspectingProviderRequest request,
