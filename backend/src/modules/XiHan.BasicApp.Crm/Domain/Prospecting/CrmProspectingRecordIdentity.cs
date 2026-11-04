@@ -49,6 +49,7 @@ public static class CrmProspectingRecordIdentity
         // not source content. Excluding them keeps retries stable across fetch attempts.
         var canonicalRecord = record with
         {
+            ExternalId = string.IsNullOrWhiteSpace(record.ExternalId) ? string.Empty : record.ExternalId.Trim(),
             RetrievedAtUtc = null,
             RawPayloadHash = null
         };
