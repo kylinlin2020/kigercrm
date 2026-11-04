@@ -159,3 +159,15 @@ Added a provider-neutral contract under `Domain/Prospecting`:
 - Registered `FakeCrmProspectingProvider` as the initial adapter. It is deterministic, makes no network calls and emits synthetic `.example` records only; it is for local smoke tests, not production lead acquisition.
 
 Important boundary: this commit establishes the adapter contract and a safe synthetic implementation only. It does not yet parse provider plans, invoke providers from a worker, persist raw records, or turn records into CRM leads. No external search provider is configured.
+
+
+## 14. Worker claim and crash-recovery repository foundation (2026-11-04)
+
+The Run repository now exposes the database primitives required by a durable background consumer:
+
+- `ClaimQueuedAsync` uses a conditional database update for `Queued → Running`; only the worker that wins the status transition receives the claimed row. Duplicate queue delivery and competing workers do not both claim the same run.
+- `GetQueuedIdsAsync` lists queued work in creation order within the current strict tenant data scope. A future hosted worker can use it to rebuild queue messages after Redis loss or process restart.
+- `RecoverInterruptedAsync` requeues `Running` rows after a process interruption and turns `CancelRequested` rows into `Cancelled`, preserving cancellation intent across a crash.
+- All queries and updates go through `SaasRepository` and `CreateQueryable()`; cross-tenant recovery must be orchestrated with the existing `ITenantDataScopeRunner`, not by disabling tenant filters.
+
+This is a repository foundation only. No queue message, hosted worker, provider invocation, raw-result persistence or automatic recovery loop is wired yet. The claim/recovery semantics are source-reviewed but not executed against PostgreSQL; lease expiry, multi-process contention, transaction behavior and Windows runtime validation remain open.
