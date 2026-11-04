@@ -150,6 +150,19 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void CodeFirstTenantDatabase_ShouldReceiveTheSameLedgerCheckConstraints()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingProviderRequestRepository.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("EnsureSchemaConstraintsAsync", repository, StringComparison.Ordinal);
+        Assert.Contains("ADD CONSTRAINT ck_crm_prospecting_provider_request_request_key", repository, StringComparison.Ordinal);
+        Assert.Contains("ADD CONSTRAINT ck_crm_prospecting_provider_request_lifecycle", repository, StringComparison.Ordinal);
+        Assert.Contains("ADD CONSTRAINT ck_crm_prospecting_provider_request_rate_limit", repository, StringComparison.Ordinal);
+        Assert.Contains("await requestLedger.EnsureSchemaConstraintsAsync(cancellationToken)", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RequestLedgerMigration_ShouldEnforceLifecycleAndDigestInvariants()
     {
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.31", "5.9.31.sql");
