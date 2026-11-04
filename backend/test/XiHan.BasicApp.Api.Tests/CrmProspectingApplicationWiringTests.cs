@@ -127,8 +127,10 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("afterProvider?.Status == CrmProspectingRunStatus.CancelRequested", worker, StringComparison.Ordinal);
         Assert.Contains("AddBoundedProviderWarnings(warnings, result.Warnings)", worker, StringComparison.Ordinal);
-        Assert.Contains("const int maxWarnings = 100", worker, StringComparison.Ordinal);
-        Assert.Contains("const int maxWarningLength = 500", worker, StringComparison.Ordinal);
+        Assert.Contains("const int MaxAggregatedWarnings = 100", worker, StringComparison.Ordinal);
+        Assert.Contains("const int MaxAggregatedWarningLength = 500", worker, StringComparison.Ordinal);
+        Assert.Contains("AddBoundedWarning(warnings,", worker, StringComparison.Ordinal);
+        Assert.Equal(1, worker.Split("warnings.Add(", StringSplitOptions.None).Length - 1);
         var providerCallPosition = worker.IndexOf("result = await provider.SearchAsync", StringComparison.Ordinal);
         var providerCatchPosition = worker.IndexOf("catch (Exception ex)", providerCallPosition, StringComparison.Ordinal);
         var providerContinuePosition = worker.IndexOf("continue;", providerCatchPosition, StringComparison.Ordinal);
