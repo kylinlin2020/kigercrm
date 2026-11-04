@@ -177,6 +177,60 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         return rows.FirstOrDefault();
     }
 
+    /// <summary>
+    /// Renews a live lease using PostgreSQL database time, never a timestamp supplied by the worker.
+    /// A stale token/version or an already expired lease affects no rows.
+    /// </summary>
+    public async Task<bool> RenewLeaseWithDatabaseClockAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        if (leaseDuration <= TimeSpan.Zero || leaseDuration > TimeSpan.FromHours(1))
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration), "Lease duration must be greater than zero and at most one hour.");
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting lease renewal requires PostgreSQL.");
+
+        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        var durationMilliseconds = checked((long)Math.Ceiling(leaseDuration.TotalMilliseconds));
+        const string sql = """
+            WITH lease_clock AS MATERIALIZED (
+                SELECT clock_timestamp() AS now
+            )
+            UPDATE crm_prospecting_run AS run
+            SET lease_heartbeat_at = lease_clock.now,
+                lease_expires_at = lease_clock.now + (@leaseDurationMilliseconds * INTERVAL '1 millisecond')
+            FROM lease_clock
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @runningStatus
+              AND run.lease_token = @leaseToken
+              AND run.fencing_version = @fencingVersion
+              AND run.lease_expires_at IS NOT NULL
+              AND run.lease_expires_at > lease_clock.now
+            RETURNING run.basic_id AS "BasicId";
+            """;
+
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion),
+            new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds));
+
+        return rows.Count == 1;
+    }
+
     public async Task<bool> RenewLeaseAsync(
         long runId,
         Guid leaseToken,

@@ -18,6 +18,9 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>Atomically claim a queued run. A duplicate delivery or competing worker receives null.</summary>
     Task<SysCrmProspectingRun?> ClaimQueuedAsync(long runId, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
 
+    /// <summary>Extend a live lease using PostgreSQL database time; stale or expired ownership affects no rows.</summary>
+    Task<bool> RenewLeaseWithDatabaseClockAsync(long runId, Guid leaseToken, long fencingVersion, TimeSpan leaseDuration, CancellationToken cancellationToken = default);
+
     /// <summary>Extend a live lease only when the exact tenant-scoped token/version still owns an unexpired Running Run.</summary>
     Task<bool> RenewLeaseAsync(long runId, Guid leaseToken, long fencingVersion, DateTimeOffset heartbeatAt, TimeSpan leaseDuration, CancellationToken cancellationToken = default);
 
