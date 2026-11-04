@@ -61,6 +61,50 @@ public sealed class CrmProspectingCandidateClaimSqliteIntegrationTests : IDispos
     }
 
     [Fact]
+    public async Task GetByIdentity_ShouldUseExactTupleAndCurrentTenant()
+    {
+        long firstTenantCandidateId;
+        using (_tenant.Change(TenantId))
+        {
+            var candidate = await _repository.AddAsync(new SysCrmProspectingCandidate
+            {
+                RunId = 7100,
+                ProviderCode = "provider-a",
+                ExternalId = "external-001",
+                CompanyName = "Exact Identity Example",
+                Status = CrmProspectingCandidateStatus.PendingReview
+            });
+            firstTenantCandidateId = candidate.BasicId;
+
+            Assert.Equal(firstTenantCandidateId,
+                (await _repository.GetByIdentityAsync(7100, "provider-a", "external-001"))?.BasicId);
+            Assert.Null(await _repository.GetByIdentityAsync(7100, "provider-a", "external-002"));
+            Assert.Null(await _repository.GetByIdentityAsync(7100, "provider-b", "external-001"));
+            Assert.Null(await _repository.GetByIdentityAsync(7101, "provider-a", "external-001"));
+        }
+
+        using (_tenant.Change(TenantId + 1))
+        {
+            Assert.Null(await _repository.GetByIdentityAsync(7100, "provider-a", "external-001"));
+            var otherTenantCandidate = await _repository.AddAsync(new SysCrmProspectingCandidate
+            {
+                RunId = 7100,
+                ProviderCode = "provider-a",
+                ExternalId = "external-001",
+                CompanyName = "Other Tenant Identity Example",
+                Status = CrmProspectingCandidateStatus.PendingReview
+            });
+            Assert.NotEqual(firstTenantCandidateId, otherTenantCandidate.BasicId);
+            Assert.Equal(otherTenantCandidate.BasicId,
+                (await _repository.GetByIdentityAsync(7100, "provider-a", "external-001"))?.BasicId);
+        }
+
+        using (_tenant.Change(TenantId))
+            Assert.Equal(firstTenantCandidateId,
+                (await _repository.GetByIdentityAsync(7100, "provider-a", "external-001"))?.BasicId);
+    }
+
+    [Fact]
     public async Task ApprovedCandidate_ShouldOnlyBeClaimedOnce()
     {
         using (_tenant.Change(TenantId))
