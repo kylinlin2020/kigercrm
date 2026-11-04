@@ -398,3 +398,12 @@ A fresh source-level trace of the current implementation confirms the multi-inst
 **Implementation decision:** do not add a timestamp-only stale threshold or a process-local mutex; neither is a correctness boundary across hosts. Before enabling multiple workers, implement database-authoritative lease ownership with expiry/heartbeat and a monotonically increasing fencing token, and ensure every candidate/result/status write validates the current token in the same database transaction as the write. Verify claim/reclaim/renew races and a stale worker attempting candidate insertion against PostgreSQL using separate connections/processes. Framework SqlSugar transaction and row-lock semantics still require source/package verification before implementation.
 
 This section is a source review, not a runtime proof. No build, automated test, PostgreSQL test or Windows test was executed.
+
+
+## 41. Bound persisted Run failure summaries (2026-11-04)
+
+A worker failure-path review found that the outer exception handler passed the full exception type and message to FailAsync, while Run.FailureSummary is a 2,000-character database column. An oversized provider/persistence/framework exception message could make the attempt to persist the Failed state fail as well, leaving the Run non-terminal.
+
+The worker now truncates its formatted failure summary to 2,000 characters before calling FailAsync. The repository independently enforces the same bound for both CompleteAsync and FailAsync, so callers outside this worker cannot accidentally send an overlength summary to the mapped column. The source-wiring test checks both guards.
+
+This bounds the value sent to persistence; it does not limit the original exception object's message allocation or logging payload. The regression guard has not been compiled or executed. No .NET build, unit test, PostgreSQL integration or Windows real-machine test was performed.
