@@ -175,3 +175,41 @@
 - Added resolver tests and worker/DI wiring regression coverage.
 
 **Verification boundary:** implementation and tests are committed but not compiled or run. The GLEIF live API has not been exercised from the target runtime.
+
+## 13. Current implementation reconciliation (2026-11-04; supersedes stale rows above)
+
+A follow-up source inspection found that several rows in the original static inventory and the earlier "关键阻塞" list were no longer current. The following status is based on the current `kiger-dev` source tree and committed tests; it is still **source-level evidence, not executed acceptance**.
+
+### Confirmed implementation now present
+
+- **Official procurement discovery:** USAspending (`usaspending_awards`), UK Find a Tender (`uk_find_tender`), EU TED (`eu_ted`), and UK Contracts Finder (`uk_contracts_finder`) have dedicated adapters. They are bounded by page/window/response-size limits, preserve canonical notice/award URLs and payload hashes, and use explicit opt-in registration. Coverage is geographically and temporally limited; none is a general-purpose company directory.
+- **Official identity enrichment:** GLEIF is implemented as an opt-in resolver for already-discovered Candidates, with strict exact-name/unique-match rules. It is not a generic discovery provider and does not independently qualify a buyer.
+- **Provider invocation ledger:** `SysCrmProspectingProviderRequest`, its tenant-scoped repository and append-oriented attempt lifecycle are implemented. The worker persists `Started` before network I/O, then finalizes success/failure/rate-limit/cancellation with bounded diagnostics, timing, result count and response hash. Stale Started attempts have a recovery path.
+- **Incremental coverage checkpoint:** `SysCrmProspectingProviderCoverage` and a PostgreSQL atomic success+coverage finalization path exist. A successful, complete provider scan advances a campaign/provider/scope checkpoint; partial/truncated/failed scans must not advance it. Providers that support it receive a 48-hour overlap lower bound.
+- **Cross-Run duplicate screening:** candidate lookup now checks earlier non-rejected Runs for provider/external identity, normalized email and website host, as well as same-Run duplicates and existing CRM Leads. This is not yet a full source-observation-to-canonical-candidate graph.
+- **Worker lifecycle:** the HostedService now claims a PostgreSQL lease, carries the UUID token and fencing version, renews at work boundaries and with an independent two-minute heartbeat, fences Candidate/Evidence/Score persistence and terminal transitions, and performs expired-lease recovery before queue reconstruction. The heartbeat uses a fresh tenant-aware scope.
+- **Operational safety:** official adapters use fixed HTTPS endpoints, bounded response reads, redirect restrictions, cancellation and provider-specific cooldown handling. This is per-adapter hardening, not yet a single shared DNS/IP-aware HTTP security gateway.
+
+### Still missing or not yet proven
+
+- No shared response cache; the ledger's `CacheHit` field is metadata, not proof that a reusable cache is implemented.
+- No first-class durable source-observation graph linking every repeated provider observation to the canonical Candidate and its prior evidence.
+- No complete scheduler/Schedule entity and user-facing scheduling workflow.
+- No complete deep-mining/Super Search workflow, general website discovery, or commercial contact enrichment. Paid enrichment must remain opt-in with explicit credential, quota and cost controls.
+- No unified provider catalog with complete capability, geographic coverage, license/terms, field-authority and cost metadata.
+- No shared central HTTP execution gateway with DNS/IP rebinding and private/link-local/loopback destination protection. Fixed endpoint and redirect checks in individual adapters do not replace that control.
+- No multi-instance approval: worker remains single-active-instance until PostgreSQL dual-connection claim, renewal, takeover, stale-write, cancellation and crash-recovery tests pass.
+- No .NET 10 build/test execution, PostgreSQL migration/transaction acceptance, live provider verification or Windows end-to-end acceptance has been evidenced in this environment.
+
+### Corrected completion interpretation
+
+The request ledger, coverage checkpoint and lease lifecycle are no longer "not implemented" primitives; their application paths are present in the current HostedService. They remain **unverified at runtime**. Do not repeat earlier statements that the worker still uses only the legacy claim path or has no independent heartbeat; those statements are superseded by the current source. Conversely, do not infer multi-instance safety or production readiness from source presence.
+
+### Next implementation order
+
+1. Add PostgreSQL two-connection integration tests for atomic lease claim, heartbeat/takeover, fenced child writes, fenced terminal transitions, and atomic request-ledger/coverage advancement.
+2. Build a shared provider execution/security layer covering DNS/IP destination validation, redirect-by-redirect checks, concurrency limits, rate budgets and typed retry policy; migrate existing adapters without weakening their fixed-endpoint restrictions.
+3. Add provider catalog metadata and a shared response cache only after request-ledger and cache-key privacy/tenant semantics are tested.
+4. Add a durable source-observation-to-Candidate link and reconciliation workflow for repeat observations and identity conflicts.
+5. Add scheduling, deep-mining and remaining provider families in separately testable slices.
+6. Execute Windows-native .NET 10 restore/build/test and PostgreSQL migration + end-to-end acceptance; keep PR #1 Draft until all release gates have evidence.
