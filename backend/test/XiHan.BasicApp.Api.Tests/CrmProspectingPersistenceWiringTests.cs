@@ -587,6 +587,30 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("config.UpdateMaxConcurrentTasks(1)", config, StringComparison.Ordinal);
     }
     [Fact]
+    public void ProspectingWorker_ShouldObserveCancellationBeforeRenewalAndFenceTerminalRace()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        var providerLoop = worker.IndexOf("foreach (var providerCode in plan.Distinct", StringComparison.Ordinal);
+        var currentState = worker.IndexOf("var current = await runs.GetByIdAsync", providerLoop, StringComparison.Ordinal);
+        var providerRenewal = worker.IndexOf("RenewLeaseOrThrowAsync", currentState, StringComparison.Ordinal);
+        Assert.True(providerLoop >= 0 && currentState > providerLoop && providerRenewal > currentState,
+            "Persisted cancellation must be observed before attempting a Running-only lease renewal.");
+
+        var afterProvider = worker.IndexOf("var afterProvider = await runs.GetByIdAsync", providerRenewal, StringComparison.Ordinal);
+        var afterProviderRenewal = worker.IndexOf("RenewLeaseOrThrowAsync", afterProvider, StringComparison.Ordinal);
+        Assert.True(afterProvider > providerRenewal && afterProviderRenewal > afterProvider,
+            "A provider return must observe cancellation before renewing or starting another provider.");
+
+        var complete = worker.IndexOf("CompleteFencedWithDatabaseClockAsync(", StringComparison.Ordinal);
+        var cancelFallback = worker.IndexOf("if (!finalized)", complete, StringComparison.Ordinal);
+        var cancelCall = worker.IndexOf("CancelFencedWithDatabaseClockAsync(", cancelFallback, StringComparison.Ordinal);
+        Assert.True(complete >= 0 && cancelFallback > complete && cancelCall > cancelFallback,
+            "A CancelRequested transition racing the final Complete update must be resolved by the fenced Cancel transition.");
+    }
+
+    [Fact]
     public void ProspectingWorkerTenantIsolation_ShouldFailClosedWithoutTenantIdentity()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
