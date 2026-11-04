@@ -119,6 +119,67 @@ public sealed class CrmProspectingCandidateClaimSqliteIntegrationTests : IDispos
         }
     }
 
+    [Fact]
+    public async Task CandidateReview_ShouldBeConditionalAndRequireDuplicateOverride()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var pending = await _repository.AddAsync(new SysCrmProspectingCandidate
+            {
+                RunId = 7003,
+                ProviderCode = "official",
+                ExternalId = "candidate-review-pending",
+                CompanyName = "Pending Review Example",
+                Status = CrmProspectingCandidateStatus.PendingReview
+            });
+
+            Assert.True(await _repository.TryReviewAsync(pending.BasicId, approve: true, overrideDuplicate: false));
+            Assert.False(await _repository.TryReviewAsync(pending.BasicId, approve: false, overrideDuplicate: false));
+
+            var reviewed = await _repository.GetByIdAsync(pending.BasicId);
+            Assert.NotNull(reviewed);
+            Assert.Equal(CrmProspectingCandidateStatus.Approved, reviewed.Status);
+
+            var duplicate = await _repository.AddAsync(new SysCrmProspectingCandidate
+            {
+                RunId = 7003,
+                ProviderCode = "official",
+                ExternalId = "candidate-review-duplicate",
+                CompanyName = "Duplicate Review Example",
+                Status = CrmProspectingCandidateStatus.Duplicate
+            });
+
+            Assert.False(await _repository.TryReviewAsync(duplicate.BasicId, approve: true, overrideDuplicate: false));
+            Assert.True(await _repository.TryReviewAsync(duplicate.BasicId, approve: true, overrideDuplicate: true));
+
+            var overridden = await _repository.GetByIdAsync(duplicate.BasicId);
+            Assert.NotNull(overridden);
+            Assert.Equal(CrmProspectingCandidateStatus.Approved, overridden.Status);
+        }
+    }
+
+    [Fact]
+    public async Task CandidateReview_ShouldAllowRejectingDuplicateWithoutOverride()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var duplicate = await _repository.AddAsync(new SysCrmProspectingCandidate
+            {
+                RunId = 7004,
+                ProviderCode = "official",
+                ExternalId = "candidate-review-reject-duplicate",
+                CompanyName = "Duplicate Rejection Example",
+                Status = CrmProspectingCandidateStatus.Duplicate
+            });
+
+            Assert.True(await _repository.TryReviewAsync(duplicate.BasicId, approve: false, overrideDuplicate: false));
+
+            var persisted = await _repository.GetByIdAsync(duplicate.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(CrmProspectingCandidateStatus.Rejected, persisted.Status);
+        }
+    }
+
     public void Dispose()
     {
         _db.Dispose();
