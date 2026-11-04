@@ -671,6 +671,9 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
         Assert.Contains("GetService<ICrmProspectingIdentityResolver>()", worker, StringComparison.Ordinal);
         Assert.Contains("maxGleifLookupsPerRun = 20", worker, StringComparison.Ordinal);
+        Assert.Contains("candidateWasInserted && identityResolver is not null", worker, StringComparison.Ordinal);
+        Assert.Contains("EvidenceType = \"registry\"", worker, StringComparison.Ordinal);
+        Assert.Contains("VerificationStatus = \"unverified\"", worker, StringComparison.Ordinal);
         Assert.Contains("api.gleif.org/api/v1/lei-records", resolver, StringComparison.Ordinal);
         Assert.Contains("matches.Count == 1", resolver, StringComparison.Ordinal);
         Assert.Contains("NormalizeName(legalName)", resolver, StringComparison.Ordinal);
