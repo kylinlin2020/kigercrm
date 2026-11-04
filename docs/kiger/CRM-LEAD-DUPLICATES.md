@@ -32,6 +32,13 @@ Phone and website candidate preselection now use persisted normalized keys inste
 - Original email values remain unchanged. The migration is intentionally conservative and does not claim full equivalence with .NET Unicode normalization; the application matcher remains authoritative for scoring.
 - PostgreSQL execution and locale/Unicode behavior still require provider-specific validation.
 
+## Historical website-key cleanup (5.9.26)
+
+- Migration `5.9.26` rebuilds `website_host` from the original website value rather than trusting the legacy regex-derived host.
+- Only HTTP(S) or scheme-less, ASCII DNS hostnames with valid label shape are indexed. Userinfo, IP literals, localhost/single-label hosts, unsupported schemes, malformed authorities, and non-ASCII/IDN values are cleared to `NULL`.
+- PostgreSQL core does not guarantee IDNA conversion. Non-ASCII domains are intentionally omitted from historical duplicate lookup until the Lead is edited through the application normalizer, which uses `Uri.IdnHost`.
+- This is a conservative false-negative tradeoff to prevent malformed or non-equivalent historical keys from creating misleading duplicate matches. PostgreSQL execution remains a required deployment validation step.
+
 ## Remaining limits
 
 - Candidate retrieval remains bounded to 100 rows per signal. Large collision groups can be truncated; an empty result is not proof that no duplicate exists.
