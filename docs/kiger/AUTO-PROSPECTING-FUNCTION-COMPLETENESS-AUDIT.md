@@ -144,6 +144,18 @@
 **验证边界：** 代码和测试已提交，尚未在 .NET 10 环境编译/执行；也未进行实时 Find a Tender API 联调。适配器只读取 30 天窗口和最多 3 页，不应被描述为完整历史抓取。
 
 
+## 12. Worker lease/fencing lifecycle integration (2026-11-04)
+
+- `CrmProspectingRunHostedService` now claims through `TryClaimLeaseAsync` and retains the returned UUID token and fencing version for the entire Run.
+- Lease renewal uses PostgreSQL time before/after provider calls and every 25 candidate records. Cancellation is checked before renewal so `CancelRequested` does not get misclassified as lease loss.
+- Candidate + Evidence + initial Score are persisted in one explicit transaction after `TryLockLeaseForWriteAsync` locks and validates the live Run lease. Existing-candidate provenance repair and GLEIF registry evidence use the same transactional fence.
+- Complete, Cancel and Fail now use database-clock fenced terminal transitions. A cancellation racing the final Complete update is retried through the fenced Cancel transition.
+- Startup recovery reclaims expired lease-backed Runs before queue reconstruction; legacy recovery is limited to rows with no lease metadata.
+- Regression wiring tests were updated for the active claim, write-fence, renewal and terminal paths, including cancellation ordering and terminal race behavior.
+
+**Remaining acceptance boundary:** there is no independent heartbeat task; renewal is work-boundary based. Worker concurrency remains one. No .NET build/test or PostgreSQL two-connection test has been run. Multi-instance deployment remains prohibited until PostgreSQL race, crash-recovery, cancellation, tenant-isolation and Windows acceptance pass.
+
+
 ## 11. Worker lease recovery increment (2026-11-04)
 
 - Tenant startup recovery now calls the PostgreSQL-clock-based `RecoverExpiredLeasesAsync` before listing queued Runs for Redis reconstruction.
