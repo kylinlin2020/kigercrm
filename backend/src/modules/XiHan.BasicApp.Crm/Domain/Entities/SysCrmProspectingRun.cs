@@ -6,6 +6,9 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 
 /// <summary>Auditable execution record; task acceptance and task completion are distinct states.</summary>
 [SugarTable(TableName = "Crm_Prospecting_Run", TableDescription = "KIGER CRM prospecting execution runs")]
+[SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
+[SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
+[SugarIndex("IX_{table}_TeId_IsDe", nameof(TenantId), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc)]
 [SugarIndex("UX_{table}_Te_Rq_IsDe", nameof(TenantId), OrderByType.Asc, nameof(RequestKey), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_Te_Ca_St_Cr", nameof(TenantId), OrderByType.Asc, nameof(CampaignId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 public sealed class SysCrmProspectingRun : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
