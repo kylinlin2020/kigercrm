@@ -71,7 +71,6 @@ public sealed class CrmProspectingDomainService(
         var strategy = await GetStrategyAsync(strategyId, cancellationToken);
         if (strategy.ApprovalStatus != CrmProspectingStrategyApprovalStatus.PendingApproval)
             throw new InvalidOperationException("Only a pending strategy can receive an approval decision.");
-        if (approverId is <= 0) throw new ArgumentOutOfRangeException(nameof(approverId));
         if (approverId is null or <= 0)
             throw new ArgumentOutOfRangeException(nameof(approverId), "An authenticated approver ID is required.");
         var nextStatus = approve ? CrmProspectingStrategyApprovalStatus.Approved : CrmProspectingStrategyApprovalStatus.Rejected;
