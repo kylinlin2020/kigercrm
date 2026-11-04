@@ -454,7 +454,7 @@ This does not yet make strategy activation atomic, nor does it solve concurrent 
 
 Added `CrmUsaSpendingProspectingProvider` as the first real external provider in the .NET target. It calls the fixed USAspending public award endpoint, maps recipient and award details into raw provider records, preserves the official award URL and a SHA-256 payload fingerprint, and marks the evidence as `official_procurement`. It reads at most the first 20 results and emits an explicit warning if another page exists.
 
-Registration is opt-in through `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true`; the synthetic fake adapter remains separately opt-in. The typed HttpClient disables redirects, uses a bounded timeout, validates the final HTTPS host/path, and caps response reads at 6 MiB. HTTP failure messages omit response bodies.
+Registration is opt-in through `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true`; the synthetic fake adapter remains separately opt-in. The fixed-endpoint HttpClient disables redirects, uses a bounded timeout, validates the final HTTPS host/path, and caps response reads at 6 MiB. HTTP failure messages omit response bodies.
 
 Added adapter unit-test source for record mapping, empty-query no-network behavior and HTTP error handling, plus a source-wiring regression guard and provider operations documentation.
 
