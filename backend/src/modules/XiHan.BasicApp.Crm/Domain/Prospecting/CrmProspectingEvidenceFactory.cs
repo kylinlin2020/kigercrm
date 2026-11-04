@@ -77,10 +77,17 @@ public static class CrmProspectingEvidenceFactory
         canonicalUrl = string.Empty;
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps ||
-            !string.IsNullOrEmpty(uri.UserInfo) ||
-            uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            IPAddress.TryParse(uri.Host, out _) ||
-            uri.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
+            !string.IsNullOrEmpty(uri.UserInfo))
+            return false;
+
+        // DNS treats a trailing root dot as equivalent to the undotted hostname.
+        // Normalize it before localhost checks so "localhost." and
+        // "service.localhost." cannot bypass the evidence-source guard.
+        var host = uri.Host.TrimEnd('.');
+        if (host.Length == 0 ||
+            host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
+            IPAddress.TryParse(host, out _))
             return false;
 
         canonicalUrl = uri.GetLeftPart(UriPartial.Path);
