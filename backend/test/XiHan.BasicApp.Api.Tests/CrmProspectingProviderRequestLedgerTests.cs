@@ -90,6 +90,25 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void ProviderCooldown_ShouldBeCheckedBeforeAttemptCreationAndNetworkInvocation()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var cooldownCheck = worker.IndexOf("GetActiveCooldownUntilAsync(", StringComparison.Ordinal);
+        var cooldownSkip = worker.IndexOf("provider cooldown is active", StringComparison.Ordinal);
+        var attemptCreate = worker.IndexOf("CreateStartedAsync(", StringComparison.Ordinal);
+        var networkCall = worker.IndexOf("provider.SearchAsync(request, cancellationToken)", StringComparison.Ordinal);
+
+        Assert.True(cooldownCheck >= 0 && cooldownSkip > cooldownCheck);
+        Assert.True(attemptCreate > cooldownSkip);
+        Assert.True(networkCall > attemptCreate);
+
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingProviderRequestRepository.cs");
+        Assert.Contains("row.State == \"RateLimited\"", repository, StringComparison.Ordinal);
+        Assert.Contains("row.RetryAfterAt > now", repository, StringComparison.Ordinal);
+        Assert.Contains("OrderByDescending(row => row.RetryAfterAt)", repository, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProviderRequestLedger_ShouldPersistHttpStatusAndRetryAfterForThrottledProviders()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
