@@ -52,7 +52,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<int> RecoverInterruptedAsync(
+    public async Task<bool> RecoverInterruptedAsync(
         DateTimeOffset recoveredAt,
         CancellationToken cancellationToken = default)
     {
@@ -78,7 +78,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             run => run.Status == CrmProspectingRunStatus.CancelRequested,
             cancellationToken);
 
-        return (requeued ? 1 : 0) + (cancelled ? 1 : 0);
+        return requeued || cancelled;
     }
 
     public async Task<bool> CompleteAsync(
