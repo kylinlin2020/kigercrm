@@ -10,6 +10,29 @@ This protects the sequential retry path only. It does not provide an atomic rese
 
 The numbering subsystem already has a durable `Sys_Numbering_Allocation` record with a unique scope over rule, request tenant and idempotency key. It stores the numbering request fingerprint and generated number facts. It is deliberately committed in its own `requiresNew` unit of work before the caller's document transaction. Therefore it is not an atomic CRM-document request ledger and must not be treated as one: its independent transaction is intentional so a number is never reused after a business transaction rolls back.
 
+## Framework transaction behavior verified from repository source
+
+The CRM create entry points are decorated with `[UnitOfWork(true)]` (both direct sales-order create and shipment create). This is the existing aggregate transaction boundary: ledger insertion, document header/line writes and shipment reservation updates must remain inside this same transactional application-service invocation.
+
+The numbering implementation provides an explicit, source-verified contrast. `NumberGenerator.AllocateInTransactionAsync` calls:
+
+```csharp
+using var unitOfWork = _unitOfWorkManager.Begin(
+    new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+var result = await AllocateOnceAsync(...);
+await unitOfWork.CompleteAsync(cancellationToken);
+```
+
+Its XML remarks state that this is deliberately an independent physical transaction when a caller transaction exists, so number allocation commits before the caller's business transaction and numbers are not reclaimed on caller rollback. This confirms that `Sys_Numbering_Allocation` cannot be reused as the CRM request ledger.
+
+The framework UoW implementation itself is not vendored in this repository tree; the application consumes `XiHan.Framework.Uow`. Therefore, before implementing automatic winner recovery, verify the exact deployed package implementation for: (a) whether `Begin(..., requiresNew: true)` always creates a fresh physical transaction in the current tenant database; (b) disposal without `CompleteAsync` rolls back and releases the connection; (c) how PostgreSQL unique violations are surfaced and how the named constraint is identified; and (d) whether a new UoW can safely be opened after the failed UoW is disposed. Do not infer these details solely from the method signatures.
+
+## First implementation boundary
+
+The first ledger implementation may safely provide atomic claim + aggregate commit and deterministic conflict on a concurrent duplicate. It must not claim automatic winner replay until a tested outer recovery boundary exists. If the framework cannot expose a reliable rollback-then-new-UoW boundary through the current application-service proxy, return a conflict for the losing concurrent request and let its caller retry; the retry will then find the committed ledger row and replay the document.
+
+This is a deliberate safe intermediate state: it prevents duplicate committed aggregates and preserves request identity, while avoiding a query inside PostgreSQL's aborted transaction. A follow-up can add transparent winner recovery once the framework behavior is proven by PostgreSQL integration tests.
+
 ## Decision
 
 Add a CRM-owned request ledger in the same database and transaction as the CRM aggregate. Do not overload `Sys_Numbering_Allocation` and do not attempt a cross-database transaction between the platform numbering database and a tenant's CRM database.
