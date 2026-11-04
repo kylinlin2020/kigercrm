@@ -482,7 +482,9 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("clock_timestamp()", repository, StringComparison.Ordinal);
         Assert.Contains("run.tenant_id = @tenantId", repository, StringComparison.Ordinal);
         Assert.Contains("fencing_version = run.fencing_version + 1", repository, StringComparison.Ordinal);
-        Assert.Contains("AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L", repository, StringComparison.Ordinal);
+        Assert.Contains("AsyncLocalCurrentTenantAccessor.Instance.Current", repository, StringComparison.Ordinal);
+        Assert.Contains("A current tenant context is required for prospecting lease operations.", repository, StringComparison.Ordinal);
+        Assert.DoesNotContain("Current?.TenantId ?? 0L", repository, StringComparison.Ordinal);
         Assert.Contains("client.Ado.SqlQueryAsync<SysCrmProspectingRun>", repository, StringComparison.Ordinal);
         Assert.Contains("DbType.PostgreSQL", repository, StringComparison.Ordinal);
 
