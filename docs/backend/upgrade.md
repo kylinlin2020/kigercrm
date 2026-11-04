@@ -181,3 +181,21 @@ CREATE INDEX IF NOT EXISTS ix_sys_example_tenant_id
 - [配置参考](../configuration#xihan-upgrade)：`XiHan:Upgrade` 字段
 - [部署](../deployment)：发布、进程守护与生产配置
 - [Framework 升级与迁移](https://framework.docs.xihanfun.com/guide/upgrade)：引擎抽象与通用流程
+
+### 当前已知限制：租约锁尚未具备完整 fencing
+
+**当前实现不能作为多迁移节点并发安全的证明。** 源码复核发现：
+
+1. `SaasUpgradeLockProvider` 以 `SysVersion.IsUpgrading` 和应用节点时间 `UpgradeStartTime` 做条件更新抢占；没有独立、不可复用的 lease generation / fencing token，也没有续租机制。
+2. 锁令牌释放时只按 `UpgradeNode == LockId` 清除 `IsUpgrading`。如果旧持有者的租约已过期并被接管，旧令牌仍可能按相同节点标识清理新持有者的锁。
+3. Framework `UpgradeEngine` 在锁获取后调用 `SetUpgradingAsync`；迁移成功/失败时再调用 `SetUpgradeCompletedAsync` / `SetUpgradeFailedAsync`。当前 `SaasUpgradeVersionStore` 的这些写操作按版本行 ID 更新，没有与锁代次绑定的 owner/token 条件。
+4. `SaasUpgradeMigrationExecutor` 直接执行 SQL，没有在脚本事务中持有可验证的所有权锁，也没有在脚本提交前做 fencing 检查。仅修复 `ReleaseAsync` 并不足以阻止旧节点继续执行 SQL 或覆盖版本状态。
+
+因此，在完成完整整改前：
+
+- 生产发布必须由外部编排保证**单一迁移执行者**；其它副本在迁移完成前不得接流量。
+- 不要把 `NodeName`、Snowflake WorkerId、Redis 锁或单纯延长 `LockExpirySeconds` 当成 fencing 证明。
+- 不要仅添加一个 release 条件就宣称旧迁移者已被隔离。
+- 迁移并发安全验收必须使用独立 PostgreSQL 连接/进程，覆盖租约过期接管、旧持有者释放、旧持有者完成/失败写版本、脚本执行期间进程暂停/恢复、事务回滚与多租户隔离。
+
+**整改方向：** 将锁所有权变为数据库权威的、每次接管递增的 fencing generation；锁令牌必须贯穿版本状态写入和迁移执行事务。若框架公开接口无法把 generation 传递到所有终态写入与 SQL 执行边界，应扩展/替换升级执行编排，而不是在现有 provider 内做局部补丁。完成独立 PostgreSQL race tests 之前，保持单迁移执行者部署策略。
