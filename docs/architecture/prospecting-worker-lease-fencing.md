@@ -83,7 +83,7 @@ PostgreSQL integration tests using two independent connections and separate scop
 
 No multi-instance claim should be made until all tests above pass against PostgreSQL.
 
-## Schema foundation landed (2026-11-04)
+## Schema and worker lifecycle integration landed (2026-11-04)
 
 Migration `5.9.30` and the Run entity now contain additive lease metadata:
 
@@ -94,9 +94,9 @@ Migration `5.9.30` and the Run entity now contain additive lease metadata:
 - `fencing_version bigint NOT NULL DEFAULT 0`
 - index `ix_crm_prospecting_run_te_st_leaseexp` on `(tenant_id, status, lease_expires_at)`
 
-The migration is guarded by `to_regclass('crm_prospecting_run')`, uses `ADD COLUMN IF NOT EXISTS`, and leaves existing lease ownership NULL. This is schema groundwork only: `ClaimQueuedAsync`, heartbeat, Candidate/Evidence/Score writes, terminal transitions, and startup recovery have not yet been switched to lease/fencing semantics. The worker remains single-active-instance only. Do not interpret the presence of these columns as permission to run multiple instances.
+The migration is guarded by `to_regclass('crm_prospecting_run')`, uses `ADD COLUMN IF NOT EXISTS`, and leaves existing lease ownership NULL. The HostedService now uses `TryClaimLeaseAsync`, opportunistic database-clock renewal between provider calls and every 25 candidate records, `TryLockLeaseForWriteAsync` inside Candidate/Evidence/Score transactions, and fenced Complete/Cancel/Fail transitions. Startup recovery reclaims only expired lease-backed rows before rebuilding the queue. The worker remains single-active-instance only until independent PostgreSQL concurrency tests pass. There is not yet an independent heartbeat task.
 
-A source-level test checks the entity mapping, additive migration shape, and that the worker does not yet consume lease tokens. Neither this test nor the migration has been executed in this environment; PostgreSQL migration and two-connection tests remain required.
+Source-level tests now check entity mapping, additive migration, worker lease claims, transactional child-write fences, renewal and terminal transitions. Neither source tests nor migration have been executed in this environment; PostgreSQL migration and two-connection tests remain required.
 
 The Run repository's SQLite integration suite also contains a CodeFirst round-trip test for all five lease fields (owner, UUID token, expiry, heartbeat, and fencing version). This checks entity-to-provider mapping only; it does not prove PostgreSQL migration correctness, atomic claim behavior, or stale-worker fencing. The test has been added but not executed.
 
