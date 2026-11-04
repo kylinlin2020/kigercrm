@@ -161,24 +161,13 @@ Report these independently; do not infer one from another:
 
 As of this audit, no current CI workflow run has been observed for the latest branch head. The newly added SQLite tests have not been executed in this environment. PostgreSQL migrations/concurrency tests and Windows native acceptance remain open. PR #1 remains Draft and must not be merged before the required gates pass.
 
-## 2026-11-04 application UnitOfWork boundary audit
+## 2026-11-04 initial application UnitOfWork audit (historical)
 
-The current call graph has now been checked in source:
+Before the recovery refactor, `StartRunAsync` carried `[UnitOfWork(true)]`, called `domain.CreateRunAsync`, and registered queue publication through the current UoW's `OnCompleted` callback. `CreateRunAsync` performed the tenant-scoped RequestKey lookup before `runs.AddAsync`; the repository lookup used `CreateQueryable()` to retain tenant filtering.
 
-- `CrmProspectingAppService.StartRunAsync` is decorated with `[UnitOfWork(true)]`.
-- It calls `domain.CreateRunAsync` while that application method is executing.
-- After obtaining the Run, it registers queue publication with `unitOfWorkManager.Current.OnCompleted(...)` when a current UoW exists. This correctly keeps queue publication after successful completion.
-- `CrmProspectingDomainService.CreateRunAsync` performs the tenant-scoped RequestKey lookup and then calls `runs.AddAsync`; it has no independent transaction boundary.
-- The repository lookup uses `CreateQueryable()`, so the normal tenant filter is retained.
+That original structure meant a unique-key exception occurred inside the method's intercepted transaction. Catching it inside the domain method and immediately re-reading through the same transaction was unsafe for PostgreSQL. The exact-version framework audit below established the supported recovery boundary and superseded that initial fail-closed implementation.
 
-Consequences:
-
-1. A unique-key exception raised by `runs.AddAsync` occurs inside the application method's transactional UoW boundary.
-2. Catching that exception inside the domain method and immediately calling `GetByRequestKeyAsync` is not a safe PostgreSQL recovery strategy: the read may still enlist in the failed/aborted transaction.
-3. At the time of this initial audit, the framework semantics had not yet been verified. The following exact-version audit resolves that uncertainty; see the next section.
-4. Do not move queue publication before commit, and do not remove the `OnCompleted` callback as a shortcut.
-
-The initial fail-closed decision was superseded by the exact-version audit and the bounded recovery implementation below. Broad `SqlSugarException` catches and reads inside an aborted transaction remain prohibited.
+The current implementation removes the action-level UoW attribute from `StartRunAsync` and owns the transaction explicitly in a private helper. Broad `SqlSugarException` catches and reads inside an aborted transaction remain prohibited.
 
 
 Additional HTTP-boundary verification:
