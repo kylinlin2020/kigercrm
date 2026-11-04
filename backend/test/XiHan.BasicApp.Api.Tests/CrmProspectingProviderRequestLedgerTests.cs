@@ -58,6 +58,8 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("CrmProspectingProviderRateLimitException", worker, StringComparison.Ordinal);
         Assert.Contains("\"RateLimited\"", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRequestFingerprint.Create(providerCode, request)", worker, StringComparison.Ordinal);
+        Assert.Contains("GetActiveCooldownUntilAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("provider cooldown is active", worker, StringComparison.Ordinal);
     }
 
     [Fact]
