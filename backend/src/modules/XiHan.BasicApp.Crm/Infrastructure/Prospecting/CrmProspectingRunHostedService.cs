@@ -284,12 +284,50 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                             evidence.RawPayloadHash)))
                         .ToArray();
 
-                    if (missingEvidence.Length > 0)
+                    var scoreRepository = scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>();
+                    var existingScores = await scoreRepository.GetLatestByCandidateAsync(
+                        existingCandidate.BasicId, 1, cancellationToken);
+                    var needsScoreRepair = existingScores.Count == 0;
+                    if (missingEvidence.Length > 0 || needsScoreRepair)
                     {
+                        // Keep evidence repair and the first missing score snapshot atomic.
+                        // This path is intentionally conservative: it does not infer procurement,
+                        // organization verification, product fit, or market fit from unverified data.
                         using var repairUnitOfWork = scope.ServiceProvider
                             .GetRequiredService<IUnitOfWorkManager>()
                             .Begin(new XiHanUnitOfWorkOptions(isTransactional: true));
-                        await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken);
+
+                        if (missingEvidence.Length > 0)
+                        {
+                            await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken);
+                        }
+
+                        if (needsScoreRepair)
+                        {
+                            var completeEvidence = persistedEvidence.Concat(missingEvidence).ToArray();
+                            var evaluatedAtUtc = DateTimeOffset.UtcNow;
+                            var scoreInput = new CrmProspectingScoreInput(
+                                HasVerifiableOrganization: false,
+                                HasDirectProcurementSignal: false,
+                                HasDirectProductFit: false,
+                                HasTargetMarketFit: false,
+                                PublishedAtUtc: completeEvidence
+                                    .Where(evidence => evidence.PublishedAtUtc.HasValue)
+                                    .Select(evidence => evidence.PublishedAtUtc)
+                                    .Max(),
+                                HasTraceablePrimaryEvidence: completeEvidence.Any(evidence =>
+                                    (evidence.EvidenceType is "direct" or "registry") &&
+                                    evidence.VerificationStatus == "unverified" &&
+                                    !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
+                                HasPublicBusinessContact: !string.IsNullOrWhiteSpace(existingCandidate.BusinessEmail),
+                                IsKnownDuplicate: existingCandidate.Status == CrmProspectingCandidateStatus.Duplicate,
+                                IsRestrictedOrUnsafeSource: false);
+                            var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
+                            var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(
+                                existingCandidate.BasicId, scoreResult, completeEvidence);
+                            await scoreRepository.AddAsync(scoreSnapshot, cancellationToken);
+                        }
+
                         await repairUnitOfWork.CompleteAsync(cancellationToken);
                     }
 
