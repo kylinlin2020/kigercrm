@@ -124,3 +124,31 @@ The tests must use independent database connections; SQLite source tests are onl
 ## Acceptance boundary
 
 Passing source-wiring tests or SQLite tests does not authorize multiple workers. Multi-instance support requires the PostgreSQL independent-connection suite and deployment overlap tests to pass, followed by Windows pull/build/runtime acceptance. Until then, the single-active-worker restriction remains mandatory.
+
+
+## Framework 4.8.0 source verification (2026-11-04)
+
+The application references `XiHan.Framework.Web.*` packages at version `4.8.0` in `backend/src/framework/XiHan.BasicApp.Web.Core/XiHan.BasicApp.Web.Core.csproj`; the backend targets `net10.0`. The following findings were checked against the public `XiHanFun/XiHan.Framework` source tag `v4.8.0`, not inferred from method names:
+
+### Confirmed usable primitives
+
+- `IUnitOfWorkManager.Begin(XiHanUnitOfWorkOptions, requiresNew)` starts a framework unit of work.
+- `IUnitOfWork.CompleteAsync` commits registered transaction APIs; `RollbackAsync` rolls them back; `Dispose` releases the scope.
+- `SqlSugarClientResolver` enlists the resolved client in the current transactional UOW and pins the concrete `SqlSugarProvider` connection by ConfigId. Repository calls in that UOW therefore share the same physical connection/transaction. The resolver explicitly documents sequential access; concurrent operations on that shared connection are unsupported.
+- `SqlSugarTransactionApi` opens a transaction through `Ado.BeginTran` and commits/rolls back through the same concrete client.
+- `SqlSugarRepositoryBase.UpdateAsync(columns, predicate)` issues a conditional update and returns whether affected rows are greater than zero. It also appends the strict tenant write-scope predicate. This is a verified primitive for compare-and-swap style operations, not proof of server-time or lease correctness.
+- The CRM project already uses the 4.8.0 framework line via its Saas/Web.Core project references.
+
+### Not yet verified; do not implement by assumption
+
+- A public repository-safe API for PostgreSQL `SELECT ... FOR UPDATE` on the exact pinned connection.
+- A safe, supported way to execute parameterized PostgreSQL-specific SQL/expressions through the repository's pinned client while preserving tenant predicates and transaction enlistment.
+- A portable SqlSugar expression for database-server current time and atomic `Fencing_Token = Fencing_Token + 1` returning the winning token.
+- Mapping semantics for PostgreSQL `UPDATE ... RETURNING` through the framework's configured client.
+- Whether the framework's generic conditional update expression supports arithmetic against the current database column (rather than a value calculated in application memory).
+
+### Implementation decision
+
+Do not start lease entity/repository implementation until the remaining PostgreSQL primitives above are proven with a minimal integration test using the actual resolved package graph and PostgreSQL. The safe next step is to inspect the framework's SqlSugar transaction API and supported raw-Ado patterns in source, then create a narrow PostgreSQL lease-store proof that obtains the client through `ISqlSugarClientResolver` inside an explicit `IUnitOfWorkManager.Begin(...)` scope. Any raw SQL must be parameterized, tenant-scoped, and executed on that same enlisted client. If this cannot be proven, stop and document the framework limitation rather than weakening the fencing invariant.
+
+These source checks are not a build, runtime test, PostgreSQL integration test, or Windows acceptance test.
