@@ -25,6 +25,8 @@ public sealed class CrmProspectingAppService(
     ICrmProspectingStrategyRepository strategies,
     ICrmProspectingRunRepository runs,
     ICrmProspectingCandidateRepository candidates,
+    ICrmProspectingEvidenceRepository evidence,
+    ICrmProspectingScoreRepository scores,
     ICrmLeadRepository leads,
     ICrmLeadDomainService leadDomain,
     IFieldSecurityService fieldSecurity,
@@ -222,6 +224,59 @@ public sealed class CrmProspectingAppService(
         var candidateStatus = status.HasValue ? (CrmProspectingCandidateStatus?)status.Value : null;
         var items = await candidates.GetLatestByRunAsync(runId, candidateStatus, 500, cancellationToken);
         return items.Select(ToCandidateDto).ToArray();
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<CrmProspectingCandidateReviewDetailDto> GetCandidateReviewDetailAsync(long candidateId, CancellationToken cancellationToken = default)
+    {
+        if (candidateId <= 0) throw new ArgumentOutOfRangeException(nameof(candidateId));
+
+        var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting candidate does not exist.");
+        var run = await runs.GetByIdAsync(candidate.RunId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+
+        var evidenceItems = await evidence.GetByCandidateAsync(candidate.BasicId, cancellationToken);
+        var scoreItems = await scores.GetLatestByCandidateAsync(candidate.BasicId, 20, cancellationToken);
+
+        return new CrmProspectingCandidateReviewDetailDto
+        {
+            Candidate = ToCandidateDto(candidate),
+            Evidence = evidenceItems.Select(item => new CrmProspectingEvidenceDto
+            {
+                BasicId = item.BasicId,
+                ProviderCode = item.ProviderCode,
+                ProviderRecordId = item.ProviderRecordId,
+                FieldName = item.FieldName,
+                FieldValueHash = item.FieldValueHash,
+                SourceUrl = item.SourceUrl,
+                EvidenceType = item.EvidenceType,
+                VerificationStatus = item.VerificationStatus,
+                EvidenceSummary = item.EvidenceSummary,
+                PublishedAtUtc = item.PublishedAtUtc,
+                RetrievedAtUtc = item.RetrievedAtUtc,
+                RawPayloadHash = item.RawPayloadHash
+            }).ToArray(),
+            ScoreHistory = scoreItems.Select(item => new CrmProspectingScoreDto
+            {
+                BasicId = item.BasicId,
+                ScorecardVersion = item.ScorecardVersion,
+                Total = item.Total,
+                Priority = item.Priority,
+                IdentityPoints = item.IdentityPoints,
+                ProcurementPoints = item.ProcurementPoints,
+                ProductFitPoints = item.ProductFitPoints,
+                MarketFitPoints = item.MarketFitPoints,
+                RecencyPoints = item.RecencyPoints,
+                EvidencePoints = item.EvidencePoints,
+                ContactPoints = item.ContactPoints,
+                ReviewGatesJson = item.ReviewGatesJson,
+                EvaluatedAtUtc = item.EvaluatedAtUtc
+            }).ToArray()
+        };
     }
 
     [UnitOfWork(true)]
