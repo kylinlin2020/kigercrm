@@ -45,7 +45,14 @@ public static class CrmProspectingRecordIdentity
 
     private static string GetCanonicalRecordHash(CrmProspectingRawRecord record)
     {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(record, CanonicalJsonOptions);
+        // Retrieval time and an invalid/missing provider hash are transport metadata,
+        // not source content. Excluding them keeps retries stable across fetch attempts.
+        var canonicalRecord = record with
+        {
+            RetrievedAtUtc = null,
+            RawPayloadHash = null
+        };
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(canonicalRecord, CanonicalJsonOptions);
         return Convert.ToHexString(SHA256.HashData(bytes));
     }
 
