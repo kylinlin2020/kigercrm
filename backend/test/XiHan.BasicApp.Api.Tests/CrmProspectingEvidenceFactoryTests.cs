@@ -27,7 +27,7 @@ public sealed class CrmProspectingEvidenceFactoryTests
         Assert.All(evidence, item => Assert.Equal("unverified", item.VerificationStatus));
         Assert.All(evidence, item => Assert.Equal("registry", item.EvidenceType));
         Assert.All(evidence, item => Assert.Equal("https://ted.example/tender/123", item.SourceUrl));
-        Assert.All(evidence, item => Assert.Equal(32, item.SourceUrlHash.Length));
+        Assert.All(evidence, item => Assert.Equal(64, item.SourceUrlHash.Length));
         Assert.All(evidence, item => Assert.False(string.IsNullOrWhiteSpace(item.ProviderRecordId)));
         Assert.All(evidence, item => Assert.Equal(64, item.RawPayloadHash.Length));
         Assert.Contains(evidence, item => item.FieldName == "business_email" && item.FieldValueHash is null);
@@ -36,6 +36,23 @@ public sealed class CrmProspectingEvidenceFactoryTests
         Assert.All(evidence, item => Assert.Equal(Retrieved, item.RetrievedAtUtc));
     }
 
+    [Fact]
+    public void Create_ShouldNormalizeNullableIdentityFieldsForUniqueIndex()
+    {
+        var record = new CrmProspectingRawRecord(null, "source", "title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/tender/empty",
+            RawPayloadHash = "not-a-sha256"
+        };
+
+        var evidence = CrmProspectingEvidenceFactory.Create(
+            1, new CrmProspectingRawEnvelope("provider", record), Retrieved);
+
+        Assert.NotEmpty(evidence);
+        Assert.All(evidence, item => Assert.Equal(string.Empty, item.ProviderRecordId));
+        Assert.All(evidence, item => Assert.Equal(string.Empty, item.RawPayloadHash));
+        Assert.All(evidence, item => Assert.Equal(64, item.SourceUrlHash.Length));
+    }
     [Theory]
     [InlineData("http://buyer.example/tender/1")]
     [InlineData("file:///etc/passwd")]
