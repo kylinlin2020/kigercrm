@@ -3,6 +3,9 @@
 DO $$
 BEGIN
     IF to_regclass('crm_prospecting_candidate') IS NOT NULL THEN
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prosp_candidate_tenant_basic
+            ON crm_prospecting_candidate (tenant_id, basic_id);
+
         CREATE TABLE IF NOT EXISTS crm_prospecting_evidence (
             basic_id bigint PRIMARY KEY,
             tenant_id bigint NOT NULL,
@@ -21,7 +24,7 @@ BEGIN
             created_id bigint NULL,
             created_time timestamptz NOT NULL DEFAULT now(),
             CONSTRAINT fk_crm_prospecting_evidence_candidate
-                FOREIGN KEY (candidate_id) REFERENCES crm_prospecting_candidate (basic_id)
+                FOREIGN KEY (tenant_id, candidate_id) REFERENCES crm_prospecting_candidate (tenant_id, basic_id)
         );
 
         CREATE INDEX IF NOT EXISTS ix_crm_prosp_evidence_tenant_candidate_field
