@@ -10,7 +10,7 @@ public sealed class CrmProspectingApplicationWiringTests
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Contracts", "ICrmProspectingAppService.cs");
         var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
-        foreach (var operation in new[] { "CreateCampaignAsync", "UpdateCampaignAsync", "GetCampaignAsync", "CreateStrategyVersionAsync", "SubmitStrategyForApprovalAsync", "DecideStrategyAsync", "ActivateStrategyAsync", "GetStrategiesAsync", "GetCampaignRunsAsync", "StartRunAsync", "GetRunAsync", "CancelRunAsync" })
+        foreach (var operation in new[] { "CreateCampaignAsync", "UpdateCampaignAsync", "GetCampaignsAsync", "GetCampaignAsync", "CreateStrategyVersionAsync", "SubmitStrategyForApprovalAsync", "DecideStrategyAsync", "ActivateStrategyAsync", "GetStrategiesAsync", "GetCampaignRunsAsync", "StartRunAsync", "GetRunAsync", "CancelRunAsync" })
         {
             Assert.Contains(operation, contract, StringComparison.Ordinal);
             Assert.Contains(operation, service, StringComparison.Ordinal);
@@ -19,6 +19,8 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Update)]", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Read)]", service, StringComparison.Ordinal);
         Assert.Contains("OrderByDescending(x => x.Version)", service, StringComparison.Ordinal);
+        Assert.Contains("ResolveAccessibleUsersAsync", service, StringComparison.Ordinal);
+        Assert.Contains("entity.OwnerUserId ??= CurrentUser?.Id", service, StringComparison.Ordinal);
         Assert.Contains("OrderByDescending(x => x.CreatedTime)", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", service, StringComparison.Ordinal);
     }
