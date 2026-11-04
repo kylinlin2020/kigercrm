@@ -187,7 +187,7 @@ public sealed class CrmProspectingAppService(
         CrmProspectingRunStartDto input,
         CancellationToken cancellationToken)
     {
-        using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true));
+        using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
         var campaign = await campaigns.GetByIdAsync(input.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
