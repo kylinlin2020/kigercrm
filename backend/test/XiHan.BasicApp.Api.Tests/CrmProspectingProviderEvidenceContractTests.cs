@@ -38,4 +38,44 @@ public sealed class CrmProspectingProviderEvidenceContractTests
         Assert.Null(record.RawPayloadHash);
         Assert.Null(record.EvidenceType);
     }
+    [Fact]
+    public void RequestFingerprint_ShouldIgnoreRunIdJsonPropertyOrderAndExcludedDomainOrder()
+    {
+        var first = new CrmProspectingProviderRequest(
+            1001, "  generator   procurement ", "Diesel generator", "Kenya",
+            "Public utility buyer", "{\"region\":\"east\",\"limit\":20}",
+            new[] { "www.example.com", "https://blocked.example/" });
+        var second = new CrmProspectingProviderRequest(
+            2002, "generator procurement", "Diesel generator", "Kenya",
+            "Public utility buyer", "{\"limit\":20,\"region\":\"east\"}",
+            new[] { "blocked.example", "example.com" });
+
+        Assert.Equal(
+            CrmProspectingRequestFingerprint.Create("EU_TED", first),
+            CrmProspectingRequestFingerprint.Create("eu_ted", second));
+    }
+
+    [Fact]
+    public void RequestFingerprint_ShouldChangeWhenSearchScopeChanges()
+    {
+        var first = new CrmProspectingProviderRequest(
+            1, "generator procurement", "Diesel generator", "Kenya",
+            "Public utility buyer", "{}", Array.Empty<string>());
+        var changed = first with { TargetMarkets = "Ghana" };
+
+        Assert.NotEqual(
+            CrmProspectingRequestFingerprint.Create("eu_ted", first),
+            CrmProspectingRequestFingerprint.Create("eu_ted", changed));
+    }
+
+    [Fact]
+    public void RequestFingerprint_ShouldRejectMalformedProviderOptionsJson()
+    {
+        var request = new CrmProspectingProviderRequest(
+            1, "objective", "scope", "market", "icp", "{not-json}", Array.Empty<string>());
+
+        Assert.Throws<System.Text.Json.JsonException>(
+            () => CrmProspectingRequestFingerprint.Create("provider", request));
+    }
+
 }
