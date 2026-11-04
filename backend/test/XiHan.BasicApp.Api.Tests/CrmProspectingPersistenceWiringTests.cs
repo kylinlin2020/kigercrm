@@ -22,6 +22,23 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingCandidate_ShouldBeAuditedTenantScopedAndSeparateFromLead()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingCandidate.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingCandidateRepository.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.14", "5.9.14.sql");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        Assert.Contains("BasicAppFullAuditedEntity", entity, StringComparison.Ordinal);
+        Assert.Contains("IStrictMultiTenantEntity", entity, StringComparison.Ordinal);
+        Assert.Contains("PendingReview", entity, StringComparison.Ordinal);
+        Assert.Contains("Converted_Lead_Id", entity, StringComparison.Ordinal);
+        Assert.Contains("SaasRepository<SysCrmProspectingCandidate>", repository, StringComparison.Ordinal);
+        Assert.Contains("crm_prospecting_candidate", migration, StringComparison.Ordinal);
+        Assert.Contains("crm_lead", migration, StringComparison.Ordinal);
+        Assert.Contains(".Add<SysCrmProspectingCandidate>()", registration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingRun_ShouldBePermanentCreationOnlyIdempotencyLedger()
     {
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingRun.cs");
@@ -35,7 +52,7 @@ public sealed class CrmProspectingPersistenceWiringTests
     [Fact]
     public void ProspectingRepositories_ShouldUseSaasRepositoryBase()
     {
-        foreach (var name in new[] { "Campaign", "Strategy", "Run" })
+        foreach (var name in new[] { "Campaign", "Strategy", "Run", "Candidate" })
         {
             var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", $"CrmProspecting{name}Repository.cs");
             Assert.Contains("SaasRepository<", source, StringComparison.Ordinal);
