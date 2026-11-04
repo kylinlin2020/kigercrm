@@ -176,11 +176,13 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 .ToArray();
             var existingLeadMatches = await leadRepository.GetDuplicateMatchesAsync(
                 duplicateEmails, duplicateWebsiteHosts, cancellationToken);
+            // Match the database unique index semantics: provider/external IDs are exact identities,
+            // not case-insensitive email/domain values.
             var existingKeys = existingCandidates
                 .Select(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}")
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .ToHashSet(StringComparer.Ordinal);
             var existingCandidateByKey = existingCandidates
-                .ToDictionary(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}", StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}", StringComparer.Ordinal);
             var evidenceRepository = scope.ServiceProvider.GetRequiredService<ICrmProspectingEvidenceRepository>();
             var candidateCount = existingCandidates.Count;
             var seenCandidateEmails = existingCandidates
