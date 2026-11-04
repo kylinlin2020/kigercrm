@@ -389,7 +389,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         IsKnownDuplicate: candidate.Status == CrmProspectingCandidateStatus.Duplicate,
                         IsRestrictedOrUnsafeSource: false);
                     var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
-                    var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult);
+                    var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult, evidenceRows);
                     await scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>()
                         .AddAsync(scoreSnapshot, cancellationToken);
 
