@@ -237,6 +237,28 @@ public sealed class CrmShipmentCreationWiringTests
             "Dispatch must acquire and reload the order aggregate concurrency token before mutating lines, then derive status from the persisted fulfillment ledger.");
     }
 
+    [Fact]
+    public void ShipmentCreateRequestLedger_ShouldBeWrittenAfterHeaderAndLinesInsideOneTransaction()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var createStart = source.IndexOf("public async Task<CrmShipmentDto> CreateAsync", StringComparison.Ordinal);
+        var statusStart = source.IndexOf("public async Task<CrmShipmentDto> ChangeStatusAsync", createStart, StringComparison.Ordinal);
+        Assert.True(createStart >= 0 && statusStart > createStart);
+
+        var create = source[createStart..statusStart];
+        var attributeStart = source.LastIndexOf("[UnitOfWork(true)]", createStart, StringComparison.Ordinal);
+        Assert.True(attributeStart >= 0, "Shipment creation must execute inside an explicit transactional unit of work.");
+
+        var headerInsert = create.IndexOf("shipments.AddAsync(shipment, cancellationToken)", StringComparison.Ordinal);
+        var lineInsert = create.IndexOf("shipmentLines.AddAsync(line, cancellationToken)", StringComparison.Ordinal);
+        var requestLedgerInsert = create.LastIndexOf("createRequests.AddAsync(new SysCrmCreateRequest", StringComparison.Ordinal);
+        Assert.True(headerInsert >= 0 && lineInsert > headerInsert && requestLedgerInsert > lineInsert,
+            "The idempotency ledger must not commit before the shipment header and all shipment lines have been staged.");
+        Assert.Contains("PayloadHash = creationRequestFingerprint", create, StringComparison.Ordinal);
+        Assert.Contains("DocumentId = saved.BasicId", create, StringComparison.Ordinal);
+        Assert.Contains("DocumentNumber = saved.ShipmentNumber", create, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
