@@ -57,8 +57,13 @@ public sealed class CrmProspectingDomainService(
         var strategy = await GetStrategyAsync(strategyId, cancellationToken);
         if (strategy.ApprovalStatus != CrmProspectingStrategyApprovalStatus.Draft)
             throw new InvalidOperationException("Only a draft strategy can be submitted for approval.");
+        if (!await strategies.TryTransitionApprovalAsync(strategy.BasicId,
+                CrmProspectingStrategyApprovalStatus.Draft,
+                CrmProspectingStrategyApprovalStatus.PendingApproval,
+                null, DateTimeOffset.UtcNow, cancellationToken))
+            throw new InvalidOperationException("The strategy approval state changed. Refresh before submitting again.");
         strategy.ApprovalStatus = CrmProspectingStrategyApprovalStatus.PendingApproval;
-        return await strategies.UpdateAsync(strategy, cancellationToken);
+        return strategy;
     }
 
     public async Task<SysCrmProspectingStrategy> DecideStrategyAsync(long strategyId, bool approve, long? approverId, CancellationToken cancellationToken = default)
@@ -67,10 +72,18 @@ public sealed class CrmProspectingDomainService(
         if (strategy.ApprovalStatus != CrmProspectingStrategyApprovalStatus.PendingApproval)
             throw new InvalidOperationException("Only a pending strategy can receive an approval decision.");
         if (approverId is <= 0) throw new ArgumentOutOfRangeException(nameof(approverId));
-        strategy.ApprovalStatus = approve ? CrmProspectingStrategyApprovalStatus.Approved : CrmProspectingStrategyApprovalStatus.Rejected;
+        if (approverId is null or <= 0)
+            throw new ArgumentOutOfRangeException(nameof(approverId), "An authenticated approver ID is required.");
+        var nextStatus = approve ? CrmProspectingStrategyApprovalStatus.Approved : CrmProspectingStrategyApprovalStatus.Rejected;
+        var decidedAt = DateTimeOffset.UtcNow;
+        if (!await strategies.TryTransitionApprovalAsync(strategy.BasicId,
+                CrmProspectingStrategyApprovalStatus.PendingApproval,
+                nextStatus, approverId, decidedAt, cancellationToken))
+            throw new InvalidOperationException("The strategy approval state changed. Refresh before deciding again.");
+        strategy.ApprovalStatus = nextStatus;
         strategy.ApprovedBy = approverId;
-        strategy.ApprovedAt = DateTimeOffset.UtcNow;
-        return await strategies.UpdateAsync(strategy, cancellationToken);
+        strategy.ApprovedAt = decidedAt;
+        return strategy;
     }
 
     public async Task<SysCrmProspectingCampaign> ActivateStrategyAsync(long strategyId, CancellationToken cancellationToken = default)
