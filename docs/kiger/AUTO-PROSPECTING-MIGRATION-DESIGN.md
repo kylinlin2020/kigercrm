@@ -418,3 +418,10 @@ The checked-in worker resolves scoped repositories directly and does not establi
 Decision: do not implement lease/fencing or claim transactional candidate writes using guessed framework methods. Before implementation, obtain the exact XiHan Framework package source/XML/API for the version resolved by restore, verify whether all repositories in a unit of work share the same connection/transaction, and prove conditional update affected-row semantics. Then implement a repository-level operation that atomically validates Run status + lease owner + fencing token and writes each candidate in that same transaction. A prior lease read followed by `AddAsync` is explicitly insufficient.
 
 Required verification remains PostgreSQL-backed with independent connections/processes: concurrent claim single winner; live lease exclusion; expiry takeover with strictly increasing fencing token; stale owner cannot renew/complete/fail/write candidates; cancellation/reclaim races; tenant isolation; and rollback of candidate writes when ownership validation fails. No build or runtime tests were performed during this source inspection.
+
+
+## 43. Enforce the raw-result payload cap in UTF-8 bytes (2026-11-04)
+
+The worker serializes provider records to JSON and enforces a 5,000,000-unit storage guard before persisting the payload. A source review found that the guard compared .NET string Length, which counts UTF-16 code units rather than the UTF-8 byte size of the JSON payload. For predominantly non-ASCII provider data, the previous check could accept a payload whose UTF-8 representation exceeded the stated 5 MB limit.
+
+The guard now uses Encoding.UTF8.GetByteCount(serialized), so the measured value matches the encoded payload byte size. The source-wiring regression test asserts that the worker uses this byte-count check. This is a pre-persistence size guard; it does not bound allocations made while a provider constructs its result or while JSON serialization is occurring. No build or test execution was performed, and the test assertion remains source-level until the .NET suite is run.
