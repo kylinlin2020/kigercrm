@@ -76,10 +76,8 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: |
-            frontend/pnpm-workspace.yaml
-            frontend/package.json
+      # 当前仓库没有提交 pnpm-lock.yaml；setup-node 的 pnpm 缓存必须基于锁文件，
+      # 不能用 workspace/package 清单冒充锁文件。待纳入锁文件后再启用依赖缓存。
 
       # 无锁文件可冻结，装的是 catalog 里 ^ 范围内的最新解析结果
       - name: 安装依赖
