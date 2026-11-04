@@ -47,7 +47,7 @@ Enable with `XiHan:CRM:Prospecting:EnableTedProvider=true`.
 - Current behavior: up to 3 pages × 100 releases; locally matched against product/search/ICP keywords.
 - Buyer mapping: only OCDS parties explicitly carrying the `buyer` role are used for buyer contact details. Supplier-only parties are not promoted as buyers.
 - Evidence: official Contracts Finder notice URL, publication time, payload SHA-256, `official_procurement`.
-- Safety: fixed HTTPS host/path, redirects disabled, 30-second timeout, 6 MiB response cap, validated pagination links, and explicit HTTP 429/503 handling.
+- Safety: fixed HTTPS host/path, redirects disabled, 30-second timeout, 6 MiB response cap, validated pagination links, HTTP 429/503 surfaced with Retry-After, and HTTP 403 treated as a source rate-limit response requiring at least a five-minute cooldown (no blind in-request retry).
 
 Enable with `XiHan:CRM:Prospecting:EnableContractsFinderProvider=true`.
 
