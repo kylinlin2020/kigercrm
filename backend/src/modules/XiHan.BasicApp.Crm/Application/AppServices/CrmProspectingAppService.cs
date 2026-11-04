@@ -57,6 +57,28 @@ public sealed class CrmProspectingAppService(
         return ToDto(entity);
     }
 
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<IReadOnlyList<CrmProspectingStrategyDto>> GetStrategiesAsync(long campaignId, CancellationToken cancellationToken = default)
+    {
+        if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
+        var campaign = await campaigns.GetByIdAsync(campaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        var items = await strategies.GetListAsync(x => x.CampaignId == campaignId, cancellationToken);
+        return items.OrderByDescending(x => x.Version).Select(ToDto).ToArray();
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<IReadOnlyList<CrmProspectingRunDto>> GetCampaignRunsAsync(long campaignId, CancellationToken cancellationToken = default)
+    {
+        if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
+        var campaign = await campaigns.GetByIdAsync(campaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        var items = await runs.GetListAsync(x => x.CampaignId == campaignId, cancellationToken);
+        return items.OrderByDescending(x => x.CreatedTime).Select(ToDto).ToArray();
+    }
+
     [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Create)]
     public async Task<CrmProspectingStrategyDto> CreateStrategyVersionAsync(CrmProspectingStrategyInputDto input, CancellationToken cancellationToken = default)
