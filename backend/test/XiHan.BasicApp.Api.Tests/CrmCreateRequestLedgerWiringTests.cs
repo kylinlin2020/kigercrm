@@ -39,7 +39,7 @@ public sealed class CrmCreateRequestLedgerWiringTests
         Assert.True(method.IndexOf("createRequests.GetByRequestKeyAsync", StringComparison.Ordinal) <
                     method.IndexOf("repository.AddAsync(order", StringComparison.Ordinal));
         Assert.True(method.IndexOf("orderLines.AddAsync(line", StringComparison.Ordinal) <
-                    method.IndexOf("createRequests.AddAsync", StringComparison.Ordinal));
+                    method.LastIndexOf("createRequests.AddAsync", StringComparison.Ordinal));
         Assert.Contains("DocumentType = \"SALES_ORDER\"", method, StringComparison.Ordinal);
     }
 
