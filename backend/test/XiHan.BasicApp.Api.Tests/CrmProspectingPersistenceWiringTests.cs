@@ -140,6 +140,8 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains(".ToDictionary(candidate =>", worker, StringComparison.Ordinal);
         Assert.Contains("StringComparer.Ordinal);", worker, StringComparison.Ordinal);
         Assert.Contains("evidenceRepository.GetByCandidateAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("evidence.ProviderRecordId,", worker, StringComparison.Ordinal);
+        Assert.Contains(".ToHashSet();", worker, StringComparison.Ordinal);
         Assert.Contains("var missingEvidence = expectedEvidence", worker, StringComparison.Ordinal);
         Assert.Contains("await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("await repairUnitOfWork.CompleteAsync(cancellationToken)", worker, StringComparison.Ordinal);
