@@ -73,7 +73,7 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("source_url", migration, StringComparison.Ordinal);
         Assert.Contains("raw_payload_hash SET NOT NULL", migration, StringComparison.Ordinal);
         Assert.Contains("source_url_hash", migration, StringComparison.Ordinal);
-        Assert.Contains("md5(source_url)", migration, StringComparison.Ordinal);
+        Assert.Contains("upper(md5(source_url))", migration, StringComparison.Ordinal);
         Assert.Contains("HAVING COUNT(*) > 1", migration, StringComparison.Ordinal);
         Assert.Contains("RAISE EXCEPTION", migration, StringComparison.Ordinal);
     }
