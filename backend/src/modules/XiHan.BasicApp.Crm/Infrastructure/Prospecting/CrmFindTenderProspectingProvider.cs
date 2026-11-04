@@ -147,7 +147,10 @@ public sealed class CrmFindTenderProspectingProvider : ICrmProspectingProvider, 
         if (!string.IsNullOrWhiteSpace(cursor))
             warnings.Add($"Find a Tender has additional pages; this adapter stopped after {MaxPages} pages ({pagesRead * PageSize} maximum notices).");
 
-        return new CrmProspectingProviderResult(records, 0, warnings);
+        return new CrmProspectingProviderResult(records, 0, warnings)
+        {
+            IsComplete = string.IsNullOrWhiteSpace(cursor)
+        };
     }
 
     private static List<string> ExtractKeywords(CrmProspectingProviderRequest request)
