@@ -18,6 +18,9 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>Complete only when the exact lease token/version still owns an unexpired Running Run.</summary>
     Task<bool> CompleteFencedAsync(long runId, Guid leaseToken, long fencingVersion, DateTimeOffset now, string rawResultsJson, int rawRecordCount, int failureCount, string? failureSummary, DateTimeOffset completedAt, CancellationToken cancellationToken = default, int candidateCount = 0);
 
+    /// <summary>Finalize cancellation only when the exact lease token/version still owns the CancelRequested Run.</summary>
+    Task<bool> CancelFencedAsync(long runId, Guid leaseToken, long fencingVersion, DateTimeOffset now, DateTimeOffset completedAt, CancellationToken cancellationToken = default);
+
     /// <summary>Fail only when the exact lease token/version still owns an unexpired Running Run.</summary>
     Task<bool> FailFencedAsync(long runId, Guid leaseToken, long fencingVersion, DateTimeOffset now, string failureSummary, DateTimeOffset completedAt, CancellationToken cancellationToken = default);
 
