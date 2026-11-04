@@ -585,8 +585,13 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("new SugarParameter(\"@cancelledStatus\", (int)CrmProspectingRunStatus.Cancelled)", method, StringComparison.Ordinal);
         Assert.Contains("run.lease_expires_at IS NOT NULL", method, StringComparison.Ordinal);
         Assert.Contains("run.lease_expires_at <= lease_clock.now", method, StringComparison.Ordinal);
+        Assert.Contains("started_at = CASE", method, StringComparison.Ordinal);
+        Assert.Contains("completed_at = CASE", method, StringComparison.Ordinal);
         Assert.Contains("lease_token = NULL", method, StringComparison.Ordinal);
         Assert.Contains("lease_owner = NULL", method, StringComparison.Ordinal);
+        Assert.Contains("lease_expires_at = NULL", method, StringComparison.Ordinal);
+        Assert.Contains("lease_heartbeat_at = NULL", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("fencing_version =", method, StringComparison.Ordinal);
         Assert.DoesNotContain("RecoverExpiredLeasesAsync", worker, StringComparison.Ordinal);
     }
 
