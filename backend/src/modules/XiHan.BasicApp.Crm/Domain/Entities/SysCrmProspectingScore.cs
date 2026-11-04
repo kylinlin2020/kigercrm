@@ -48,4 +48,8 @@ public sealed class SysCrmProspectingScore : BasicAppCreationEntity, IStrictMult
 
     [SugarColumn(ColumnName = "Evaluated_At_Utc", IsNullable = false)]
     public DateTimeOffset EvaluatedAtUtc { get; set; }
+
+    /// <summary>Bounded, immutable references to the exact evidence rows used by this score.</summary>
+    [SugarColumn(ColumnName = "Evidence_References_Json", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = false, DefaultValue = "[]")]
+    public string EvidenceReferencesJson { get; set; } = "[]";
 }
