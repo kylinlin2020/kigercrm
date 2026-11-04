@@ -61,6 +61,50 @@ public sealed class CrmSalesOrderOptimisticConcurrencySqliteIntegrationTests : I
     }
 
     [Fact]
+    public async Task CreateRequestFingerprint_ShouldPersistAndRemainTenantScoped()
+    {
+        const string orderNumber = "SO-IDEMPOTENCY-001";
+        const string fingerprintA = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        const string fingerprintB = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+
+        using (_tenant.Change(TenantId))
+        {
+            var created = await _repository.AddAsync(new SysCrmSalesOrder
+            {
+                OrderNumber = orderNumber,
+                CreationRequestFingerprint = fingerprintA,
+                CustomerId = 1001,
+                CustomerNameSnapshot = "Fingerprint Tenant A",
+                OrderDate = DateTime.UtcNow,
+                Currency = "USD"
+            });
+
+            var replayLookup = await _repository.GetByOrderNumberAsync(orderNumber);
+            Assert.NotNull(replayLookup);
+            Assert.Equal(created.BasicId, replayLookup.BasicId);
+            Assert.Equal(fingerprintA, replayLookup.CreationRequestFingerprint);
+        }
+
+        using (_tenant.Change(TenantId + 1))
+        {
+            var sameNumberOtherTenant = await _repository.AddAsync(new SysCrmSalesOrder
+            {
+                OrderNumber = orderNumber,
+                CreationRequestFingerprint = fingerprintB,
+                CustomerId = 2001,
+                CustomerNameSnapshot = "Fingerprint Tenant B",
+                OrderDate = DateTime.UtcNow,
+                Currency = "USD"
+            });
+
+            var tenantLookup = await _repository.GetByOrderNumberAsync(orderNumber);
+            Assert.NotNull(tenantLookup);
+            Assert.Equal(sameNumberOtherTenant.BasicId, tenantLookup.BasicId);
+            Assert.Equal(fingerprintB, tenantLookup.CreationRequestFingerprint);
+        }
+    }
+
+    [Fact]
     public async Task UpdateAsync_ShouldRejectAStaleSalesOrderVersion()
     {
         using (_tenant.Change(TenantId))
