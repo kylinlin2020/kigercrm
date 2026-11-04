@@ -141,13 +141,7 @@ public sealed class CrmProspectingDomainService(
             ?? throw new InvalidOperationException("The campaign active strategy version is missing or ambiguous.");
         if (strategy.ApprovalStatus != CrmProspectingStrategyApprovalStatus.Approved)
             throw new InvalidOperationException("The active strategy is not approved.");
-        ValidateJsonArray(strategy.ProviderPlanJson, nameof(strategy.ProviderPlanJson));
-        using (var providerPlan = JsonDocument.Parse(strategy.ProviderPlanJson))
-        {
-            if (providerPlan.RootElement.GetArrayLength() == 0)
-                throw new InvalidOperationException("An empty provider plan cannot be executed.");
-        }
-
+        ValidateProviderPlan(strategy.ProviderPlanJson);
         var snapshot = new
         {
             CampaignId = campaign.BasicId,
@@ -242,11 +236,42 @@ public sealed class CrmProspectingDomainService(
         ArgumentException.ThrowIfNullOrWhiteSpace(strategy.Name);
         ArgumentException.ThrowIfNullOrWhiteSpace(strategy.SearchObjective);
         if (strategy.Name.Trim().Length > 160) throw new ArgumentOutOfRangeException(nameof(strategy.Name));
-        ValidateJsonArray(strategy.ProviderPlanJson, nameof(strategy.ProviderPlanJson));
+        ValidateProviderPlan(strategy.ProviderPlanJson);
         if (strategy.ExcludedDomainsJson is not null)
             ValidateJsonArray(strategy.ExcludedDomainsJson, nameof(strategy.ExcludedDomainsJson));
         strategy.Name = strategy.Name.Trim();
         strategy.SearchObjective = strategy.SearchObjective.Trim();
+    }
+
+    private const int MaxProviderPlanEntries = 32;
+    private const int MaxProviderCodeLength = 80;
+
+    private static void ValidateProviderPlan(string json)
+    {
+        ValidateJsonArray(json, nameof(SysCrmProspectingStrategy.ProviderPlanJson));
+        using var document = JsonDocument.Parse(json);
+        var entries = document.RootElement.EnumerateArray().ToArray();
+        if (entries.Length == 0)
+            throw new ArgumentException("Provider plan cannot be empty.", nameof(json));
+        if (entries.Length > MaxProviderPlanEntries)
+            throw new ArgumentOutOfRangeException(nameof(json), $"Provider plan cannot contain more than {MaxProviderPlanEntries} entries.");
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in entries)
+        {
+            if (entry.ValueKind != JsonValueKind.String)
+                throw new ArgumentException("Every provider plan entry must be a string.", nameof(json));
+
+            var providerCode = entry.GetString()?.Trim();
+            if (string.IsNullOrWhiteSpace(providerCode))
+                throw new ArgumentException("Provider plan entries cannot be blank.", nameof(json));
+            if (providerCode.Length > MaxProviderCodeLength)
+                throw new ArgumentOutOfRangeException(nameof(json), $"Provider codes cannot exceed {MaxProviderCodeLength} characters.");
+            if (providerCode.Any(char.IsControl))
+                throw new ArgumentException("Provider codes cannot contain control characters.", nameof(json));
+            if (!seen.Add(providerCode))
+                throw new ArgumentException("Provider plan entries must be unique (case-insensitive).", nameof(json));
+        }
     }
 
     private static void ValidateJsonArray(string json, string name)
