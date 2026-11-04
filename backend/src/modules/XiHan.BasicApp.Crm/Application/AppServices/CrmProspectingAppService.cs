@@ -13,6 +13,7 @@ using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Uow.Attributes;
 using XiHan.Framework.Uow;
+using XiHan.Framework.Uow.Options;
 using XiHan.Framework.Caching.Distributed.Abstracts;
 using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 
@@ -162,13 +163,31 @@ public sealed class CrmProspectingAppService(
         return ToDto(await domain.ActivateStrategyAsync(strategyId, cancellationToken));
     }
 
-    [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public async Task<CrmProspectingRunDto> StartRunAsync(CrmProspectingRunStartDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
         if (input.CampaignId <= 0) throw new ArgumentOutOfRangeException(nameof(input.CampaignId));
         ArgumentException.ThrowIfNullOrWhiteSpace(input.RequestKey);
+
+        try
+        {
+            return await StartRunInUnitOfWorkAsync(input, cancellationToken);
+        }
+        catch (Exception ex) when (IsRunRequestKeyUniqueViolation(ex))
+        {
+            // The first helper's using-scope has fully disposed and rolled back before control reaches here.
+            // Retry once in a fresh UoW: the domain service will return the committed winner for an equal
+            // payload hash, or reject the same RequestKey with a different payload.
+            return await StartRunInUnitOfWorkAsync(input, cancellationToken);
+        }
+    }
+
+    private async Task<CrmProspectingRunDto> StartRunInUnitOfWorkAsync(
+        CrmProspectingRunStartDto input,
+        CancellationToken cancellationToken)
+    {
+        using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true));
         var campaign = await campaigns.GetByIdAsync(input.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
@@ -179,11 +198,29 @@ public sealed class CrmProspectingAppService(
             TenantId = run.TenantId,
             CreatedAt = DateTimeOffset.UtcNow
         };
-        if (unitOfWorkManager.Current is { } uow)
-            uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero));
-        else
-            await runQueue.EnqueueAsync(message, TimeSpan.Zero, cancellationToken);
-        return ToDto(run);
+        uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero));
+        var result = ToDto(run);
+        await uow.CompleteAsync(cancellationToken);
+        return result;
+    }
+
+    private static bool IsRunRequestKeyUniqueViolation(Exception exception)
+    {
+        // Deliberately fail closed for other providers and unrelated unique constraints.
+        // SqlSugar may wrap the provider exception, so inspect the inner-exception chain.
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            var type = current.GetType();
+            if (!string.Equals(type.FullName, "Npgsql.PostgresException", StringComparison.Ordinal))
+                continue;
+
+            var sqlState = type.GetProperty("SqlState")?.GetValue(current) as string;
+            var constraintName = type.GetProperty("ConstraintName")?.GetValue(current) as string;
+            return string.Equals(sqlState, "23505", StringComparison.Ordinal)
+                && string.Equals(constraintName, "ux_crm_prospecting_run_te_rq", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]
