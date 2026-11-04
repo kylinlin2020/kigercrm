@@ -29,6 +29,23 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("(tenant_id, provider_code, retrieved_at_utc DESC)", migration, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ScoreMigration_ShouldEnforceTenantCandidateRelationshipAndScoreBounds()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.19", "5.9.19.sql");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingScore.cs");
+
+        Assert.Contains("tenant_id bigint NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("FOREIGN KEY (tenant_id, candidate_id)", migration, StringComparison.Ordinal);
+        Assert.Contains("CHECK (total BETWEEN 0 AND 100)", migration, StringComparison.Ordinal);
+        Assert.Contains("CHECK (priority BETWEEN 0 AND 3)", migration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prosp_score_tenant_candidate_evaluated", migration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prosp_score_tenant_version_priority", migration, StringComparison.Ordinal);
+        Assert.Contains("IStrictMultiTenantEntity", entity, StringComparison.Ordinal);
+        Assert.Contains("ReviewGatesJson", entity, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
