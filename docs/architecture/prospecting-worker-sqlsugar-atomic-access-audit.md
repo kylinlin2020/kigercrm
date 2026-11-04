@@ -56,7 +56,7 @@ The lease duration and owner identifier must be validated before executing the s
 
 ## Same-transaction fencing requirements
 
-A future Candidate/Evidence/Score write unit must:
+The repository now also exposes `TryLockLeaseForWriteAsync`: it rejects non-PostgreSQL providers and missing ADO transactions, then runs a tenant/token/version/expiry-checked `SELECT ... FOR UPDATE` using database time. The HostedService has not yet been changed to call it. A Candidate/Evidence/Score write unit must:
 
 - run under an explicit transactional UnitOfWork;
 - use the same tenant scope and entity-resolved SqlSugar client/connection;
@@ -65,7 +65,7 @@ A future Candidate/Evidence/Score write unit must:
 - reject a missing, expired, replaced, or mismatched token/version;
 - never treat a preflight read outside the write transaction as authorization.
 
-The worker must stop persistence immediately when heartbeat renewal affects zero rows. Provider calls may need cancellation propagation, but cancellation of a provider call alone is not the fencing boundary.
+The worker must stop persistence immediately when heartbeat renewal affects zero rows. The source-level wiring tests now guard the new atomic claim and transactional row-lock primitives, but those tests have not been run and do not replace PostgreSQL concurrency tests. Provider calls may need cancellation propagation, but cancellation of a provider call alone is not the fencing boundary.
 
 ## Recovery and compatibility gate
 

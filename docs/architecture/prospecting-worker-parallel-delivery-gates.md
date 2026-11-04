@@ -27,11 +27,13 @@ This checklist separates the workstreams so implementation can proceed independe
 
 ## Workstream C — Child-write transaction fence
 
-The existing Candidate/Evidence/Score write path is not protected by the new Run lease methods. A pre-read is insufficient.
+The existing Candidate/Evidence/Score write path is not yet protected by the lease guard. A repository primitive, `TryLockLeaseForWriteAsync`, now requires an active transactional UnitOfWork and executes a tenant/token/version/expiry-checked `SELECT ... FOR UPDATE` using database time. It is not called by the HostedService yet. A pre-read is insufficient.
 
 - [ ] Begin one explicit transactional UnitOfWork.
-- [ ] Verify/lock the Run row using the active tenant-scoped client and exact token/version.
-- [ ] Verify the lease is still live using database time or a consistent database timestamp.
+- [x] Add a repository guard that verifies/locks the Run row using the active tenant-scoped client and exact token/version; it fails closed without an active ADO transaction.
+- [ ] Call the guard before every Candidate/Evidence/Score insert or repair, using the same UnitOfWork and lease identity.
+- [x] Guard checks that the lease is still live using PostgreSQL database time.
+- [ ] Verify takeover and child-write serialization with two independent PostgreSQL connections.
 - [ ] Insert/repair Candidate, Evidence, and initial Score in that same transaction.
 - [ ] Roll back all child writes if the Run lease check fails or any child persistence fails.
 - [ ] Keep existing Candidate review/approval/conversion fields untouched during provenance repair.
@@ -67,4 +69,4 @@ The test fixture must be explicitly opt-in through an environment variable and m
 
 Until Workstreams A–D are implemented and tested, retain the single-active-application-instance restriction. A new `TryClaimLeaseAsync` primitive now performs the database-atomic claim, but the HostedService still calls legacy `ClaimQueuedAsync`. The new primitive is not active until ADO transaction enlistment, PostgreSQL concurrency tests, heartbeat, child-write fencing, recovery, and terminal transitions are complete. The current `RecoverInterruptedAsync` blanket-requeues Running rows and must not be used as multi-instance lease recovery.
 
-A green SQLite test suite, a source-level assertion, or a successful build alone does not authorize multi-instance deployment.
+The new source-level assertions only guard SQL/transaction shape; they are not provider-backed tests. A green SQLite test suite, a source-level assertion, or a successful build alone does not authorize multi-instance deployment.
