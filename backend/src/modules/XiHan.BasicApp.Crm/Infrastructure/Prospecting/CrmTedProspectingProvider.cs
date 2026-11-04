@@ -153,14 +153,26 @@ public sealed class CrmTedProspectingProvider : ICrmProspectingProvider, IDispos
     }
 
     private static List<string> ExtractKeywords(CrmProspectingProviderRequest request)
-        => new[] { request.ProductScope, request.SearchObjective, request.IdealCustomerProfile }
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .SelectMany(value => Regex.Split(value!, @"[^\p{L}\p{N}]+"))
+    {
+        // Product scope is the strongest intent signal. Search objective is a fallback;
+        // generic ICP words such as "public authority" create noisy full-text searches.
+        var source = string.IsNullOrWhiteSpace(request.ProductScope)
+            ? request.SearchObjective
+            : request.ProductScope;
+        var stopWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "procurement", "purchase", "purchasing", "supply", "supplies", "supplier",
+            "suppliers", "buyer", "buyers", "public", "private", "authority", "authorities",
+            "government", "company", "companies", "market", "markets", "target", "customer",
+            "customers", "business", "businesses", "equipment", "solutions"
+        };
+        return Regex.Split(source ?? string.Empty, @"[^\p{L}\p{N}]+")
             .Select(value => value.Trim())
-            .Where(value => value.Length >= 3)
+            .Where(value => value.Length >= 3 && !stopWords.Contains(value))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(8)
             .ToList();
+    }
 
     private static JsonElement? TryGetArray(JsonElement element, string property)
         => element.ValueKind == JsonValueKind.Object &&
