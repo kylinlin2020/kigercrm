@@ -150,6 +150,17 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void RequestLedgerMigration_ShouldEnforceLifecycleAndDigestInvariants()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.31", "5.9.31.sql");
+        Assert.Contains("ck_crm_prospecting_provider_request_http_status", migration, StringComparison.Ordinal);
+        Assert.Contains("ck_crm_prospecting_provider_request_request_key", migration, StringComparison.Ordinal);
+        Assert.Contains("ck_crm_prospecting_provider_request_response_hash", migration, StringComparison.Ordinal);
+        Assert.Contains("ck_crm_prospecting_provider_request_lifecycle", migration, StringComparison.Ordinal);
+        Assert.Contains("ck_crm_prospecting_provider_request_rate_limit", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DiagnosticSanitizer_ShouldRedactUrlCredentialsAndBoundOutput()
     {
         var input = "failed https://example.test/path?token=secret#fragment Authorization: Bearer supersecret api_key=abcdef password=hunter2";
