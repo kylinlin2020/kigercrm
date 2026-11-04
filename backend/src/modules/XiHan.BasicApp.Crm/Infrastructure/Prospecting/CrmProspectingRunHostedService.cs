@@ -371,6 +371,28 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken);
                     }
 
+                    // Persist a conservative, explainable score snapshot in the same transaction
+                    // as Candidate and Evidence. Unknown procurement/product/market facts remain
+                    // false; the scorecard therefore keeps unverified prospects on Hold.
+                    var evaluatedAtUtc = DateTimeOffset.UtcNow;
+                    var scoreInput = new CrmProspectingScoreInput(
+                        HasVerifiableOrganization: false,
+                        HasDirectProcurementSignal: false,
+                        HasDirectProductFit: false,
+                        HasTargetMarketFit: false,
+                        PublishedAtUtc: record.PublishedAtUtc?.ToUniversalTime(),
+                        HasTraceablePrimaryEvidence: evidenceRows.Any(evidence =>
+                            evidence.EvidenceType is "direct" or "registry" &&
+                            evidence.VerificationStatus == "unverified" &&
+                            !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
+                        HasPublicBusinessContact: !string.IsNullOrWhiteSpace(email),
+                        IsKnownDuplicate: candidate.Status == CrmProspectingCandidateStatus.Duplicate,
+                        IsRestrictedOrUnsafeSource: false);
+                    var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
+                    var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult);
+                    await scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>()
+                        .AddAsync(scoreSnapshot, cancellationToken);
+
                     await unitOfWork.CompleteAsync(cancellationToken);
                     existingCandidateByKey[key] = insertedCandidate;
                 }
