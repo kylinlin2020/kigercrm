@@ -281,3 +281,8 @@ Strategy history and campaign Run history now use dedicated repository queries. 
 ## 29. Database-side bounds for candidate review list (2026-11-04)
 
 Candidate listing now uses ICrmProspectingCandidateRepository.GetLatestByRunAsync(runId, status, limit). The repository applies the strict tenant-scoped query, optional enum status filter, descending CreatedTime order, and Take(limit) before ToListAsync. The requested limit is clamped to 1–500. The AppService retains the existing optional integer status API and validates the enum value before converting it to the domain enum. This avoids loading every candidate for a Run merely to return the newest 500.
+
+
+## 30. Database-side bound for Campaign list (2026-11-04)
+
+Campaign listing now calls ICrmProspectingCampaignRepository.GetLatestAccessibleAsync with the resolved data-scope result. The repository returns the newest 500 rows, applying the CreatedTime descending order and Take(limit) in the tenant-scoped database query. For restricted scopes, the accessible owner IDs are de-duplicated and applied as an OwnerUserId IN predicate; an empty accessible-user set returns an empty list without querying. Unrestricted scope omits the owner predicate. This preserves the existing data-scope behavior while avoiding materializing every visible Campaign. Limit is clamped to 1–500.
