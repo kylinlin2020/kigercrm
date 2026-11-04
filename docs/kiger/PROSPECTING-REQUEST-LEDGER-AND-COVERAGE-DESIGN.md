@@ -188,3 +188,8 @@ Provider adapter tests cover TED 429, Find a Tender 503, Contracts Finder 403 an
 ### Implemented: persisted cooldown enforcement from the request ledger
 
 The repository queries the latest future `RetryAfterAt` among tenant-scoped `RateLimited` attempts for the provider, across Runs. Before creating a new Started attempt or making network I/O, the Worker checks this cooldown and skips the provider while it remains active. This reuses the append-only request ledger rather than introducing a second cooldown table. It does not sleep a worker thread or automatically requeue a partially completed Run: a later Run can use the provider after the cooldown expires. Deferred queue scheduling, exponential backoff and circuit-breaker state remain pending.
+
+
+### Implemented: provider response digest
+
+On a structurally valid provider result, the Worker now computes a SHA-256 digest over the returned record collection and stores only that digest in the request ledger's `Response_Hash` column. The helper returns no serialized payload and does not persist provider response bodies. This supports later audit/comparison of repeated responses without expanding sensitive raw-data retention. The digest is a byte-level serialization fingerprint, not a semantic canonicalization guarantee: equivalent objects serialized with different property/value representations may produce different hashes. The unit-test source covers stable equivalent inputs and changed content; execution remains pending with the rest of the .NET suite.
