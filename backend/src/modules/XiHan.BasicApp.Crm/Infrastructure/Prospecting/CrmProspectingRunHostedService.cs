@@ -11,6 +11,8 @@ using XiHan.BasicApp.Saas.Domain.DomainServices;
 using XiHan.Framework.Caching.Distributed.Abstracts;
 using XiHan.Framework.MultiTenancy.Abstractions;
 using XiHan.Framework.Tasks.BackgroundServices;
+using XiHan.Framework.Uow;
+using XiHan.Framework.Uow.Options;
 
 namespace XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 
@@ -270,7 +272,27 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         : candidateEmailDuplicate ? "Email matches another candidate in this run"
                         : candidateWebsiteDuplicate ? "Website domain matches another candidate in this run" : null
                 };
-                await candidates.AddAsync(candidate, cancellationToken);
+                // The background worker is not an HTTP request and must not rely on MVC/AOP
+                // UnitOfWork interception. Use an explicit short transaction for the candidate
+                // and its provenance rows; provider network calls stay outside this transaction.
+                using (var unitOfWork = scope.ServiceProvider
+                    .GetRequiredService<IUnitOfWorkManager>()
+                    .Begin(new XiHanUnitOfWorkOptions(isTransactional: true)))
+                {
+                    var insertedCandidate = await candidates.AddAsync(candidate, cancellationToken);
+                    var evidenceRepository = scope.ServiceProvider.GetRequiredService<ICrmProspectingEvidenceRepository>();
+                    var evidenceRows = CrmProspectingEvidenceFactory.Create(
+                        insertedCandidate.BasicId,
+                        envelope,
+                        DateTimeOffset.UtcNow);
+                    if (evidenceRows.Count > 0)
+                    {
+                        await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken);
+                    }
+
+                    await unitOfWork.CompleteAsync(cancellationToken);
+                }
+
                 existingKeys.Add(key);
                 if (normalizedEmail is not null) seenCandidateEmails.Add(normalizedEmail);
                 if (websiteHost is not null) seenCandidateWebsites.Add(websiteHost);
