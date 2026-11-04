@@ -74,6 +74,57 @@ public sealed class CrmFindTenderProspectingProviderTests
         Assert.Contains(result.Warnings, warning => warning.Contains("buyer name", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Fact]
+    public async Task SearchAsync_FollowsValidatedCursorForAtMostThreePages()
+    {
+        var handler = new StubHandler(request =>
+        {
+            if (request.RequestUri?.Query.Contains("cursor=next-page", StringComparison.Ordinal) == true)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    RequestMessage = new HttpRequestMessage(HttpMethod.Get, request.RequestUri),
+                    Content = new StringContent(
+                        """{"releases":[{"ocid":"ocds-h6vhtk-next","id":"000124-2026","tender":{"title":"Water pump purchase","description":"Industrial water pumps"},"buyer":{"name":"Water Authority"}}]}""",
+                        Encoding.UTF8, "application/json")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                RequestMessage = new HttpRequestMessage(HttpMethod.Get, request.RequestUri),
+                Content = new StringContent(
+                    """{"releases":[],"links":{"next":"https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages?cursor=next-page"}}""",
+                    Encoding.UTF8, "application/json")
+            };
+        });
+        var provider = new CrmFindTenderProspectingProvider(new HttpClient(handler));
+
+        var result = await provider.SearchAsync(new CrmProspectingProviderRequest(
+            22, "water pump", "water pump", "", "", "{}", []));
+
+        Assert.Equal(2, handler.CallCount);
+        Assert.Single(result.Records);
+        Assert.Contains("cursor=next-page", handler.Requests[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SearchAsync_RejectsPaginationLinkToUnapprovedHost()
+    {
+        var handler = new StubHandler(request => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, request.RequestUri),
+            Content = new StringContent(
+                """{"releases":[],"links":{"next":"https://attacker.example/api/1.0/ocdsReleasePackages?cursor=evil"}}""",
+                Encoding.UTF8, "application/json")
+        });
+        var provider = new CrmFindTenderProspectingProvider(new HttpClient(handler));
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            provider.SearchAsync(new CrmProspectingProviderRequest(
+                22, "generator", "generator", "", "", "{}", [])));
+    }
+
     private sealed class StubHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFactory;
@@ -81,12 +132,14 @@ public sealed class CrmFindTenderProspectingProviderTests
         public int CallCount { get; private set; }
         public HttpMethod? RequestMethod { get; private set; }
         public string RequestUri { get; private set; } = string.Empty;
+        public List<string> Requests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             CallCount++;
             RequestMethod = request.Method;
             RequestUri = request.RequestUri?.ToString() ?? string.Empty;
+            Requests.Add(RequestUri);
             return Task.FromResult(_responseFactory(request));
         }
     }
