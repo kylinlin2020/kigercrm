@@ -237,20 +237,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         existingCandidate.BasicId,
                         cancellationToken);
                     var persistedEvidenceKeys = persistedEvidence
-                        .Select(evidence => string.Join("::",
+                        .Select(evidence => (
                             evidence.ProviderCode,
-                            evidence.ProviderRecordId ?? string.Empty,
+                            evidence.ProviderRecordId,
                             evidence.FieldName,
                             evidence.SourceUrl,
-                            evidence.RawPayloadHash ?? string.Empty))
-                        .ToHashSet(StringComparer.Ordinal);
+                            evidence.RawPayloadHash))
+                        .ToHashSet();
                     var missingEvidence = expectedEvidence
-                        .Where(evidence => !persistedEvidenceKeys.Contains(string.Join("::",
+                        .Where(evidence => !persistedEvidenceKeys.Contains((
                             evidence.ProviderCode,
-                            evidence.ProviderRecordId ?? string.Empty,
+                            evidence.ProviderRecordId,
                             evidence.FieldName,
                             evidence.SourceUrl,
-                            evidence.RawPayloadHash ?? string.Empty)))
+                            evidence.RawPayloadHash)))
                         .ToArray();
 
                     if (missingEvidence.Length > 0)
