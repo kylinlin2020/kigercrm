@@ -157,7 +157,7 @@ public sealed class CrmProspectingDomainService(
         var snapshotJson = JsonSerializer.Serialize(snapshot);
         var payloadHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(snapshotJson)));
-        var existing = (await runs.GetListAsync(x => x.RequestKey == requestKey, cancellationToken)).SingleOrDefault();
+        var existing = await runs.GetByRequestKeyAsync(requestKey, cancellationToken);
         if (existing is not null)
         {
             if (!string.Equals(existing.PayloadHash, payloadHash, StringComparison.Ordinal))
