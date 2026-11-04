@@ -7,5 +7,6 @@ public enum CrmProspectingCandidateStatus
     Duplicate = 1,
     Approved = 2,
     Rejected = 3,
-    Converted = 4
+    Converting = 4,
+    Converted = 5
 }
