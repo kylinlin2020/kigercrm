@@ -1,6 +1,6 @@
 # Prospecting Provider Request Ledger and Coverage Design
 
-> Status: request-ledger schema/lifecycle, Worker integration, stale Started recovery, and durable complete-scan coverage checkpoints implemented on `kiger-dev`; coverage checkpoints are not yet used to alter provider query windows. PostgreSQL concurrency acceptance, response cache, deferred retry scheduling and circuit breaker remain pending.
+> Status: request-ledger schema/lifecycle, Worker integration, stale Started recovery, and durable complete-scan coverage checkpoints implemented on `kiger-dev`; UK OCDS and TED adapters now use prior complete-scan checkpoints with a 48-hour overlap; USAspending remains on its fixed 24-month window. PostgreSQL concurrency acceptance, response cache, deferred retry scheduling and circuit breaker remain pending.
 > Target branch: `kiger-dev`. Keep PR #1 Draft and do not modify `main`.
 
 ## 1. Goals
@@ -151,7 +151,7 @@ Do not combine the entire rollout into one migration or enable cache/cursor adva
 
 Already present on `kiger-dev`: bounded provider result retention, per-provider exception isolation, source evidence hashes, cross-Run candidate deduplication, lease/fencing lifecycle, independent heartbeat, and human review before CRM Lead conversion.
 
-Not yet implemented: using coverage checkpoints to pass provider-specific since/cursor values into upstream API requests, response cache, deferred retry scheduling/exponential backoff/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. Tenant-scoped provider cooldown enforcement is implemented by querying persisted RateLimited request attempts before dispatch; it skips the provider while RetryAfterAt is active, but does not automatically defer/requeue the skipped provider. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
+Not yet implemented: USAspending incremental windowing, response cache, deferred retry scheduling/exponential backoff/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. Tenant-scoped provider cooldown enforcement is implemented by querying persisted RateLimited request attempts before dispatch; it skips the provider while RetryAfterAt is active, but does not automatically defer/requeue the skipped provider. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
 
 ### Implemented prerequisite: canonical request fingerprint
 
@@ -227,4 +227,4 @@ A complete scan advances the checkpoint in the same PostgreSQL statement that tr
 
 The Worker refuses to advance coverage when the provider reports record-level failures, reports additional pages, exceeds the remaining per-Run retention cap, or returns null/oversized records. The UK OCDS adapters expose a remaining pagination cursor; TED marks its fixed page-cap response incomplete when another page remains; USAspending requires explicit metadata proving there is no next page. Unknown USAspending pagination metadata is conservatively incomplete. The request ledger records these outcomes as Failed rather than falsely claiming complete coverage.
 
-Important limitation: this is currently a durable complete-scan checkpoint, not yet an upstream incremental-query cursor. The checkpoint is not fed back as a `since`/cursor parameter to the adapters; existing rolling-window and fixed-window provider query behavior is unchanged. Provider-specific incremental query semantics must be implemented separately before describing the feature as incremental data retrieval.
+The Worker reads the prior checkpoint for the same tenant/Campaign/Provider/search-scope fingerprint and supplies `CoverageSinceUtc = LastSuccessfulScanAt - 48 hours`. Contracts Finder uses this as `publishedFrom`, Find a Tender as `updatedFrom`, and TED as its publication-date lower bound. The 48-hour overlap protects against delayed publication/update and clock skew; deduplication remains the backstop. USAspending deliberately ignores the value because its current 24-month award-period query is not yet proven to support an equivalent incremental update watermark. The checkpoint is therefore an incremental lower bound only for the UK OCDS and TED adapters, not a universal cursor across all providers.
