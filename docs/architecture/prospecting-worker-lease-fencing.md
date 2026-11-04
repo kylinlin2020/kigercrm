@@ -107,8 +107,9 @@ The Run repository now exposes three conditional-update primitives:
 - `RenewLeaseAsync`: matches tenant-scoped Run ID, Running status, exact token, exact fencing version, and an unexpired lease; validates a positive lease duration no greater than one hour.
 - `CompleteFencedAsync`: matches the same ownership predicate, writes terminal result fields, and clears owner/token/expiry/heartbeat while retaining the fencing version for audit.
 - `FailFencedAsync`: applies the same predicate for failure and clears active lease metadata.
+- `CancelFencedAsync`: finalizes `CancelRequested -> Cancelled` only for the exact token/version while its lease remains valid; cancellation intent cannot be turned into success or failure by a stale worker.
 
-SQLite integration test cases have been added for wrong token, wrong version, expired lease, successful heartbeat, successful terminal completion, and lease cleanup.
+SQLite integration test cases have been added for wrong token, wrong version, expired lease, tenant isolation, successful heartbeat, successful completion/failure/cancellation, cancellation intent preservation, and lease cleanup.
 
 **Important boundary:** these methods are not yet called by the hosted worker. The existing `ClaimQueuedAsync`, blanket startup recovery, candidate/evidence/score transaction, and current Complete/Fail paths remain unchanged. In particular, no lease claim currently creates a token or increments the fencing version. These primitives therefore do not yet make worker execution safe for multiple instances. Tests are authored but have not been run.
 
