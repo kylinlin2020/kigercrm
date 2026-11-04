@@ -6,7 +6,7 @@ Status: independent heartbeat wired into the HostedService on 2026-11-04. Atomic
 
 ## Current safety boundary
 
-The HostedService now uses PostgreSQL lease claim, token/version renewal, transactional child-write fences, fenced terminal transitions and expired-lease recovery. It remains single-worker operationally until the PostgreSQL race suite passes. In addition to work-boundary renewal, an independent two-minute heartbeat uses a separate DI scope and repository instance. If renewal returns false or throws, it cancels the linked Run token; subsequent work stops and database fencing remains the final stale-writer guard.
+The HostedService now uses PostgreSQL lease claim, token/version renewal, transactional child-write fences, fenced terminal transitions and expired-lease recovery. It remains single-worker operationally until the PostgreSQL race suite passes. In addition to work-boundary renewal, an independent two-minute heartbeat uses a separate DI scope and repository instance. If renewal returns false or throws, it cancels the linked Run token; subsequent work stops and database fencing remains the final stale-writer guard. The heartbeat first reads Run status: when it sees `CancelRequested`, it stops renewing without cancelling the processing token, allowing the worker's normal post-provider cancellation path to finalize through the fenced Cancel transition.
 
 Redis is a delivery mechanism only. PostgreSQL must be authoritative for ownership and stale-worker rejection.
 
