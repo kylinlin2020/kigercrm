@@ -60,6 +60,7 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("CrmProspectingRequestFingerprint.Create(providerCode, request)", worker, StringComparison.Ordinal);
         Assert.Contains("GetActiveCooldownUntilAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("provider cooldown is active", worker, StringComparison.Ordinal);
+        Assert.True(worker.IndexOf("GetActiveCooldownUntilAsync(", StringComparison.Ordinal) < worker.IndexOf("CreateStartedAsync(", StringComparison.Ordinal));
     }
 
     [Fact]
