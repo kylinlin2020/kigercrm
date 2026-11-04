@@ -129,7 +129,10 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Duplicate candidate approval requires an explicit duplicate override", app, StringComparison.Ordinal);
         Assert.Contains("ConvertApprovedCandidateToLeadAsync", app, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingCandidateStatus.Approved", app, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingCandidateStatus.Converting", app, StringComparison.Ordinal);
+        Assert.Contains("Claim the candidate inside this transactional UoW", app, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingCandidateStatus.Rejected", app, StringComparison.Ordinal);
+        Assert.Contains("Converting = 4", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs"), StringComparison.Ordinal);
         Assert.Contains("EnsureRecordAccessibleAsync", app, StringComparison.Ordinal);
         Assert.Contains("EnsureCreatableAsync(typeof(SysCrmLead)", app, StringComparison.Ordinal);
         Assert.Contains("leadDomain.CreateAsync", app, StringComparison.Ordinal);
