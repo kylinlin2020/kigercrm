@@ -626,7 +626,8 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("lease_expires_at = NULL", method, StringComparison.Ordinal);
         Assert.Contains("lease_heartbeat_at = NULL", method, StringComparison.Ordinal);
         Assert.DoesNotContain("fencing_version =", method, StringComparison.Ordinal);
-        Assert.DoesNotContain("RecoverExpiredLeasesAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("RecoverExpiredLeasesAsync(cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("RecoverExpiredLeasesAsync(cancellationToken)", worker, StringComparison.Ordinal);
     }
 
     [Fact]
