@@ -124,6 +124,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("ADD COLUMN IF NOT EXISTS raw_results_json text", migration, StringComparison.Ordinal);
         Assert.Contains("Raw result cap reached", worker, StringComparison.Ordinal);
         Assert.Contains("5_000_000", worker, StringComparison.Ordinal);
+        Assert.Contains("Encoding.UTF8.GetByteCount(serialized) > 5_000_000", worker, StringComparison.Ordinal);
         Assert.Contains("PendingReview", candidate, StringComparison.Ordinal);
         Assert.Contains("DuplicateLeadId", candidate, StringComparison.Ordinal);
         Assert.Contains("CrmLeadDuplicateMatcher.NormalizeEmail", worker, StringComparison.Ordinal);
