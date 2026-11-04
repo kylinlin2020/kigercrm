@@ -86,8 +86,6 @@ public sealed class CrmSalesOrderAppService(
             var existingRequest = await createRequests.GetByRequestKeyAsync("SALES_ORDER", requestKey, cancellationToken);
             if (existingRequest is not null)
             {
-                if (!string.Equals(existingRequest.PayloadHash, creationRequestFingerprint, StringComparison.Ordinal))
-                    throw new InvalidOperationException("The sales-order idempotency key was already used with a different create request.");
                 if (!existingRequest.DocumentId.HasValue || string.IsNullOrWhiteSpace(existingRequest.DocumentNumber))
                     throw new InvalidOperationException("The sales-order request ledger contains an incomplete committed record; manual repair is required.");
 
@@ -96,6 +94,14 @@ public sealed class CrmSalesOrderAppService(
                 await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, replayOrder.OwnerUserId, cancellationToken);
                 if (!string.Equals(replayOrder.OrderNumber, existingRequest.DocumentNumber, StringComparison.Ordinal))
                     throw new InvalidOperationException("The sales-order request ledger does not match its linked document.");
+
+                // When owner was omitted, its effective value came from the customer at first creation.
+                // Recompute with the persisted owner so later customer reassignment does not break replay.
+                var replayFingerprint = CreateRequestFingerprint(
+                    input, input.OwnerUserId ?? replayOrder.OwnerUserId, currency,
+                    customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+                if (!string.Equals(existingRequest.PayloadHash, replayFingerprint, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The sales-order idempotency key was already used with a different create request.");
                 return ToListItem(replayOrder);
             }
 
@@ -114,15 +120,18 @@ public sealed class CrmSalesOrderAppService(
             if (existingOrder is not null)
             {
                 await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existingOrder.OwnerUserId, cancellationToken);
+                var legacyFingerprint = CreateRequestFingerprint(
+                    input, input.OwnerUserId ?? existingOrder.OwnerUserId, currency,
+                    customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
                 if (existingOrder.CreationRequestFingerprint is null ||
-                    !string.Equals(existingOrder.CreationRequestFingerprint, creationRequestFingerprint, StringComparison.Ordinal))
+                    !string.Equals(existingOrder.CreationRequestFingerprint, legacyFingerprint, StringComparison.Ordinal))
                     throw new InvalidOperationException("The sales-order idempotency key was already used with a different or unverifiable create request.");
 
                 await createRequests.AddAsync(new SysCrmCreateRequest
                 {
                     DocumentType = "SALES_ORDER",
                     RequestKey = requestKey,
-                    PayloadHash = creationRequestFingerprint,
+                    PayloadHash = legacyFingerprint,
                     DocumentId = existingOrder.BasicId,
                     DocumentNumber = existingOrder.OrderNumber
                 }, cancellationToken);
