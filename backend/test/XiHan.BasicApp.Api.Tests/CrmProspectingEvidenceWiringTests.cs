@@ -172,6 +172,35 @@ public sealed class CrmProspectingEvidenceWiringTests
             $"Evidence identity index could exceed PostgreSQL's B-tree tuple limit: {worstCaseTupleBytes} bytes.");
     }
 
+    [Fact]
+    public void ProspectingWorker_EvidenceRepair_ShouldCompareTheFullIdentityTupleInsideATransaction()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        // The DB unique identity is (tenant, candidate, provider, provider record, field,
+        // source URL hash, raw payload hash). The worker compares the non-tenant/candidate
+        // components after loading evidence for one tenant-scoped candidate.
+        foreach (var member in new[]
+        {
+            "evidence.ProviderCode",
+            "evidence.ProviderRecordId",
+            "evidence.FieldName",
+            "evidence.SourceUrlHash",
+            "evidence.RawPayloadHash"
+        })
+        {
+            Assert.Contains(member, worker, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("var missingEvidence = expectedEvidence", worker, StringComparison.Ordinal);
+        Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", worker, StringComparison.Ordinal);
+        var begin = worker.IndexOf("Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", StringComparison.Ordinal);
+        var insert = worker.IndexOf("AddRangeAsync(missingEvidence, cancellationToken)", begin, StringComparison.Ordinal);
+        var commit = worker.IndexOf("repairUnitOfWork.CompleteAsync(cancellationToken)", insert, StringComparison.Ordinal);
+        Assert.True(begin >= 0 && insert > begin && commit > insert,
+            "Evidence repair must add missing rows and commit them within the same explicit transaction.");
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
