@@ -1,3 +1,5 @@
+using XiHan.BasicApp.Crm.Domain.Prospecting;
+
 namespace XiHan.BasicApp.Api.Tests;
 
 /// <summary>Source-level contract guards for the provider request-attempt ledger schema.</summary>
