@@ -70,6 +70,7 @@ export default {
       "noCandidates": "इस रन के लिए कोई उम्मीदवार नहीं",
       "pendingReview": "समीक्षा लंबित",
       "duplicate": "डुप्लिकेट",
+      "convertedStatus": "परिवर्तित",
       "converted": "उम्मीदवार CRM Lead में बदला गया",
       "company": "कंपनी",
       "contact": "संपर्क",
