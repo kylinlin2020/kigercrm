@@ -542,25 +542,91 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 // Optional authoritative identity enrichment is performed only after a
                 // Candidate exists. Exact normalized legal-name matches only; ambiguity or
                 // registry unavailability never blocks procurement evidence or Candidate review.
+                CrmProspectingLegalEntityMatch? identity = null;
                 if (candidateWasInserted && identityResolver is not null && gleifLookups < maxGleifLookupsPerRun)
                 {
-                    gleifLookups++;
-                    CrmProspectingLegalEntityMatch? identity = null;
-                    try
+                    var identityLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
+                    const string identityProviderCode = "gleif_identity";
+                    var identityCooldown = await identityLedger.GetActiveCooldownUntilAsync(
+                        identityProviderCode, DateTimeOffset.UtcNow, cancellationToken);
+                    if (identityCooldown is DateTimeOffset identityCooldownUntil)
                     {
-                        identity = await identityResolver.ResolveExactAsync(insertedCandidate.CompanyName, cancellationToken);
+                        AddBoundedWarning(warnings,
+                            $"GLEIF identity lookup skipped until {identityCooldownUntil:O} because its provider cooldown is active.");
                     }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    else
                     {
-                        throw;
+                        gleifLookups++;
+                        var identityRequest = new CrmProspectingProviderRequest(
+                            run.BasicId,
+                            "gleif_exact_identity_lookup",
+                            insertedCandidate.CompanyName,
+                            string.Empty,
+                            string.Empty,
+                            "{}",
+                            Array.Empty<string>());
+                        var identityRequestKey = CrmProspectingRequestFingerprint.Create(identityProviderCode, identityRequest);
+                        var identityAttempt = await identityLedger.CreateStartedAsync(
+                            run.BasicId, identityProviderCode, identityRequestKey, DateTimeOffset.UtcNow, cancellationToken);
+                        var identityTimer = System.Diagnostics.Stopwatch.StartNew();
+                        var identityAttemptFinalized = false;
+                        try
+                        {
+                            identity = await identityResolver.ResolveExactAsync(insertedCandidate.CompanyName, cancellationToken);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            identityTimer.Stop();
+                            if (!await identityLedger.TryFinalizeAsync(
+                                identityAttempt.BasicId, "Cancelled", DateTimeOffset.UtcNow, identityTimer.ElapsedMilliseconds,
+                                failureCode: "operation_cancelled", failureSummary: "GLEIF identity lookup was cancelled.",
+                                cancellationToken: CancellationToken.None))
+                                throw new InvalidOperationException("Could not finalize the cancelled GLEIF request attempt.");
+                            identityAttemptFinalized = true;
+                            throw;
+                        }
+                        catch (CrmProspectingProviderRateLimitException rateLimitException)
+                        {
+                            identityTimer.Stop();
+                            if (!await identityLedger.TryFinalizeAsync(
+                                identityAttempt.BasicId, "RateLimited", DateTimeOffset.UtcNow, identityTimer.ElapsedMilliseconds,
+                                httpStatus: rateLimitException.HttpStatus,
+                                failureCode: "provider_rate_limited",
+                                failureSummary: BuildFailureSummary(rateLimitException),
+                                retryAfterAt: rateLimitException.RetryAfterAt,
+                                cancellationToken: CancellationToken.None))
+                                throw new InvalidOperationException("Could not finalize the rate-limited GLEIF request attempt.");
+                            identityAttemptFinalized = true;
+                            AddBoundedWarning(warnings, $"GLEIF identity lookup for candidate {insertedCandidate.BasicId} was rate limited.");
+                            Logger.LogWarning(rateLimitException, "GLEIF identity lookup was rate limited for Candidate {CandidateId}", insertedCandidate.BasicId);
+                        }
+                        catch (Exception identityException)
+                        {
+                            identityTimer.Stop();
+                            if (!await identityLedger.TryFinalizeAsync(
+                                identityAttempt.BasicId, "Failed", DateTimeOffset.UtcNow, identityTimer.ElapsedMilliseconds,
+                                failureCode: "identity_lookup_failed",
+                                failureSummary: BuildFailureSummary(identityException),
+                                cancellationToken: CancellationToken.None))
+                                throw new InvalidOperationException("Could not finalize the failed GLEIF request attempt.", identityException);
+                            identityAttemptFinalized = true;
+                            AddBoundedWarning(warnings, $"GLEIF identity lookup for candidate {insertedCandidate.BasicId} failed: {identityException.GetType().Name}.");
+                            Logger.LogWarning(identityException, "GLEIF identity lookup failed for Candidate {CandidateId}", insertedCandidate.BasicId);
+                        }
+
+                        if (!identityAttemptFinalized)
+                        {
+                            identityTimer.Stop();
+                            var responseHash = identity?.RawPayloadHash;
+                            if (!await identityLedger.TryFinalizeAsync(
+                                identityAttempt.BasicId, "Succeeded", DateTimeOffset.UtcNow, identityTimer.ElapsedMilliseconds,
+                                resultCount: identity is null ? 0 : 1,
+                                responseHash: responseHash,
+                                cancellationToken: CancellationToken.None))
+                                throw new InvalidOperationException("Could not finalize the successful GLEIF request attempt.");
+                        }
                     }
-                    catch (Exception identityException)
-                    {
-                        // Registry lookup failures are non-fatal; persistence/fencing failures below
-                        // are deliberately outside this catch and must fail the Run.
-                        AddBoundedWarning(warnings, $"GLEIF identity lookup for candidate {insertedCandidate.BasicId} failed: {identityException.GetType().Name}.");
-                        Logger.LogWarning(identityException, "GLEIF identity lookup failed for Candidate {CandidateId}", insertedCandidate.BasicId);
-                    }
+                }
 
                     if (identity is not null &&
                         CrmProspectingEvidenceFactory.TryGetCanonicalSourceUrl(identity.SourceUrl, out var canonicalSourceUrl))
