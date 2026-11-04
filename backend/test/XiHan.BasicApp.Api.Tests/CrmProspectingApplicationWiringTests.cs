@@ -193,6 +193,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Status = CrmProspectingCandidateStatus.Converting", repository, StringComparison.Ordinal);
         Assert.Contains("TryClaimForConversionAsync(candidate.BasicId", app, StringComparison.Ordinal);
         Assert.Contains("already being converted", app, StringComparison.Ordinal);
+        Assert.Contains("leads.GetByIdAsync(candidate.ConvertedLeadId.Value", app, StringComparison.Ordinal);
+        Assert.Contains("Converted prospecting candidate is missing its Lead reference.", app, StringComparison.Ordinal);
+        Assert.Contains("candidate.Status = CrmProspectingCandidateStatus.Converted", app, StringComparison.Ordinal);
     }
 
     [Fact]
