@@ -12,6 +12,6 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>List queued run IDs in creation order for startup/queue-loss recovery in the current tenant scope.</summary>
     Task<IReadOnlyList<long>> GetQueuedIdsAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Recover interrupted work in the current tenant scope: Running returns to Queued; CancelRequested becomes Cancelled.</summary>
+    /// <summary>Single-active-worker startup recovery only: Running returns to Queued; CancelRequested becomes Cancelled. Do not run concurrently with live workers; multi-instance recovery requires leases/fencing.</summary>
     Task<int> RecoverInterruptedAsync(DateTimeOffset recoveredAt, CancellationToken cancellationToken = default);
 }
