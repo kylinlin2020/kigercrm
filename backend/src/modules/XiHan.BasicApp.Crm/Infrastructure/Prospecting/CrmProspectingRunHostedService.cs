@@ -147,6 +147,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             }
 
             var leadRepository = scope.ServiceProvider.GetRequiredService<ICrmLeadRepository>();
+            var duplicateEmails = raw
+                .Select(envelope => NormalizeCandidateEmail(envelope.Record))
+                .Where(value => value is not null)
+                .Select(value => value!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var duplicateWebsiteHosts = raw
+                .Select(envelope => NormalizeCandidateWebsiteHost(envelope.Record))
+                .Where(value => value is not null)
+                .Select(value => value!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var existingLeadMatches = await leadRepository.GetDuplicateMatchesAsync(
+                duplicateEmails, duplicateWebsiteHosts, cancellationToken);
             var existingKeys = existingCandidates
                 .Select(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}")
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -192,12 +206,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (website?.Length > 500) website = website[..500];
                 var websiteHost = CrmLeadDuplicateMatcher.NormalizeDomain(website);
 
-                var matches = await leadRepository.GetListAsync(lead =>
-                    (normalizedEmail != null && lead.DuplicateEmailNormalized == normalizedEmail)
-                    || (websiteHost != null && lead.WebsiteHost == websiteHost), cancellationToken);
                 var candidateEmailDuplicate = normalizedEmail is not null && seenCandidateEmails.Contains(normalizedEmail);
                 var candidateWebsiteDuplicate = websiteHost is not null && seenCandidateWebsites.Contains(websiteHost);
-                var duplicate = matches
+                var duplicate = existingLeadMatches
                     .Select(lead => new
                     {
                         Lead = lead,
@@ -276,6 +287,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 Logger.LogError(persistException, "Could not persist prospecting Run failure: {RunId}", message.RunId);
             }
         }
+    }
+
+    private static string? NormalizeCandidateEmail(CrmProspectingRawRecord record)
+    {
+        var email = string.IsNullOrWhiteSpace(record.BusinessEmail) ? null : record.BusinessEmail.Trim();
+        if (email?.Length > 254) email = null;
+        return CrmLeadDuplicateMatcher.NormalizeEmail(email);
+    }
+
+    private static string? NormalizeCandidateWebsiteHost(CrmProspectingRawRecord record)
+    {
+        var website = string.IsNullOrWhiteSpace(record.Website) ? null : record.Website.Trim();
+        if (website?.Length > 500) website = website[..500];
+        return CrmLeadDuplicateMatcher.NormalizeDomain(website);
     }
 
     private static IDynamicServiceConfig BuildConfig(IOptions<XiHanBackgroundServiceOptions> options)
