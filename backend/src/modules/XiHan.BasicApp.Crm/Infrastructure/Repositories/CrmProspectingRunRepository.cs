@@ -140,6 +140,38 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             cancellationToken);
     }
 
+    public async Task<bool> CancelFencedAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        DateTimeOffset now,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await UpdateAsync(
+            run => new SysCrmProspectingRun
+            {
+                Status = CrmProspectingRunStatus.Cancelled,
+                CompletedAt = completedAt,
+                LeaseOwner = null,
+                LeaseToken = null,
+                LeaseExpiresAt = null,
+                LeaseHeartbeatAt = null
+            },
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.CancelRequested &&
+                run.LeaseToken == leaseToken &&
+                run.FencingVersion == fencingVersion &&
+                run.LeaseExpiresAt != null &&
+                run.LeaseExpiresAt > now,
+            cancellationToken);
+    }
+
     public async Task<bool> FailFencedAsync(
         long runId,
         Guid leaseToken,
