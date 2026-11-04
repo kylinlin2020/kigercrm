@@ -80,13 +80,13 @@ Source-wiring tests are useful regression guards but are not substitutes for rep
 1. Take and verify a restorable backup of the test database before starting.
 2. Confirm the database's recorded migration version and whether the CRM tables exist.
 3. Run the application using the normal upgrade mechanism against the test database.
-4. Inspect the migration ledger and confirm each applicable migration from 5.9.2 through 5.9.7 is recorded as successful.
+4. Inspect the migration ledger and confirm each applicable migration from 5.9.2 through 5.9.9 is recorded as successful.
 5. Inspect the resulting columns, constraints, and indexes, especially:
    - Lead normalized email, phone-digit, and website-host keys and tenant-prefixed lookup indexes.
    - Contact primary-customer slot and uniqueness behavior.
    - Quote version, source-quote, and source-quote-line uniqueness.
    - Order fulfillment revision and reserved/shipped quantity columns and check constraint.
-   - Permanent tenant-scoped quote/version, sales-order-number, and shipment-number uniqueness.
+   - Permanent tenant-scoped quote/version, sales-order-number, and shipment-number uniqueness.\n   - Nullable `creation_request_fingerprint` columns on sales orders (5.9.9) and shipments (5.9.8); existing rows must remain NULL.
 6. Re-run startup after successful migration and verify it is safe/idempotent.
 7. Test a disposable legacy database containing a deliberate preflight conflict. The migration must stop with an actionable error and must not leave a partially upgraded schema.
 8. Verify both platform and isolated tenant database paths. Scripts touching platform-only tables must safely skip when those tables do not exist in a tenant database.
@@ -150,7 +150,7 @@ Use non-production sample data and retain request/response correlation IDs with 
 | Reuse a numbering key with a different payload | Rejected |
 | Lose the response after CRM document commit and retry | Current numbering key alone does not guarantee full document replay; verify the documented duplicate conflict behavior |
 
-The final row is a known limitation: number-allocation idempotency is not yet equivalent to atomic CRM document-create replay. Do not describe it as full create idempotency until a durable request-key-to-document mapping is implemented and tested.
+The current fingerprint mechanism covers sequential retries only when server-side numbering is used. It is not a general request-key ledger, does not cover manually numbered creates, and does not yet replay the winner for concurrent first submissions. PostgreSQL multi-connection integration tests and explicit concurrent-winner recovery remain release blockers.
 
 ## 9. Evidence and release decision
 
