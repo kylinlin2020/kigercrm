@@ -37,4 +37,7 @@ public sealed class SysCrmProspectingCampaign : BasicAppFullAuditedEntity, IStri
 
     [SugarColumn(ColumnName = "Active_Strategy_Version", IsNullable = true)]
     public int? ActiveStrategyVersion { get; set; }
+
+    [SugarColumn(ColumnName = "Strategy_Version_Sequence", IsNullable = false, DefaultValue = "0")]
+    public int StrategyVersionSequence { get; set; }
 }
