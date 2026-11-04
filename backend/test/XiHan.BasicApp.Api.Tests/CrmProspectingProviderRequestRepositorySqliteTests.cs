@@ -204,7 +204,8 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
         using (_tenant.Change(TenantId))
             await Assert.ThrowsAsync<NotSupportedException>(
                 () => _repository.TryFinalizeSuccessWithCoverageAsync(
-                    9001, 7001, new string('A', 64), DateTimeOffset.UtcNow, 10, 0,
+                    9001, 3001, 7001, Guid.NewGuid(), 1,
+                    new string('A', 64), DateTimeOffset.UtcNow, 10, 0,
                     new string('B', 64)));
     }
 
