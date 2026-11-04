@@ -100,3 +100,33 @@ The Worker now keeps the Run/provider/external-record identity as a typed `(Prov
 ## Multi-process lease implementation specification
 
 The required PostgreSQL lease/fencing design is documented in [PROSPECTING-WORKER-LEASE-DESIGN.md](PROSPECTING-WORKER-LEASE-DESIGN.md). It defines the owner incarnation, expiry, heartbeat, monotonic generation, row-lock fencing for Candidate/Evidence/Score writes, and independent-connection acceptance tests. It is a design specification, not implemented functionality. Continue deploying exactly one active prospecting Worker until those changes and tests are complete.
+
+
+## 2026-11-04 Evidence uniqueness conflict behavior and recovery gate
+
+Evidence writes are protected by a tenant-scoped composite unique index. The Worker has two transactional write paths:
+
+- New Candidate: Candidate, its Evidence rows, and the first Score snapshot are inserted in one explicit transaction.
+- Existing Candidate repair: missing Evidence rows and a missing first Score snapshot are inserted in one explicit transaction.
+
+A unique-key collision in either path must be treated as a transaction failure. Do not catch the database exception inside the failed UnitOfWork and continue querying or writing through that same transaction/connection; its state may already be aborted. Do not treat every database exception as an idempotent duplicate.
+
+**Current limitation:** the existing-Candidate repair path does not yet open a fresh UnitOfWork, reload the Evidence identity tuple, and prove that every conflicting row was committed by another writer. The exception currently reaches the Worker's outer failure handler, which marks the Run Failed. Startup recovery only requeues Running Runs, not Failed Runs. Therefore an Evidence unique-key collision is not yet an automatically recovered retry.
+
+Required implementation before claiming automatic collision recovery:
+
+1. Dispose/rollback the failed UnitOfWork completely.
+2. Classify the conflict narrowly as the Evidence identity unique constraint (not a generic SQL or SqlSugar exception).
+3. Open a fresh UnitOfWork and reload the full identity tuple: provider code, provider record ID, field name, source URL hash, and raw payload hash, scoped by the already tenant-scoped Candidate.
+4. Treat the collision as idempotent only if every expected identity is now present and matches exactly.
+5. Re-evaluate whether the Score snapshot still needs repair; a rolled-back transaction may have rolled back both Evidence and Score.
+6. Retry only the still-missing rows in a new transaction, with a small bounded retry count. Propagate unrelated database errors.
+7. Add SQLite integration coverage for rollback/reload/idempotent success and PostgreSQL two-connection tests for the actual unique-constraint race.
+
+Until this is implemented, do not manually flip a Failed Run back to Queued in production. Preserve the failed Run and logs for diagnosis; rerun only through a supported application workflow after the collision has been resolved. This gate is separate from the single-worker deployment rule.
+
+## 2026-11-04 Lead conversion concurrent retry boundary
+
+Lead conversion uses a transactional application UnitOfWork and writes the source Lead ID onto Customer under a tenant-scoped unique index. If a competing conversion wins and commits, a subsequent request reloads the Lead, verifies its existing Customer/Contact references, and returns the converted Lead without creating new records. A source-contract test now guards this idempotent retry branch.
+
+The losing request in a simultaneous race is **not yet guaranteed to transparently return the winner's result in the same request**: the unique-index exception may surface to that caller. The database constraint prevents duplicate Customers; a client retry after the winner commits should take the already-converted branch. A PostgreSQL two-connection service-level test and narrowly classified conflict recovery are still required before describing this as seamless concurrent conversion.
