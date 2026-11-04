@@ -60,6 +60,8 @@ public sealed class CrmProspectingEvidenceFactoryTests
     [InlineData("https://127.0.0.1/private")]
     [InlineData("https://user:password@buyer.example/tender/1")]
     [InlineData("https://service.localhost/private")]
+    [InlineData("https://localhost./private")]
+    [InlineData("https://service.localhost./private")]
     public void Create_ShouldRejectUnsafeOrNonHttpsSource(string sourceUrl)
     {
         var record = new CrmProspectingRawRecord("1", "source", "title", "buyer", null, null, null, null)
