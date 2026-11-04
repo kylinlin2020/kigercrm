@@ -1,0 +1,139 @@
+using System.Text.Json;
+using XiHan.BasicApp.Crm.Domain.DomainServices;
+using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
+using XiHan.BasicApp.Crm.Domain.Repositories;
+
+namespace XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
+
+/// <summary>Enforces immutable strategy versions and explicit approval before activation.</summary>
+public sealed class CrmProspectingDomainService(
+    ICrmProspectingCampaignRepository campaigns,
+    ICrmProspectingStrategyRepository strategies) : ICrmProspectingDomainService
+{
+    public async Task<SysCrmProspectingCampaign> CreateCampaignAsync(SysCrmProspectingCampaign campaign, CancellationToken cancellationToken = default)
+    {
+        ValidateCampaign(campaign);
+        campaign.Status = CrmProspectingCampaignStatus.Draft;
+        return await campaigns.AddAsync(campaign, cancellationToken);
+    }
+
+    public async Task<SysCrmProspectingCampaign> UpdateCampaignAsync(SysCrmProspectingCampaign campaign, CancellationToken cancellationToken = default)
+    {
+        if (campaign.BasicId <= 0) throw new ArgumentOutOfRangeException(nameof(campaign.BasicId));
+        ValidateCampaign(campaign);
+        var existing = await campaigns.GetByIdAsync(campaign.BasicId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        if (existing.Status is CrmProspectingCampaignStatus.Completed or CrmProspectingCampaignStatus.Archived)
+            throw new InvalidOperationException("Completed or archived campaigns cannot be edited.");
+        existing.Name = campaign.Name;
+        existing.Objective = campaign.Objective;
+        existing.ProductScope = campaign.ProductScope;
+        existing.TargetMarkets = campaign.TargetMarkets;
+        existing.IdealCustomerProfile = campaign.IdealCustomerProfile;
+        existing.OwnerUserId = campaign.OwnerUserId;
+        return await campaigns.UpdateAsync(existing, cancellationToken);
+    }
+
+    public async Task<SysCrmProspectingStrategy> CreateStrategyVersionAsync(SysCrmProspectingStrategy strategy, CancellationToken cancellationToken = default)
+    {
+        var campaign = await campaigns.GetByIdAsync(strategy.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        if (campaign.Status is CrmProspectingCampaignStatus.Completed or CrmProspectingCampaignStatus.Archived)
+            throw new InvalidOperationException("A completed or archived campaign cannot receive a new strategy.");
+        ValidateStrategy(strategy);
+        var versions = await strategies.GetListAsync(x => x.CampaignId == strategy.CampaignId, cancellationToken);
+        strategy.Version = checked((versions.Count == 0 ? 0 : versions.Max(x => x.Version)) + 1);
+        strategy.ApprovalStatus = CrmProspectingStrategyApprovalStatus.Draft;
+        strategy.ApprovedBy = null;
+        strategy.ApprovedAt = null;
+        strategy.ActivatedAt = null;
+        return await strategies.AddAsync(strategy, cancellationToken);
+    }
+
+    public async Task<SysCrmProspectingStrategy> SubmitStrategyForApprovalAsync(long strategyId, CancellationToken cancellationToken = default)
+    {
+        var strategy = await GetStrategyAsync(strategyId, cancellationToken);
+        if (strategy.ApprovalStatus != CrmProspectingStrategyApprovalStatus.Draft)
+            throw new InvalidOperationException("Only a draft strategy can be submitted for approval.");
+        strategy.ApprovalStatus = CrmProspectingStrategyApprovalStatus.PendingApproval;
+        return await strategies.UpdateAsync(strategy, cancellationToken);
+    }
+
+    public async Task<SysCrmProspectingStrategy> DecideStrategyAsync(long strategyId, bool approve, long? approverId, CancellationToken cancellationToken = default)
+    {
+        var strategy = await GetStrategyAsync(strategyId, cancellationToken);
+        if (strategy.ApprovalStatus != CrmProspectingStrategyApprovalStatus.PendingApproval)
+            throw new InvalidOperationException("Only a pending strategy can receive an approval decision.");
+        if (approverId is <= 0) throw new ArgumentOutOfRangeException(nameof(approverId));
+        strategy.ApprovalStatus = approve ? CrmProspectingStrategyApprovalStatus.Approved : CrmProspectingStrategyApprovalStatus.Rejected;
+        strategy.ApprovedBy = approverId;
+        strategy.ApprovedAt = DateTimeOffset.UtcNow;
+        return await strategies.UpdateAsync(strategy, cancellationToken);
+    }
+
+    public async Task<SysCrmProspectingCampaign> ActivateStrategyAsync(long strategyId, CancellationToken cancellationToken = default)
+    {
+        var strategy = await GetStrategyAsync(strategyId, cancellationToken);
+        if (strategy.ApprovalStatus != CrmProspectingStrategyApprovalStatus.Approved)
+            throw new InvalidOperationException("Only an approved strategy can be activated.");
+        var campaign = await campaigns.GetByIdAsync(strategy.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        if (campaign.Status is CrmProspectingCampaignStatus.Completed or CrmProspectingCampaignStatus.Archived)
+            throw new InvalidOperationException("A completed or archived campaign cannot activate a strategy.");
+        var current = await strategies.GetListAsync(x => x.CampaignId == campaign.BasicId && x.ActivatedAt != null, cancellationToken);
+        foreach (var previous in current)
+        {
+            previous.ActivatedAt = null;
+            await strategies.UpdateAsync(previous, cancellationToken);
+        }
+        strategy.ActivatedAt = DateTimeOffset.UtcNow;
+        await strategies.UpdateAsync(strategy, cancellationToken);
+        campaign.ActiveStrategyVersion = strategy.Version;
+        campaign.Status = CrmProspectingCampaignStatus.Active;
+        return await campaigns.UpdateAsync(campaign, cancellationToken);
+    }
+
+    private async Task<SysCrmProspectingStrategy> GetStrategyAsync(long id, CancellationToken cancellationToken)
+    {
+        if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
+        return await strategies.GetByIdAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting strategy does not exist.");
+    }
+
+    private static void ValidateCampaign(SysCrmProspectingCampaign campaign)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(campaign.Name);
+        campaign.Name = campaign.Name.Trim();
+        if (campaign.Name.Length > 160) throw new ArgumentOutOfRangeException(nameof(campaign.Name));
+        if (campaign.Objective?.Length > 1000) throw new ArgumentOutOfRangeException(nameof(campaign.Objective));
+        if (campaign.ProductScope?.Length > 500) throw new ArgumentOutOfRangeException(nameof(campaign.ProductScope));
+        if (campaign.OwnerUserId is <= 0) throw new ArgumentOutOfRangeException(nameof(campaign.OwnerUserId));
+    }
+
+    private static void ValidateStrategy(SysCrmProspectingStrategy strategy)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(strategy.Name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(strategy.SearchObjective);
+        if (strategy.Name.Trim().Length > 160) throw new ArgumentOutOfRangeException(nameof(strategy.Name));
+        ValidateJsonArray(strategy.ProviderPlanJson, nameof(strategy.ProviderPlanJson));
+        if (strategy.ExcludedDomainsJson is not null)
+            ValidateJsonArray(strategy.ExcludedDomainsJson, nameof(strategy.ExcludedDomainsJson));
+        strategy.Name = strategy.Name.Trim();
+        strategy.SearchObjective = strategy.SearchObjective.Trim();
+    }
+
+    private static void ValidateJsonArray(string json, string name)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                throw new ArgumentException("Expected a JSON array.", name);
+        }
+        catch (JsonException exception)
+        {
+            throw new ArgumentException("Invalid JSON array.", name, exception);
+        }
+    }
+}
