@@ -93,9 +93,9 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("Source_Url_Hash", entity, StringComparison.Ordinal);
         Assert.Contains("nameof(SourceUrlHash)", entity, StringComparison.Ordinal);
         Assert.Contains("to_regclass('crm_prospecting_evidence')", migration, StringComparison.Ordinal);
-        Assert.Contains("newly provisioned tenant", operations, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Source_Url_Hash", entity, StringComparison.Ordinal);
+        Assert.Contains("fresh-tenant CodeFirst", operations, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CodeFirst", upgradeReadme, StringComparison.Ordinal);
+        Assert.Contains("pgcrypto", upgradeReadme, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
