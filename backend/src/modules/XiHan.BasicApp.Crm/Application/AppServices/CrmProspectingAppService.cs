@@ -17,6 +17,7 @@ public sealed class CrmProspectingAppService(
     ICrmProspectingDomainService domain,
     ICrmProspectingCampaignRepository campaigns,
     ICrmProspectingStrategyRepository strategies,
+    ICrmProspectingRunRepository runs,
     IFieldSecurityService fieldSecurity,
     IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmProspectingAppService
@@ -114,6 +115,58 @@ public sealed class CrmProspectingAppService(
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
         return ToDto(await domain.ActivateStrategyAsync(strategyId, cancellationToken));
     }
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingRunDto> StartRunAsync(CrmProspectingRunStartDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.CampaignId <= 0) throw new ArgumentOutOfRangeException(nameof(input.CampaignId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(input.RequestKey);
+        var campaign = await campaigns.GetByIdAsync(input.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        return ToDto(await domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken));
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<CrmProspectingRunDto?> GetRunAsync(long runId, CancellationToken cancellationToken = default)
+    {
+        var run = await domain.GetRunAsync(runId, cancellationToken);
+        if (run is null) return null;
+        var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        return ToDto(run);
+    }
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingRunDto> CancelRunAsync(long runId, CancellationToken cancellationToken = default)
+    {
+        var existing = await runs.GetByIdAsync(runId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        var campaign = await campaigns.GetByIdAsync(existing.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        return ToDto(await domain.CancelRunAsync(runId, cancellationToken));
+    }
+
+    private static CrmProspectingRunDto ToDto(SysCrmProspectingRun entity) => new()
+    {
+        BasicId = entity.BasicId,
+        CampaignId = entity.CampaignId,
+        StrategyId = entity.StrategyId,
+        StrategyVersion = entity.StrategyVersion,
+        Status = (int)entity.Status,
+        CreatedTime = entity.CreatedTime,
+        StartedAt = entity.StartedAt,
+        CompletedAt = entity.CompletedAt,
+        RawRecordCount = entity.RawRecordCount,
+        CandidateCount = entity.CandidateCount,
+        FailureCount = entity.FailureCount,
+        FailureSummary = entity.FailureSummary
+    };
 
     private static SysCrmProspectingCampaign Map(CrmProspectingCampaignInputDto input, long id = 0) => new()
     {
