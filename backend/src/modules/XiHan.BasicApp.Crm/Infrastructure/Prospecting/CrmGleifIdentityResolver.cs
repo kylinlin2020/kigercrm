@@ -65,10 +65,10 @@ public sealed class CrmGleifIdentityResolver : ICrmProspectingIdentityResolver, 
 
         // If the first page is not the whole result set, uniqueness cannot be established
         // without scanning the complete registry result. Fail closed rather than guessing.
-        if (document.RootElement.TryGetProperty("meta", out var meta) &&
-            meta.TryGetProperty("pagination", out var pagination) &&
-            pagination.TryGetProperty("total", out var totalElement) &&
-            totalElement.TryGetInt32(out var totalMatches) &&
+        if (!document.RootElement.TryGetProperty("meta", out var meta) ||
+            !meta.TryGetProperty("pagination", out var pagination) ||
+            !pagination.TryGetProperty("total", out var totalElement) ||
+            !totalElement.TryGetInt32(out var totalMatches) ||
             totalMatches > 10)
             return null;
 
