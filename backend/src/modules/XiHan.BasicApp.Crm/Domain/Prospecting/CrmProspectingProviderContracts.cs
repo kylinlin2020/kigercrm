@@ -51,7 +51,7 @@ public sealed record CrmProspectingProviderResult(
     IReadOnlyList<string> Warnings)
 {
     /// <summary>False when the adapter stopped before exhausting the provider's available result pages.</summary>
-    public bool IsComplete { get; init; } = true;
+    public bool IsComplete { get; init; } = false;
 }
 
 /// <summary>
