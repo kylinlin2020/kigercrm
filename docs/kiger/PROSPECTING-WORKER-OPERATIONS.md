@@ -138,3 +138,9 @@ Strategy creation now validates the provider plan before allocating an immutable
 Run creation repeats the validation against the persisted active strategy before taking the execution snapshot. This protects the execution boundary from malformed legacy rows as well as newly submitted strategy input. A syntactically valid code that has no registered provider is still handled as a per-provider Run warning/failure by the Worker; registration availability is deployment configuration and is not inferred during strategy authoring.
 
 The validation is covered by source-level application wiring checks and unit test sources for empty, blank, duplicate, non-string, oversized, over-count, and control-character entries. These tests have not yet been executed in CI or on the Windows acceptance environment.
+
+## Evidence collision rollback preflight
+
+The SQLite evidence identity integration suite now includes a transaction-boundary preflight: it inserts one evidence row, deliberately attempts the same unique identity in the same transaction, rolls the transaction back, and only then reads the candidate's evidence. The expected persisted set is empty. This documents the critical rule that reconciliation must not query or write inside a transaction after a uniqueness violation.
+
+This preflight does not implement automatic collision recovery and does not prove PostgreSQL's aborted-transaction behavior. Production recovery still requires the worker to dispose the failed UnitOfWork, open a fresh UnitOfWork, compare the complete tenant/candidate/provider-record/field/source-hash/payload-hash identity tuple, and verify or repair the score snapshot before treating the retry as idempotent.
