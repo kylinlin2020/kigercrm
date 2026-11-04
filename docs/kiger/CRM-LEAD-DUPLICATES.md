@@ -20,6 +20,12 @@ Phone and website candidate preselection now use persisted normalized keys inste
 - PostgreSQL migration `5.9.2/5.9.2.sql` adds nullable columns, backfills existing CRM Lead rows, and adds tenant-prefixed lookup indexes.
 - These are ordinary non-unique indexes. No email, phone, company, or website uniqueness constraint is added.
 
+## Phone-key backfill alignment (5.9.24)
+
+- Migration `5.9.24` recomputes historical `phone_digits` using the same conservative intent as the application normalizer: strip recognized extension suffixes, then keep only 7..15 digit values.
+- This is a data correction for databases that already applied `5.9.2`; it does not add uniqueness constraints or change the original phone field.
+- PostgreSQL execution is still required before treating the migration as production-verified.
+
 ## Remaining limits
 
 - Candidate retrieval remains bounded to 100 rows per signal. Large collision groups can be truncated; an empty result is not proof that no duplicate exists.
