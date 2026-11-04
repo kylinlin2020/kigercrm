@@ -79,10 +79,85 @@ public sealed class CrmProspectingEvidenceFactoryTests
             1, new CrmProspectingRawEnvelope("provider", record), Retrieved);
 
         Assert.NotEmpty(evidence);
-        Assert.All(evidence, item => Assert.Equal(string.Empty, item.ProviderRecordId));
-        Assert.All(evidence, item => Assert.Equal(string.Empty, item.RawPayloadHash));
+        Assert.All(evidence, item => Assert.Equal(CrmProspectingRecordIdentity.NormalizeExternalId(record), item.ProviderRecordId));
+        Assert.All(evidence, item => Assert.Equal(CrmProspectingRecordIdentity.GetPayloadHash(record), item.RawPayloadHash));
+        Assert.All(evidence, item => Assert.Equal(64, item.RawPayloadHash.Length));
         Assert.All(evidence, item => Assert.Equal(64, item.SourceUrlHash.Length));
     }
+    [Theory]
+    [InlineData("record-123", "record-123")]
+    [InlineData("  record-123  ", "record-123")]
+    public void Create_ShouldUseTheSameNormalizedProviderIdentityAsCandidate(string externalId, string expected)
+    {
+        var record = new CrmProspectingRawRecord(externalId, "source", "title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/tender/shared-identity"
+        };
+
+        var evidence = CrmProspectingEvidenceFactory.Create(
+            12, new CrmProspectingRawEnvelope("provider", record), Retrieved);
+
+        Assert.NotEmpty(evidence);
+        Assert.Equal(expected, CrmProspectingRecordIdentity.NormalizeExternalId(record));
+        Assert.All(evidence, item => Assert.Equal(expected, item.ProviderRecordId));
+    }
+
+    [Fact]
+    public void Create_ShouldHashOverlongProviderIdentityConsistently()
+    {
+        var record = new CrmProspectingRawRecord(new string('x', 250), "source", "title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/tender/long-id"
+        };
+        var expected = "sha256:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(record.ExternalId.Trim())));
+
+        var evidence = CrmProspectingEvidenceFactory.Create(
+            13, new CrmProspectingRawEnvelope("provider", record), Retrieved);
+
+        Assert.Equal(expected, CrmProspectingRecordIdentity.NormalizeExternalId(record));
+        Assert.All(evidence, item => Assert.Equal(expected, item.ProviderRecordId));
+    }
+
+    [Fact]
+    public void Create_ShouldFingerprintChangedPayloadWhenProviderHashIsMissing()
+    {
+        var first = new CrmProspectingRawRecord("same-id", "source", "first title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/tender/content",
+            RawPayloadHash = "invalid"
+        };
+        var changed = first with { Title = "changed title" };
+
+        var firstEvidence = CrmProspectingEvidenceFactory.Create(
+            14, new CrmProspectingRawEnvelope("provider", first), Retrieved);
+        var changedEvidence = CrmProspectingEvidenceFactory.Create(
+            14, new CrmProspectingRawEnvelope("provider", changed), Retrieved);
+
+        Assert.NotEmpty(firstEvidence);
+        Assert.NotEmpty(changedEvidence);
+        Assert.NotEqual(firstEvidence[0].RawPayloadHash, changedEvidence[0].RawPayloadHash);
+        Assert.All(firstEvidence, item => Assert.Equal(CrmProspectingRecordIdentity.GetPayloadHash(first), item.RawPayloadHash));
+        Assert.All(changedEvidence, item => Assert.Equal(CrmProspectingRecordIdentity.GetPayloadHash(changed), item.RawPayloadHash));
+    }
+
+    [Fact]
+    public void Create_ShouldProduceStableIdentityForEquivalentRecordSerialization()
+    {
+        var record = new CrmProspectingRawRecord("   ", "source", "标题", "buyer", null, null, null, "内容")
+        {
+            SourceUrl = "https://buyer.example/tender/unicode"
+        };
+        var equivalent = record with { };
+
+        Assert.Equal(
+            CrmProspectingRecordIdentity.NormalizeExternalId(record),
+            CrmProspectingRecordIdentity.NormalizeExternalId(equivalent));
+        Assert.Equal(
+            CrmProspectingRecordIdentity.GetPayloadHash(record),
+            CrmProspectingRecordIdentity.GetPayloadHash(equivalent));
+    }
+
     [Theory]
     [InlineData("http://buyer.example/tender/1")]
     [InlineData("file:///etc/passwd")]
