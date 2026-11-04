@@ -30,3 +30,7 @@ Source guards were added, but no compiler or database test has been run in this 
 4. Tenant isolation and migration against existing campaigns with active, orphaned, and soft-deleted versions.
 
 The partial unique index migration must be exercised against a copy of representative production data before deployment. Windows pull/build/runtime acceptance remains outstanding.
+
+## SQLite repository preflight tests added
+
+`CrmProspectingStrategyLifecycleSqliteIntegrationTests` now exercises the actual campaign and strategy repositories for: one-winner sequence compare-and-swap, one-winner active-pointer compare-and-swap, transaction rollback restoring the prior pointer and activation timestamp, and strict tenant scoping. These tests use SQLite and are source additions only; they have not been compiled or executed. They do not prove PostgreSQL locking, independent-connection race behavior, migration execution, or production transaction semantics.
