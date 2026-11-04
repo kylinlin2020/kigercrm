@@ -33,6 +33,34 @@ public sealed class CrmQuoteConversionMigrationTests
         Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS", sql, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SourceQuoteUniqueIndex_ShouldMatchFreshCodeFirstAndUpgradeMigration()
+    {
+        var entity = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "Entities", "SysCrmSalesOrder.cs")));
+        var sql = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
+            "UpdateScripts", "5.9.4", "5.9.4.sql")));
+
+        Assert.Contains("UX_{table}_TeId_Sq_IsDe", entity, StringComparison.Ordinal);
+        var indexStart = entity.IndexOf("UX_{table}_TeId_Sq_IsDe", StringComparison.Ordinal);
+        var indexEnd = entity.IndexOf(")]", indexStart, StringComparison.Ordinal);
+        Assert.True(indexEnd > indexStart);
+        var declaration = entity[indexStart..indexEnd];
+        var codeFirstKey = new[] { "TenantId", "SourceQuoteId", "IsDeleted" };
+        var previous = -1;
+        foreach (var field in codeFirstKey)
+        {
+            var position = declaration.IndexOf($"nameof({field})", StringComparison.Ordinal);
+            Assert.True(position > previous, $"CodeFirst source-quote index must include {field} in migration order.");
+            previous = position;
+        }
+
+        const string migrationIndex = "ON crm_sales_order (tenant_id, source_quote_id, is_deleted)";
+        Assert.Contains(migrationIndex, sql, StringComparison.Ordinal);
+    }
+
     private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
 }
