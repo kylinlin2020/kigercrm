@@ -52,6 +52,22 @@ public sealed class CrmProspectingProviderPlanValidationTests
             () => service.CreateStrategyVersionAsync(CreateStrategy(JsonSerializer.Serialize(new[] { "fake\nprovider" }))));
     }
 
+    [Fact]
+    public async Task InvalidProviderPlan_ShouldNotReadCampaignOrAdvanceStrategyVersion()
+    {
+        var campaigns = new Mock<ICrmProspectingCampaignRepository>(MockBehavior.Strict);
+        var strategies = new Mock<ICrmProspectingStrategyRepository>(MockBehavior.Strict);
+        var runs = new Mock<ICrmProspectingRunRepository>(MockBehavior.Strict);
+        var service = new CrmProspectingDomainService(campaigns.Object, strategies.Object, runs.Object);
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(
+            () => service.CreateStrategyVersionAsync(CreateStrategy("[\\"provider-a\\",\\"PROVIDER-A\\"]")));
+
+        campaigns.VerifyNoOtherCalls();
+        strategies.VerifyNoOtherCalls();
+        runs.VerifyNoOtherCalls();
+    }
+
     private static CrmProspectingDomainService CreateService()
         => new(
             new Mock<ICrmProspectingCampaignRepository>().Object,
