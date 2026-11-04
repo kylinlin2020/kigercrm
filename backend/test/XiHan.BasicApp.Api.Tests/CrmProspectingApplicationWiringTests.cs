@@ -225,6 +225,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("campaign.ActiveStrategyVersion == expectedVersion", campaignRepository, StringComparison.Ordinal);
         Assert.Contains("TryMarkActivatedAsync", strategyContract, StringComparison.Ordinal);
         Assert.Contains("ClearOtherActiveVersionsAsync", strategyRepository, StringComparison.Ordinal);
+        Assert.Contains("System.Data.IsolationLevel.ReadCommitted", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs"), StringComparison.Ordinal);
         Assert.Contains("TryAdvanceStrategyVersionAsync(campaign.BasicId", domain, StringComparison.Ordinal);
         Assert.Contains("TrySetActiveStrategyVersionAsync(campaign.BasicId", domain, StringComparison.Ordinal);
         Assert.Contains("ClearOtherActiveVersionsAsync(campaign.BasicId", domain, StringComparison.Ordinal);
