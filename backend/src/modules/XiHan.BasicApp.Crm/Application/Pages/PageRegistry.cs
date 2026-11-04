@@ -21,6 +21,7 @@ public static class PageRegistry
         new("crm_quotes", "Quotes", "menu.crm_quotes", MenuType.Menu, "/crm/quotes", "CrmQuote", "Crm/Quote/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:file-text", 550),
         new("crm_sales_orders", "Sales Orders", "menu.crm_sales_orders", MenuType.Menu, "/crm/sales-orders", "CrmSalesOrder", "Crm/SalesOrder/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:shopping-cart", 560),
         new("crm_shipments", "Shipments", "menu.crm_shipments", MenuType.Menu, "/crm/shipments", "CrmShipment", "Crm/Shipment/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:truck", 570),
+        new("crm_prospecting", "Prospecting", "menu.crm_prospecting", MenuType.Menu, "/crm/prospecting", "CrmProspecting", "Crm/Prospecting/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:radar", 580),
     ];
 
     public static IReadOnlyList<ButtonDescriptor> Buttons { get; } =
@@ -51,5 +52,7 @@ public static class PageRegistry
         new("crm_sales_orders.execute", "Execute", "crm_sales_orders", CrmPermissionCodes.Execute, 2),
         new("crm_shipments.create", "Create", "crm_shipments", CrmPermissionCodes.Create, 1),
         new("crm_shipments.execute", "Execute", "crm_shipments", CrmPermissionCodes.Execute, 2),
+        new("crm_prospecting.create", "Create", "crm_prospecting", CrmPermissionCodes.Create, 1),
+        new("crm_prospecting.execute", "Execute", "crm_prospecting", CrmPermissionCodes.Execute, 2),
     ];
 }
