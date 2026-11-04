@@ -221,15 +221,57 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
-                var providerRequestState = result.FailureCount > 0 ? "Failed" : "Succeeded";
-                if (!await requestLedger.TryFinalizeAsync(
-                    attempt.BasicId, providerRequestState, DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
-                    resultCount: result.Records.Count,
-                    failureCode: result.FailureCount > 0 ? "provider_partial_result" : null,
-                    failureSummary: result.FailureCount > 0 ? "Provider reported one or more record-level failures." : null,
-                    responseHash: CrmProspectingResponseFingerprint.Create(result.Records),
-                    cancellationToken: CancellationToken.None))
-                    throw new InvalidOperationException("The provider request ledger attempt could not be finalized exactly once.");
+                const int maxRawRecordsPerRun = 2000;
+                var remainingRawRecords = Math.Max(0, maxRawRecordsPerRun - raw.Count);
+                var providerCanAdvanceCoverage = result.FailureCount == 0 &&
+                    result.Records.Count <= remainingRawRecords;
+                var projectedRawBytes = estimatedRawJsonBytes;
+                if (providerCanAdvanceCoverage)
+                {
+                    foreach (var record in result.Records)
+                    {
+                        if (record is null ||
+                            !IsWithinRawRecordLimits(record, out var estimatedRecordBytes) ||
+                            estimatedRecordBytes > maxRawRecordJsonBytes ||
+                            projectedRawBytes + estimatedRecordBytes + 1 > maxRawJsonBytes)
+                        {
+                            providerCanAdvanceCoverage = false;
+                            break;
+                        }
+                        projectedRawBytes += estimatedRecordBytes + 1;
+                    }
+                }
+
+                var responseHash = CrmProspectingResponseFingerprint.Create(result.Records);
+                if (providerCanAdvanceCoverage)
+                {
+                    if (!await requestLedger.TryFinalizeSuccessWithCoverageAsync(
+                        attempt.BasicId, run.CampaignId, requestKey,
+                        DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                        result.Records.Count, responseHash, CancellationToken.None))
+                        throw new InvalidOperationException("The complete provider request could not atomically finalize and advance coverage.");
+                }
+                else
+                {
+                    var incompleteReason = result.FailureCount > 0
+                        ? "Provider reported one or more record-level failures."
+                        : result.Records.Count > remainingRawRecords
+                            ? "Provider result exceeded the remaining per-Run retention limit."
+                            : "Provider returned one or more invalid or oversized records.";
+                    if (!await requestLedger.TryFinalizeAsync(
+                        attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                        resultCount: result.Records.Count,
+                        failureCode: result.FailureCount > 0 ? "provider_partial_result" : "provider_result_truncated",
+                        failureSummary: incompleteReason,
+                        responseHash: responseHash,
+                        cancellationToken: CancellationToken.None))
+                        throw new InvalidOperationException("The incomplete provider request ledger attempt could not be finalized.");
+                    if (result.Records.Count > remainingRawRecords)
+                    {
+                        failures++;
+                        AddBoundedWarning(warnings, $"{providerCode}: provider results exceeded the remaining Run retention limit; coverage was not advanced.");
+                    }
+                }
 
                 failures += Math.Max(0, result.FailureCount);
                 AddBoundedProviderWarnings(warnings, result.Warnings);
