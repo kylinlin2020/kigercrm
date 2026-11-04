@@ -6,12 +6,12 @@ DO $$
 BEGIN
     IF to_regclass('crm_prospecting_evidence') IS NOT NULL THEN
         ALTER TABLE crm_prospecting_evidence
-            ADD COLUMN IF NOT EXISTS source_url_hash varchar(64) NOT NULL DEFAULT '';
+            ADD COLUMN IF NOT EXISTS source_url_hash varchar(32) NOT NULL DEFAULT '';
 
         UPDATE crm_prospecting_evidence
            SET provider_record_id = COALESCE(provider_record_id, ''),
                raw_payload_hash = COALESCE(raw_payload_hash, ''),
-               source_url_hash = encode(digest(source_url, 'sha256'), 'hex')
+               source_url_hash = md5(source_url)
          WHERE provider_record_id IS NULL
             OR raw_payload_hash IS NULL
             OR source_url_hash = '';
