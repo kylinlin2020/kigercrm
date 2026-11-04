@@ -152,8 +152,9 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("ADD COLUMN IF NOT EXISTS fencing_version bigint NOT NULL DEFAULT 0", migration, StringComparison.Ordinal);
         Assert.Contains("ix_crm_prospecting_run_te_st_leaseexp", migration, StringComparison.Ordinal);
         Assert.Contains("single-active-instance only", leaseDesign, StringComparison.Ordinal);
-        Assert.Contains("ClaimQueuedAsync", worker, StringComparison.Ordinal);
-        Assert.DoesNotContain("LeaseToken", worker, StringComparison.Ordinal);
+        Assert.Contains("TryClaimLeaseAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("LeaseToken", worker, StringComparison.Ordinal);
+        Assert.Contains("FencingVersion", worker, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -171,7 +172,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("await RecoverPendingAsync(stoppingToken)", worker, StringComparison.Ordinal);
         Assert.Contains("run => run.Status == CrmProspectingRunStatus.Running", worker, StringComparison.Ordinal);
         Assert.Contains("Run exactly one active application process", operations, StringComparison.Ordinal);
-        Assert.Contains("implementation specification; not implemented", leaseDesign, StringComparison.Ordinal);
+        Assert.Contains("lease", leaseDesign, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("SELECT ... FOR UPDATE", leaseDesign, StringComparison.Ordinal);
         Assert.Contains("lease_generation", leaseDesign, StringComparison.Ordinal);
     }
@@ -458,7 +459,7 @@ public sealed class CrmProspectingPersistenceWiringTests
             "catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)",
             StringComparison.Ordinal);
         var generalCatch = worker.IndexOf("catch (Exception ex)", cancellationCatch, StringComparison.Ordinal);
-        var failCall = worker.IndexOf(".FailAsync(message.RunId", generalCatch, StringComparison.Ordinal);
+        var failCall = worker.IndexOf("FailFencedWithDatabaseClockAsync(", generalCatch, StringComparison.Ordinal);
 
         Assert.True(cancellationCatch >= 0 && generalCatch > cancellationCatch && failCall > generalCatch,
             "Cancellation must be rethrown, while non-cancellation failures must be persisted as failed Runs.");
@@ -488,9 +489,11 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("client.Ado.SqlQueryAsync<SysCrmProspectingRun>", repository, StringComparison.Ordinal);
         Assert.Contains("DbType.PostgreSQL", repository, StringComparison.Ordinal);
 
-        // The new claim primitive is deliberately not activated until heartbeat,
-        // child-write fencing, recovery and terminal transitions are migrated together.
-        Assert.DoesNotContain("TryClaimLeaseAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("TryClaimLeaseAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("RenewLeaseWithDatabaseClockAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("CompleteFencedWithDatabaseClockAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("CancelFencedWithDatabaseClockAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("FailFencedWithDatabaseClockAsync", worker, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -509,9 +512,11 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("WITH locked_run AS MATERIALIZED", repository, StringComparison.Ordinal);
         Assert.Contains("locked_run.lease_expires_at > clock_timestamp()", repository, StringComparison.Ordinal);
 
-        // The guard is a repository primitive only; do not imply child-write safety
-        // until the worker passes its lease identity into every child-write UoW.
-        Assert.DoesNotContain("TryLockLeaseForWriteAsync", worker, StringComparison.Ordinal);
+        var fencedWrite = worker.IndexOf("TryLockLeaseForWriteAsync", StringComparison.Ordinal);
+        var candidateInsert = worker.IndexOf("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", StringComparison.Ordinal);
+        Assert.True(fencedWrite >= 0 && candidateInsert > fencedWrite,
+            "Candidate/Evidence/Score writes must be fenced inside their transaction.");
+        Assert.Contains("TryLockLeaseForWriteAsync(runId, leaseToken, fencingVersion, cancellationToken)", worker, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -574,14 +579,13 @@ public sealed class CrmProspectingPersistenceWiringTests
         var config = worker[configStart..recoveryStart];
 
         Assert.Contains("config.UpdateMaxConcurrentTasks(1)", config, StringComparison.Ordinal);
-        Assert.Contains("runs.ClaimQueuedAsync(", worker, StringComparison.Ordinal);
-        Assert.Contains("runs.RecoverInterruptedAsync(", worker, StringComparison.Ordinal);
-        Assert.DoesNotContain("runs.TryClaimLeaseAsync(", worker, StringComparison.Ordinal);
-        Assert.DoesNotContain("runs.TryLockLeaseForWriteAsync(", worker, StringComparison.Ordinal);
-        Assert.DoesNotContain("runs.RenewLeaseWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
-        Assert.DoesNotContain("runs.CompleteFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
-        Assert.DoesNotContain("runs.CancelFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
-        Assert.DoesNotContain("runs.FailFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("runs.TryClaimLeaseAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("runs.RecoverExpiredLeasesAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("runs.RenewLeaseWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("runs.CompleteFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("runs.CancelFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("runs.FailFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("config.UpdateMaxConcurrentTasks(1)", config, StringComparison.Ordinal);
     }
     [Fact]
     public void ProspectingWorkerTenantIsolation_ShouldFailClosedWithoutTenantIdentity()
