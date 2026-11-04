@@ -224,9 +224,9 @@ public sealed class CrmProspectingAppService(
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
         if (status.HasValue && !Enum.IsDefined(typeof(CrmProspectingCandidateStatus), status.Value))
             throw new ArgumentOutOfRangeException(nameof(status));
-        var items = await candidates.GetListAsync(candidate =>
-            candidate.RunId == runId && (!status.HasValue || (int)candidate.Status == status.Value), cancellationToken);
-        return items.OrderByDescending(candidate => candidate.CreatedTime).Take(500).Select(ToCandidateDto).ToArray();
+        var candidateStatus = status.HasValue ? (CrmProspectingCandidateStatus?)status.Value : null;
+        var items = await candidates.GetLatestByRunAsync(runId, candidateStatus, 500, cancellationToken);
+        return items.Select(ToCandidateDto).ToArray();
     }
 
     [UnitOfWork(true)]
