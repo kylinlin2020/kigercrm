@@ -267,6 +267,12 @@ public sealed class CrmProspectingAppService(
         var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        // Claim the candidate inside this transactional UoW before creating the Lead.
+        // A concurrent conversion must lose the entity optimistic-lock update; if Lead creation fails,
+        // the transaction rolls this state change back to Approved.
+        candidate.Status = CrmProspectingCandidateStatus.Converting;
+        await candidates.UpdateAsync(candidate, cancellationToken);
+
         var leadInput = new CrmLeadCreateDto
         {
             CompanyName = candidate.CompanyName,
