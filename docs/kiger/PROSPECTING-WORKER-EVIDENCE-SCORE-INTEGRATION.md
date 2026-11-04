@@ -84,3 +84,12 @@ The application service now exposes `GetCandidateReviewDetailAsync(candidateId)`
 - Does not change Candidate status, approve a candidate, convert a Lead, or trigger outreach.
 
 This is an API/read-model capability only. A dedicated frontend review screen and the Worker write path are still outstanding. Until the Worker begins persisting Evidence and Score rows, the new endpoint may legitimately return empty evidence/score collections for older or not-yet-integrated candidates.
+
+
+## Candidate review API and frontend progress
+
+The backend review-detail read path is now exposed as `GetCandidateReviewDetailAsync(candidateId)`. It authorizes through the Candidate → Run → Campaign ownership/data-scope chain, then returns the Candidate, tenant-scoped evidence rows, and the latest 20 immutable score snapshots. The frontend API client now has a typed `candidateReviewDetail` method, and the prospecting page exposes a reviewer panel for score breakdowns, review gates, evidence field metadata, verification state, and source links. English and Simplified Chinese labels have been added.
+
+A source-level backend wiring guard now checks the permission attribute, campaign data-scope authorization, evidence/score repository reads, and DTO mapping. The frontend API route test covers the new GET route. These tests have been added but have not been executed in this environment.
+
+The module follows the repository's documented convention: `SaasRepository` implementations and application services are convention-registered by the framework. The new evidence/score repositories therefore do not need duplicate explicit registrations in the CRM module. This convention still needs runtime DI resolution verification during build/startup testing.
