@@ -73,11 +73,20 @@ public sealed class CrmFindTenderProspectingProvider : ICrmProspectingProvider, 
                 throw new HttpRequestException("Find a Tender response came from an unapproved endpoint.");
             }
 
+            if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.ServiceUnavailable)
+            {
+                var retryAt = response.Headers.RetryAfter?.Date
+                    ?? (response.Headers.RetryAfter?.Delta is { } retryDelay
+                        ? DateTimeOffset.UtcNow + retryDelay
+                        : DateTimeOffset.UtcNow.AddMinutes(5));
+                throw new CrmProspectingProviderRateLimitException(
+                    "Find a Tender provider throttled the request; retry after the supplied cooldown.",
+                    (int)response.StatusCode,
+                    retryAt);
+            }
+
             if (!response.IsSuccessStatusCode)
-                throw CrmProspectingProviderException.FromResponse(
-                    ProviderCode,
-                    response,
-                    safeMessage: "Find a Tender Search API returned an HTTP error.");
+                throw new HttpRequestException("Find a Tender returned an HTTP error.", null, response.StatusCode);
 
             var payload = await ReadBoundedAsync(response, MaxResponseBytes, cancellationToken);
             using var document = JsonDocument.Parse(payload);
