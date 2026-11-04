@@ -81,7 +81,7 @@ public sealed class CrmCreateRequestLedgerSqliteIntegrationTests : IDisposable
             Assert.NotNull(found);
             Assert.Equal(created.BasicId, found.BasicId);
             Assert.Equal(payloadA, found.PayloadHash);
-            Assert.Equal(10001, found.DocumentId);
+            Assert.Equal((long?)10001L, found.DocumentId);
         }
 
         using (_tenant.Change(TenantId + 1))
@@ -95,7 +95,7 @@ public sealed class CrmCreateRequestLedgerSqliteIntegrationTests : IDisposable
                 DocumentId = 10002,
                 DocumentNumber = "SO-10002"
             });
-            Assert.NotEqual(0, otherTenant.BasicId);
+            Assert.NotEqual(0L, otherTenant.BasicId);
             Assert.NotNull(await _repository.GetByRequestKeyAsync("SALES_ORDER", requestKey));
         }
     }
