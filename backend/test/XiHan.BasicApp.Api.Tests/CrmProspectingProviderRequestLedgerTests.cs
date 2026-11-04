@@ -196,6 +196,9 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.32", "5.9.32.sql");
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingProviderCoverage.cs");
 
+        Assert.Contains("WITH valid_run AS MATERIALIZED", repository, StringComparison.Ordinal);
+        Assert.Contains("run.fencing_version = @fencingVersion", repository, StringComparison.Ordinal);
+        Assert.Contains("FOR UPDATE", repository, StringComparison.Ordinal);
         Assert.Contains("WITH finalized_request AS", repository, StringComparison.Ordinal);
         Assert.Contains("coverage_upsert AS", repository, StringComparison.Ordinal);
         Assert.Contains("ON CONFLICT (tenant_id, campaign_id, provider_code, coverage_scope_hash)", repository, StringComparison.Ordinal);
