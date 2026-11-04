@@ -81,6 +81,25 @@ public sealed class CrmProspectingScoreSnapshotFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldRejectEvidenceReferencePayloadOver32Kb()
+    {
+        var score = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, null, false, false), Now);
+        var evidence = Enumerable.Range(0, 100)
+            .Select(index => new XiHan.BasicApp.Crm.Domain.Entities.SysCrmProspectingEvidence
+            {
+                ProviderCode = "provider",
+                ProviderRecordId = index.ToString(System.Globalization.CultureInfo.InvariantCulture) + new string('x', 240),
+                FieldName = "company_name",
+                SourceUrlHash = new string('A', 64),
+                RawPayloadHash = new string('B', 64)
+            })
+            .ToArray();
+
+        Assert.Throws<ArgumentException>(() => CrmProspectingScoreSnapshotFactory.Create(1, score, evidence));
+    }
+
+    [Fact]
     public void Create_ShouldRejectComponentTotalMismatch()
     {
         var score = CrmProspectingScorecard.Evaluate(
