@@ -9,6 +9,9 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 /// Provider plans and exclusions are persisted as JSON text, never as executable instructions.
 /// </summary>
 [SugarTable(TableName = "Crm_Prospecting_Strategy", TableDescription = "KIGER CRM prospecting strategy versions")]
+[SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
+[SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
+[SugarIndex("IX_{table}_TeId_IsDe", nameof(TenantId), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc)]
 [SugarIndex("UX_{table}_Te_Ca_Ve_IsDe", nameof(TenantId), OrderByType.Asc, nameof(CampaignId), OrderByType.Asc, nameof(Version), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_Te_Ca_St", nameof(TenantId), OrderByType.Asc, nameof(CampaignId), OrderByType.Asc, nameof(ApprovalStatus), OrderByType.Asc)]
 public sealed class SysCrmProspectingStrategy : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
