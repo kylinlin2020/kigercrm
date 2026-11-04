@@ -173,6 +173,37 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("allocation.Numbers.Single()", service, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ShipmentCreation_ShouldReplaySameRequestBeforeReservingQuantities()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var createStart = source.IndexOf("CreateAsync(CrmShipmentCreateDto", StringComparison.Ordinal);
+        var statusStart = source.IndexOf("ChangeStatusAsync(CrmShipmentStatusUpdateDto", createStart, StringComparison.Ordinal);
+        var create = source[createStart..statusStart];
+
+        Assert.Contains("CreateRequestFingerprint", create, StringComparison.Ordinal);
+        Assert.Contains("GetByShipmentNumberAsync(number, cancellationToken)", create, StringComparison.Ordinal);
+        Assert.Contains("existingShipment.CreationRequestFingerprint", create, StringComparison.Ordinal);
+        Assert.Contains("return ToDto(existingShipment)", create, StringComparison.Ordinal);
+        Assert.Contains("different or unverifiable create request", create, StringComparison.Ordinal);
+        Assert.True(create.IndexOf("GetByShipmentNumberAsync", StringComparison.Ordinal)
+            < create.IndexOf("order.FulfillmentRevision++", StringComparison.Ordinal));
+        Assert.True(create.IndexOf("GetByShipmentNumberAsync", StringComparison.Ordinal)
+            < create.IndexOf("orderLine.ReservedQuantity += requested.Quantity", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ShipmentCreation_ShouldFingerprintNormalizedRequestAndPersistItOnHeader()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmShipment.cs");
+        Assert.Contains("SHA256.HashData", source, StringComparison.Ordinal);
+        Assert.Contains("SalesOrderLineId, line.Quantity", source, StringComparison.Ordinal);
+        Assert.Contains("CreationRequestFingerprint = creationRequestFingerprint", source, StringComparison.Ordinal);
+        Assert.Contains("Creation_Request_Fingerprint", entity, StringComparison.Ordinal);
+        Assert.Contains("Length = 64", entity, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
