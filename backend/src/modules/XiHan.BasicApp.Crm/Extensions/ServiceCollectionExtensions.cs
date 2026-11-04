@@ -1,6 +1,7 @@
 // Copyright (c) 2026 KIGER contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
@@ -43,11 +44,16 @@ public static class ServiceCollectionExtensions
         
     }
 
-    /// <summary>Registers CRM permission and navigation seeders.</summary>
-    public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services)
+    /// <summary>Registers CRM services and seeders; synthetic prospecting is opt-in for local smoke tests only.</summary>
+    public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services, IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
         services.AddScoped<ICrmProspectingDomainService, CrmProspectingDomainService>();
-        services.AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFakeProvider"], out var enableFakeProvider)
+            && enableFakeProvider)
+        {
+            services.AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();
+        }
         services.AddDataSeeder<CrmPermissionCatalogSeeder>();
         // Menu seeding is intentionally deferred until the corresponding frontend routes/components ship.
         return services;
