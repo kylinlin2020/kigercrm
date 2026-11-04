@@ -109,3 +109,20 @@ Required implementation decisions:
 
 The 5.9.18 and 5.9.19 migration guards now have source-level coverage for tenant/candidate composite foreign keys and score bounds. These tests are source assertions only and have not been executed. They do not prove the SQL runs successfully on PostgreSQL.
 
+## 2026-11-04 implementation audit: concrete Worker call path
+
+A fresh source audit of `CrmProspectingRunHostedService` confirms the following implementation details:
+
+- The Worker resolves `ICrmProspectingCandidateRepository` and `ICrmLeadRepository` for normalization. It does not resolve either evidence/score repository, either persistence factory, or `IUnitOfWorkManager`.
+- Each new Candidate is persisted with a standalone `await candidates.AddAsync(candidate, cancellationToken)`.
+- The in-memory `existingKeys` set is populated from the Run's existing Candidate rows. When a key is already present, the loop immediately continues; it does not reconcile or repair child Evidence/Score rows.
+- The Evidence and Score repositories inherit `SaasRepository<TEntity>` and receive `ISqlSugarClientResolver`; this proves their repository construction pattern, but does not prove that separately resolved repository instances share one transaction.
+- The CRM module project file references the SaaS project and imports shared build/NuGet property files. The transaction manager implementation is not defined in the CRM module source audited here. The exact package version/API and transaction participation therefore remain unproven.
+
+### Safe implementation gate
+
+Do not wire the three writes by simply resolving three repositories and assuming a shared transaction. First identify the exact framework package/version and inspect its UOW manager and SqlSugar resolver implementation. Then add a PostgreSQL integration test that opens the same application scope, inserts a Candidate, deliberately fails Evidence or Score insertion, and verifies through a separate database connection that all writes rolled back.
+
+The current per-Run Candidate unique identity is useful protection against duplicate Candidate rows, but it also makes the existing-key retry branch especially important: once child persistence is enabled, that branch must invoke a reconciliation path rather than skip the envelope. Reconciliation must distinguish an already-complete envelope from a partially persisted one using database state and stable source identity.
+
+No source-level review in this audit is represented as a successful compile, unit test, PostgreSQL integration test, or Windows runtime acceptance.
