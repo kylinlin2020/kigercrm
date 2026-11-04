@@ -305,6 +305,19 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         if (needsScoreRepair)
                         {
                             var completeEvidence = persistedEvidence.Concat(missingEvidence).ToArray();
+                            // The score snapshot is deliberately smaller than the full evidence ledger.
+                            // Prioritize traceable primary rows, then use stable identity ordering.
+                            var scoreEvidence = completeEvidence
+                                .OrderByDescending(evidence =>
+                                    (evidence.EvidenceType is "direct" or "registry") &&
+                                    !string.IsNullOrWhiteSpace(evidence.SourceUrlHash))
+                                .ThenBy(evidence => evidence.ProviderCode, StringComparer.Ordinal)
+                                .ThenBy(evidence => evidence.ProviderRecordId, StringComparer.Ordinal)
+                                .ThenBy(evidence => evidence.FieldName, StringComparer.Ordinal)
+                                .ThenBy(evidence => evidence.SourceUrlHash, StringComparer.Ordinal)
+                                .ThenBy(evidence => evidence.RawPayloadHash, StringComparer.Ordinal)
+                                .Take(32)
+                                .ToArray();
                             var evaluatedAtUtc = DateTimeOffset.UtcNow;
                             var scoreInput = new CrmProspectingScoreInput(
                                 HasVerifiableOrganization: false,
@@ -324,7 +337,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                                 IsRestrictedOrUnsafeSource: false);
                             var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
                             var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(
-                                existingCandidate.BasicId, scoreResult, completeEvidence);
+                                existingCandidate.BasicId, scoreResult, scoreEvidence);
                             await scoreRepository.AddAsync(scoreSnapshot, cancellationToken);
                         }
 
