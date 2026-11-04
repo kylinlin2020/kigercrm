@@ -78,6 +78,11 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("CREATE EXTENSION IF NOT EXISTS pgcrypto", migration, StringComparison.Ordinal);
         Assert.Contains("HAVING COUNT(*) > 1", migration, StringComparison.Ordinal);
         Assert.Contains("RAISE EXCEPTION", migration, StringComparison.Ordinal);
+        Assert.DoesNotContain("DELETE FROM crm_prospecting_evidence", migration, StringComparison.OrdinalIgnoreCase);
+        Assert.True(
+            migration.IndexOf("HAVING COUNT(*) > 1", StringComparison.Ordinal)
+            < migration.IndexOf("CREATE UNIQUE INDEX", StringComparison.Ordinal),
+            "Historical duplicate detection must run before the unique index is created.");
     }
 
     [Fact]
