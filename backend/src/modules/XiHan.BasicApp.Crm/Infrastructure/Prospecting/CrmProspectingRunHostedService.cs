@@ -258,8 +258,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (providerCanAdvanceCoverage)
                 {
                     if (!await requestLedger.TryFinalizeSuccessWithCoverageAsync(
-                        attempt.BasicId, run.CampaignId, requestKey,
-                        DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                        attempt.BasicId, run.BasicId, run.CampaignId, leaseToken, activeFencingVersion,
+                        requestKey, DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
                         result.Records.Count, responseHash, CancellationToken.None))
                         throw new InvalidOperationException("The complete provider request could not atomically finalize and advance coverage.");
                 }
