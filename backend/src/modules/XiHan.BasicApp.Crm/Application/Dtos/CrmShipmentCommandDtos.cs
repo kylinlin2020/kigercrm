@@ -9,7 +9,7 @@ public sealed class CrmShipmentLineCreateDto
 public sealed class CrmShipmentCreateDto
 {
     public string ShipmentNumber { get; set; } = string.Empty;
-    /// <summary>Optional stable retry key; when supplied, the server allocates the shipment number.</summary>
+    /// <summary>Optional stable retry key. Server-side numbering enables same-payload sequential replay; concurrent first submissions still require caller retry after a conflict.</summary>
     public string? NumberingIdempotencyKey { get; set; }
     public long SalesOrderId { get; set; }
     public DateTime? ShipmentDate { get; set; }
@@ -32,10 +32,4 @@ public sealed class CrmShipmentDto
     public string? TrackingNumber { get; set; }
     public long? OwnerUserId { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
-}
-
-public sealed class CrmShipmentStatusUpdateDto
-{
-    public long Id { get; set; }
-    public int Status { get; set; }
 }
