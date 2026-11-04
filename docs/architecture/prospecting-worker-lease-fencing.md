@@ -97,3 +97,5 @@ Migration `5.9.30` and the Run entity now contain additive lease metadata:
 The migration is guarded by `to_regclass('crm_prospecting_run')`, uses `ADD COLUMN IF NOT EXISTS`, and leaves existing lease ownership NULL. This is schema groundwork only: `ClaimQueuedAsync`, heartbeat, Candidate/Evidence/Score writes, terminal transitions, and startup recovery have not yet been switched to lease/fencing semantics. The worker remains single-active-instance only. Do not interpret the presence of these columns as permission to run multiple instances.
 
 A source-level test checks the entity mapping, additive migration shape, and that the worker does not yet consume lease tokens. Neither this test nor the migration has been executed in this environment; PostgreSQL migration and two-connection tests remain required.
+
+The Run repository's SQLite integration suite also contains a CodeFirst round-trip test for all five lease fields (owner, UUID token, expiry, heartbeat, and fencing version). This checks entity-to-provider mapping only; it does not prove PostgreSQL migration correctness, atomic claim behavior, or stale-worker fencing. The test has been added but not executed.
