@@ -24,11 +24,11 @@ The atomic claim increments `fencing_version` in the database and returns the ex
 
 ## State transitions
 
-1. Claim: the repository now has an additive PostgreSQL conditional UPDATE ... RETURNING primitive for a Queued Run or a Running Run with a non-null expired lease. It sets owner/token, increments fencing_version, and writes heartbeat/expiry using one database-clock CTE. The HostedService now uses this claim protocol; it is not yet verified against a live PostgreSQL database.
-2. Heartbeat: update heartbeat and expiry only when tenant, Run ID, lease token, fencing_version, Running status, and an unexpired lease all match. A zero-row update means ownership is lost; stop processing immediately.
-3. Complete/Fail: terminal transition must include tenant, Run ID, lease token, fencing_version and expected status in the WHERE predicate. A stale generation must update zero rows.
-4. Cancellation: cancellation changes Running to CancelRequested without clearing lease identity. The current owner may finalize Cancelled only when owner and generation still match. An expired owner cannot finalize.
-5. Recovery: remove blanket Running -> Queued startup recovery. Workers periodically discover queued Runs and expired leases; expired takeover uses the same atomic claim operation. CancelRequested is finalized only by a valid owner or an explicit safe expiry-recovery transition.
+1. Claim: the repository uses a PostgreSQL conditional UPDATE ... RETURNING for a Queued Run or a Running Run with a non-null expired lease. It sets owner/token, increments fencing_version, and writes heartbeat/expiry using one database-clock CTE. The HostedService consumes this claim protocol; it is not yet verified against live PostgreSQL.
+2. Renewal: the worker renews with PostgreSQL time and exact tenant/Run/token/version predicates before each provider request, after each provider response, and every 25 candidate records. A zero-row update means ownership is lost and processing stops. There is no independent heartbeat task; the 10-minute lease currently relies on bounded provider HTTP timeouts and periodic work-boundary renewal.
+3. Complete/Fail: the worker uses PostgreSQL-clock terminal methods whose predicates include tenant, Run ID, lease token, fencing_version, expected status and an unexpired lease. A stale generation updates zero rows.
+4. Cancellation: cancellation changes Running to CancelRequested without clearing lease identity. The worker checks persisted cancellation before renewing or beginning another provider/normalization batch; the current owner finalizes Cancelled only with the exact live lease. If cancellation races the final Complete update, the worker attempts the fenced Cancel transition; expiry recovery also finalizes an expired CancelRequested Run.
+5. Recovery: startup recovery calls RecoverExpiredLeasesAsync before enumerating queued IDs. Only expired lease-backed Running rows are requeued; expired CancelRequested rows become Cancelled. The legacy recovery method is restricted to lease-less rows. Redis queue reconstruction follows database recovery.
 6. Queue: Redis messages carry tenant + Run ID and remain hints. Duplicate, delayed, or lost messages cannot confer ownership.
 
 All lease times must be generated/read using PostgreSQL time (for example `clock_timestamp()`), not worker wall clocks. Heartbeat interval must be materially shorter than lease TTL; choose values only after measuring provider call durations and shutdown behavior.
@@ -37,11 +37,11 @@ All lease times must be generated/read using PostgreSQL time (for example `clock
 
 A lease check performed before a Candidate insert is insufficient. A worker can lose its lease between the check and the write.
 
-Every Candidate + Evidence persistence transaction must:
+Every Candidate + Evidence + initial Score persistence transaction must:
 1. Begin a PostgreSQL transaction.
 2. Lock the Run row for the same tenant and Run ID (`SELECT ... FOR UPDATE`).
 3. Re-check lease token, fencing_version, Running status, and `lease_expires_at > clock_timestamp()` while holding the row lock.
-4. Insert Candidate and Evidence rows in that same transaction.
+4. Insert Candidate, Evidence and initial Score rows in that same transaction.
 5. Commit.
 
 Takeover must update/lock that same Run row. It therefore waits for an in-flight valid transaction; after takeover commits, an old generation cannot begin another candidate transaction. Apply the same fencing check to any future Score writes, raw-result checkpoint, progress counter, and terminal transition. Never rely only on an in-memory cancellation token.
@@ -52,9 +52,9 @@ Do not hold the Run row lock during provider network calls, serialization, or le
 
 - Add fields through a new versioned PostgreSQL migration for existing tenant databases and matching entity metadata for fresh CodeFirst tenants.
 - Verify fresh-tenant CodeFirst schema and upgrade-path schema have identical column types, nullability, defaults, and indexes.
-- Deploy a compatibility release that still enforces single Worker while lease fields are observed and validated.
-- Enable lease claim/heartbeat/fencing only after independent PostgreSQL tests pass.
-- Remove legacy blanket recovery only in the same release that activates lease-aware recovery; never run both algorithms.
+- Deploy the lease-aware worker while retaining the single-worker operational limit.
+- Keep lease claim, work-boundary renewal, transactional child-write fencing and terminal fencing enabled; validate them with independent PostgreSQL connections before multi-instance rollout.
+- Keep legacy recovery restricted to rows with all lease metadata NULL; do not broaden it to lease-backed rows.
 - Keep the operational single-worker gate until production rollout and monitoring demonstrate lease expiry/takeover behavior.
 
 ## Required PostgreSQL acceptance tests
@@ -73,7 +73,7 @@ Use independent connections and preferably independent worker processes:
 
 ## Non-goals and unresolved decisions
 
-- This design does not authorize multiple workers until all lifecycle and child-write fencing is integrated and tested. The claim primitive alone is insufficient.
+- This implementation does not authorize multiple workers until PostgreSQL integration and concurrency tests pass. Source-level wiring alone is insufficient.
 - Redis locks are not a replacement for the PostgreSQL generation token.
 - A lease does not make provider calls exactly-once. A crash after a provider accepted a request but before the result was checkpointed can cause a repeat call; adapters must use provider idempotency where available and expose retry/cost metadata.
 - Decide lease TTL, heartbeat cadence, polling strategy, and maximum concurrent Runs from measured workload and graceful-shutdown constraints, not arbitrary defaults.
