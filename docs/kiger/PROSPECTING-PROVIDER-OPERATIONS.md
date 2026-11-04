@@ -95,3 +95,7 @@ Enable with `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`.
 - A persistent provider request/cost ledger, shared response cache, cross-Run coverage cursor and durable rate-limit circuit breaker remain outstanding. Cross-Run Candidate deduplication by provider identity/email/website is now implemented, but it does not yet maintain a first-class observation-to-prior-Candidate link or source coverage cursor.
 - GLEIF is a legal-entity identity-resolution source, not a discovery directory; it enriches already-discovered candidates and preserves entity status, LEI registration status, country and registered identifier separately.
 - Test source is committed but still needs compilation and execution in the .NET 10 environment. Live API and Windows/PostgreSQL end-to-end acceptance remain outstanding.
+
+## Request ledger and incremental coverage roadmap
+
+The detailed implementation specification is maintained in [`PROSPECTING-REQUEST-LEDGER-AND-COVERAGE-DESIGN.md`](./PROSPECTING-REQUEST-LEDGER-AND-COVERAGE-DESIGN.md). It separates durable provider-attempt audit, successful-window coverage, disposable response caching, and persisted cooldown/circuit state. These are not yet implemented; do not infer complete coverage or cache hits from current Run summaries. The next implementation slice should start with the request ledger and its PostgreSQL concurrency tests before enabling cursor advancement or caching.
