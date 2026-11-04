@@ -41,7 +41,8 @@ public sealed class CrmProspectingStrategyRepository(ISqlSugarClientResolver cli
             strategy => new SysCrmProspectingStrategy { ActivatedAt = activatedAt },
             strategy => strategy.BasicId == strategyId &&
                 strategy.CampaignId == campaignId &&
-                strategy.ApprovalStatus == CrmProspectingStrategyApprovalStatus.Approved,
+                strategy.ApprovalStatus == CrmProspectingStrategyApprovalStatus.Approved &&
+                strategy.ActivatedAt == null,
             cancellationToken);
     }
 
