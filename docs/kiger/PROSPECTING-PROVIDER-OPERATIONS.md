@@ -25,6 +25,19 @@ Enable with `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true`.
 
 Enable with `XiHan:CRM:Prospecting:EnableFindTenderProvider=true`.
 
+## Official EU TED adapter
+
+- Provider code: `eu_ted`
+- Fixed endpoint: `https://api.ted.europa.eu/v3/notices/search`
+- Authentication: anonymous public Search API; no API key is used.
+- Query: full-text product keywords combined with a 30-day publication-date window.
+- Current behavior: up to 2 pages × 100 notices per Run; buyer and publication number are required before a Candidate record is emitted.
+- Buyer mapping: TED `buyer-name` is used as the buyer organisation; no contact email or website is inferred.
+- Evidence: official TED notice detail URL, publication time, payload SHA-256, `official_procurement`.
+- Safety: fixed HTTPS host/path, redirects disabled, 30-second timeout, 6 MiB response cap, and HTTP 429/503 surfaced with Retry-After guidance.
+
+Enable with `XiHan:CRM:Prospecting:EnableTedProvider=true`.
+
 ## Official UK Contracts Finder adapter
 
 - Provider code: `uk_contracts_finder`
@@ -51,11 +64,13 @@ Enable with `XiHan:CRM:Prospecting:EnableContractsFinderProvider=true`.
 
 Enable with `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`.
 
-## Worker lease recovery status
+## Worker lease lifecycle status
 
-- Tenant startup recovery now invokes the PostgreSQL-clock-based RecoverExpiredLeasesAsync before rebuilding the Redis queue. Expired lease-backed Running Runs are requeued; expired CancelRequested Runs are finalized as Cancelled.
-- This is a recovery primitive only. The active Worker still uses the legacy claim/write/terminal path; lease claims, child-write fencing, heartbeat/renewal and fenced terminal transitions are not yet wired end-to-end.
-- Keep worker concurrency at one and do not deploy multiple active application workers until the full lease lifecycle is integrated and PostgreSQL concurrency acceptance passes.
+- The active Worker claims Runs using PostgreSQL lease token + fencing version; child writes and terminal transitions are fenced.
+- A separate two-minute heartbeat uses a fresh tenant-aware DI scope and repository instance. Work-boundary renewals remain as defense in depth.
+- If the heartbeat sees `CancelRequested`, it stops renewing without cancelling the processing token so the worker can finalize via the fenced Cancel transition. Lease loss or heartbeat errors cancel the linked Run token.
+- Startup recovery invokes PostgreSQL-clock-based `RecoverExpiredLeasesAsync` before Redis queue reconstruction.
+- Keep worker concurrency at one and do not deploy multiple active application workers until PostgreSQL dual-connection race, crash-recovery and cancellation acceptance passes.
 
 ## Shared data-handling rules
 
@@ -68,8 +83,10 @@ Enable with `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`.
 
 ## Known limitations and next work
 
-- USAspending reads one page only.
-- Find a Tender reads at most three pages and searches only a rolling 30-day update window. It is not an exhaustive historical archive.
-- Neither adapter currently persists a dedicated provider request/cost ledger or shared response cache.
-- The GLEIF LEI API is a legal-entity registry and identity-resolution source, not a lead-discovery directory. Its planned integration should enrich/verify already discovered candidate names and must preserve entity status, LEI registration status, country and registered identifier separately.
-- Unit tests are committed but must still be compiled and run in the .NET 10 environment. Live API and Windows/PostgreSQL end-to-end acceptance remain outstanding.
+- USAspending reads one page only (up to 20 awards).
+- Find a Tender and Contracts Finder each read at most three pages and search a rolling 30-day window. Neither is an exhaustive historical archive.
+- TED reads at most two pages × 100 notices per Run and searches a rolling 30-day publication window.
+- World Bank Finances One exposes a large procurement-notice dataset, but the published dataset schema currently exposes bid description, project, country, dates and notice URL—not a buyer organisation/contact field. It must remain research-only until a separate, source-backed project/implementing-agency resolution step is designed; do not turn bid descriptions into fake company names.
+- A persistent provider request/cost ledger, shared response cache, cross-Run coverage cursor and rate-limit circuit breaker remain outstanding.
+- GLEIF is a legal-entity identity-resolution source, not a discovery directory; it enriches already-discovered candidates and preserves entity status, LEI registration status, country and registered identifier separately.
+- Test source is committed but still needs compilation and execution in the .NET 10 environment. Live API and Windows/PostgreSQL end-to-end acceptance remain outstanding.
