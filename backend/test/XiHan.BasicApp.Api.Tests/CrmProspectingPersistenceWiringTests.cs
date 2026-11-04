@@ -667,7 +667,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUsaSpendingProspectingProvider.cs");
 
         Assert.Contains("EnableUsaSpendingProvider", registration, StringComparison.Ordinal);
-        Assert.Contains("AddHttpClient<CrmUsaSpendingProspectingProvider>", registration, StringComparison.Ordinal);
+        Assert.Contains("new HttpClient(new SocketsHttpHandler", registration, StringComparison.Ordinal);
         Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
         Assert.Contains("api.usaspending.gov/api/v2/search/spending_by_award/", provider, StringComparison.Ordinal);
         Assert.Contains("ReadBoundedAsync(response, 6 * 1024 * 1024", provider, StringComparison.Ordinal);
