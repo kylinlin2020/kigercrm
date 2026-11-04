@@ -1,104 +1,109 @@
 # Prospecting Worker Atomic Persistence Decision
 
-Status: implementation gate / architecture decision record
+Status: implementation and verification gate
 Branch: `kiger-dev`
 Scope: Candidate + Evidence + Score persistence for automatic prospecting
 Last audited: 2026-11-04
 
-## Decision summary
+## Current implementation
 
-Do not add Evidence or Score writes directly to `CrmProspectingRunHostedService` until a transaction boundary shared by all three repositories has been proven against the exact XiHan.Framework 4.8.0 runtime.
+The Worker now persists eligible Candidate, Evidence, and the first Score snapshot together in an explicit transactional UnitOfWork for each newly accepted raw envelope. It also repairs missing Evidence and a missing first Score snapshot for an existing Candidate in a separate explicit transaction. Provider network calls and Run-wide normalization remain outside those short database transactions.
 
-The Worker currently calls `ICrmProspectingCandidateRepository.AddAsync` once per accepted raw record. It does not call `CrmProspectingEvidenceFactory`, `CrmProspectingScoreSnapshotFactory`, or either immutable-row repository. The current reviewer endpoint can therefore legitimately return empty Evidence and Score collections.
+The Worker obtains `IUnitOfWorkManager` from the active DI scope and calls `Begin(new XiHanUnitOfWorkOptions(isTransactional: true))`; it awaits all three repositories before `CompleteAsync`. This is implemented source behavior. It is not yet a substitute for proving the exact framework enlistment and rollback behavior against the deployed XiHan.Framework 4.8.0 runtime and PostgreSQL.
 
-The intended persistence operation is one short transaction per accepted raw envelope:
+### New Candidate path
 
-1. Normalize the Candidate and build Evidence rows from the original envelope before opening the transaction.
-2. Start a short database unit of work.
-3. Insert Candidate and obtain its generated `BasicId`.
-4. Assign that ID to each Evidence row and insert those rows.
-5. Insert a Score snapshot only when every scored fact is supported by explicit, validated source facts. Unknown facts remain unknown; do not manufacture score inputs.
-6. Commit.
-7. Only after commit, update in-memory duplicate sets and persisted counters.
+1. Normalize Candidate data and build Evidence from the original `CrmProspectingRawEnvelope` before opening the transaction.
+2. Begin a short transactional UnitOfWork.
+3. Insert Candidate and use its generated `BasicId`.
+4. Insert eligible Evidence rows.
+5. Evaluate and insert the conservative first Score snapshot. Unknown procurement, organization verification, product-fit, and market-fit facts remain false rather than inferred.
+6. Complete the UnitOfWork.
+7. Only after successful completion, update in-memory identity sets and counters.
 
-Provider HTTP calls and the complete Run normalization loop must remain outside a database transaction. Never hold one transaction across the 2,000-record Run limit.
+### Existing Candidate repair path
 
-## Transaction API proof gate
+1. Reload persisted Evidence and compare the complete Evidence identity components used by the unique index.
+2. Read the latest Score history and determine whether the initial Score snapshot is absent.
+3. If Evidence or Score is missing, begin a short transaction.
+4. Insert only the currently missing Evidence and/or the first Score snapshot.
+5. Complete the UnitOfWork.
 
-The repository currently references XiHan.Framework packages at version 4.8.0. Before implementing the transaction coordinator, prove all of the following using the actual framework assemblies/runtime:
+This repairs legacy partial rows and retries after a prior process interruption. It does not yet recover automatically from a concurrent unique-key collision.
 
-- The exact `IUnitOfWorkManager` namespace and supported `Begin` overload.
-- The exact completion and disposal contract.
-- All Candidate, Evidence, and Score repositories resolve the same tenant-aware SqlSugar client and enlist in the same active transaction.
-- `AddAsync` assigns the generated Candidate `BasicId` before dependent Evidence insertion.
-- An exception during Evidence or Score insertion rolls back all earlier inserts.
-- A nested or ambient unit of work is not accidentally started independently by any repository.
+## Transaction and conflict boundary
 
-Preferred architecture is a small application-service transaction coordinator invoked by the Worker, provided its framework interception/UnitOfWork behavior is verified. Do not assume an attribute on a hosted-service method is intercepted. Do not invent a UOW overload or assume that three scoped repositories automatically share a transaction merely because they share a DI scope.
+A database uniqueness violation can abort the current transaction. The Worker must not catch such an exception inside the failed UnitOfWork and continue querying or inserting through the same transaction/connection.
 
-A source-only check is not transaction proof. Required proof is a PostgreSQL integration test using independent database connections and the actual repository/UOW registrations.
+Current behavior on a persistence exception is to let it leave the per-record transaction and reach the Worker's outer failure handler. The handler marks the Run Failed (unless cancellation takes precedence). Startup recovery requeues Running Runs, not Failed Runs. This is deliberately fail-closed, but it means an Evidence collision is not yet an automatically recovered idempotent success.
 
-## Idempotency and uniqueness findings
+Required implementation before claiming automatic collision recovery:
 
-The Candidate entity declares a unique index over:
+1. Let the failed UnitOfWork fully dispose and roll back.
+2. Classify the collision narrowly as the Evidence identity unique constraint. Do not treat every SqlSugar/database exception as a duplicate.
+3. Start a fresh UnitOfWork/scope and reload rows under the tenant-scoped Candidate.
+4. Compare the exact identity tuple: TenantId, CandidateId, ProviderCode, ProviderRecordId, FieldName, SourceUrlHash, and RawPayloadHash. The first two are the tenant/Candidate scope; the remaining five are the Evidence natural identity.
+5. Treat the collision as idempotent only when every expected row is now present with the exact identity.
+6. Re-check Score history because the failed transaction may have rolled back both Evidence and Score.
+7. Insert only still-missing rows in a new transaction, with a small bounded retry count. Propagate unrelated database failures.
+8. Add independent-connection PostgreSQL tests for the actual race and recovery behavior.
 
-`TenantId, RunId, ProviderCode, ExternalId, IsDeleted`.
+The SQLite evidence integration suite now verifies exact duplicate rejection, identity dimensions, tenant separation, and a rollback-before-reconciliation preflight. These are test sources only until executed. The rollback preflight does not implement automatic recovery and does not prove PostgreSQL's aborted-transaction behavior.
 
-This is a useful database backstop for retrying the same provider identity within one Run. The Worker also maintains an in-memory key set populated from candidates already stored for that Run.
+## Candidate identity and partial retry behavior
 
-Important limits:
+Candidate uniqueness is tenant- and Run-scoped over the provider/external-record identity. The Worker uses a typed `(ProviderCode, ExternalId)` tuple with ordinal, case-sensitive equality to mirror the database identity semantics.
 
-- The uniqueness scope is Run-scoped, not global across Runs. The same provider record can appear in separate Runs; cross-Run duplicate review remains a separate business rule.
-- In-memory sets are an optimization only. They are not a concurrency guarantee.
-- Candidate uniqueness does not automatically make Evidence/Score insertion idempotent.
-- A retry after a committed Candidate but before separately committed Evidence would leave partial data. The required atomic transaction removes that partial-commit state.
-- If a future design intentionally permits Candidate and Evidence to commit separately, it must introduce an explicit idempotent evidence key and reconciliation state; do not silently rely on the Candidate key.
+- In-memory identity sets are optimizations, not concurrency guarantees.
+- Candidate uniqueness does not by itself make Evidence/Score writes idempotent.
+- The current per-record transaction prevents a newly inserted Candidate from being committed without its eligible Evidence/first Score when that transaction fails.
+- Existing Candidate repair is useful for older or partial rows, but its concurrent unique-key collision still fails the Run as described above.
+- The same provider identity may appear in separate Runs unless a separate cross-Run duplicate policy is introduced.
 
-The current Worker claims a queued Run before processing, but its process-local concurrency setting is not a distributed lease. Do not enable multi-instance Worker processing based only on that setting.
+## Score and evidence policy
 
-## Evidence and score policy
-
-- Evidence must be built from the original `CrmProspectingRawEnvelope`, not reconstructed from the normalized Candidate.
-- Evidence remains `unverified`; ingestion is not verification.
-- Unsafe or missing source URLs produce no Evidence rows. Such records must not receive evidence-quality points.
-- Do not hash low-entropy contact names or email addresses without a suitable keyed scheme.
-- A Score snapshot is optional when facts are incomplete. Do not create a misleading zero-score or infer procurement intent from a generic summary.
-- A high score or priority never approves a Candidate, converts a Lead, sends outreach, or publishes website content.
-- Candidate remains PendingReview or Duplicate according to existing duplicate logic.
+- Evidence is built from the original provider envelope, not reconstructed from normalized Candidate fields.
+- Ingestion is not verification; newly ingested Evidence remains unverified.
+- Unsafe or missing source URLs do not produce traceable Evidence.
+- Do not hash low-entropy contact names or email addresses without an appropriate keyed scheme.
+- Do not infer procurement intent, product fit, market fit, or verified organization identity from generic summaries.
+- A Score or priority never approves a Candidate, converts a Lead, sends outreach, or publishes website content.
+- Human review remains required before a Candidate enters the formal CRM Lead/customer workflow. External email and website publishing retain their separate manual approval gates.
 
 ## PostgreSQL acceptance matrix
 
-The integration suite must run against PostgreSQL and use independent connections (and, for race tests, independent scopes/processes):
+The integration suite must run against PostgreSQL with independent connections (and independent scopes for race tests):
 
 | Scenario | Required assertion |
 |---|---|
-| Normal write | Candidate + all eligible Evidence + optional Score become visible after commit |
+| Normal write | Candidate + eligible Evidence + first Score are visible after commit |
 | Evidence insert failure | Candidate and partial Evidence are rolled back |
 | Score insert failure | Candidate and Evidence are rolled back |
 | Cancellation before commit | No partial record set remains |
-| Same Run retry | Existing provider identity does not create a second Candidate or duplicate evidence set |
-| Concurrent same-identity insert | Exactly one Candidate wins; loser is handled as an idempotent duplicate, not a silent Run-wide failure |
+| Existing Candidate repair | Only missing Evidence/Score is added |
+| Concurrent Evidence identity insert | One writer wins; loser reloads in a fresh transaction and confirms exact identity before treating it as idempotent |
+| Concurrent Candidate identity insert | Exactly one Candidate wins; loser reloads the winner and reconciles child rows |
 | Separate Runs | Same provider identity may exist in both Runs unless a deliberate cross-Run rule is added |
 | Tenant isolation | Tenant A cannot read, attach, or mutate Tenant B Evidence/Score |
 | Missing/unsafe source | No Evidence and no evidence-quality points |
-| Candidate review read API | Evidence/Score returned only after campaign owner/data-scope authorization |
+| Review read API | Evidence/Score is returned only after campaign owner/data-scope authorization |
 
-SQLite source tests may remain useful regression tests, but they do not prove PostgreSQL transaction, locking, or concurrency behavior.
+SQLite tests are useful repository preflight checks but do not prove PostgreSQL transaction, locking, or concurrency behavior.
 
-## Worker lease and Run-state boundary
+## Run creation and worker ownership boundaries
 
-Keep one active Worker deployment until a database-authoritative lease is implemented. A production multi-instance lease requires owner identity, expiry, heartbeat, and a monotonically increasing fencing generation. Claim, heartbeat, candidate persistence, completion, and failure writes must reject stale generations. Process-local concurrency limits and startup recovery are not substitutes.
+Run creation checks the tenant-scoped RequestKey before insert and validates that a repeated key has the same payload hash. A concurrent same-key insert is still protected by the unique index, but the losing request is not yet guaranteed to reload and return the winning Run. Add narrow conflict recovery and an independent-connection PostgreSQL test before describing concurrent Run creation as fully idempotent.
 
-Redis/background queue messages are hints; the database must remain authoritative for Run ownership and state. Do not implement timestamp-only stale detection or a process-local mutex as a distributed lock.
+Keep exactly one active Worker deployment until database-authoritative lease/fencing is implemented. The current startup recovery broadly requeues Running Runs and has no lease owner, heartbeat, expiry, or fencing token. Process-local concurrency limits and conditional Queued-to-Running claim are not distributed ownership.
 
 ## Separate validation gates
 
-These remain distinct and must be reported separately:
+Report these independently; do not infer one from another:
 
-1. Source inspection / source-level regression tests.
-2. .NET restore and build.
-3. Unit tests.
-4. PostgreSQL migrations and integration tests.
-5. Windows real pull, build, startup, and runtime acceptance.
+1. Source inspection and source-level regression test coverage.
+2. .NET restore/build.
+3. Unit and SQLite integration tests.
+4. PostgreSQL migrations and independent-connection integration tests.
+5. Windows native pull, build, startup, and runtime acceptance.
 
-As of this audit, this work has not been executed through .NET build/test or PostgreSQL integration tests. Windows acceptance remains open. PR #1 remains Draft and must not be merged before all required gates pass.
+As of this audit, no current CI workflow run has been observed for the latest branch head. The newly added SQLite tests have not been executed in this environment. PostgreSQL migrations/concurrency tests and Windows native acceptance remain open. PR #1 remains Draft and must not be merged before the required gates pass.
