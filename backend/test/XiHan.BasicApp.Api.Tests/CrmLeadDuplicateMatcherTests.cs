@@ -129,6 +129,32 @@ public sealed class CrmLeadDuplicateMatcherTests
         Assert.Empty(result.MatchedSignals);
     }
 
+    [Theory]
+    [InlineData("+1 415 555 0123 ext 45")]
+    [InlineData("+1 415 555 0123 extension 45")]
+    [InlineData("+1 415 555 0123 x45")]
+    [InlineData("+1 415 555 0123 #45")]
+    public void NormalizePhone_ShouldRejectNumbersWithExtensions(string value)
+    {
+        Assert.Null(CrmLeadDuplicateMatcher.NormalizePhone(value));
+    }
+
+    [Theory]
+    [InlineData("localhost")]
+    [InlineData("127.0.0.1")]
+    [InlineData("https://user:password@example.com")]
+    [InlineData("ftp://example.com")]
+    public void NormalizeDomain_ShouldRejectNonPublicOrUnsupportedHosts(string value)
+    {
+        Assert.Null(CrmLeadDuplicateMatcher.NormalizeDomain(value));
+    }
+
+    [Fact]
+    public void NormalizeDomain_ShouldNormalizeInternationalizedDomainName()
+    {
+        Assert.Equal("xn--bcher-kva.example", CrmLeadDuplicateMatcher.NormalizeDomain("https://www.bücher.example/path"));
+    }
+
     [Fact]
     public void NormalizePhone_ShouldReturnNullWhenNoDigitsExist()
     {
