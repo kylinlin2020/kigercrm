@@ -67,6 +67,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains(".Add<SysCrmProspectingCampaign>()", source, StringComparison.Ordinal);
         Assert.Contains(".Add<SysCrmProspectingStrategy>()", source, StringComparison.Ordinal);
         Assert.Contains(".Add<SysCrmProspectingRun>()", source, StringComparison.Ordinal);
+        Assert.Contains(".Add<SysCrmProspectingCandidate>()", source, StringComparison.Ordinal);
     }
 
     [Fact]
