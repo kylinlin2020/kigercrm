@@ -193,8 +193,8 @@ public sealed class CrmProspectingEvidenceWiringTests
         }
 
         Assert.Contains("var missingEvidence = expectedEvidence", worker, StringComparison.Ordinal);
-        Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", worker, StringComparison.Ordinal);
-        var begin = worker.IndexOf("Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", StringComparison.Ordinal);
+        Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", worker, StringComparison.Ordinal);
+        var begin = worker.IndexOf("Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", StringComparison.Ordinal);
         var insert = worker.IndexOf("AddRangeAsync(missingEvidence, cancellationToken)", begin, StringComparison.Ordinal);
         var commit = worker.IndexOf("repairUnitOfWork.CompleteAsync(cancellationToken)", insert, StringComparison.Ordinal);
         Assert.True(begin >= 0 && insert > begin && commit > insert,
