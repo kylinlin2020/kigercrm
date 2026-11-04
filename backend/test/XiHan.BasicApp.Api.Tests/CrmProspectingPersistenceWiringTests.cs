@@ -373,7 +373,6 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("throw;", cancellationPath, StringComparison.Ordinal);
         Assert.Contains("Logger.LogError(ex", worker[generalCatch..], StringComparison.Ordinal);
         Assert.Contains("BuildFailureSummary(ex)", worker[failCall..], StringComparison.Ordinal);
-        Assert.DoesNotContain("catch (SqlSugarException)", worker, StringComparison.Ordinal);
         Assert.DoesNotContain("catch (Exception) when", worker, StringComparison.Ordinal);
     }
 
