@@ -586,6 +586,42 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Requeues only Running rows whose persisted lease has expired according to PostgreSQL time.
+    /// Rows without lease metadata are deliberately left untouched for explicit legacy recovery.
+    /// </summary>
+    public async Task<int> RecoverExpiredLeasesAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting lease recovery requires PostgreSQL.");
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
+        const string sql = """
+            WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+            UPDATE crm_prospecting_run AS run
+            SET status = @queuedStatus,
+                started_at = NULL,
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at = NULL,
+                lease_heartbeat_at = NULL
+            FROM lease_clock
+            WHERE run.tenant_id = @tenantId
+              AND run.status = @runningStatus
+              AND run.lease_expires_at IS NOT NULL
+              AND run.lease_expires_at <= lease_clock.now
+            RETURNING run.basic_id AS "BasicId";
+            """;
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", currentTenant.TenantId),
+            new SugarParameter("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running));
+        return rows.Count;
+    }
+
     public async Task<bool> RecoverInterruptedAsync(
         DateTimeOffset recoveredAt,
         CancellationToken cancellationToken = default)

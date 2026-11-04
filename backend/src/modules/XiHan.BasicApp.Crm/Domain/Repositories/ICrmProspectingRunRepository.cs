@@ -48,6 +48,9 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>List queued run IDs in creation order for startup/queue-loss recovery in the current tenant scope.</summary>
     Task<IReadOnlyList<long>> GetQueuedIdsAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Requeue only Running rows with a non-null expired lease, using PostgreSQL database time. Does not activate legacy lease-less rows.</summary>
+    Task<int> RecoverExpiredLeasesAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Single-active-worker startup recovery only: returns true if any rows transitioned; Running returns to Queued and CancelRequested becomes Cancelled. The result is not a row count. Do not run concurrently with live workers; multi-instance recovery requires leases/fencing.</summary>
     Task<bool> RecoverInterruptedAsync(DateTimeOffset recoveredAt, CancellationToken cancellationToken = default);
 
