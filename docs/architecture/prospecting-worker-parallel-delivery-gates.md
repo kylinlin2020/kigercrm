@@ -55,14 +55,14 @@ Required cases:
 6. A process crash leaves a lease that becomes reclaimable only after expiry.
 7. CancelRequested cannot be converted back into executable work by recovery.
 
-The test fixture must be explicitly opt-in through an environment variable and must never target a production database. It should create an isolated schema/database and clean it up only when the fixture itself created it.
+The test fixture must be explicitly opt-in through an environment variable and must never target a production database. The current test project does not yet contain the two-connection PostgreSQL fixture; no PostgreSQL test should be inferred from the new source-level tests. It should create an isolated schema/database and clean it up only when the fixture itself created it.
 
 ## Workstream E — Windows-native acceptance
 
 - [ ] Pull `kiger-dev` on Windows without WSL/Docker.
-- [ ] Restore the solution with the repository's pinned SDK and NuGet configuration.
-- [ ] Build the CRM module and API test project.
-- [ ] Run the existing SQLite repository tests.
+- [x] Add `backend/scripts/acceptance/Invoke-ProspectingWorkerAcceptance.ps1`; it requires a clean `kiger-dev` checkout and .NET 10, then restores/builds the CRM module and API test project and runs prospecting tests (unless `-SkipTests` is supplied).
+- [ ] Execute the acceptance script on a real Windows host and retain the build/test logs.
+- [ ] Run the existing SQLite repository tests on Windows.
 - [ ] Run PostgreSQL tests against a disposable local PostgreSQL instance.
 - [ ] Apply migrations to a disposable database and verify schema/index definitions.
 - [ ] Run one end-to-end approved prospecting Run and inspect Candidate/Evidence/Score persistence.
@@ -73,3 +73,14 @@ The test fixture must be explicitly opt-in through an environment variable and m
 Until Workstreams A–D are implemented and tested, retain the single-active-application-instance restriction. A new `TryClaimLeaseAsync` primitive now performs the database-atomic claim, but the HostedService still calls legacy `ClaimQueuedAsync`. The new primitive is not active until ADO transaction enlistment, PostgreSQL concurrency tests, heartbeat, child-write fencing, recovery, and terminal transitions are complete. The current `RecoverInterruptedAsync` blanket-requeues Running rows and must not be used as multi-instance lease recovery.
 
 A source-level contract test also guards the expired-lease recovery predicate and verifies that the HostedService has not yet activated the primitive. These assertions only guard SQL/transaction shape; they are not provider-backed tests. A green SQLite test suite, a source-level assertion, or a successful build alone does not authorize multi-instance deployment.
+
+
+### Windows acceptance command
+
+From a clean checkout of `kiger-dev`, run in PowerShell:
+
+```powershell
+.\backend\scripts\acceptance\Invoke-ProspectingWorkerAcceptance.ps1
+```
+
+Use `-SkipTests` only when performing a build-only pass. The script deliberately refuses another branch or a dirty working tree. It does not provision PostgreSQL and does not authorize multi-instance operation.
