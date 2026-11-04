@@ -48,6 +48,12 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
             "backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmCustomer.cs"));
         Assert.Contains("nameof(ConvertedLeadId)", customerEntity, StringComparison.Ordinal);
         Assert.Contains("UX_{table}_TeId_ConvLead", customerEntity, StringComparison.Ordinal);
+
+        var migration = File.ReadAllText(RepositoryPath(
+            "backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.28", "5.9.28.sql"));
+        Assert.Contains("ADD COLUMN IF NOT EXISTS converted_lead_id", migration, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CREATE UNIQUE INDEX", migration, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("(tenant_id, converted_lead_id)", migration, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string RepositoryPath(params string[] segments) =>
