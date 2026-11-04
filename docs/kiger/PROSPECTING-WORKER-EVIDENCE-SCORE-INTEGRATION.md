@@ -193,3 +193,7 @@ The reconciliation deliberately does not use retrieval timestamp as identity, be
 A source-contract test guards this retry path. This remains an application-level reconciliation strategy, not a database uniqueness guarantee. Until a stable evidence identity is enforced by a PostgreSQL unique constraint and multi-worker fencing is implemented, the single-active-worker deployment restriction remains mandatory. Concurrent reconciliation can still race.
 
 No PostgreSQL rollback, retry, or concurrent-writer test has been executed; no build or Windows runtime acceptance is claimed.
+
+### Identity comparison alignment
+
+The in-memory Run/provider/external-ID identity maps now use ordinal, case-sensitive comparison, matching the PostgreSQL unique index's exact text-key semantics. Email addresses and website domains continue to use their separate normalized, case-insensitive duplicate checks. This avoids incorrectly merging two distinct provider record IDs solely because their casing differs, and avoids a case-insensitive dictionary construction failure if such IDs coexist in persisted data.
