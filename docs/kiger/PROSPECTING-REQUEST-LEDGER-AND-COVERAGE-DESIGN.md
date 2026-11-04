@@ -151,7 +151,7 @@ Do not combine the entire rollout into one migration or enable cache/cursor adva
 
 Already present on `kiger-dev`: bounded provider result retention, per-provider exception isolation, source evidence hashes, cross-Run candidate deduplication, lease/fencing lifecycle, independent heartbeat, and human review before CRM Lead conversion.
 
-Not yet implemented: coverage cursor, response cache, deferred retry scheduling/exponential backoff/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
+Not yet implemented: coverage cursor, response cache, deferred retry scheduling/exponential backoff/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. Tenant-scoped provider cooldown enforcement is implemented by querying persisted RateLimited request attempts before dispatch; it skips the provider while RetryAfterAt is active, but does not automatically defer/requeue the skipped provider. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
 
 ### Implemented prerequisite: canonical request fingerprint
 
@@ -169,7 +169,7 @@ The Worker computes the canonical request fingerprint and creates Started before
 
 ### Implemented: interrupted-attempt recovery
 
-Startup recovery runs after Run lease recovery and before queue reconstruction. It marks a Started attempt as Failed with stable code `worker_interrupted` only when it is older than the Run lease duration (10 minutes) and its Run is missing, queued/terminal, or has an expired lease. It does not touch a request whose Run still has a live Running/CancelRequested lease. Recovery uses PostgreSQL database time and tenant-scoped SQL. The SQL still requires live PostgreSQL acceptance.
+Startup recovery runs after Run lease recovery and before queue reconstruction. It marks a Started attempt as Failed with stable code `worker_interrupted` only when it is older than the configured stale-attempt threshold (15 minutes) and its Run is missing, queued/terminal, or has an expired lease. It does not touch a request whose Run still has a live Running/CancelRequested lease. Recovery uses PostgreSQL database time and tenant-scoped SQL. The SQL still requires live PostgreSQL acceptance.
 
 ### Implemented: structured rate-limit outcomes
 
