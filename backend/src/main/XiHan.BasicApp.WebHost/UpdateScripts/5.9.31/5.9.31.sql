@@ -7,6 +7,7 @@ BEGIN
         CREATE TABLE IF NOT EXISTS crm_prospecting_provider_request
         (
             basic_id bigint NOT NULL,
+            row_version bigint NOT NULL DEFAULT 0,
             tenant_id bigint NOT NULL,
             created_time timestamp with time zone NOT NULL,
             created_id bigint NULL,
