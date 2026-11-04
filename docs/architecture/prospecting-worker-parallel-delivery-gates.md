@@ -21,9 +21,9 @@ This checklist separates the workstreams so implementation can proceed independe
 - [x] Generate a fresh UUID token per claim attempt in the atomic claim statement.
 - [x] Add a repository heartbeat primitive that renews only an unexpired Running lease with matching tenant, Run ID, token, and version using PostgreSQL database time.
 - [ ] Wire the database-clock heartbeat into the HostedService and stop provider/persistence work immediately when renewal fails.
-- [x] Add a PostgreSQL-only recovery primitive that requeues only Running rows with non-null expired leases, clears their active lease metadata, and leaves lease-less legacy rows untouched.
+- [x] Add a PostgreSQL-only recovery primitive that requeues expired Running leases and finalizes expired CancelRequested leases as Cancelled; both require non-null expired leases, clear active lease metadata, and leave lease-less legacy rows untouched.
 - [ ] Wire safe expired-lease recovery into startup recovery; keep legacy blanket recovery disabled once leases are active.
-- [ ] Ensure CancelRequested remains cancellation intent and cannot be silently requeued.
+- [x] Ensure expired CancelRequested leases are finalized as Cancelled rather than silently requeued; live cancellation remains owned by the current lease holder.
 - [x] Add database-clock fenced Complete/Fail/Cancel terminal primitives that clear active lease metadata while retaining FencingVersion.
 - [ ] Stop all further persistence immediately after a failed heartbeat/fence check.
 
@@ -53,7 +53,7 @@ Required cases:
 4. Tenant A cannot claim or mutate Tenant B's Run.
 5. A transaction that loses the fence rolls back Candidate, Evidence, and Score writes.
 6. A process crash leaves a lease that becomes reclaimable only after expiry.
-7. CancelRequested cannot be converted back into executable work by recovery.
+7. Expired CancelRequested leases become Cancelled, never Queued; live cancellation remains fenced to the current holder.
 
 The test fixture must be explicitly opt-in through an environment variable and must never target a production database. The current test project does not yet contain the two-connection PostgreSQL fixture; no PostgreSQL test should be inferred from the new source-level tests. It should create an isolated schema/database and clean it up only when the fixture itself created it.
 
@@ -70,7 +70,7 @@ The test fixture must be explicitly opt-in through an environment variable and m
 
 ## Activation rule
 
-Until Workstreams A–D are implemented and tested, retain the single-active-application-instance restriction. A new `TryClaimLeaseAsync` primitive now performs the database-atomic claim, but the HostedService still calls legacy `ClaimQueuedAsync`. The new primitive is not active until ADO transaction enlistment, PostgreSQL concurrency tests, heartbeat, child-write fencing, recovery, and terminal transitions are complete. The current `RecoverInterruptedAsync` blanket-requeues Running rows and must not be used as multi-instance lease recovery.
+Until Workstreams A–D are implemented and tested, retain the single-active-application-instance restriction. A new `TryClaimLeaseAsync` primitive now performs the database-atomic claim, but the HostedService still calls legacy `ClaimQueuedAsync`. The new primitive is not active until ADO transaction enlistment, PostgreSQL concurrency tests, heartbeat, child-write fencing, recovery, and terminal transitions are complete. The current `RecoverInterruptedAsync` legacy path is only for lease-less rows and must not be used as multi-instance lease recovery. `RecoverExpiredLeasesAsync` handles expired Running and CancelRequested leases but remains unwired until the complete lease lifecycle is integrated.
 
 A source-level contract test also guards the expired-lease recovery predicate and verifies that the HostedService has not yet activated the primitive. These assertions only guard SQL/transaction shape; they are not provider-backed tests. A green SQLite test suite, a source-level assertion, or a successful build alone does not authorize multi-instance deployment.
 
