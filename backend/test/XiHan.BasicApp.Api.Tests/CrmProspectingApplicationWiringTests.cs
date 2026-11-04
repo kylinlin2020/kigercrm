@@ -404,7 +404,7 @@ public sealed class CrmProspectingApplicationWiringTests
     }
 
     [Fact]
-    public void ProspectingRunCreation_ShouldKeepRequestLookupInsideTransactionalUowAndPublishOnlyAfterCompletion()
+    public void ProspectingRunCreation_ShouldRecoverOnlyTheExactRequestKeyUniqueViolationAfterRollback()
     {
         var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
             "Application", "AppServices", "CrmProspectingAppService.cs");
@@ -413,24 +413,35 @@ public sealed class CrmProspectingApplicationWiringTests
 
         var startIndex = app.IndexOf("public async Task<CrmProspectingRunDto> StartRunAsync", StringComparison.Ordinal);
         Assert.True(startIndex > 0);
-        var startAttribute = app.LastIndexOf("[UnitOfWork(true)]", startIndex, StringComparison.Ordinal);
-        Assert.True(startAttribute >= 0, "Run creation must remain inside its transactional application UnitOfWork.");
-        var startEnd = app.IndexOf("\n    [PermissionAuthorize(CrmPermissionCodes.Read)]", startIndex, StringComparison.Ordinal);
+        var startEnd = app.IndexOf("\n    private async Task<CrmProspectingRunDto> StartRunInUnitOfWorkAsync", startIndex, StringComparison.Ordinal);
         Assert.True(startEnd > startIndex);
         var startMethod = app[startIndex..startEnd];
+        Assert.DoesNotContain("[UnitOfWork(true)]", app[(app.LastIndexOf("\n", startIndex - 2, StringComparison.Ordinal) + 1)..startIndex], StringComparison.Ordinal);
+        Assert.Contains("catch (Exception ex) when (IsRunRequestKeyUniqueViolation(ex))", startMethod, StringComparison.Ordinal);
+        Assert.Contains("return await StartRunInUnitOfWorkAsync(input, cancellationToken)", startMethod, StringComparison.Ordinal);
 
-        var createRun = startMethod.IndexOf("domain.CreateRunAsync(", StringComparison.Ordinal);
-        var completionHook = startMethod.IndexOf("uow.OnCompleted(", StringComparison.Ordinal);
-        Assert.True(createRun >= 0 && completionHook > createRun,
-            "Queue publication must remain registered after Run creation and execute only after successful UoW completion.");
-        Assert.Contains("unitOfWorkManager.Current", startMethod, StringComparison.Ordinal);
+        var helperIndex = app.IndexOf("private async Task<CrmProspectingRunDto> StartRunInUnitOfWorkAsync", startEnd, StringComparison.Ordinal);
+        var detectorIndex = app.IndexOf("private static bool IsRunRequestKeyUniqueViolation", helperIndex, StringComparison.Ordinal);
+        Assert.True(helperIndex > startEnd && detectorIndex > helperIndex);
+        var helper = app[helperIndex..detectorIndex];
+        Assert.Contains("unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", helper, StringComparison.Ordinal);
+        Assert.Contains("domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken)", helper, StringComparison.Ordinal);
+        Assert.Contains("uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero))", helper, StringComparison.Ordinal);
+        Assert.Contains("await uow.CompleteAsync(cancellationToken)", helper, StringComparison.Ordinal);
+
+        var detectorEnd = app.IndexOf("\n    [PermissionAuthorize(CrmPermissionCodes.Read)]", detectorIndex, StringComparison.Ordinal);
+        Assert.True(detectorEnd > detectorIndex);
+        var detector = app[detectorIndex..detectorEnd];
+        Assert.Contains("Npgsql.PostgresException", detector, StringComparison.Ordinal);
+        Assert.Contains("23505", detector, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_prospecting_run_te_rq", detector, StringComparison.Ordinal);
+        Assert.Contains("ConstraintName", detector, StringComparison.Ordinal);
 
         var domainCreateIndex = domain.IndexOf("public async Task<SysCrmProspectingRun> CreateRunAsync", StringComparison.Ordinal);
-        Assert.True(domainCreateIndex >= 0);
         var existingLookup = domain.IndexOf("runs.GetByRequestKeyAsync(requestKey, cancellationToken)", domainCreateIndex, StringComparison.Ordinal);
         var insert = domain.IndexOf("return await runs.AddAsync(run, cancellationToken)", domainCreateIndex, StringComparison.Ordinal);
         Assert.True(existingLookup > domainCreateIndex && insert > existingLookup,
-            "The tenant-scoped idempotency lookup must remain before Run insertion.");
+            "The retry must encounter the tenant-scoped idempotency lookup before any second insert.");
         Assert.Contains("existing.PayloadHash, payloadHash", domain, StringComparison.Ordinal);
     }
 
