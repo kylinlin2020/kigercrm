@@ -242,8 +242,9 @@ public sealed class CrmProspectingAppService(
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmProspectingCandidate), candidate.BasicId,
             new { Status = input.Approve ? CrmProspectingCandidateStatus.Approved : CrmProspectingCandidateStatus.Rejected, input.OverrideDuplicate }, cancellationToken);
+        if (!await candidates.TryReviewAsync(candidate.BasicId, input.Approve, input.OverrideDuplicate, cancellationToken))
+            throw new InvalidOperationException("This candidate was already reviewed or its review state changed. Refresh before trying again.");
         candidate.Status = input.Approve ? CrmProspectingCandidateStatus.Approved : CrmProspectingCandidateStatus.Rejected;
-        await candidates.UpdateAsync(candidate, cancellationToken);
         return ToCandidateDto(candidate);
     }
 
