@@ -194,3 +194,16 @@ Failure policy:
 - A same RequestKey with a different PayloadHash must remain a conflict; it must never return the winner as if the payloads matched.
 - Recovery is bounded to one retry; no unbounded loops or broad database-exception catches.
 - PostgreSQL independent-connection concurrency tests and Windows build/test remain required before calling this production-verified.
+
+## 2026-11-04 Candidate identity race recovery implementation
+
+The worker now catches only PostgreSQL SQLSTATE `23505` for the exact candidate identity index `ux_crm_prospecting_candidate_te_ru_pr_ex_is`, and only after the candidate/evidence/score insertion UoW has left its `using` scope. It then resolves the winner with `GetByIdentityAsync(runId, providerCode, externalId)`, which uses the tenant-filtered repository query.
+
+On a visible winner, the worker runs the same provenance repair used for legacy/existing candidates:
+- Recompute expected Evidence and compare the full persisted identity tuple (provider code, provider record ID, field name, source URL hash, raw payload hash).
+- Insert only missing Evidence.
+- Add a first Score snapshot only when no Score exists.
+- Keep Evidence additions and Score repair in one transaction.
+- Never update Candidate review, duplicate, approval, conversion, or other lifecycle fields.
+
+If the exact winner is not visible after the unique violation, the original exception is rethrown. Other providers, SQLSTATEs, and constraint names are not caught. This is a bounded fail-closed recovery, not a substitute for PostgreSQL multi-connection tests. Evidence-index collisions during simultaneous legacy-repair operations and duplicate Score creation under multiple active workers remain separate concurrency cases; the worker must remain single-instance until lease/fencing is implemented.
