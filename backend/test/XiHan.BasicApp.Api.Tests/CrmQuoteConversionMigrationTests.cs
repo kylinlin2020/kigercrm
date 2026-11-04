@@ -39,6 +39,9 @@ public sealed class CrmQuoteConversionMigrationTests
         var entity = File.ReadAllText(Path.GetFullPath(Path.Combine(
             RepositoryRoot(), "backend", "src", "modules", "XiHan.BasicApp.Crm",
             "Domain", "Entities", "SysCrmSalesOrder.cs")));
+        var quoteEntity = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "Entities", "SysCrmQuote.cs")));
         var sql = File.ReadAllText(Path.GetFullPath(Path.Combine(
             RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
             "UpdateScripts", "5.9.4", "5.9.4.sql")));
@@ -59,6 +62,22 @@ public sealed class CrmQuoteConversionMigrationTests
 
         const string migrationIndex = "ON crm_sales_order (tenant_id, source_quote_id, is_deleted)";
         Assert.Contains(migrationIndex, sql, StringComparison.Ordinal);
+
+        const string quoteIndexName = "UX_{table}_TeId_No_Ve_IsDe";
+        Assert.Contains(quoteIndexName, quoteEntity, StringComparison.Ordinal);
+        var quoteIndexStart = quoteEntity.IndexOf(quoteIndexName, StringComparison.Ordinal);
+        var quoteIndexEnd = quoteEntity.IndexOf(")]", quoteIndexStart, StringComparison.Ordinal);
+        Assert.True(quoteIndexEnd > quoteIndexStart);
+        var quoteDeclaration = quoteEntity[quoteIndexStart..quoteIndexEnd];
+        var quoteCodeFirstKey = new[] { "TenantId", "QuoteNumber", "Version", "IsDeleted" };
+        previous = -1;
+        foreach (var field in quoteCodeFirstKey)
+        {
+            var position = quoteDeclaration.IndexOf($"nameof({field})", StringComparison.Ordinal);
+            Assert.True(position > previous, $"CodeFirst quote-version index must include {field} in migration order.");
+            previous = position;
+        }
+        Assert.Contains("ON crm_quote (tenant_id, quote_number, version, is_deleted)", sql, StringComparison.Ordinal);
     }
 
     private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string filePath = "") =>
