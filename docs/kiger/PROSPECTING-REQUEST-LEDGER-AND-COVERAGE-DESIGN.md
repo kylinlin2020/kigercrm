@@ -175,14 +175,14 @@ Startup recovery runs after Run lease recovery and before queue reconstruction. 
 
 Contracts Finder, Find a Tender and EU TED raise a typed `CrmProspectingProviderRateLimitException` for their documented throttling responses (429/503; Contracts Finder also treats documented 403 as throttling). The exception carries HTTP status and parsed `Retry-After` date/delta, with a five-minute fallback if the provider supplies no header. The Worker persists `RateLimited`, HTTP status and retry-after timestamp instead of classifying the event as a generic failure.
 
-This is observability/classification only. A persisted cooldown scheduler that prevents requests before Retry-After, scheduler-aware deferred retries, exponential backoff/circuit behavior, and provider health diagnostics remain pending.
+The ledger-backed cooldown check now prevents a new invocation from being dispatched before Retry-After expires. Scheduler-aware deferred retries/requeue, exponential backoff/circuit behavior, and provider health diagnostics remain pending.
 
 
 ### Implemented slice: structured HTTP failures and Retry-After
 
 TED, Find a Tender, Contracts Finder and USAspending now use the existing `CrmProspectingProviderRateLimitException` contract for documented throttle responses. HTTP 429/503 carry the provider's `Retry-After` date or delta; if absent, the adapter applies a bounded five-minute fallback. Contracts Finder additionally treats HTTP 403 as a five-minute cooldown signal, preserving its existing source-specific behavior. The Worker records `RateLimited`, HTTP status and `RetryAfterAt` in the request ledger. Other HTTP errors are raised as `HttpRequestException` with the status code, and the Worker records that status with a sanitized failure classification. Provider response bodies and arbitrary error text are not persisted.
 
-Provider adapter tests cover TED 429, Find a Tender 503, Contracts Finder 403 and USAspending 429. These tests are source additions only until the .NET test suite is run. The durable provider cooldown/scheduling queue is still not implemented: recording `RetryAfterAt` does not itself defer a future Run or guarantee that a provider will not be called again early.
+Provider adapter tests cover TED 429, Find a Tender 503, Contracts Finder 403 and USAspending 429. These tests are source additions only until the .NET test suite is run. The durable cooldown check is implemented, but it skips the provider in the current Run rather than scheduling a deferred retry; a later Run may use the provider after the cooldown expires.
 
 
 ### Implemented: persisted cooldown enforcement from the request ledger
