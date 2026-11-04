@@ -167,8 +167,9 @@ public sealed class CrmProspectingPersistenceWiringTests
 
         var persistedKeysStart = worker.IndexOf("var persistedEvidenceKeys", StringComparison.Ordinal);
         var missingEvidenceStart = worker.IndexOf("var missingEvidence", StringComparison.Ordinal);
+        Assert.True(persistedKeysStart >= 0 && missingEvidenceStart > persistedKeysStart);
         var missingEvidenceEnd = worker.IndexOf(".ToArray();", missingEvidenceStart, StringComparison.Ordinal);
-        Assert.True(persistedKeysStart >= 0 && missingEvidenceStart > persistedKeysStart && missingEvidenceEnd > missingEvidenceStart);
+        Assert.True(missingEvidenceEnd > missingEvidenceStart);
         var persistedKeyProjection = worker[persistedKeysStart..missingEvidenceStart];
         var expectedKeyProjection = worker[missingEvidenceStart..missingEvidenceEnd];
         Assert.Contains("evidence.SourceUrlHash", persistedKeyProjection, StringComparison.Ordinal);
