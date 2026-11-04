@@ -38,7 +38,7 @@ public sealed class CrmShipmentAppService(
         if (input.SalesOrderId <= 0) throw new ArgumentOutOfRangeException(nameof(input.SalesOrderId));
         var requestKey = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
             ? null
-            : NormalizeRequired(input.NumberingIdempotencyKey, 128, nameof(input.NumberingIdempotencyKey));
+            : NormalizeRequired(input.NumberingIdempotencyKey, 100, nameof(input.NumberingIdempotencyKey));
         var number = requestKey is null
             ? NormalizeRequired(input.ShipmentNumber, 40, nameof(input.ShipmentNumber))
             : string.Empty;
