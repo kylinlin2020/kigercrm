@@ -171,3 +171,18 @@ The Run repository now exposes the database primitives required by a durable bac
 - All queries and updates go through `SaasRepository` and `CreateQueryable()`; cross-tenant recovery must be orchestrated with the existing `ITenantDataScopeRunner`, not by disabling tenant filters.
 
 This is a repository foundation only. No queue message, hosted worker, provider invocation, raw-result persistence or automatic recovery loop is wired yet. The claim/recovery semantics are source-reviewed but not executed against PostgreSQL; lease expiry, multi-process contention, transaction behavior and Windows runtime validation remain open.
+
+
+## 15. Queued Run dispatch and fake-provider execution slice (2026-11-04)
+
+The execution path now includes:
+
+- A Redis delayed-queue message containing Run ID and tenant ID; the API enqueues only after the creating unit of work completes.
+- A hosted consumer following the existing SaaS export worker pattern: tenant context is restored from the message, the database performs the Queued → Running claim, and duplicate deliveries are ignored.
+- Startup recovery iterates the existing tenant data scopes, resets interrupted work and re-enqueues queued Runs. This follows the repository's existing single-active-worker recovery convention; it is not multi-instance-safe.
+- Provider plans are interpreted as JSON arrays of provider-code strings (for example, `["fake"]`). Each configured provider is resolved by its stable code and invoked sequentially.
+- Provider records and source metadata are persisted to the Run's `Raw_Results_Json`; raw-record count, provider failure count, warnings and terminal status are written together.
+- Provider failure is isolated per provider so later configured providers can still run. A Run with records and failures is PartiallySucceeded; no records plus failures is Failed; no failures is Succeeded.
+- Candidate_Count intentionally remains zero: normalization, deduplication and human-review candidate creation are not implemented by this worker.
+
+The synthetic `fake` adapter is the only registered provider. This is an end-to-end local execution smoke path, not real-world lead acquisition. External provider configuration, rate limits, credentials, candidate pipeline, human review and Lead conversion remain future phases. No build/test, Redis runtime, PostgreSQL migration or Windows validation has been executed.
