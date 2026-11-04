@@ -50,13 +50,6 @@ BEGIN
             created_time timestamp with time zone NOT NULL,
             created_id bigint NULL,
             created_by text NULL,
-            modified_time timestamp with time zone NULL,
-            modified_id bigint NULL,
-            modified_by text NULL,
-            is_deleted boolean NOT NULL DEFAULT false,
-            deleted_time timestamp with time zone NULL,
-            deleted_id bigint NULL,
-            deleted_by text NULL,
             campaign_id bigint NOT NULL,
             version integer NOT NULL,
             name varchar(160) NOT NULL,
@@ -114,8 +107,12 @@ BEGIN
             ON crm_prospecting_run (created_id);
         CREATE INDEX IF NOT EXISTS ix_crm_prospecting_run_teid_isde
             ON crm_prospecting_run (tenant_id, is_deleted);
-        CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_run_te_rq_isde
-            ON crm_prospecting_run (tenant_id, request_key, is_deleted);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_run_teid_crti
+            ON crm_prospecting_run (tenant_id, created_time DESC);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_run_crid
+            ON crm_prospecting_run (created_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_run_te_rq
+            ON crm_prospecting_run (tenant_id, request_key);
         CREATE INDEX IF NOT EXISTS ix_crm_prospecting_run_te_ca_st_cr
             ON crm_prospecting_run (tenant_id, campaign_id, status, created_time DESC);
     END IF;
