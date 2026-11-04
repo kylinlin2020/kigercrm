@@ -16,7 +16,7 @@ public sealed class SysCrmCreateRequest : BasicAppCreationEntity, IStrictMultiTe
     [SugarColumn(ColumnName = "Document_Type", Length = 32, IsNullable = false)]
     public string DocumentType { get; set; } = string.Empty;
 
-    [SugarColumn(ColumnName = "Request_Key", Length = 128, IsNullable = false)]
+    [SugarColumn(ColumnName = "Request_Key", Length = 100, IsNullable = false)]
     public string RequestKey { get; set; } = string.Empty;
 
     [SugarColumn(ColumnName = "Payload_Hash", Length = 64, IsNullable = false)]
