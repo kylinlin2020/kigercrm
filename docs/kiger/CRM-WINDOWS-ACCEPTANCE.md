@@ -70,6 +70,7 @@ Save complete console output and test result files. Do not convert skipped, undi
 - Accepted quote conversion: one order per quote, copied line snapshots, quote/order atomicity, and rollback on a forced failure.
 - Order draft edits: totals recalculated from persisted active lines; source-quote lines remain immutable; historical shipment references are retained.
 - Shipment reservation, cancellation release, dispatch consumption, delivery timestamp, and status roll-up.
+- Server-numbered sales-order and shipment create-request ledger replay: same tenant/type/key and same payload returns the original document; same key with a different payload is rejected; replay must not duplicate shipment reservations.
 - Concurrent shipment creation/dispatch on the same order: no line can exceed ordered quantity; stale writes roll back the complete transaction.
 - Permission, tenant, owner/assignee data scope, and field-level masking/query guards on reads and writes.
 
