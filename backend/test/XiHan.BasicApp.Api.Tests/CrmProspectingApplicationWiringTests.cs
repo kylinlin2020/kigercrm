@@ -106,6 +106,11 @@ public sealed class CrmProspectingApplicationWiringTests
         var candidateMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.14", "5.9.14.sql");
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.13", "5.9.13.sql");
         Assert.Contains("Raw_Results_Json", entity, StringComparison.Ordinal);
+        Assert.Contains("BuildFailureSummary(ex)", worker, StringComparison.Ordinal);
+        Assert.Contains("MaxFailureSummaryLength = 2000", worker, StringComparison.Ordinal);
+        Assert.Contains("MaxFailureSummaryLength = 2000", repository, StringComparison.Ordinal);
+        Assert.Contains("failureSummary = BoundFailureSummary(failureSummary)", repository, StringComparison.Ordinal);
+        Assert.Contains("failureSummary = BoundFailureSummary(failureSummary) ?? string.Empty", repository, StringComparison.Ordinal);
         Assert.Contains("RawResultsJson = rawResultsJson", repository, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRunStatus.Succeeded", repository, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRunStatus.PartiallySucceeded", repository, StringComparison.Ordinal);
