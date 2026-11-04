@@ -207,3 +207,12 @@ The synthetic `fake` adapter is the only registered provider. This is an end-to-
 - Repeated conversion is rejected by candidate state; transaction rollback should prevent a Lead without a Converted candidate marker, but this still needs a PostgreSQL integration test.
 - The workflow remains human-gated. Candidate discovery never writes directly to `Crm_Lead`.
 - API wiring is source-reviewed only; compilation, authorization integration, transaction rollback, PostgreSQL and Windows tests remain outstanding.
+
+
+## 18. Candidate deduplication and cancellation boundary hardening (2026-11-04)
+
+- Candidate screening now also detects repeated normalized email or website host within the same Run, in addition to exact matches against existing tenant Leads.
+- Duplicate candidates retain an internal matched Lead reference for audit, but candidate DTOs do not expose that Lead ID across owner data scopes.
+- Before candidate normalization, the worker re-reads Run state and skips candidate creation if cancellation was requested. During normalization it checks cancellation between records; if cancellation arrives mid-batch, already persisted candidate rows remain in the database but the Run is finalized Cancelled. This partial-write edge remains a candidate for transactional batching.
+- Raw JSON size is validated before candidate persistence, avoiding candidate rows from an oversized provider response that cannot be stored as the Run snapshot.
+- Source-level tests now cover the candidate table/repository registration and human-review boundary. No tests were executed.
