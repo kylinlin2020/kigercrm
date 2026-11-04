@@ -371,3 +371,12 @@ Provider result warnings are untrusted input. Previously the worker appended eve
 The worker now accepts at most 100 provider warnings in the aggregate list and truncates each accepted warning to 500 characters before storing it in memory. The existing final Run failure-summary limit remains 2,000 characters. A source-wiring assertion guards these bounds.
 
 This is a bounded diagnostic-output safeguard, not a full provider-response memory limit: the provider still constructs its result before returning, and the 2,000-record cap / 5 MB serialized raw-result cap remain separate controls. No build or runtime test was performed.
+
+
+## 39. Bound every worker-generated warning (2026-11-04)
+
+The previous warning cap covered only the provider-supplied warning collection. Other warning paths still appended interpolated provider exception messages, missing-provider diagnostics, raw-result-cap messages and invalid-record diagnostics directly. Exception messages are also untrusted text and may be unexpectedly large. Repeated direct appends could bypass the intended aggregate count/length bound.
+
+All worker warning paths now use one bounded append helper. The shared limits are 100 non-empty warnings and 500 characters per warning, applied before the warning is retained in the aggregate list. Provider-supplied warning lists use the same helper, so the limit is global across warning sources rather than a separate allowance for each source. The final persisted summary remains capped at 2,000 characters. A source-wiring guard asserts the configured limits and that the helper is the only direct writer to the warning list.
+
+This limits the worker's retained diagnostic strings; it does not cap the provider's own allocations before SearchAsync returns, the raw provider records, or exception object internals. It is not a substitute for provider request timeouts and response-size limits. The guard is source-level only. No build, unit test, runtime, PostgreSQL or Windows test was executed.
