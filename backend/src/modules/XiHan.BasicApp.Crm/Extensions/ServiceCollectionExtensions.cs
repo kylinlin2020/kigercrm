@@ -74,7 +74,7 @@ public static class ServiceCollectionExtensions
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUsaSpendingProvider"], out var enableUsaSpendingProvider)
             && enableUsaSpendingProvider)
         {
-            services.AddSingleton(provider => new CrmUsaSpendingProspectingProvider(
+            services.AddSingleton<CrmUsaSpendingProspectingProvider>(provider => new CrmUsaSpendingProspectingProvider(
                 new HttpClient(new SocketsHttpHandler
                 {
                     AllowAutoRedirect = false,
