@@ -40,6 +40,9 @@ public sealed class FakeCrmProspectingProvider : ICrmProspectingProvider
                 "Synthetic smoke-test result; not a real prospect.")
         ];
 
-        return Task.FromResult(new CrmProspectingProviderResult(records, 0, []));
+        return Task.FromResult(new CrmProspectingProviderResult(records, 0, [])
+        {
+            IsComplete = true
+        });
     }
 }
