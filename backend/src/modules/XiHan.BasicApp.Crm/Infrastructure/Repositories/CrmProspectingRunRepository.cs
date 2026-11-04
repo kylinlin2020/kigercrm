@@ -126,16 +126,20 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
         var tenantId = currentTenant.TenantId;
         const string sql = """
-            SELECT run.basic_id AS "BasicId"
-            FROM crm_prospecting_run AS run
-            WHERE run.tenant_id = @tenantId
-              AND run.basic_id = @runId
-              AND run.status = @runningStatus
-              AND run.lease_token = @leaseToken
-              AND run.fencing_version = @fencingVersion
-              AND run.lease_expires_at IS NOT NULL
-              AND run.lease_expires_at > clock_timestamp()
-            FOR UPDATE;
+            WITH locked_run AS MATERIALIZED (
+                SELECT run.basic_id, run.lease_expires_at
+                FROM crm_prospecting_run AS run
+                WHERE run.tenant_id = @tenantId
+                  AND run.basic_id = @runId
+                  AND run.status = @runningStatus
+                  AND run.lease_token = @leaseToken
+                  AND run.fencing_version = @fencingVersion
+                FOR UPDATE
+            )
+            SELECT locked_run.basic_id AS "BasicId"
+            FROM locked_run
+            WHERE locked_run.lease_expires_at IS NOT NULL
+              AND locked_run.lease_expires_at > clock_timestamp();
             """;
 
         var rows = await client.Ado.SqlQueryAsync<long>(
