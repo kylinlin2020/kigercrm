@@ -276,3 +276,8 @@ During the same review, the source-wiring test still asserted an obsolete conver
 ## 28. Database-side bounds for strategy and Run history (2026-11-04)
 
 Strategy history and campaign Run history now use dedicated repository queries. Each query applies tenant-scoped CreateQueryable filtering, descending order, and Take(limit) before ToListAsync, so the 500-row response cap is applied by the database rather than after materializing all matching rows. Repository methods clamp requested limits to 1–500. AppService maps only the bounded result set. Existing API response shape remains IReadOnlyList and no total count/cursor is introduced in this pass.
+
+
+## 29. Database-side bounds for candidate review list (2026-11-04)
+
+Candidate listing now uses ICrmProspectingCandidateRepository.GetLatestByRunAsync(runId, status, limit). The repository applies the strict tenant-scoped query, optional enum status filter, descending CreatedTime order, and Take(limit) before ToListAsync. The requested limit is clamped to 1–500. The AppService retains the existing optional integer status API and validates the enum value before converting it to the domain enum. This avoids loading every candidate for a Run merely to return the newest 500.
