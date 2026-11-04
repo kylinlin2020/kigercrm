@@ -142,3 +142,15 @@
 - 新增适配器测试，覆盖 buyer 映射、无关键词不发请求、supplier 不作为 buyer 的保护；新增 DI 网络边界回归断言。
 
 **验证边界：** 代码和测试已提交，尚未在 .NET 10 环境编译/执行；也未进行实时 Find a Tender API 联调。适配器只读取 30 天窗口和最多 3 页，不应被描述为完整历史抓取。
+
+
+## 10. GLEIF identity enrichment increment (2026-11-04)
+
+- Added `ICrmProspectingIdentityResolver` and `CrmGleifIdentityResolver` against the official GLEIF LEI Records API.
+- The resolver is deliberately not registered as a lead-discovery provider. The worker invokes it only for already-created Candidates, with a maximum of 20 lookups per Run.
+- Match policy is strict: normalized legal name must match exactly, and exactly one result must exist in the first 10 registry matches. Ambiguous/partial/fuzzy matches produce no identity.
+- Stores immutable `registry` evidence linked to the candidate: LEI record ID, official GLEIF record URL, payload hash, entity status, LEI registration status, country and registered identifier. Evidence stays `unverified`; no score is automatically upgraded and no lead is created.
+- Resolver is opt-in: `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`. Network safety: fixed HTTPS host/path, redirects disabled, 20-second timeout and 2 MiB response cap.
+- Added resolver tests and worker/DI wiring regression coverage.
+
+**Verification boundary:** implementation and tests are committed but not compiled or run. The GLEIF live API has not been exercised from the target runtime.
