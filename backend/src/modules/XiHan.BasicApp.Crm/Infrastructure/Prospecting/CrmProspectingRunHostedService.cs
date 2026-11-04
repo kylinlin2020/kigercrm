@@ -288,6 +288,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
 
                 failures += Math.Max(0, result.FailureCount);
+                if (!result.IsComplete) failures++;
                 AddBoundedProviderWarnings(warnings, result.Warnings);
                 var remaining = remainingRawRecords;
                 foreach (var record in result.Records.Take(remaining))
