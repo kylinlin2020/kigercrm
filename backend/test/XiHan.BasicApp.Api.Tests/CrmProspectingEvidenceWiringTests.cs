@@ -76,6 +76,21 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("RAISE EXCEPTION", migration, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void EvidenceIdentityMigration_ShouldTargetTheCodeFirstTableAndDocumentFreshTenantGap()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
+        var upgradeReadme = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "README.md");
+        var operations = Read("docs", "kiger", "PROSPECTING-WORKER-OPERATIONS.md");
+
+        Assert.Contains("TableName = \"Crm_Prospecting_Evidence\"", entity, StringComparison.Ordinal);
+        Assert.Contains("Length = 2000", entity, StringComparison.Ordinal);
+        Assert.Contains("to_regclass('crm_prospecting_evidence')", migration, StringComparison.Ordinal);
+        Assert.Contains("newly provisioned tenant", operations, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("尚未声明与该表达式索引等价的 CodeFirst 唯一索引", upgradeReadme, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
