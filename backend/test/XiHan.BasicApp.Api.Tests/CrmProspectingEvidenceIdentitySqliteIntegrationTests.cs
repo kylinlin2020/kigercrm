@@ -71,6 +71,19 @@ public sealed class CrmProspectingEvidenceIdentitySqliteIntegrationTests : IDisp
             // A distinct canonical source URL fingerprint is a distinct evidence identity.
             var distinctSource = await _repository.AddAsync(CreateEvidence("B"));
             Assert.Equal(new string('B', 64), distinctSource.SourceUrlHash);
+
+            // The identity tuple includes RawPayloadHash and FieldName, not just the source URL.
+            var changedPayload = await _repository.AddAsync(
+                CreateEvidence("A", rawPayloadHash: new string('C', 64)));
+            Assert.Equal(new string('C', 64), changedPayload.RawPayloadHash);
+
+            var differentField = await _repository.AddAsync(
+                CreateEvidence("A", fieldName: "company_website"));
+            Assert.Equal("company_website", differentField.FieldName);
+
+            var differentProviderRecord = await _repository.AddAsync(
+                CreateEvidence("A", providerRecordId: "registry-record-2"));
+            Assert.Equal("registry-record-2", differentProviderRecord.ProviderRecordId);
         }
 
         using (_tenant.Change(TenantId + 1))
@@ -80,16 +93,20 @@ public sealed class CrmProspectingEvidenceIdentitySqliteIntegrationTests : IDisp
         }
     }
 
-    private static SysCrmProspectingEvidence CreateEvidence(string sourceFingerprint)
+    private static SysCrmProspectingEvidence CreateEvidence(
+        string sourceFingerprint,
+        string rawPayloadHash = "",
+        string fieldName = "company_name",
+        string providerRecordId = "")
         => new()
         {
             CandidateId = 99101,
             ProviderCode = "official-registry",
-            ProviderRecordId = string.Empty,
-            FieldName = "company_name",
+            ProviderRecordId = providerRecordId,
+            FieldName = fieldName,
             SourceUrl = $"https://registry.example/company/{sourceFingerprint}",
             SourceUrlHash = new string(sourceFingerprint[0], 64),
-            RawPayloadHash = string.Empty,
+            RawPayloadHash = rawPayloadHash,
             EvidenceType = "registry",
             VerificationStatus = "unverified",
             RetrievedAtUtc = new DateTimeOffset(2026, 11, 4, 12, 0, 0, TimeSpan.Zero)
