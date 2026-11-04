@@ -87,6 +87,28 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("TimeSpan.FromMinutes(15)", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProviderRequestLedger_ShouldPersistHttpStatusAndRetryAfterForThrottledProviders()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("CrmProspectingProviderRateLimitException", worker, StringComparison.Ordinal);
+        Assert.Contains("httpStatus: ex.HttpStatus", worker, StringComparison.Ordinal);
+        Assert.Contains("retryAfterAt: ex.RetryAfterAt", worker, StringComparison.Ordinal);
+        Assert.Contains("httpFailure.StatusCode", worker, StringComparison.Ordinal);
+
+        foreach (var providerFile in new[]
+        {
+            "CrmTedProspectingProvider.cs",
+            "CrmFindTenderProspectingProvider.cs",
+            "CrmContractsFinderProspectingProvider.cs",
+            "CrmUsaSpendingProspectingProvider.cs"
+        })
+        {
+            var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", providerFile);
+            Assert.Contains("CrmProspectingProviderRateLimitException", provider, StringComparison.Ordinal);
+        }
+    }
+
     private static string Read(params string[] parts)
     {
         var root = FindRepositoryRoot();
