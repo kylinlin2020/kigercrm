@@ -15,13 +15,16 @@ BEGIN
                source_url_hash = upper(encode(digest(source_url, 'sha256'), 'hex'))
          WHERE provider_record_id IS NULL
             OR raw_payload_hash IS NULL
+            OR source_url_hash IS NULL
             OR source_url_hash = '';
 
         ALTER TABLE crm_prospecting_evidence
             ALTER COLUMN provider_record_id SET DEFAULT '',
             ALTER COLUMN provider_record_id SET NOT NULL,
             ALTER COLUMN raw_payload_hash SET DEFAULT '',
-            ALTER COLUMN raw_payload_hash SET NOT NULL;
+            ALTER COLUMN raw_payload_hash SET NOT NULL,
+            ALTER COLUMN source_url_hash SET DEFAULT '',
+            ALTER COLUMN source_url_hash SET NOT NULL;
 
         IF EXISTS (
             SELECT 1
