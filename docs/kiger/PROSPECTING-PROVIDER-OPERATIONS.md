@@ -38,6 +38,12 @@ Enable with `XiHan:CRM:Prospecting:EnableFindTenderProvider=true`.
 
 Enable with `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`.
 
+## Worker lease recovery status
+
+- Tenant startup recovery now invokes the PostgreSQL-clock-based RecoverExpiredLeasesAsync before rebuilding the Redis queue. Expired lease-backed Running Runs are requeued; expired CancelRequested Runs are finalized as Cancelled.
+- This is a recovery primitive only. The active Worker still uses the legacy claim/write/terminal path; lease claims, child-write fencing, heartbeat/renewal and fenced terminal transitions are not yet wired end-to-end.
+- Keep worker concurrency at one and do not deploy multiple active application workers until the full lease lifecycle is integrated and PostgreSQL concurrency acceptance passes.
+
 ## Shared data-handling rules
 
 - Procurement notices are evidence of buyer activity, not proof of fit or purchase intent.
