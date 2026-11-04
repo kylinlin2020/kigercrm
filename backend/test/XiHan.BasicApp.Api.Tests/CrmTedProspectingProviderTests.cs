@@ -30,7 +30,7 @@ public sealed class CrmTedProspectingProviderTests
         Assert.Equal("Supply of diesel generators", record.Title);
         Assert.Equal("official_procurement", record.EvidenceType);
         Assert.Equal("https://ted.europa.eu/en/notice/-/detail/123456-2026", record.SourceUrl);
-        Assert.Equal(new DateTimeOffset(2026, 11, 2, 0, 0, 0, TimeSpan.Zero), record.PublishedAtUtc);
+        Assert.Equal<DateTimeOffset?>(new DateTimeOffset(2026, 11, 2, 0, 0, 0, TimeSpan.Zero), record.PublishedAtUtc);
         Assert.False(string.IsNullOrWhiteSpace(record.RawPayloadHash));
         Assert.Equal(HttpMethod.Post, handler.RequestMethod);
         Assert.Contains("/v3/notices/search", handler.RequestUri, StringComparison.Ordinal);
