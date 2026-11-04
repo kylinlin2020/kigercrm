@@ -152,3 +152,7 @@ Do not combine the entire rollout into one migration or enable cache/cursor adva
 Already present on `kiger-dev`: bounded provider result retention, per-provider exception isolation, source evidence hashes, cross-Run candidate deduplication, lease/fencing lifecycle, independent heartbeat, and human review before CRM Lead conversion.
 
 Not yet implemented by this design document: durable provider request ledger, coverage cursor, response cache, persisted cooldown/circuit breaker, provider operational dashboard, and their database-backed tests.
+
+### Implemented prerequisite: canonical request fingerprint
+
+The domain utility `CrmProspectingRequestFingerprint.Create(providerCode, request)` now produces a SHA-256 fingerprint that excludes RunId, normalizes whitespace/provider-code casing, sorts and normalizes excluded domains, and canonicalizes JSON object property order. It rejects malformed provider-options JSON. Regression tests cover RunId independence, JSON property ordering, excluded-domain ordering, scope sensitivity, and malformed JSON. This is a deterministic fingerprint primitive only; it does not persist a request ledger or authorize cache reuse. ProviderOptionsJson must remain free of credentials and secrets.
