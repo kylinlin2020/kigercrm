@@ -58,6 +58,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrmProspectingCandidateRepository, CrmProspectingCandidateRepository>();
         services.AddScoped<ICrmProspectingEvidenceRepository, CrmProspectingEvidenceRepository>();
         services.AddScoped<ICrmProspectingScoreRepository, CrmProspectingScoreRepository>();
+        // CrmProspectingRunHostedService follows the framework worker convention:
+        // XiHanBackgroundServiceBase supplies IBackgroundWorker/SingletonDependency and the HostedService suffix
+        // is auto-exposed as IHostedService. Do not call AddHostedService here (it would double-consume the queue).
         services.AddScoped<ICrmProspectingDomainService, CrmProspectingDomainService>();
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFakeProvider"], out var enableFakeProvider)
             && enableFakeProvider)
