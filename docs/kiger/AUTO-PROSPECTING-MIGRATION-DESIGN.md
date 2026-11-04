@@ -216,3 +216,8 @@ The synthetic `fake` adapter is the only registered provider. This is an end-to-
 - Before candidate normalization, the worker re-reads Run state and skips candidate creation if cancellation was requested. During normalization it checks cancellation between records; if cancellation arrives mid-batch, already persisted candidate rows remain in the database but the Run is finalized Cancelled. This partial-write edge remains a candidate for transactional batching.
 - Raw JSON size is validated before candidate persistence, avoiding candidate rows from an oversized provider response that cannot be stored as the Run snapshot.
 - Source-level tests now cover the candidate table/repository registration and human-review boundary. No tests were executed.
+
+
+## 19. Cancellation result accounting (2026-11-04)
+
+When cancellation wins the race against Run completion, the repository now persists the raw provider snapshot and actual raw/candidate/failure counters while setting the terminal Cancelled state. This keeps partial work auditable and the Run counters consistent when cancellation arrives during candidate normalization. The worker still checks cancellation between provider calls and candidate records; it does not forcibly interrupt a provider that ignores cancellation or expose partial candidates as approved.
