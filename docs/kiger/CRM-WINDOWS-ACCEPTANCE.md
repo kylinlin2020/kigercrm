@@ -101,7 +101,9 @@ Never test destructive migration failure scenarios against production data.
 ```powershell
 Set-Location frontend
 corepack enable
-corepack pnpm install --frozen-lockfile
+# 当前仓库未提交 pnpm-lock.yaml；与 CI 保持一致，使用非冻结安装。
+# 这不能保证跨时间完全相同的依赖解析；正式冻结依赖前应提交并维护锁文件。
+corepack pnpm install --no-frozen-lockfile
 if ($LASTEXITCODE -ne 0) { throw "Frontend install failed" }
 
 corepack pnpm run check
