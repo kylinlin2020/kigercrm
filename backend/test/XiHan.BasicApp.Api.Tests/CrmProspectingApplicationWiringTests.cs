@@ -76,7 +76,10 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("ProviderCode => \"fake\"", fake, StringComparison.Ordinal);
         Assert.Contains("example.com", fake, StringComparison.Ordinal);
         Assert.Contains("performs no network requests", fake, StringComparison.Ordinal);
-        Assert.Contains("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>()", registration, StringComparison.Ordinal);
+        Assert.Contains("XiHan:CRM:Prospecting:EnableFakeProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("bool.TryParse(configuration[", registration, StringComparison.Ordinal);
+        Assert.Contains("&& enableFakeProvider", registration, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();", registration, StringComparison.Ordinal);
     }
 
     [Fact]
