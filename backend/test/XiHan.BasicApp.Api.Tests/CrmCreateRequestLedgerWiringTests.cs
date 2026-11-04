@@ -72,6 +72,33 @@ public sealed class CrmCreateRequestLedgerWiringTests
         Assert.DoesNotContain("is_deleted", executableSql, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void LedgerMigration_ShouldMatchCreationAuditEntityBaseColumns()
+    {
+        // SugarMultiTenantCreationEntity maps these inherited properties to the following
+        // PostgreSQL identifiers; keep the hand-written migration aligned with CodeFirst.
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.10", "5.9.10.sql");
+
+        Assert.Contains("basic_id bigint NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("row_version bigint NOT NULL DEFAULT 0", migration, StringComparison.Ordinal);
+        Assert.Contains("tenant_id bigint NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("created_time timestamp with time zone NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("created_id bigint NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("created_by text NULL", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Replay_ShouldUsePersistedOwnerWhenOwnerWasOmitted()
+    {
+        var salesOrder = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var shipment = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+
+        Assert.Contains("input.OwnerUserId ?? replayOrder.OwnerUserId", salesOrder, StringComparison.Ordinal);
+        Assert.Contains("input.OwnerUserId ?? replayShipment.OwnerUserId", shipment, StringComparison.Ordinal);
+        Assert.Contains("existingRequest.PayloadHash, replayFingerprint", salesOrder, StringComparison.Ordinal);
+        Assert.Contains("existingRequest.PayloadHash, replayFingerprint", shipment, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
