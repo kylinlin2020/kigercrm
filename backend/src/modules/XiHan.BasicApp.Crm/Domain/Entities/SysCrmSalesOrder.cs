@@ -18,6 +18,10 @@ public sealed class SysCrmSalesOrder : BasicAppFullAuditedEntity, IStrictMultiTe
     [SugarColumn(ColumnName = "Order_Number", Length = 40, IsNullable = false)]
     public string OrderNumber { get; set; } = string.Empty;
 
+    /// <summary>SHA-256 fingerprint for a server-numbered direct-create request; null for legacy/manual orders.</summary>
+    [SugarColumn(ColumnName = "Creation_Request_Fingerprint", Length = 64, IsNullable = true)]
+    public string? CreationRequestFingerprint { get; set; }
+
     [SugarColumn(ColumnName = "Source_Quote_Id", IsNullable = true)]
     public long? SourceQuoteId { get; set; }
 
