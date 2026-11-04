@@ -18,12 +18,13 @@ This checklist separates the workstreams so implementation can proceed independe
 ## Workstream B — Lease lifecycle
 
 - [ ] Add a stable per-process worker identity (bounded to the 160-character column).
-- [ ] Generate a cryptographically random token per claim attempt.
+- [x] Generate a fresh UUID token per claim attempt in the atomic claim statement.
 - [x] Add a repository heartbeat primitive that renews only an unexpired Running lease with matching tenant, Run ID, token, and version using PostgreSQL database time.
 - [ ] Wire the database-clock heartbeat into the HostedService and stop provider/persistence work immediately when renewal fails.
-- [ ] Reclaim only expired leases; never blanket-requeue every Running row once leases are active.
+- [x] Add a PostgreSQL-only recovery primitive that requeues only Running rows with non-null expired leases, clears their active lease metadata, and leaves lease-less legacy rows untouched.
+- [ ] Wire safe expired-lease recovery into startup recovery; keep legacy blanket recovery disabled once leases are active.
 - [ ] Ensure CancelRequested remains cancellation intent and cannot be silently requeued.
-- [ ] Clear active lease metadata on terminal transitions while retaining FencingVersion.
+- [x] Add database-clock fenced Complete/Fail/Cancel terminal primitives that clear active lease metadata while retaining FencingVersion.
 - [ ] Stop all further persistence immediately after a failed heartbeat/fence check.
 
 ## Workstream C — Child-write transaction fence
@@ -71,4 +72,4 @@ The test fixture must be explicitly opt-in through an environment variable and m
 
 Until Workstreams A–D are implemented and tested, retain the single-active-application-instance restriction. A new `TryClaimLeaseAsync` primitive now performs the database-atomic claim, but the HostedService still calls legacy `ClaimQueuedAsync`. The new primitive is not active until ADO transaction enlistment, PostgreSQL concurrency tests, heartbeat, child-write fencing, recovery, and terminal transitions are complete. The current `RecoverInterruptedAsync` blanket-requeues Running rows and must not be used as multi-instance lease recovery.
 
-The new source-level assertions only guard SQL/transaction shape; they are not provider-backed tests. A green SQLite test suite, a source-level assertion, or a successful build alone does not authorize multi-instance deployment.
+A source-level contract test also guards the expired-lease recovery predicate and verifies that the HostedService has not yet activated the primitive. These assertions only guard SQL/transaction shape; they are not provider-backed tests. A green SQLite test suite, a source-level assertion, or a successful build alone does not authorize multi-instance deployment.

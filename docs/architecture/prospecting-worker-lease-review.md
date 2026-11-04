@@ -22,3 +22,8 @@ This is a review record only. It does not enable leases. No build, migration, Po
 ## Implementation follow-up (2026-11-04)
 
 The six raw-SQL lease operations now fail closed when the AsyncLocal tenant context is absent. A source-level contract assertion guards against reintroducing the prior `?? 0L` fallback. This remains uncompiled and untested against PostgreSQL.
+
+
+## Expired lease recovery primitive (2026-11-04)
+
+`CrmProspectingRunRepository.RecoverExpiredLeasesAsync` now requeues only tenant-scoped `Running` rows with a non-null `lease_expires_at <= clock_timestamp()`. It clears owner/token/expiry/heartbeat, preserves `fencing_version`, and leaves lease-less legacy Running rows untouched. The method is not wired into `RecoverPendingAsync`; the existing single-active-worker startup recovery remains unchanged and must not be used as multi-instance recovery after lease activation. A source-level contract test covers this shape but has not been run.
