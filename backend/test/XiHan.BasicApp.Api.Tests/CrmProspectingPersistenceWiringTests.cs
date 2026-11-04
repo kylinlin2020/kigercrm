@@ -163,6 +163,8 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("GetLatestByCandidateAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("var needsScoreRepair = existingScores.Count == 0", worker, StringComparison.Ordinal);
         Assert.Contains("var completeEvidence = persistedEvidence.Concat(missingEvidence).ToArray()", worker, StringComparison.Ordinal);
+        Assert.Contains(".Take(32)", worker, StringComparison.Ordinal);
+        Assert.Contains("existingCandidate.BasicId, scoreResult, scoreEvidence)", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc)", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingScoreSnapshotFactory.Create(", worker, StringComparison.Ordinal);
         Assert.Contains("await scoreRepository.AddAsync(scoreSnapshot, cancellationToken)", worker, StringComparison.Ordinal);
