@@ -197,3 +197,33 @@ No PostgreSQL rollback, retry, or concurrent-writer test has been executed; no b
 ### Identity comparison alignment
 
 The in-memory Run/provider/external-ID identity maps now use ordinal, case-sensitive comparison, matching the PostgreSQL unique index's exact text-key semantics. Email addresses and website domains continue to use their separate normalized, case-insensitive duplicate checks. This avoids incorrectly merging two distinct provider record IDs solely because their casing differs, and avoids a case-insensitive dictionary construction failure if such IDs coexist in persisted data.
+
+## 2026-11-04 evidence identity uniqueness and Worker scope correction
+
+### Worker scope correction
+
+The persisted Candidate returned by `AddAsync` is now added to the in-memory identity map only after the Candidate/Evidence unit of work has completed, and while the returned entity remains in scope. This avoids referring to a block-local variable after its `using` block and prevents an uncommitted Candidate from being treated as durable in the in-memory map.
+
+Evidence reconciliation now compares its composite identity using ordinal, case-sensitive semantics, consistent with PostgreSQL text equality. Retrieval time remains excluded from identity.
+
+### Database-enforced evidence identity
+
+Added migration `5.9.21.sql` with unique index `ux_crm_prosp_evidence_identity` over:
+
+- tenant ID
+- Candidate ID
+- Provider code
+- provider record ID (NULL normalized to empty string)
+- field name
+- canonical source URL
+- raw payload hash (NULL normalized to empty string)
+
+Retrieval time is intentionally excluded so a retry at a later time cannot create a duplicate copy of the same provider assertion. The migration checks for existing duplicate identities and raises an explicit exception rather than silently deleting or rewriting historical evidence. This is a PostgreSQL expression index and has not yet been applied to a live database.
+
+A source-contract test now checks the migration fields, duplicate preflight, and Worker Candidate identity-map ordering relative to transaction commit.
+
+### Remaining concurrency behavior
+
+The unique index is the final database guard, not a substitute for worker ownership. Two concurrent workers may still race; one can receive a unique-constraint violation and fail its Run. The current Worker does not yet classify that exact PostgreSQL constraint violation and retry reconciliation. Multi-worker execution remains disabled by deployment policy until database leases/fencing and independent-connection PostgreSQL tests are delivered.
+
+No migration execution, build, unit-test execution, PostgreSQL integration test, or Windows runtime test is claimed.
