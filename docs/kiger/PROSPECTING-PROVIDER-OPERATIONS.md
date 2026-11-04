@@ -51,6 +51,10 @@ Enable with `XiHan:CRM:Prospecting:EnableTedProvider=true`.
 
 Enable with `XiHan:CRM:Prospecting:EnableContractsFinderProvider=true`.
 
+## World Bank procurement dataset — research-only
+
+The Finances One `DS00979` dataset is assessed but is not registered as a CRM Provider yet. Its public schema contains bid description, project, country, procurement category/method, dates and notice URL, but does not expose a buyer organisation/contact field. The current worker falls back from missing CompanyName to Title, so direct ingestion would risk turning a tender description into a fake company. See `docs/kiger/WORLDBANK-PROCUREMENT-ADAPTER-DESIGN.md` for the verified API, schema boundary and safe second-stage implementing-agency resolution requirements.
+
 ## GLEIF legal-entity identity enrichment
 
 - Resolver: `CrmGleifIdentityResolver`
