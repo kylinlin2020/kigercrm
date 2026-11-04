@@ -131,6 +131,243 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
         return rows.FirstOrDefault()?.RetryAfterAt;
     }
 
+    public async Task EnsureSchemaConstraintsAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (DbClient.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Provider request ledger constraints require PostgreSQL.");
+
+        const string sql = """
+            DO $
+            DECLARE
+                table_oid regclass := to_regclass('crm_prospecting_provider_request');
+            BEGIN
+                IF table_oid IS NULL THEN
+                    RETURN;
+                END IF;
+
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_attempt') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_attempt CHECK (attempt_no > 0) NOT VALID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_result_count') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_result_count CHECK (result_count >= 0) NOT VALID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_duration') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_duration CHECK (duration_ms IS NULL OR duration_ms >= 0) NOT VALID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_http_status') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_http_status CHECK (http_status IS NULL OR http_status BETWEEN 100 AND 599) NOT VALID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_request_key') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_request_key CHECK (request_key ~ '^[0-9A-Fa-f]{64}TimeSpan minimumAge, CancellationToken cancellationToken = default)
+    {
+        if (minimumAge <= TimeSpan.Zero || minimumAge > TimeSpan.FromDays(7))
+            throw new ArgumentOutOfRangeException(nameof(minimumAge), "Stale request age must be positive and at most seven days.");
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Stale provider request recovery requires PostgreSQL.");
+
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for provider request recovery.");
+        var ageMilliseconds = checked((long)Math.Ceiling(minimumAge.TotalMilliseconds));
+        const string sql = """
+            WITH recovery_clock AS MATERIALIZED (
+                SELECT clock_timestamp() AS now
+            )
+            UPDATE crm_prospecting_provider_request AS request
+            SET state = 'Failed',
+                completed_at = recovery_clock.now,
+                duration_ms = GREATEST(
+                    0,
+                    FLOOR(EXTRACT(EPOCH FROM (recovery_clock.now - request.started_at)) * 1000)::bigint
+                ),
+                failure_code = 'worker_interrupted',
+                failure_summary = 'Provider request was interrupted before a terminal outcome.'
+            FROM recovery_clock
+            WHERE request.tenant_id = @tenantId
+              AND request.state = 'Started'
+              AND request.started_at <= recovery_clock.now - (@ageMilliseconds * INTERVAL '1 millisecond')
+              AND (
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM crm_prospecting_run AS run
+                        WHERE run.tenant_id = request.tenant_id
+                          AND run.basic_id = request.run_id
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM crm_prospecting_run AS run
+                        WHERE run.tenant_id = request.tenant_id
+                          AND run.basic_id = request.run_id
+                          AND (
+                                run.status NOT IN (@runningStatus, @cancelRequestedStatus)
+                                OR run.lease_expires_at IS NOT NULL
+                                   AND run.lease_expires_at <= recovery_clock.now
+                          )
+                    )
+              )
+            RETURNING request.basic_id AS "BasicId";
+            """;
+
+        var recovered = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", currentTenant.TenantId),
+            new SugarParameter("@ageMilliseconds", ageMilliseconds),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested));
+        return recovered.Count;
+    }
+
+    public async Task<SysCrmProspectingProviderRequest?> GetAttemptAsync(
+        long runId, string providerCode, int attemptNo,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        providerCode = providerCode.Trim().ToLowerInvariant();
+        if (attemptNo <= 0) throw new ArgumentOutOfRangeException(nameof(attemptNo));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var rows = await CreateQueryable()
+            .Where(row => row.RunId == runId && row.ProviderCode == providerCode && row.AttemptNo == attemptNo)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        if (rows.Count > 1)
+            throw new InvalidOperationException("The tenant contains duplicate provider request attempt identities.");
+        return rows.FirstOrDefault();
+    }
+
+    private static string? Bound(string? value, int maxLength)
+    {
+        var sanitized = SanitizeSummary(value);
+        return sanitized is { Length: > 0 } ? sanitized[..Math.Min(sanitized.Length, maxLength)] : null;
+    }
+
+    private static string? SanitizeSummary(string? value)
+    {
+        var sanitized = CrmProspectingDiagnosticSanitizer.Sanitize(value, 1000);
+        return sanitized.Length == 0 ? null : sanitized;
+    }}
+) NOT VALID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_response_hash') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_response_hash CHECK (response_hash IS NULL OR response_hash ~ '^[0-9A-Fa-f]{64}TimeSpan minimumAge, CancellationToken cancellationToken = default)
+    {
+        if (minimumAge <= TimeSpan.Zero || minimumAge > TimeSpan.FromDays(7))
+            throw new ArgumentOutOfRangeException(nameof(minimumAge), "Stale request age must be positive and at most seven days.");
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Stale provider request recovery requires PostgreSQL.");
+
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for provider request recovery.");
+        var ageMilliseconds = checked((long)Math.Ceiling(minimumAge.TotalMilliseconds));
+        const string sql = """
+            WITH recovery_clock AS MATERIALIZED (
+                SELECT clock_timestamp() AS now
+            )
+            UPDATE crm_prospecting_provider_request AS request
+            SET state = 'Failed',
+                completed_at = recovery_clock.now,
+                duration_ms = GREATEST(
+                    0,
+                    FLOOR(EXTRACT(EPOCH FROM (recovery_clock.now - request.started_at)) * 1000)::bigint
+                ),
+                failure_code = 'worker_interrupted',
+                failure_summary = 'Provider request was interrupted before a terminal outcome.'
+            FROM recovery_clock
+            WHERE request.tenant_id = @tenantId
+              AND request.state = 'Started'
+              AND request.started_at <= recovery_clock.now - (@ageMilliseconds * INTERVAL '1 millisecond')
+              AND (
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM crm_prospecting_run AS run
+                        WHERE run.tenant_id = request.tenant_id
+                          AND run.basic_id = request.run_id
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM crm_prospecting_run AS run
+                        WHERE run.tenant_id = request.tenant_id
+                          AND run.basic_id = request.run_id
+                          AND (
+                                run.status NOT IN (@runningStatus, @cancelRequestedStatus)
+                                OR run.lease_expires_at IS NOT NULL
+                                   AND run.lease_expires_at <= recovery_clock.now
+                          )
+                    )
+              )
+            RETURNING request.basic_id AS "BasicId";
+            """;
+
+        var recovered = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", currentTenant.TenantId),
+            new SugarParameter("@ageMilliseconds", ageMilliseconds),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested));
+        return recovered.Count;
+    }
+
+    public async Task<SysCrmProspectingProviderRequest?> GetAttemptAsync(
+        long runId, string providerCode, int attemptNo,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        providerCode = providerCode.Trim().ToLowerInvariant();
+        if (attemptNo <= 0) throw new ArgumentOutOfRangeException(nameof(attemptNo));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var rows = await CreateQueryable()
+            .Where(row => row.RunId == runId && row.ProviderCode == providerCode && row.AttemptNo == attemptNo)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        if (rows.Count > 1)
+            throw new InvalidOperationException("The tenant contains duplicate provider request attempt identities.");
+        return rows.FirstOrDefault();
+    }
+
+    private static string? Bound(string? value, int maxLength)
+    {
+        var sanitized = SanitizeSummary(value);
+        return sanitized is { Length: > 0 } ? sanitized[..Math.Min(sanitized.Length, maxLength)] : null;
+    }
+
+    private static string? SanitizeSummary(string? value)
+    {
+        var sanitized = CrmProspectingDiagnosticSanitizer.Sanitize(value, 1000);
+        return sanitized.Length == 0 ? null : sanitized;
+    }}
+) NOT VALID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_lifecycle') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_lifecycle CHECK (
+                        (state = 'Started' AND completed_at IS NULL)
+                        OR (state <> 'Started' AND completed_at IS NOT NULL)
+                    ) NOT VALID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_rate_limit') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_rate_limit CHECK (
+                        state <> 'RateLimited' OR retry_after_at IS NOT NULL
+                    ) NOT VALID;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = table_oid AND conname = 'ck_crm_prospecting_provider_request_state') THEN
+                    ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_state CHECK (
+                        state IN ('Started','Succeeded','Failed','RateLimited','Cancelled')
+                    ) NOT VALID;
+                END IF;
+            END
+            $;
+            """;
+        await DbClient.Ado.ExecuteCommandAsync(sql);
+    }
+
     public async Task<int> RecoverStaleStartedAsync(TimeSpan minimumAge, CancellationToken cancellationToken = default)
     {
         if (minimumAge <= TimeSpan.Zero || minimumAge > TimeSpan.FromDays(7))
