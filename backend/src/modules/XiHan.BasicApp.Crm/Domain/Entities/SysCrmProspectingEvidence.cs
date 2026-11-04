@@ -32,7 +32,7 @@ public sealed class SysCrmProspectingEvidence : BasicAppCreationEntity, IStrictM
     [SugarColumn(ColumnName = "Source_Url", Length = 2000, IsNullable = false)]
     public string SourceUrl { get; set; } = string.Empty;
 
-    [SugarColumn(ColumnName = "Source_Url_Hash", Length = 32, IsNullable = false, DefaultValue = "")]
+    [SugarColumn(ColumnName = "Source_Url_Hash", Length = 64, IsNullable = false, DefaultValue = "")]
     public string SourceUrlHash { get; set; } = string.Empty;
 
     [SugarColumn(ColumnName = "Evidence_Type", Length = 40, IsNullable = false)]
