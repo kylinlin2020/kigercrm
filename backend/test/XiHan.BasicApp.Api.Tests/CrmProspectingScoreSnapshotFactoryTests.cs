@@ -56,6 +56,25 @@ public sealed class CrmProspectingScoreSnapshotFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldRejectExcessiveReviewGateCountAndLength()
+    {
+        var score = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, null, false, false), Now);
+
+        Assert.Throws<ArgumentException>(() =>
+            CrmProspectingScoreSnapshotFactory.Create(1, score with
+            {
+                ReviewGates = Enumerable.Range(0, 51).Select(index => $"gate_{index}").ToArray()
+            }));
+
+        Assert.Throws<ArgumentException>(() =>
+            CrmProspectingScoreSnapshotFactory.Create(1, score with
+            {
+                ReviewGates = [new string('g', 121)]
+            }));
+    }
+
+    [Fact]
     public void Create_ShouldRejectNonUtcTimestamp()
     {
         var score = CrmProspectingScorecard.Evaluate(
