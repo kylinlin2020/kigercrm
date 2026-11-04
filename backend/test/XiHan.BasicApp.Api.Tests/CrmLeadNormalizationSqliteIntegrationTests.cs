@@ -153,6 +153,45 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task GetDuplicateMatchesAsync_ShouldProcessKeysAcrossMultipleBatches()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            await _service.CreateAsync(new CrmLeadCreateCommand(
+                "Last Batch Match Ltd", "Casey", "last-batch@batch-match.example", null, null,
+                "US", "Website", null, null, null));
+
+            // The repository chunks lookup keys at 300. Put the only matching key
+            // in the second batch so the test exercises more than the first query.
+            var emails = Enumerable.Range(0, 300)
+                .Select(index => $"unmatched-{index}@batch.example")
+                .Append("last-batch@batch-match.example")
+                .ToArray();
+
+            var matches = await _repository.GetDuplicateMatchesAsync(emails, Array.Empty<string>());
+
+            var match = Assert.Single(matches);
+            Assert.Equal("Last Batch Match Ltd", match.CompanyName);
+        }
+    }
+
+    [Fact]
+    public async Task GetDuplicateMatchesAsync_ShouldHonorCancellationBeforeQuerying()
+    {
+        using (_tenant.Change(TenantId))
+        using (var cancellation = new CancellationTokenSource())
+        {
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+                _repository.GetDuplicateMatchesAsync(
+                    new[] { "cancel@example.test" },
+                    Array.Empty<string>(),
+                    cancellation.Token));
+        }
+    }
+
     public void Dispose()
     {
         _db.Dispose();
