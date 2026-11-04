@@ -142,6 +142,10 @@ public sealed class CrmProspectingPersistenceWiringTests
         var operations = Read("docs", "kiger", "PROSPECTING-WORKER-OPERATIONS.md");
         var leaseDesign = Read("docs", "kiger", "PROSPECTING-WORKER-LEASE-DESIGN.md");
 
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        Assert.Contains("XiHanBackgroundServiceBase<CrmProspectingRunHostedService>", worker, StringComparison.Ordinal);
+        Assert.Contains("HostedService suffix", registration, StringComparison.Ordinal);
+        Assert.DoesNotContain("AddHostedService<CrmProspectingRunHostedService>", registration, StringComparison.Ordinal);
         Assert.Contains("config.UpdateMaxConcurrentTasks(1)", worker, StringComparison.Ordinal);
         Assert.Contains("await RecoverPendingAsync(stoppingToken)", worker, StringComparison.Ordinal);
         Assert.Contains("run => run.Status == CrmProspectingRunStatus.Running", worker, StringComparison.Ordinal);
