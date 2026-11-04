@@ -1,4 +1,5 @@
 import type { ApiId } from '../../types'
+import type { CrmLeadDetailDto } from './lead.types'
 import type {
   CrmProspectingCampaignDto,
   CrmProspectingCampaignInputDto,
@@ -61,6 +62,6 @@ export const crmProspectingApi = {
     return api.post<CrmProspectingCandidateDto, CrmProspectingCandidateReviewDto>('ReviewCandidate', input)
   },
   convertCandidate(candidateId: ApiId) {
-    return api.post<unknown, undefined>('ConvertApprovedCandidateToLead', undefined, { params: { candidateId } })
+    return api.post<CrmLeadDetailDto, undefined>('ConvertApprovedCandidateToLead', undefined, { params: { candidateId } })
   },
 }
