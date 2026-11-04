@@ -969,7 +969,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 await runs.RecoverInterruptedAsync(DateTimeOffset.UtcNow, cancellationToken);
                 var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
                 var interruptedRequests = await requestLedger.RecoverStaleStartedAsync(
-                    TimeSpan.FromMinutes(15), cancellationToken);
+                    RunLeaseDuration, cancellationToken);
                 if (interruptedRequests > 0)
                     Logger.LogInformation("Recovered {Count} interrupted prospecting provider requests", interruptedRequests);
                 var ids = await runs.GetQueuedIdsAsync(cancellationToken);
