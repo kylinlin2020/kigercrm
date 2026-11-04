@@ -128,18 +128,18 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
         _keepAlive.Dispose();
     }
 
-    private static long ScopeId(ProbeCurrentTenant tenant)
-        => tenant.Current?.TenantId ?? 0;
+    private static long ScopeId(ProbeCurrentTenant tenant) => tenant.Id ?? 0;
 
     private sealed class ProbeCurrentTenant : ICurrentTenant
     {
-        public TenantInfo? Current { get; private set; }
-        public long Id => Current?.TenantId ?? 0;
-        public IDisposable Change(long tenantId)
+        public bool IsAvailable => Id is > 0;
+        public long? Id { get; private set; }
+        public string? Name { get; private set; }
+        public IDisposable Change(long? id, string? name = null)
         {
-            var previous = Current;
-            Current = new TenantInfo { TenantId = tenantId };
-            return new Restore(() => Current = previous);
+            var (previousId, previousName) = (Id, Name);
+            (Id, Name) = (id, name);
+            return new Restore(() => (Id, Name) = (previousId, previousName));
         }
         private sealed class Restore(Action restore) : IDisposable
         {
