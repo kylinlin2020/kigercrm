@@ -220,10 +220,37 @@ public sealed class CrmProspectingPersistenceWiringTests
 
         Assert.Contains("IUnitOfWorkManager", worker, StringComparison.Ordinal);
         Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", worker, StringComparison.Ordinal);
-        Assert.Contains("var insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingEvidenceFactory.Create(", worker, StringComparison.Ordinal);
         Assert.Contains("await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("await unitOfWork.CompleteAsync(cancellationToken)", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProspectingWorker_ShouldRecoverOnlyCandidateIdentityUniqueRacesAfterRollback()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        var insertIndex = worker.IndexOf("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", StringComparison.Ordinal);
+        var catchIndex = worker.IndexOf("catch (Exception ex) when (IsCandidateIdentityUniqueViolation(ex))", insertIndex, StringComparison.Ordinal);
+        var winnerLookup = worker.IndexOf("candidates.GetByIdentityAsync(", catchIndex, StringComparison.Ordinal);
+        var repairCall = worker.IndexOf("RepairCandidateProvenanceAsync(", winnerLookup, StringComparison.Ordinal);
+        Assert.True(insertIndex >= 0 && catchIndex > insertIndex && winnerLookup > catchIndex && repairCall > winnerLookup,
+            "Candidate identity recovery must occur after the failed insert UoW has left scope and must resolve the exact tenant-scoped identity.");
+        Assert.Contains("run.BasicId,\n                        providerCode,\n                        externalId", worker, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_prospecting_candidate_te_ru_pr_ex_is", worker, StringComparison.Ordinal);
+        Assert.Contains("23505", worker, StringComparison.Ordinal);
+
+        var helperIndex = worker.IndexOf("private static async Task RepairCandidateProvenanceAsync", repairCall, StringComparison.Ordinal);
+        var helperEnd = worker.IndexOf("private const int MaxFailureSummaryLength", helperIndex, StringComparison.Ordinal);
+        Assert.True(helperIndex > repairCall && helperEnd > helperIndex);
+        var helper = worker[helperIndex..helperEnd];
+        Assert.Contains("candidate.Status == CrmProspectingCandidateStatus.Duplicate", helper, StringComparison.Ordinal);
+        Assert.DoesNotContain("candidate.Status =", helper, StringComparison.Ordinal);
+        Assert.Contains("await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken)", helper, StringComparison.Ordinal);
+        Assert.Contains("await scoreRepository.AddAsync(scoreSnapshot, cancellationToken)", helper, StringComparison.Ordinal);
+        Assert.Contains("await repairUnitOfWork.CompleteAsync(cancellationToken)", helper, StringComparison.Ordinal);
     }
 
     [Fact]
