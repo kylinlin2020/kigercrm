@@ -84,20 +84,11 @@ public sealed class CrmTedProspectingProvider : ICrmProspectingProvider, IDispos
                 !string.Equals(finalUri.AbsolutePath, Endpoint.AbsolutePath, StringComparison.Ordinal))
                 throw new HttpRequestException("TED response came from an unapproved endpoint.");
 
-            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
-                response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
-            {
-                var retryAt = response.Headers.RetryAfter?.Date
-                    ?? (response.Headers.RetryAfter?.Delta is { } retryDelay
-                        ? DateTimeOffset.UtcNow + retryDelay
-                        : DateTimeOffset.UtcNow.AddMinutes(5));
-                throw new CrmProspectingProviderRateLimitException(
-                    $"TED throttled the request (HTTP {(int)response.StatusCode}); retry after the supplied cooldown.",
-                    (int)response.StatusCode, retryAt);
-            }
-
             if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"TED Search API returned HTTP {(int)response.StatusCode}.");
+                throw CrmProspectingProviderException.FromResponse(
+                    ProviderCode,
+                    response,
+                    safeMessage: "TED Search API returned an HTTP error.");
 
             var payload = await ReadBoundedAsync(response, MaxResponseBytes, cancellationToken);
             using var document = JsonDocument.Parse(payload);
