@@ -165,6 +165,29 @@ public sealed class CrmContractsFinderProspectingProviderTests
                 22, "generator", "generator", "", "", "{}", [])));
     }
 
+    [Fact]
+    public async Task SearchAsync_UsesCoverageLowerBoundAndMarksPageCapIncomplete()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """{"releases":[],"links":{"next":"https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?cursor=next-page"}}""",
+                Encoding.UTF8, "application/json")
+        });
+        var provider = new CrmContractsFinderProspectingProvider(new HttpClient(handler));
+        var lowerBound = new DateTimeOffset(2026, 10, 20, 0, 0, 0, TimeSpan.Zero);
+
+        var result = await provider.SearchAsync(new CrmProspectingProviderRequest(
+            22, "water pump", "water pump", "", "", "{}", [])
+        {
+            CoverageSinceUtc = lowerBound
+        });
+
+        Assert.Equal(3, handler.CallCount);
+        Assert.Contains("publishedFrom=2026-10-20T00%3A00%3A00", handler.Requests[0], StringComparison.Ordinal);
+        Assert.False(result.IsComplete);
+    }
+
     private sealed class StubHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFactory;
