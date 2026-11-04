@@ -156,6 +156,17 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingWorker_ShouldReconcileEvidenceUsingTheDatabaseUniqueIndexFingerprint()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
+
+        Assert.Contains("nameof(SourceUrlHash)", entity, StringComparison.Ordinal);
+        Assert.Contains("evidence.SourceUrlHash", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("evidence.SourceUrl,", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingWorker_ShouldRepairMissingScoreSnapshotsWithEvidenceAtomically()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
