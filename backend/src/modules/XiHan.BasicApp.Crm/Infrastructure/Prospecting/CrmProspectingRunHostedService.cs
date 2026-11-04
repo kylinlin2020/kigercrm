@@ -121,7 +121,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var failures = 0;
             var warnings = new List<string>();
 
-            var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
             foreach (var providerCode in plan.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
