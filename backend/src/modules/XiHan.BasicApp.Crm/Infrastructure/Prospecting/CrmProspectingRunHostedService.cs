@@ -242,6 +242,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             // checked for every record. CompleteAsync resolves cancellation arriving after the
             // last poll and gives CancelRequested precedence over success.
             const int cancellationPollInterval = 25;
+            var gleifLookups = 0;
+            var identityResolver = scope.ServiceProvider.GetService<ICrmProspectingIdentityResolver>();
+            const int maxGleifLookupsPerRun = 20;
             for (var recordIndex = 0; recordIndex < raw.Count; recordIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -402,6 +405,54 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         insertedCandidate,
                         envelope,
                         cancellationToken);
+                }
+
+                // Optional authoritative identity enrichment is performed only after a
+                // Candidate exists. Exact normalized legal-name matches only; ambiguity or
+                // registry unavailability never blocks procurement evidence or Candidate review.
+                if (identityResolver is not null && gleifLookups < maxGleifLookupsPerRun)
+                {
+                    gleifLookups++;
+                    try
+                    {
+                        var identity = await identityResolver.ResolveExactAsync(insertedCandidate.CompanyName, cancellationToken);
+                        if (identity is not null)
+                        {
+                            var sourceUrl = identity.SourceUrl;
+                            if (CrmProspectingEvidenceFactory.TryGetCanonicalSourceUrl(sourceUrl, out var canonicalSourceUrl))
+                            {
+                                var identityEvidence = new SysCrmProspectingEvidence
+                                {
+                                    CandidateId = insertedCandidate.BasicId,
+                                    ProviderCode = "gleif_lei",
+                                    ProviderRecordId = identity.Lei,
+                                    FieldName = "legal_entity_identifier",
+                                    FieldValueHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity.Lei))),
+                                    SourceUrl = canonicalSourceUrl,
+                                    SourceUrlHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonicalSourceUrl))),
+                                    EvidenceType = "registry",
+                                    VerificationStatus = "unverified",
+                                    EvidenceSummary = $"GLEIF exact legal-name match: {identity.LegalName}; entity status: {identity.EntityStatus ?? "unknown"}; LEI registration status: {identity.RegistrationStatus ?? "unknown"}; country: {identity.CountryCode ?? "unknown"}; registered identifier: {identity.RegisteredAs ?? "not supplied"}. Human verification remains required.",
+                                    RetrievedAtUtc = identity.RetrievedAtUtc.ToUniversalTime(),
+                                    RawPayloadHash = identity.RawPayloadHash
+                                };
+                                using var identityUnitOfWork = scope.ServiceProvider
+                                    .GetRequiredService<IUnitOfWorkManager>()
+                                    .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+                                await evidenceRepository.AddRangeAsync([identityEvidence], cancellationToken);
+                                await identityUnitOfWork.CompleteAsync(cancellationToken);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception identityException)
+                    {
+                        AddBoundedWarning(warnings, $"GLEIF identity lookup for candidate {insertedCandidate.BasicId} failed: {identityException.GetType().Name}.");
+                        Logger.LogWarning(identityException, "GLEIF identity lookup failed for Candidate {CandidateId}", insertedCandidate.BasicId);
+                    }
                 }
 
                 existingCandidateByKey[key] = insertedCandidate;
