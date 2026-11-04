@@ -891,9 +891,21 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
     private static string BuildFailureSummary(Exception exception)
     {
         var summary = $"{exception.GetType().Name}: {exception.Message}";
-        return summary.Length > MaxFailureSummaryLength
-            ? summary[..MaxFailureSummaryLength]
-            : summary;
+        return SanitizeDiagnosticText(summary, MaxFailureSummaryLength);
+    }
+
+    private static string SanitizeDiagnosticText(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var sanitized = string.Concat(value.Select(character => char.IsControl(character) ? ' ' : character));
+        sanitized = System.Text.RegularExpressions.Regex.Replace(
+            sanitized, @"(?i)(https?://[^\\s?#]+)[^\\s]*", "$1");
+        sanitized = System.Text.RegularExpressions.Regex.Replace(
+            sanitized, @"(?i)\\b(Bearer|Basic)\\s+[A-Za-z0-9._~+/=-]+", "$1 [REDACTED]");
+        sanitized = System.Text.RegularExpressions.Regex.Replace(
+            sanitized, @"(?i)\\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|client_secret)\\s*[:=]\\s*[""']?[^\\s&,""']+", "$1=[REDACTED]");
+        sanitized = sanitized.Trim();
+        return sanitized.Length > maxLength ? sanitized[..maxLength] : sanitized;
     }
 
     private const int MaxAggregatedWarnings = 100;
@@ -904,11 +916,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         if (warnings.Count >= MaxAggregatedWarnings || string.IsNullOrWhiteSpace(warning)) return;
         // Provider output and exception messages are untrusted; strip control characters
         // before persisting them into the Run summary or exposing them in review screens.
-        var value = string.Concat(warning.Select(character => char.IsControl(character) ? ' ' : character)).Trim();
+        var value = SanitizeDiagnosticText(warning, MaxAggregatedWarningLength);
         if (value.Length == 0) return;
-        warnings.Add(value.Length > MaxAggregatedWarningLength
-            ? value[..MaxAggregatedWarningLength]
-            : value);
+        warnings.Add(value);
     }
 
     private static void AddBoundedProviderWarnings(List<string> warnings, IReadOnlyList<string>? providerWarnings)
