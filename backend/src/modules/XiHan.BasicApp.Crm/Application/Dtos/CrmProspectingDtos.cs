@@ -112,3 +112,47 @@ public sealed class CrmProspectingCandidateReviewDto
     public bool Approve { get; set; }
     public bool OverrideDuplicate { get; set; }
 }
+
+
+/// <summary>Field-level provenance shown to a human reviewer.</summary>
+public sealed class CrmProspectingEvidenceDto
+{
+    public long BasicId { get; set; }
+    public string ProviderCode { get; set; } = string.Empty;
+    public string? ProviderRecordId { get; set; }
+    public string FieldName { get; set; } = string.Empty;
+    public string? FieldValueHash { get; set; }
+    public string SourceUrl { get; set; } = string.Empty;
+    public string EvidenceType { get; set; } = string.Empty;
+    public string VerificationStatus { get; set; } = string.Empty;
+    public string? EvidenceSummary { get; set; }
+    public DateTimeOffset? PublishedAtUtc { get; set; }
+    public DateTimeOffset RetrievedAtUtc { get; set; }
+    public string? RawPayloadHash { get; set; }
+}
+
+/// <summary>Immutable scoring snapshot shown to a human reviewer.</summary>
+public sealed class CrmProspectingScoreDto
+{
+    public long BasicId { get; set; }
+    public string ScorecardVersion { get; set; } = string.Empty;
+    public int Total { get; set; }
+    public int Priority { get; set; }
+    public int IdentityPoints { get; set; }
+    public int ProcurementPoints { get; set; }
+    public int ProductFitPoints { get; set; }
+    public int MarketFitPoints { get; set; }
+    public int RecencyPoints { get; set; }
+    public int EvidencePoints { get; set; }
+    public int ContactPoints { get; set; }
+    public string ReviewGatesJson { get; set; } = "[]";
+    public DateTimeOffset EvaluatedAtUtc { get; set; }
+}
+
+/// <summary>Review detail combines a Candidate with its traceable evidence and immutable score history.</summary>
+public sealed class CrmProspectingCandidateReviewDetailDto
+{
+    public CrmProspectingCandidateDto Candidate { get; set; } = new();
+    public IReadOnlyList<CrmProspectingEvidenceDto> Evidence { get; set; } = [];
+    public IReadOnlyList<CrmProspectingScoreDto> ScoreHistory { get; set; } = [];
+}
