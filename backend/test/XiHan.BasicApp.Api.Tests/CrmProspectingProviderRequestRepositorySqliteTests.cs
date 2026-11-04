@@ -49,6 +49,14 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
     }
 
     [Fact]
+    public async Task SchemaConstraintInitializer_ShouldFailClosedOutsidePostgreSql()
+    {
+        using (_tenant.Change(TenantId))
+            await Assert.ThrowsAsync<NotSupportedException>(
+                () => _repository.EnsureSchemaConstraintsAsync());
+    }
+
+    [Fact]
     public async Task StartedAttempt_ShouldPersistBeforeItCanBeFinalized()
     {
         using (_tenant.Change(TenantId))
