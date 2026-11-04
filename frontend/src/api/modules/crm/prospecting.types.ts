@@ -116,3 +116,41 @@ export interface CrmProspectingCandidateReviewDto {
   approve: boolean
   overrideDuplicate: boolean
 }
+
+
+export interface CrmProspectingEvidenceDto {
+  basicId: ApiId
+  providerCode: string
+  providerRecordId?: string | null
+  fieldName: string
+  fieldValueHash?: string | null
+  sourceUrl: string
+  evidenceType: string
+  verificationStatus: string
+  evidenceSummary?: string | null
+  publishedAtUtc?: DateTimeString | null
+  retrievedAtUtc: DateTimeString
+  rawPayloadHash?: string | null
+}
+
+export interface CrmProspectingScoreDto {
+  basicId: ApiId
+  scorecardVersion: string
+  total: number
+  priority: number
+  identityPoints: number
+  procurementPoints: number
+  productFitPoints: number
+  marketFitPoints: number
+  recencyPoints: number
+  evidencePoints: number
+  contactPoints: number
+  reviewGatesJson: string
+  evaluatedAtUtc: DateTimeString
+}
+
+export interface CrmProspectingCandidateReviewDetailDto {
+  candidate: CrmProspectingCandidateDto
+  evidence: CrmProspectingEvidenceDto[]
+  scoreHistory: CrmProspectingScoreDto[]
+}
