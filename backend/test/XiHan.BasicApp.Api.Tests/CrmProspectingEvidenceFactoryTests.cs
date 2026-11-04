@@ -159,6 +159,23 @@ public sealed class CrmProspectingEvidenceFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldTreatWhitespaceOnlyExternalIdsAsTheSameFallbackIdentity()
+    {
+        var empty = new CrmProspectingRawRecord(string.Empty, "source", "title", "buyer", null, null, null, "summary")
+        {
+            SourceUrl = "https://buyer.example/tender/blank-id"
+        };
+        var whitespace = empty with { ExternalId = "   " };
+
+        Assert.Equal(
+            CrmProspectingRecordIdentity.NormalizeExternalId(empty),
+            CrmProspectingRecordIdentity.NormalizeExternalId(whitespace));
+        Assert.Equal(
+            CrmProspectingRecordIdentity.GetPayloadHash(empty),
+            CrmProspectingRecordIdentity.GetPayloadHash(whitespace));
+    }
+
+    [Fact]
     public void Create_ShouldKeepFallbackIdentityAndPayloadFingerprintStableAcrossRetrievalTimes()
     {
         var first = new CrmProspectingRawRecord(string.Empty, "source", "title", "buyer", null, null, null, "summary")
