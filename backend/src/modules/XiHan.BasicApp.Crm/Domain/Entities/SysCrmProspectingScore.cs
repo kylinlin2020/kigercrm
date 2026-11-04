@@ -8,10 +8,15 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 [SugarTable(TableName = "Crm_Prospecting_Score", TableDescription = "KIGER CRM prospecting score history")]
 [SugarIndex("IX_{table}_Te_Ca_Ev", nameof(TenantId), OrderByType.Asc, nameof(CandidateId), OrderByType.Asc, nameof(EvaluatedAtUtc), OrderByType.Desc)]
 [SugarIndex("IX_{table}_Te_Sv_Pr", nameof(TenantId), OrderByType.Asc, nameof(ScorecardVersion), OrderByType.Asc, nameof(Priority), OrderByType.Desc)]
+[SugarIndex("UX_{table}_Te_IdemKey", nameof(TenantId), OrderByType.Asc, nameof(IdempotencyKey), OrderByType.Asc, true)]
 public sealed class SysCrmProspectingScore : BasicAppCreationEntity, IStrictMultiTenantEntity
 {
     [SugarColumn(ColumnName = "Candidate_Id", IsNullable = false)]
     public long CandidateId { get; set; }
+
+    /// <summary>Optional stable key for one-time worker snapshots; null preserves ordinary score history.</summary>
+    [SugarColumn(ColumnName = "Idempotency_Key", Length = 160, IsNullable = true)]
+    public string? IdempotencyKey { get; set; }
 
     [SugarColumn(ColumnName = "Scorecard_Version", Length = 80, IsNullable = false)]
     public string ScorecardVersion { get; set; } = string.Empty;
