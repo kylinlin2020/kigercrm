@@ -41,6 +41,17 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         return rows.FirstOrDefault();
     }
 
+    public async Task<IReadOnlyList<SysCrmProspectingRun>> GetLatestByCampaignAsync(long campaignId, int limit, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var take = Math.Clamp(limit, 1, 500);
+        return await CreateQueryable()
+            .Where(run => run.CampaignId == campaignId)
+            .OrderByDescending(run => run.CreatedTime)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<long>> GetQueuedIdsAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
