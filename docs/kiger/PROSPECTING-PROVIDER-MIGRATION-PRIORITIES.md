@@ -46,3 +46,26 @@ For generator and water-pump prospecting, pilot official procurement/tender sour
 - No scraping behind login, paywall, CAPTCHA, or access controls.
 - No automated outreach or email sending.
 - No live adapter is considered complete until contract tests, source-policy review, tenant-safe persistence, quota handling, and end-to-end human-review flow pass.
+
+## Current branch reconciliation (2026-11-04)
+
+This decision record predates several adapter and worker increments. The following are now present in `kiger-dev` source and must not be described as merely planned:
+
+- Official procurement adapters: USAspending, UK Find a Tender, EU TED and UK Contracts Finder.
+- Official identity enrichment: GLEIF resolver (identity enrichment only; not a discovery provider).
+- Provider request-attempt ledger and campaign/provider/scope coverage checkpoint, including atomic PostgreSQL success finalization.
+- Cross-Run duplicate screening by provider identity, normalized email and website host.
+- PostgreSQL lease claim, independent heartbeat, child-write fencing, terminal fencing and expired-lease recovery in the HostedService.
+
+These are implemented at source level but have not yet passed .NET 10 execution, live-source checks or PostgreSQL dual-connection acceptance. The worker remains single-active-instance.
+
+### Revised next priorities
+
+1. **PostgreSQL correctness tests first:** prove concurrent lease claims, lease takeover, heartbeat rejection after takeover, stale child-write rejection, fenced terminal transitions, and atomic request-ledger/coverage advancement using two independent connections.
+2. **Shared provider security boundary:** centralize DNS/IP destination validation (including private, loopback and link-local rejection), redirect-by-redirect validation, bounded response streaming, per-tenant/provider concurrency and retry budgets. Keep fixed endpoint allowlists in every adapter.
+3. **Provider catalog metadata:** expose provider code, source class, geographic/time coverage, required configuration, enabled state, result limitations, terms/policy URL, field authority and cost/quota class. Never expose secrets.
+4. **Observation reconciliation and cache:** add durable links from repeated source observations to canonical Candidates; introduce a shared response cache only with tenant-safe cache keys, retention limits and privacy review.
+5. **Remaining business workflows:** Schedule/Scheduler, deep-mining/Super Search, general website discovery and optional paid contact enrichment, each behind explicit opt-in and human review.
+6. **Runtime acceptance:** Windows-native .NET 10 restore/build/test, PostgreSQL migrations and concurrency, Redis worker restart/recovery, live official-source contract checks and full candidate-to-human-approved-Lead workflow.
+
+The earlier statement that the current provider contract is only a flat raw record is historical: the present contract includes source URL, publication/retrieval timestamps, payload hash, evidence classification and provider-result completeness. Further pagination, typed retry/quota metadata and a shared execution gateway remain future work.
