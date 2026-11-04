@@ -61,6 +61,40 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
     }
 
     [Fact]
+    public async Task RunLeaseMetadata_ShouldRoundTripThroughSqlSugarCodeFirstMapping()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var token = Guid.NewGuid();
+            var run = await _repository.AddAsync(new SysCrmProspectingRun
+            {
+                CampaignId = 101,
+                StrategyId = 201,
+                StrategyVersion = 1,
+                RequestKey = "lease-metadata-roundtrip",
+                PayloadHash = new string('B', 64),
+                SnapshotSearchObjective = "Lease mapping test",
+                SnapshotProviderPlanJson = "[\"fake\"]",
+                Status = CrmProspectingRunStatus.Running,
+                LeaseOwner = "worker-test-instance",
+                LeaseToken = token,
+                LeaseExpiresAt = now.AddMinutes(2),
+                LeaseHeartbeatAt = now,
+                FencingVersion = 7
+            });
+
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal("worker-test-instance", persisted.LeaseOwner);
+            Assert.Equal(token, persisted.LeaseToken);
+            Assert.Equal(now.AddMinutes(2), persisted.LeaseExpiresAt);
+            Assert.Equal(now, persisted.LeaseHeartbeatAt);
+            Assert.Equal(7, persisted.FencingVersion);
+        }
+    }
+
+    [Fact]
     public async Task GetByRequestKey_ShouldReturnOnlyTheCurrentTenantsRun()
     {
         long firstTenantRunId;
