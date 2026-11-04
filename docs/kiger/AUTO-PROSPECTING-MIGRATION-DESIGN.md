@@ -425,3 +425,12 @@ Required verification remains PostgreSQL-backed with independent connections/pro
 The worker serializes provider records to JSON and enforces a 5,000,000-unit storage guard before persisting the payload. A source review found that the guard compared .NET string Length, which counts UTF-16 code units rather than the UTF-8 byte size of the JSON payload. For predominantly non-ASCII provider data, the previous check could accept a payload whose UTF-8 representation exceeded the stated 5 MB limit.
 
 The guard now uses Encoding.UTF8.GetByteCount(serialized), so the measured value matches the encoded payload byte size. The source-wiring regression test asserts that the worker uses this byte-count check. This is a pre-persistence size guard; it does not bound allocations made while a provider constructs its result or while JSON serialization is occurring. No build or test execution was performed, and the test assertion remains source-level until the .NET suite is run.
+
+
+## 44. Keep the synthetic provider disabled unless explicitly opted in (2026-11-04)
+
+A production-safety review found that `FakeCrmProspectingProvider` returned synthetic `.example` companies and addresses but was registered unconditionally by the CRM module. Its source comment said not to use it in production, but the registration did not enforce that boundary. A campaign whose provider plan named `fake` could therefore persist invented contacts in a production tenant and expose them in the human-review queue as if they were acquired prospects.
+
+The CRM registration now adds the fake provider only when the explicit configuration key `XiHan:CRM:Prospecting:EnableFakeProvider` parses as `true`. Missing, malformed, or false values leave the provider unregistered. The CRM module passes its application configuration into the registration extension, and a source-wiring regression assertion guards the opt-in key and conditional registration.
+
+This is a fail-closed registration default, not a real acquisition integration. With the setting absent, a Run configured with provider code `fake` will report that the provider is not registered; no synthetic prospects are generated. Enable the setting only in isolated local/test environments. Production still has no real external provider registered. No build, test, or runtime validation was performed for this change.
