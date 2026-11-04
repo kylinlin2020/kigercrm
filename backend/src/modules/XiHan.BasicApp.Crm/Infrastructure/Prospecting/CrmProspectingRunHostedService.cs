@@ -139,6 +139,13 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     run.SnapshotIdealCustomerProfile ?? string.Empty,
                     "{}",
                     excludedDomains);
+                var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
+                var requestKey = CrmProspectingRequestFingerprint.Create(providerCode, request);
+                // The Started row is durable before the provider is allowed to perform network I/O.
+                // If ledger persistence fails, fail the Run rather than making an untracked request.
+                var attempt = await requestLedger.CreateStartedAsync(
+                    run.BasicId, providerCode, requestKey, DateTimeOffset.UtcNow, cancellationToken);
+                var providerTimer = System.Diagnostics.Stopwatch.StartNew();
                 CrmProspectingProviderResult result;
                 try
                 {
@@ -146,24 +153,44 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
+                    providerTimer.Stop();
+                    await requestLedger.TryFinalizeAsync(
+                        attempt.BasicId, "Cancelled", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                        failureCode: "operation_cancelled", failureSummary: "Provider request was cancelled.",
+                        cancellationToken: CancellationToken.None);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    // Isolate provider failures only. Database/state/persistence failures below
-                    // must fail the Run instead of being misreported as a provider outage.
+                    providerTimer.Stop();
+                    // Isolate provider failures only. Ledger write failures remain fatal and are
+                    // intentionally outside any nested provider exception handler.
+                    await requestLedger.TryFinalizeAsync(
+                        attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                        failureCode: ex.GetType().Name, failureSummary: ex.Message,
+                        cancellationToken: CancellationToken.None);
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: {ex.GetType().Name}: {ex.Message}");
                     Logger.LogWarning(ex, "Prospecting provider failed for Run {RunId}, provider {Provider}", run.BasicId, providerCode);
                     continue;
                 }
 
+                providerTimer.Stop();
                 if (result is null || result.Records is null)
                 {
+                    await requestLedger.TryFinalizeAsync(
+                        attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                        failureCode: "malformed_result", failureSummary: "Provider returned an empty or malformed result envelope.",
+                        cancellationToken: CancellationToken.None);
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: provider returned an empty or malformed result envelope.");
                     continue;
                 }
+
+                if (!await requestLedger.TryFinalizeAsync(
+                    attempt.BasicId, "Succeeded", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                    resultCount: result.Records.Count, cancellationToken: CancellationToken.None))
+                    throw new InvalidOperationException("The provider request ledger attempt could not be finalized exactly once.");
 
                 failures += Math.Max(0, result.FailureCount);
                 AddBoundedProviderWarnings(warnings, result.Warnings);
