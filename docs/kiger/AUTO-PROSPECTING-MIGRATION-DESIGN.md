@@ -461,6 +461,13 @@ Added adapter unit-test source for record mapping, empty-query no-network behavi
 **Not yet verified:** no .NET SDK is available in the current execution environment, so no compile/test has run. The provider has not yet been exercised against the live USAspending endpoint or Windows/PostgreSQL target runtime. It is one official US procurement source, not full provider parity, and pagination, provider request ledger, rate/cost accounting, and cross-source deduplication remain open.
 
 
+## 49. Startup recovery for expired prospecting leases (2026-11-04)
+
+Tenant startup recovery now invokes `RecoverExpiredLeasesAsync` using PostgreSQL `clock_timestamp()` before rebuilding the Redis queue from queued Run IDs. This makes the existing lease-expiry recovery primitive reachable from the HostedService startup path and preserves tenant scoping. Expired `Running` lease-backed Runs are requeued; expired cancellation requests are finalized as cancelled. Legacy lease-less Runs continue through the separate legacy recovery method.
+
+A source-wiring regression assertion verifies that lease recovery precedes queued-ID enumeration. This change does **not** activate lease claims or fenced writes: the worker's active claim/write/terminal path is still legacy. Keep concurrency at one until the full lease lifecycle and two-connection PostgreSQL tests are complete. No compile or runtime validation is claimed.
+
+
 ## 48. UK procurement and GLEIF identity source delivery (2026-11-04)
 
 Two additional real-data capabilities are now implemented on `kiger-dev`:
