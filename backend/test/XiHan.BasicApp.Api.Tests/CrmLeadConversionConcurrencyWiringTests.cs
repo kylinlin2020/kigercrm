@@ -54,6 +54,8 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         Assert.Contains("ADD COLUMN IF NOT EXISTS converted_lead_id", migration, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CREATE UNIQUE INDEX", migration, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("(tenant_id, converted_lead_id)", migration, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ux_crm_customer_teid_convlead", migration, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("UX_{table}_TeId_ConvLead", customerEntity, StringComparison.Ordinal);
     }
 
     private static string RepositoryPath(params string[] segments) =>
