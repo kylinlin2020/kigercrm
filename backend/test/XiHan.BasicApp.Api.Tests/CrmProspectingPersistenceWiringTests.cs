@@ -192,6 +192,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("GetByIdempotencyKeyAsync", repository, StringComparison.Ordinal);
         Assert.Contains("IsScoreIdempotencyUniqueViolation(ex)", worker, StringComparison.Ordinal);
         Assert.Contains("BuildInitialScoreIdempotencyKey", worker, StringComparison.Ordinal);
+        Assert.Contains("scoreRepository.GetByIdempotencyKeyAsync(scoreKey, cancellationToken)", worker, StringComparison.Ordinal);
     }
 
     [Fact]
