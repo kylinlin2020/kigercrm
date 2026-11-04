@@ -151,41 +151,28 @@ Do not combine the entire rollout into one migration or enable cache/cursor adva
 
 Already present on `kiger-dev`: bounded provider result retention, per-provider exception isolation, source evidence hashes, cross-Run candidate deduplication, lease/fencing lifecycle, independent heartbeat, and human review before CRM Lead conversion.
 
-Not yet implemented by this design document: durable provider request ledger, coverage cursor, response cache, persisted cooldown/circuit breaker, provider operational dashboard, and their database-backed tests.
+Not yet implemented: coverage cursor, response cache, persisted cooldown/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
 
 ### Implemented prerequisite: canonical request fingerprint
 
-The domain utility `CrmProspectingRequestFingerprint.Create(providerCode, request)` now produces a SHA-256 fingerprint that excludes RunId, normalizes whitespace/provider-code casing, sorts and normalizes excluded domains, and canonicalizes JSON object property order. It rejects malformed provider-options JSON. Regression tests cover RunId independence, JSON property ordering, excluded-domain ordering, scope sensitivity, and malformed JSON. This is a deterministic fingerprint primitive only; it does not persist a request ledger or authorize cache reuse. ProviderOptionsJson must remain free of credentials and secrets.
+The domain utility `CrmProspectingRequestFingerprint.Create(providerCode, request)` produces a SHA-256 fingerprint that excludes RunId, normalizes whitespace/provider-code casing, sorts and normalizes excluded domains, and canonicalizes JSON object property order. It rejects malformed provider-options JSON. Regression tests cover RunId independence, JSON property ordering, excluded-domain ordering, scope sensitivity, and malformed JSON. This is a deterministic fingerprint primitive; ProviderOptionsJson must remain free of credentials and secrets.
 
+### Implemented: tenant-scoped request ledger schema (5.9.31)
 
-### Implemented slice: provider request ledger schema (5.9.31)
+The tenant-scoped append-only entity `SysCrmProspectingProviderRequest` and additive PostgreSQL migration `5.9.31/5.9.31.sql` define one row per provider invocation attempt. The schema contains tenant/run/provider identity, positive attempt number, 64-character request fingerprint, constrained lifecycle state, timestamps/duration, HTTP status, result count, bounded failure classification/summary, retry-after, response hash and cache-hit marker. The unique key is tenant + Run + provider + attempt number. Migration only creates the table where `crm_prospecting_run` exists; fresh databases use CodeFirst metadata. The entity is registered with CRM field-security metadata.
 
-The tenant-scoped append-only entity `SysCrmProspectingProviderRequest` and additive PostgreSQL migration `5.9.31/5.9.31.sql` now define one row per provider invocation attempt. The schema includes tenant/run/provider identity, positive attempt number, 64-character canonical request fingerprint, constrained lifecycle state, timestamps/duration, HTTP status, result count, bounded failure classification/summary, retry-after, response hash and cache-hit marker. A unique tenant + Run + provider + attempt index prevents duplicate attempt identities. The migration runs only where `crm_prospecting_run` exists, and the entity is registered with CRM field-security metadata. Source-level contract tests were added. **Not yet implemented:** attempt allocation/writes, conditional terminal-state transition repository methods, stale Started recovery, and Worker/provider call bracketing. Do not treat schema presence as active runtime telemetry.
+### Implemented: repository and Worker lifecycle
 
+`ICrmProspectingProviderRequestRepository` is registered in CRM DI. The repository allocates the next 1-based attempt number per tenant + Run + provider and inserts Started before network I/O. The database unique key is the final concurrency arbiter: if two allocations race, one insert fails closed; the Worker does not call the Provider unless the Started insert succeeded. The repository conditionally transitions Started to one terminal state and supports tenant-scoped attempt lookup.
 
-### Implemented slice: request ledger repository and Worker lifecycle
+The Worker computes the canonical request fingerprint and creates Started before `SearchAsync`. It finalizes success, malformed result, provider exception, structured rate-limit and cancellation outcomes. A ledger write/finalization failure is fatal to the Run. Failure summaries are length-bounded, control-character sanitized, URL query/fragment values removed, and common Bearer/Basic/API-key/token/password assignments redacted. No raw HTTP headers or response bodies are stored.
 
-The scoped repository now:
-- allocates the next 1-based attempt number per tenant + Run + provider and inserts a Started row before network I/O;
-- relies on the database unique key as the final concurrency arbiter; a racing insert fails closed and must be retried before any provider call;
-- conditionally transitions Started to exactly one terminal state and bounds/sanitizes diagnostics;
-- supports tenant-scoped attempt lookup.
+### Implemented: interrupted-attempt recovery
 
-The Run Worker now computes the canonical request fingerprint and creates Started before calling `SearchAsync`. It finalizes success, malformed result, provider exception and cancellation outcomes. Ledger write/finalization failures are fatal to the Run rather than being silently treated as provider failures. Provider output retention, candidate review and Lead conversion rules are unchanged.
+Startup recovery runs after Run lease recovery and before queue reconstruction. It marks a Started attempt as Failed with stable code `worker_interrupted` only when it is older than the Run lease duration (10 minutes) and its Run is missing, queued/terminal, or has an expired lease. It does not touch a request whose Run still has a live Running/CancelRequested lease. Recovery uses PostgreSQL database time and tenant-scoped SQL. The SQL still requires live PostgreSQL acceptance.
 
-Still pending: stale Started recovery after process death, durable rate-limit cooldown, database-backed concurrent-attempt retry policy, PostgreSQL dual-connection tests, and request-ledger read-only diagnostics. The SQLite repository tests are committed as test source but have not been executed in this environment.
+### Implemented: structured rate-limit outcomes
 
+Contracts Finder, Find a Tender and EU TED raise a typed `CrmProspectingProviderRateLimitException` for their documented throttling responses (429/503; Contracts Finder also treats documented 403 as throttling). The exception carries HTTP status and parsed `Retry-After` date/delta, with a five-minute fallback if the provider supplies no header. The Worker persists `RateLimited`, HTTP status and retry-after timestamp instead of classifying the event as a generic failure.
 
-### Implemented slice: repository and Worker lifecycle
-
-The request ledger repository is now registered in CRM DI and called by `CrmProspectingRunHostedService`. Each configured provider attempt receives a canonical request fingerprint and a durable `Started` row before network I/O. Provider success, partial result, malformed envelope, exception and Run cancellation are finalized with conditional `Started`-only updates. Provider exception diagnostics deliberately persist only a stable classification and exception type, not arbitrary exception messages. The repository retries bounded attempt-number collisions only when a concurrent insert is observed, and sanitizes URL query strings, bearer credentials and common API-key/token assignments from diagnostics. SQLite integration tests cover sequential attempts, tenant isolation, exactly-once finalization and diagnostic redaction. Startup recovery marks sufficiently old Started attempts as `worker_interrupted` only when the owning Run is absent, terminal, or has an expired persisted lease; active/lease-less Running Runs are not prematurely rewritten. A source-level guard covers the recovery boundary. PostgreSQL concurrent allocation and actual recovery SQL remain unverified on a live PostgreSQL instance.
-
-
-### Implemented slice: interrupted-attempt recovery
-
-Startup recovery now runs after Run lease recovery and before queue reconstruction. It marks a Started attempt as Failed with the stable code `worker_interrupted` only when it is older than the Run lease duration (10 minutes) and its Run is missing, terminal/queued, or has an expired lease. It deliberately does not touch a recent Started attempt or an attempt whose Run still has a live Running/CancelRequested lease. Recovery uses PostgreSQL database time and tenant-scoped SQL. The recovery path is not yet verified against a live PostgreSQL database.
-
-
-### Implemented slice: structured rate-limit outcomes
-
-Contracts Finder, Find a Tender and EU TED now raise a typed `CrmProspectingProviderRateLimitException` for their documented 403/429/503 throttling responses (Contracts Finder also treats documented 403 as a five-minute cooldown). The exception carries the HTTP status and parsed `Retry-After` date/delta, with a bounded five-minute fallback when the provider supplies no header. The Worker persists `RateLimited`, HTTP status and retry-after timestamp rather than misclassifying these outcomes as generic failures. This is observability/classification only: a persisted cooldown scheduler that prevents the next request is still pending.
+This is observability/classification only. A persisted cooldown scheduler that prevents requests before Retry-After, scheduler-aware deferred retries, exponential backoff/circuit behavior, and provider health diagnostics remain pending.
