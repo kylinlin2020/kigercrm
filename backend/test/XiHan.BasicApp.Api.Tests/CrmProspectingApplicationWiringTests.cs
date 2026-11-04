@@ -57,6 +57,22 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("CrmProspectingStrategyApprovalStatus.Approved", domain, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ProspectingProviderBoundary_ShouldRegisterOnlyAnExplicitSyntheticSmokeAdapter()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingProviderContracts.cs");
+        var fake = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "FakeCrmProspectingProvider.cs");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        Assert.Contains("interface ICrmProspectingProvider", contract, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRawRecord", contract, StringComparison.Ordinal);
+        Assert.Contains("must not create or update CRM leads directly", contract, StringComparison.Ordinal);
+        Assert.Contains("ProviderCode => \"fake\"", fake, StringComparison.Ordinal);
+        Assert.Contains("example.com", fake, StringComparison.Ordinal);
+        Assert.Contains("does not perform network requests", fake, StringComparison.Ordinal);
+        Assert.Contains("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>()", registration, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
