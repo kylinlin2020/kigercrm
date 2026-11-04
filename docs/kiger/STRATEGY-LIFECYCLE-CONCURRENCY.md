@@ -18,7 +18,7 @@ Each campaign now stores a monotonic `StrategyVersionSequence`. Migration 5.9.17
 
 The campaign's `ActiveStrategyVersion` is the activation serialization gate. Activation conditionally updates the campaign only when its active version still equals the version observed by the caller and the campaign is not completed or archived. Once that compare-and-swap succeeds, other active timestamps are cleared and the approved target is marked active. These writes run in one explicit read-committed transaction; any failure rolls back the campaign pointer and strategy changes together.
 
-Migration 5.9.17 aligns orphaned activation timestamps with the campaign pointer, then adds a partial unique index allowing at most one non-deleted activated strategy per tenant/campaign.
+On upgraded tenant databases, migration 5.9.17 aligns orphaned activation timestamps with the campaign pointer, then adds a partial unique index allowing at most one non-deleted activated strategy per tenant/campaign. Fresh databases are created from CodeFirst metadata and may baseline past historical upgrade scripts; the campaign compare-and-swap remains the primary activation serialization mechanism, while provisioning this partial index in fresh-database bootstrap must be verified separately.
 
 ## Verification still required
 
