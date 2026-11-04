@@ -193,3 +193,8 @@ The repository queries the latest future `RetryAfterAt` among tenant-scoped `Rat
 ### Implemented: provider response digest
 
 On a structurally valid provider result, the Worker now computes a SHA-256 digest over the returned record collection and stores only that digest in the request ledger's `Response_Hash` column. The helper returns no serialized payload and does not persist provider response bodies. This supports later audit/comparison of repeated responses without expanding sensitive raw-data retention. The digest is a byte-level serialization fingerprint, not a semantic canonicalization guarantee: equivalent objects serialized with different property/value representations may produce different hashes. The unit-test source covers stable equivalent inputs and changed content; execution remains pending with the rest of the .NET suite.
+
+
+### Additional provider throttling coverage
+
+The USAspending adapter also emits the structured 429/503 signal. GLEIF identity resolution now emits the same typed 429/503 signal with the provider Retry-After date/delta or a five-minute fallback. GLEIF lookups are auxiliary identity enrichment rather than a search-provider invocation, so their throttling is isolated as enrichment failure and is not yet written to the provider request ledger or shared cooldown gate.
