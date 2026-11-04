@@ -73,6 +73,9 @@ public sealed class CrmContractsFinderProspectingProvider : ICrmProspectingProvi
                 throw new HttpRequestException("Contracts Finder response came from an unapproved endpoint.");
             }
 
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                throw new HttpRequestException("Contracts Finder rate limit returned HTTP 403; stop requests for at least five minutes before retrying.");
+
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
                 response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
             {
