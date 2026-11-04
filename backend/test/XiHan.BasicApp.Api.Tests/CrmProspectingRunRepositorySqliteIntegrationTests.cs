@@ -166,6 +166,9 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
         {
             var interrupted = await CreateRunAsync("interrupted");
             var cancelling = await CreateRunAsync("cancel-requested");
+            var succeeded = await CreateRunAsync("already-succeeded");
+            var failed = await CreateRunAsync("already-failed");
+            var cancelled = await CreateRunAsync("already-cancelled");
             Assert.NotNull(await _repository.ClaimQueuedAsync(interrupted.BasicId, DateTimeOffset.UtcNow));
             Assert.NotNull(await _repository.ClaimQueuedAsync(cancelling.BasicId, DateTimeOffset.UtcNow));
 
@@ -173,18 +176,36 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
                 entity => new SysCrmProspectingRun { Status = CrmProspectingRunStatus.CancelRequested },
                 entity => entity.BasicId == cancelling.BasicId && entity.Status == CrmProspectingRunStatus.Running);
             Assert.True(cancellationRequested);
+            Assert.True(await _repository.UpdateAsync(
+                entity => new SysCrmProspectingRun { Status = CrmProspectingRunStatus.Succeeded },
+                entity => entity.BasicId == succeeded.BasicId && entity.Status == CrmProspectingRunStatus.Queued));
+            Assert.True(await _repository.UpdateAsync(
+                entity => new SysCrmProspectingRun { Status = CrmProspectingRunStatus.Failed },
+                entity => entity.BasicId == failed.BasicId && entity.Status == CrmProspectingRunStatus.Queued));
+            Assert.True(await _repository.UpdateAsync(
+                entity => new SysCrmProspectingRun { Status = CrmProspectingRunStatus.Cancelled },
+                entity => entity.BasicId == cancelled.BasicId && entity.Status == CrmProspectingRunStatus.Queued));
 
             Assert.True(await _repository.RecoverInterruptedAsync(DateTimeOffset.UtcNow));
             Assert.False(await _repository.RecoverInterruptedAsync(DateTimeOffset.UtcNow));
 
             var recoveredRun = await _repository.GetByIdAsync(interrupted.BasicId);
             var cancelledRun = await _repository.GetByIdAsync(cancelling.BasicId);
+            var succeededRun = await _repository.GetByIdAsync(succeeded.BasicId);
+            var failedRun = await _repository.GetByIdAsync(failed.BasicId);
+            var alreadyCancelledRun = await _repository.GetByIdAsync(cancelled.BasicId);
             Assert.NotNull(recoveredRun);
             Assert.NotNull(cancelledRun);
+            Assert.NotNull(succeededRun);
+            Assert.NotNull(failedRun);
+            Assert.NotNull(alreadyCancelledRun);
             Assert.Equal(CrmProspectingRunStatus.Queued, recoveredRun.Status);
             Assert.Null(recoveredRun.StartedAt);
             Assert.Equal(CrmProspectingRunStatus.Cancelled, cancelledRun.Status);
             Assert.NotNull(cancelledRun.CompletedAt);
+            Assert.Equal(CrmProspectingRunStatus.Succeeded, succeededRun.Status);
+            Assert.Equal(CrmProspectingRunStatus.Failed, failedRun.Status);
+            Assert.Equal(CrmProspectingRunStatus.Cancelled, alreadyCancelledRun.Status);
         }
     }
 
