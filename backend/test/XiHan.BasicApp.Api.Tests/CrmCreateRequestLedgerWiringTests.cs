@@ -63,7 +63,9 @@ public sealed class CrmCreateRequestLedgerWiringTests
     public void CreateRequestLedgerMigration_ShouldCreatePermanentUniqueKeyWithoutSoftDelete()
     {
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.10", "5.9.10.sql");
-        Assert.Contains("CREATE TABLE crm_create_request", migration, StringComparison.Ordinal);
+        Assert.Contains("to_regclass('crm_sales_order')", migration, StringComparison.Ordinal);
+        Assert.Contains("to_regclass('crm_shipment')", migration, StringComparison.Ordinal);
+        Assert.Contains("CREATE TABLE IF NOT EXISTS crm_create_request", migration, StringComparison.Ordinal);
         Assert.Contains("UNIQUE INDEX IF NOT EXISTS", migration, StringComparison.Ordinal);
         Assert.Contains("(tenant_id, document_type, request_key)", migration, StringComparison.Ordinal);
         var executableSql = string.Join("\n", migration.Split('\n').Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)));
