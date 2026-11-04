@@ -110,6 +110,20 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void ProviderRequestLedger_ShouldPersistOnlyResponseDigestNotRawProviderPayload()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("responseHash: CrmProspectingResponseFingerprint.Create(result.Records)", worker, StringComparison.Ordinal);
+        Assert.Contains("TryFinalizeAsync(", worker, StringComparison.Ordinal);
+
+        var fingerprint = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingResponseFingerprint.cs");
+        Assert.Contains("SHA256.HashData(bytes)", fingerprint, StringComparison.Ordinal);
+        Assert.Contains("SerializeToUtf8Bytes(response)", fingerprint, StringComparison.Ordinal);
+        Assert.DoesNotContain("RawResultsJson", fingerprint, StringComparison.Ordinal);
+        Assert.DoesNotContain("WriteAllText", fingerprint, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProviderRequestLedger_ShouldPersistHttpStatusAndRetryAfterForThrottledProviders()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
