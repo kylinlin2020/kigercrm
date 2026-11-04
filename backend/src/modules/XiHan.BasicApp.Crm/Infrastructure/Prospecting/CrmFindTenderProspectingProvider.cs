@@ -223,8 +223,9 @@ public sealed class CrmFindTenderProspectingProvider : ICrmProspectingProvider, 
     {
         foreach (var part in path)
         {
-            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(part, out element))
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(part, out var nextElement))
                 return null;
+            element = nextElement;
         }
         return element.ValueKind == JsonValueKind.String ? element.GetString() :
             element.ValueKind == JsonValueKind.Number ? element.GetRawText() : null;
