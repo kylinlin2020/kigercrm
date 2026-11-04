@@ -96,9 +96,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds),
             new SugarParameter("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
-            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
-            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested),
-            new SugarParameter("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled));
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running));
 
         return rows.SingleOrDefault();
     }
@@ -639,7 +637,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             sql,
             new SugarParameter("@tenantId", currentTenant.TenantId),
             new SugarParameter("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
-            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running));
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested),
+            new SugarParameter("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled));
         return rows.Count;
     }
 
