@@ -58,6 +58,30 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         Assert.Contains("UX_{table}_TeId_ConvLead", customerEntity, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ConvertedLeadRetry_ShouldResolveExistingCustomerAndContactWithoutCreatingDuplicates()
+    {
+        var source = File.ReadAllText(RepositoryPath(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain",
+            "DomainServices", "Implementations", "CrmLeadDomainService.cs"));
+
+        var convertedBranch = source.IndexOf(
+            "if (lead.Status == CrmLeadStatus.Converted)", StringComparison.Ordinal);
+        var disqualifiedBranch = source.IndexOf(
+            "if (lead.Status == CrmLeadStatus.Disqualified)", convertedBranch, StringComparison.Ordinal);
+        Assert.True(convertedBranch >= 0 && disqualifiedBranch > convertedBranch,
+            "The already-converted retry branch must precede all new conversion writes.");
+
+        var retryPath = source[convertedBranch..disqualifiedBranch];
+        Assert.Contains("lead.ConvertedCustomerId is not > 0", retryPath, StringComparison.Ordinal);
+        Assert.Contains("customers.GetByIdAsync(lead.ConvertedCustomerId.Value", retryPath, StringComparison.Ordinal);
+        Assert.Contains("lead.ConvertedContactId is > 0", retryPath, StringComparison.Ordinal);
+        Assert.Contains("contacts.GetByIdAsync(lead.ConvertedContactId.Value", retryPath, StringComparison.Ordinal);
+        Assert.Contains("return lead;", retryPath, StringComparison.Ordinal);
+        Assert.DoesNotContain("customers.AddAsync", retryPath, StringComparison.Ordinal);
+        Assert.DoesNotContain("contacts.AddAsync", retryPath, StringComparison.Ordinal);
+    }
+
     private static string RepositoryPath(params string[] segments) =>
         Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments)));
 
