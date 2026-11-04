@@ -179,6 +179,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var existingKeys = existingCandidates
                 .Select(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}")
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var existingCandidateByKey = existingCandidates
+                .ToDictionary(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}", StringComparer.OrdinalIgnoreCase);
+            var evidenceCheckedCandidateIds = new HashSet<long>();
+            var evidenceRepository = scope.ServiceProvider.GetRequiredService<ICrmProspectingEvidenceRepository>();
             var candidateCount = existingCandidates.Count;
             var seenCandidateEmails = existingCandidates
                 .Where(candidate => !string.IsNullOrWhiteSpace(candidate.NormalizedEmail))
@@ -212,7 +216,54 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (providerCode.Length > 80) throw new InvalidOperationException("Provider code exceeds 80 characters.");
                 if (externalId.Length > 200) externalId = "sha256:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(externalId)));
                 var key = $"{providerCode}::{externalId}";
-                if (existingKeys.Contains(key)) continue;
+                if (existingKeys.Contains(key))
+                {
+                    // Older Runs may already contain a Candidate created before evidence persistence
+                    // was wired. Reconcile missing field evidence on retry instead of treating the
+                    // Candidate identity as proof that its child records are complete.
+                    if (!existingCandidateByKey.TryGetValue(key, out var existingCandidate) ||
+                        !evidenceCheckedCandidateIds.Add(existingCandidate.BasicId))
+                    {
+                        continue;
+                    }
+
+                    var expectedEvidence = CrmProspectingEvidenceFactory.Create(
+                        existingCandidate.BasicId,
+                        envelope,
+                        DateTimeOffset.UtcNow);
+                    if (expectedEvidence.Count == 0) continue;
+
+                    var persistedEvidence = await evidenceRepository.GetByCandidateAsync(
+                        existingCandidate.BasicId,
+                        cancellationToken);
+                    var persistedEvidenceKeys = persistedEvidence
+                        .Select(evidence => string.Join("::",
+                            evidence.ProviderCode,
+                            evidence.ProviderRecordId ?? string.Empty,
+                            evidence.FieldName,
+                            evidence.SourceUrl,
+                            evidence.RawPayloadHash ?? string.Empty))
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var missingEvidence = expectedEvidence
+                        .Where(evidence => !persistedEvidenceKeys.Contains(string.Join("::",
+                            evidence.ProviderCode,
+                            evidence.ProviderRecordId ?? string.Empty,
+                            evidence.FieldName,
+                            evidence.SourceUrl,
+                            evidence.RawPayloadHash ?? string.Empty)))
+                        .ToArray();
+
+                    if (missingEvidence.Length > 0)
+                    {
+                        using var repairUnitOfWork = scope.ServiceProvider
+                            .GetRequiredService<IUnitOfWorkManager>()
+                            .Begin(new XiHanUnitOfWorkOptions(isTransactional: true));
+                        await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken);
+                        await repairUnitOfWork.CompleteAsync(cancellationToken);
+                    }
+
+                    continue;
+                }
 
                 var companyName = (string.IsNullOrWhiteSpace(record.CompanyName) ? record.Title : record.CompanyName)?.Trim();
                 if (string.IsNullOrWhiteSpace(companyName))
@@ -280,7 +331,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     .Begin(new XiHanUnitOfWorkOptions(isTransactional: true)))
                 {
                     var insertedCandidate = await candidates.AddAsync(candidate, cancellationToken);
-                    var evidenceRepository = scope.ServiceProvider.GetRequiredService<ICrmProspectingEvidenceRepository>();
                     var evidenceRows = CrmProspectingEvidenceFactory.Create(
                         insertedCandidate.BasicId,
                         envelope,
@@ -294,6 +344,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
 
                 existingKeys.Add(key);
+                existingCandidateByKey[key] = candidate;
+                evidenceCheckedCandidateIds.Add(insertedCandidate.BasicId);
                 if (normalizedEmail is not null) seenCandidateEmails.Add(normalizedEmail);
                 if (websiteHost is not null) seenCandidateWebsites.Add(websiteHost);
                 candidateCount++;
