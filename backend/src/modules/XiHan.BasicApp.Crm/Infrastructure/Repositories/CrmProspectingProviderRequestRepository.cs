@@ -237,6 +237,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             DO $$
             DECLARE
                 table_oid regclass := to_regclass('crm_prospecting_provider_request');
+                coverage_oid regclass := to_regclass('crm_prospecting_provider_coverage');
             BEGIN
                 -- Serialize concurrent startup initializers across worker instances.
                 PERFORM pg_advisory_xact_lock(hashtext('crm_prospecting_provider_request_schema'));
@@ -277,6 +278,21 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
                     ALTER TABLE crm_prospecting_provider_request ADD CONSTRAINT ck_crm_prospecting_provider_request_state CHECK (
                         state IN ('Started','Succeeded','Failed','RateLimited','Cancelled')
                     ) NOT VALID;
+                END IF;
+
+                IF coverage_oid IS NOT NULL THEN
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = coverage_oid AND conname = 'ck_crm_prospecting_provider_coverage_result_count') THEN
+                        ALTER TABLE crm_prospecting_provider_coverage ADD CONSTRAINT ck_crm_prospecting_provider_coverage_result_count CHECK (last_result_count >= 0) NOT VALID;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = coverage_oid AND conname = 'ck_crm_prospecting_provider_coverage_version') THEN
+                        ALTER TABLE crm_prospecting_provider_coverage ADD CONSTRAINT ck_crm_prospecting_provider_coverage_version CHECK (version > 0) NOT VALID;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = coverage_oid AND conname = 'ck_crm_prospecting_provider_coverage_scope_hash') THEN
+                        ALTER TABLE crm_prospecting_provider_coverage ADD CONSTRAINT ck_crm_prospecting_provider_coverage_scope_hash CHECK (coverage_scope_hash ~ '^[0-9A-Fa-f]{64}$') NOT VALID;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = coverage_oid AND conname = 'ck_crm_prospecting_provider_coverage_response_hash') THEN
+                        ALTER TABLE crm_prospecting_provider_coverage ADD CONSTRAINT ck_crm_prospecting_provider_coverage_response_hash CHECK (last_response_hash IS NULL OR last_response_hash ~ '^[0-9A-Fa-f]{64}$') NOT VALID;
+                    END IF;
                 END IF;
             END
             $$;
