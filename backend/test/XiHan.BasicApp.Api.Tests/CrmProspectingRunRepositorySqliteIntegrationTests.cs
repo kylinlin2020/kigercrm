@@ -233,6 +233,31 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
         }
     }
 
+
+    [Theory]
+    [InlineData(CrmProspectingRunStatus.Running)]
+    [InlineData(CrmProspectingRunStatus.Succeeded)]
+    [InlineData(CrmProspectingRunStatus.PartiallySucceeded)]
+    [InlineData(CrmProspectingRunStatus.Failed)]
+    [InlineData(CrmProspectingRunStatus.CancelRequested)]
+    [InlineData(CrmProspectingRunStatus.Cancelled)]
+    public async Task ClaimQueued_ShouldRejectCancelledRunningAndTerminalStates(CrmProspectingRunStatus initialStatus)
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var run = await CreateRunAsync($"claim-locked-{(int)initialStatus}");
+            Assert.True(await _repository.UpdateAsync(
+                entity => new SysCrmProspectingRun { Status = initialStatus },
+                entity => entity.BasicId == run.BasicId && entity.Status == CrmProspectingRunStatus.Queued));
+
+            Assert.Null(await _repository.ClaimQueuedAsync(run.BasicId, DateTimeOffset.UtcNow));
+
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(initialStatus, persisted.Status);
+        }
+    }
+
     private Task<SysCrmProspectingRun> CreateRunAsync(string requestKey)
         => _repository.AddAsync(new SysCrmProspectingRun
         {
