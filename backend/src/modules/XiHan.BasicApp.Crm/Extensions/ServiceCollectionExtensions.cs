@@ -120,6 +120,23 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmContractsFinderProspectingProvider>());
         }
+        // EU TED publishes open procurement notices through its anonymous Search API.
+        // The adapter is opt-in and uses a fixed HTTPS endpoint with redirects disabled.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableTedProvider"], out var enableTedProvider)
+            && enableTedProvider)
+        {
+            services.AddSingleton<CrmTedProspectingProvider>(provider => new CrmTedProspectingProvider(
+                new HttpClient(new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = false,
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+                })
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmTedProspectingProvider>());
+        }
         // GLEIF is an identity-resolution source, not a discovery directory. It is opt-in
         // and only used by the worker to enrich already-discovered candidate names.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableGleifIdentityResolver"], out var enableGleifIdentityResolver)
