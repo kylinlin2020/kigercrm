@@ -91,4 +91,24 @@ public sealed class CrmProspectingEvidenceFactoryTests
             1, new CrmProspectingRawEnvelope("provider", record),
             new DateTimeOffset(2026, 11, 4, 12, 0, 0, TimeSpan.FromHours(1))));
     }
+
+    [Fact]
+    public void Create_ShouldUseUppercaseSha256OfCanonicalSourceUrlForIdentity()
+    {
+        var record = new CrmProspectingRawRecord("record-1", "source", "title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/tender/identity?utm_source=mail#section",
+            RawPayloadHash = new string('B', 64)
+        };
+
+        var evidence = CrmProspectingEvidenceFactory.Create(
+            7, new CrmProspectingRawEnvelope("provider", record), Retrieved);
+
+        var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("https://buyer.example/tender/identity")));
+        Assert.NotEmpty(evidence);
+        Assert.All(evidence, item => Assert.Equal(expected, item.SourceUrlHash));
+        Assert.All(evidence, item => Assert.Equal("https://buyer.example/tender/identity", item.SourceUrl));
+        Assert.All(evidence, item => Assert.DoesNotContain("utm_source", item.SourceUrl));
+    }
 }
