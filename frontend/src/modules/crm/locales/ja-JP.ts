@@ -70,6 +70,7 @@ export default {
       "noCandidates": "候補はありません",
       "pendingReview": "レビュー待ち",
       "duplicate": "重複",
+      "convertedStatus": "変換済み",
       "converted": "CRMリードに変換しました",
       "company": "会社",
       "contact": "担当者",
