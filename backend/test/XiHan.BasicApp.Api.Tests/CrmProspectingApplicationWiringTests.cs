@@ -96,6 +96,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
         var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.13", "5.9.13.sql");
         Assert.Contains("Raw_Results_Json", entity, StringComparison.Ordinal);
         Assert.Contains("RawResultsJson = rawResultsJson", repository, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRunStatus.Succeeded", repository, StringComparison.Ordinal);
@@ -105,6 +106,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("ITenantDataScopeRunner", worker, StringComparison.Ordinal);
         Assert.Contains("ProviderPlanJson", worker, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = 0", repository, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS raw_results_json text", migration, StringComparison.Ordinal);
+        Assert.Contains("Raw result cap reached", worker, StringComparison.Ordinal);
+        Assert.Contains("5_000_000", worker, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
