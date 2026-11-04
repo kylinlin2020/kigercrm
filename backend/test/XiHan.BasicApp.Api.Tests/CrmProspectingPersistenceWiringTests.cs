@@ -118,6 +118,19 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingWorker_ShouldPersistCandidateAndEvidenceInOneExplicitUnitOfWork()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("IUnitOfWorkManager", worker, StringComparison.Ordinal);
+        Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", worker, StringComparison.Ordinal);
+        Assert.Contains("var insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingEvidenceFactory.Create(", worker, StringComparison.Ordinal);
+        Assert.Contains("await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("await unitOfWork.CompleteAsync(cancellationToken)", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingCandidateStatusMigration_ShouldPreservePreviouslyConvertedRows()
     {
         var status = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs");
