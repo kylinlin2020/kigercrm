@@ -147,6 +147,21 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         }
     }
 
+    [Fact]
+    public void DiagnosticSanitizer_ShouldRedactUrlCredentialsAndBoundOutput()
+    {
+        var input = "failed https://example.test/path?token=secret#fragment Authorization: Bearer supersecret api_key=abcdef password=hunter2";
+        var sanitized = CrmProspectingDiagnosticSanitizer.Sanitize(input, 200);
+
+        Assert.Contains("https://example.test/path", sanitized, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret", sanitized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("fragment", sanitized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("supersecret", sanitized, StringComparison.Ordinal);
+        Assert.DoesNotContain("abcdef", sanitized, StringComparison.Ordinal);
+        Assert.DoesNotContain("hunter2", sanitized, StringComparison.Ordinal);
+        Assert.True(sanitized.Length <= 200);
+    }
+
     private static string Read(params string[] parts)
     {
         var root = FindRepositoryRoot();
