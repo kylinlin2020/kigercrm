@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Domain.Entities;
@@ -48,10 +50,42 @@ public sealed class CrmShipmentAppService(
         var order = await orders.GetByIdAsync(input.SalesOrderId, cancellationToken)
             ?? throw new InvalidOperationException("Sales order does not exist in the current tenant.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken);
-        if (order.Status is not (CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.PartiallyShipped))
-            throw new InvalidOperationException("A shipment can only be prepared for a confirmed or in-progress sales order.");
         var owner = input.OwnerUserId ?? order.OwnerUserId;
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, owner, cancellationToken);
+
+        // Resolve the stable order of request lines before fingerprinting and locking.
+        var requestedLines = input.Lines.OrderBy(line => line.SalesOrderLineId).ToArray();
+        var carrier = NormalizeOptional(input.Carrier, 100, nameof(input.Carrier));
+        var trackingNumber = NormalizeOptional(input.TrackingNumber, 120, nameof(input.TrackingNumber));
+        string? creationRequestFingerprint = null;
+
+        // Number allocation alone is not create idempotency. Persist a request fingerprint on
+        // the shipment and replay the existing aggregate before touching fulfillment quantities.
+        if (!string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey))
+        {
+            var allocation = await numberGenerator.GenerateAsync(
+                new NumberGenerateRequest(
+                    CrmNumberingRuleCodes.Shipment,
+                    NumberingScope.Auto,
+                    input.NumberingIdempotencyKey,
+                    "CRM_SHIPMENT"),
+                cancellationToken);
+            number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
+            creationRequestFingerprint = CreateRequestFingerprint(input, owner, carrier, trackingNumber, requestedLines);
+
+            var existingShipment = await shipments.GetByShipmentNumberAsync(number, cancellationToken);
+            if (existingShipment is not null)
+            {
+                await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existingShipment.OwnerUserId, cancellationToken);
+                if (existingShipment.CreationRequestFingerprint is null ||
+                    !string.Equals(existingShipment.CreationRequestFingerprint, creationRequestFingerprint, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The shipment idempotency key was already used with a different or unverifiable create request.");
+                return ToDto(existingShipment);
+            }
+        }
+
+        if (order.Status is not (CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.PartiallyShipped))
+            throw new InvalidOperationException("A shipment can only be prepared for a confirmed or in-progress sales order.");
 
         // Serialize fulfillment mutations at order level before reserving any line quantities.
         order.FulfillmentRevision++;
@@ -59,7 +93,6 @@ public sealed class CrmShipmentAppService(
 
         // Acquire order-line optimistic locks in a stable key order to reduce deadlocks
         // when concurrent multi-line shipments overlap on the same sales order.
-        var requestedLines = input.Lines.OrderBy(line => line.SalesOrderLineId).ToArray();
         var resolvedLines = new List<SysCrmSalesOrderLine>(requestedLines.Length);
         foreach (var requested in requestedLines)
         {
@@ -77,26 +110,15 @@ public sealed class CrmShipmentAppService(
             resolvedLines.Add(orderLine);
         }
 
-        if (!string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey))
-        {
-            var allocation = await numberGenerator.GenerateAsync(
-                new NumberGenerateRequest(
-                    CrmNumberingRuleCodes.Shipment,
-                    NumberingScope.Auto,
-                    input.NumberingIdempotencyKey,
-                    "CRM_SHIPMENT"),
-                cancellationToken);
-            number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
-        }
-
         var shipment = new SysCrmShipment
         {
             ShipmentNumber = number,
+            CreationRequestFingerprint = creationRequestFingerprint,
             SalesOrderId = order.BasicId,
             Status = CrmShipmentStatus.Draft,
             ShipmentDate = input.ShipmentDate,
-            Carrier = NormalizeOptional(input.Carrier, 100, nameof(input.Carrier)),
-            TrackingNumber = NormalizeOptional(input.TrackingNumber, 120, nameof(input.TrackingNumber)),
+            Carrier = carrier,
+            TrackingNumber = trackingNumber,
             OwnerUserId = owner,
             Notes = input.Notes
         };
@@ -114,19 +136,7 @@ public sealed class CrmShipmentAppService(
             await shipmentLines.AddAsync(line, cancellationToken);
         }
 
-        return new CrmShipmentDto
-        {
-            BasicId = saved.BasicId,
-            ShipmentNumber = saved.ShipmentNumber,
-            SalesOrderId = saved.SalesOrderId,
-            Status = (int)saved.Status,
-            ShipmentDate = saved.ShipmentDate,
-            DeliveredDate = saved.DeliveredDate,
-            Carrier = saved.Carrier,
-            TrackingNumber = saved.TrackingNumber,
-            OwnerUserId = saved.OwnerUserId,
-            CreatedTime = saved.CreatedTime
-        };
+        return ToDto(saved);
     }
 
 
@@ -238,6 +248,41 @@ public sealed class CrmShipmentAppService(
             CreatedTime = saved.CreatedTime
         };
     }
+
+    private static string CreateRequestFingerprint(
+        CrmShipmentCreateDto input,
+        long? ownerUserId,
+        string? carrier,
+        string? trackingNumber,
+        IReadOnlyList<CrmShipmentLineCreateDto> lines)
+    {
+        var canonicalRequest = new
+        {
+            input.SalesOrderId,
+            input.ShipmentDate,
+            Carrier = carrier,
+            TrackingNumber = trackingNumber,
+            OwnerUserId = ownerUserId,
+            input.Notes,
+            Lines = lines.Select(line => new { line.SalesOrderLineId, line.Quantity }).ToArray()
+        };
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(canonicalRequest);
+        return Convert.ToHexString(SHA256.HashData(bytes));
+    }
+
+    private static CrmShipmentDto ToDto(SysCrmShipment shipment) => new()
+    {
+        BasicId = shipment.BasicId,
+        ShipmentNumber = shipment.ShipmentNumber,
+        SalesOrderId = shipment.SalesOrderId,
+        Status = (int)shipment.Status,
+        ShipmentDate = shipment.ShipmentDate,
+        DeliveredDate = shipment.DeliveredDate,
+        Carrier = shipment.Carrier,
+        TrackingNumber = shipment.TrackingNumber,
+        OwnerUserId = shipment.OwnerUserId,
+        CreatedTime = shipment.CreatedTime
+    };
 
     private static string NormalizeRequired(string value, int maxLength, string parameterName)
     {
