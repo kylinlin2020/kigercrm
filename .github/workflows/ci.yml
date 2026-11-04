@@ -70,8 +70,7 @@ jobs:
         with:
           package_json_file: frontend/package.json
 
-      # 本仓库不跟踪 pnpm-lock.yaml，缓存键改用版本事实源：catalog 所在的
-      # pnpm-workspace.yaml 与入口清单 package.json，二者任一变动即失效重装
+      # 仓库尚无 pnpm-lock.yaml，因此不启用依赖缓存，避免把清单误作锁文件。
       - name: 安装 Node
         uses: actions/setup-node@v7
         with:
