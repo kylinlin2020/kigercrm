@@ -56,6 +56,8 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("provider.SearchAsync(request, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("TryFinalizeAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingProviderRateLimitException", worker, StringComparison.Ordinal);
+        var gleif = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmGleifIdentityResolver.cs");
+        Assert.Contains("CrmProspectingProviderRateLimitException", gleif, StringComparison.Ordinal);
         Assert.Contains("\"RateLimited\"", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRequestFingerprint.Create(providerCode, request)", worker, StringComparison.Ordinal);
         Assert.Contains("GetActiveCooldownUntilAsync(", worker, StringComparison.Ordinal);
