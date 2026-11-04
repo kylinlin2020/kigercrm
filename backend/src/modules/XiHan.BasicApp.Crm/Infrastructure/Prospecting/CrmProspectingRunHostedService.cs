@@ -243,7 +243,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                             evidence.FieldName,
                             evidence.SourceUrl,
                             evidence.RawPayloadHash ?? string.Empty))
-                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        .ToHashSet(StringComparer.Ordinal);
                     var missingEvidence = expectedEvidence
                         .Where(evidence => !persistedEvidenceKeys.Contains(string.Join("::",
                             evidence.ProviderCode,
@@ -341,10 +341,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     }
 
                     await unitOfWork.CompleteAsync(cancellationToken);
+                    existingCandidateByKey[key] = insertedCandidate;
                 }
 
                 existingKeys.Add(key);
-                existingCandidateByKey[key] = insertedCandidate;
                 if (normalizedEmail is not null) seenCandidateEmails.Add(normalizedEmail);
                 if (websiteHost is not null) seenCandidateWebsites.Add(websiteHost);
                 candidateCount++;
