@@ -35,6 +35,8 @@ public sealed class CrmTedProspectingProviderTests
         Assert.Equal(HttpMethod.Post, handler.RequestMethod);
         Assert.Contains("/v3/notices/search", handler.RequestUri, StringComparison.Ordinal);
         Assert.Contains("FT=", handler.RequestBody, StringComparison.Ordinal);
+        Assert.Contains("generator", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("public", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
