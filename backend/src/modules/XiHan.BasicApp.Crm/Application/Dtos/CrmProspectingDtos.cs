@@ -83,3 +83,33 @@ public sealed class CrmProspectingRunDto
     public int FailureCount { get; set; }
     public string? FailureSummary { get; set; }
 }
+
+
+/// <summary>Candidate row for the human-review queue.</summary>
+public sealed class CrmProspectingCandidateDto
+{
+    public long BasicId { get; set; }
+    public long RunId { get; set; }
+    public string ProviderCode { get; set; } = string.Empty;
+    public string ExternalId { get; set; } = string.Empty;
+    public string? Source { get; set; }
+    public string? Title { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string? ContactName { get; set; }
+    public string? BusinessEmail { get; set; }
+    public string? Website { get; set; }
+    public string? Summary { get; set; }
+    public int Status { get; set; }
+    public long? DuplicateLeadId { get; set; }
+    public string? DuplicateReason { get; set; }
+    public long? ConvertedLeadId { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+}
+
+/// <summary>Human decision for a prospecting candidate. Duplicate override must be explicit.</summary>
+public sealed class CrmProspectingCandidateReviewDto
+{
+    public long CandidateId { get; set; }
+    public bool Approve { get; set; }
+    public bool OverrideDuplicate { get; set; }
+}
