@@ -82,3 +82,18 @@ PostgreSQL integration tests using two independent connections and separate scop
 5. Only then permit multiple worker instances and remove the single-instance operational restriction.
 
 No multi-instance claim should be made until all tests above pass against PostgreSQL.
+
+## Schema foundation landed (2026-11-04)
+
+Migration `5.9.30` and the Run entity now contain additive lease metadata:
+
+- `lease_owner varchar(160) NULL`
+- `lease_token uuid NULL`
+- `lease_expires_at timestamptz NULL`
+- `lease_heartbeat_at timestamptz NULL`
+- `fencing_version bigint NOT NULL DEFAULT 0`
+- index `ix_crm_prospecting_run_te_st_leaseexp` on `(tenant_id, status, lease_expires_at)`
+
+The migration is guarded by `to_regclass('crm_prospecting_run')`, uses `ADD COLUMN IF NOT EXISTS`, and leaves existing lease ownership NULL. This is schema groundwork only: `ClaimQueuedAsync`, heartbeat, Candidate/Evidence/Score writes, terminal transitions, and startup recovery have not yet been switched to lease/fencing semantics. The worker remains single-active-instance only. Do not interpret the presence of these columns as permission to run multiple instances.
+
+A source-level test checks the entity mapping, additive migration shape, and that the worker does not yet consume lease tokens. Neither this test nor the migration has been executed in this environment; PostgreSQL migration and two-connection tests remain required.
