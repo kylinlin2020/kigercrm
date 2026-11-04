@@ -341,3 +341,17 @@ Implementation is deliberately deferred until the framework's SqlSugar package v
 The worker already checked persisted CancelRequested before starting each provider. It now also reads the Run state immediately after each provider SearchAsync returns and stops the provider-plan loop when cancellation was requested. This prevents launching subsequent providers and reduces unnecessary normalization work after a long-running provider returns. The provider call itself is not forcibly interrupted by a persisted user cancellation: only the host CancellationToken is passed to SearchAsync. Providers with long network calls must implement bounded request timeouts and cooperative host-token cancellation; a future provider-cancellation contract may be needed if user cancellation must abort an in-flight request. After the provider loop, the existing pre-normalization state check finalizes a cancelled Run without starting candidate normalization.
 
 A source-wiring assertion guards the post-provider state check. Runtime tests still need to prove cancellation during provider execution, before the next provider, and before candidate normalization. No provider timeout or runtime cancellation behavior is claimed as tested.
+
+## 36. SqlSugar batch-persistence API verification (2026-11-04)
+
+A repository-level API audit was performed before attempting to replace candidate row-by-row inserts:
+
+- `CrmProspectingCandidateRepository` inherits the project-local `SaasRepository<TEntity>`.
+- The local `SaasRepository<TEntity>` is only a thin subclass of the framework `SqlSugarRepositoryBase<TEntity, long>`; it does not define or expose a project-local batch-insert method.
+- `ISaasRepository<TEntity>` inherits the framework `IRepositoryBase<TEntity, long>`. The candidate repository interface likewise has no batch-write contract.
+- The CRM module references the existing SaaS module, and the normal standalone solution selects the XiHan framework NuGet packages rather than framework source. The framework web project references XiHan Framework 4.8.0; the exact SqlSugar repository implementation and its package dependency graph are not vendored in this repository.
+- The project-local code proves that `AddAsync(entity, cancellationToken)` is available, but it does not prove the existence or semantics of `AddRangeAsync`, SqlSugar bulk copy, transaction participation, audit/tenant field filling, generated IDs, or soft-delete handling for a bulk path.
+
+**Decision:** no speculative bulk API was added. Candidate persistence remains one `AddAsync` per candidate. Before batching, resolve the exact 4.8.0 framework package/source and inspect the actual `SqlSugarRepositoryBase` and `IRepositoryBase` implementations, then verify the chosen API against PostgreSQL with (1) a mixed tenant/audit-field batch, (2) a duplicate unique-key inside and across batches, (3) a failure midway through a batch with transaction rollback, and (4) retry after a partially completed worker attempt. The existing per-Run unique key and replay skip must remain the final idempotency guards.
+
+This audit confirms the reason batching is deferred; it does not establish that the framework lacks a batch API. No source-code behavior changed in this audit. No build, tests, PostgreSQL integration or Windows execution was performed.
