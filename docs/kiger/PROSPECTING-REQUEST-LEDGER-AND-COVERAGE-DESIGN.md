@@ -174,3 +174,8 @@ The scoped repository now:
 The Run Worker now computes the canonical request fingerprint and creates Started before calling `SearchAsync`. It finalizes success, malformed result, provider exception and cancellation outcomes. Ledger write/finalization failures are fatal to the Run rather than being silently treated as provider failures. Provider output retention, candidate review and Lead conversion rules are unchanged.
 
 Still pending: stale Started recovery after process death, durable rate-limit cooldown, database-backed concurrent-attempt retry policy, PostgreSQL dual-connection tests, and request-ledger read-only diagnostics. The SQLite repository tests are committed as test source but have not been executed in this environment.
+
+
+### Implemented slice: repository and Worker lifecycle
+
+The request ledger repository is now registered in CRM DI and called by `CrmProspectingRunHostedService`. Each configured provider attempt receives a canonical request fingerprint and a durable `Started` row before network I/O. Provider success, partial result, malformed envelope, exception and Run cancellation are finalized with conditional `Started`-only updates. Provider exception diagnostics deliberately persist only a stable classification and exception type, not arbitrary exception messages. The repository retries bounded attempt-number collisions only when a concurrent insert is observed, and sanitizes URL query strings, bearer credentials and common API-key/token assignments from diagnostics. SQLite integration tests cover sequential attempts, tenant isolation, exactly-once finalization and diagnostic redaction; PostgreSQL concurrent allocation and crash-left Started recovery remain unverified.
