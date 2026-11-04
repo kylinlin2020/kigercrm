@@ -91,7 +91,9 @@ public static partial class CrmLeadDuplicateMatcher
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         var digits = NonDigits().Replace(value, string.Empty);
-        return digits.Length == 0 ? null : digits;
+        // A short fragment or an overlong value (often a phone plus extension) is not
+        // a reliable identity signal. Keep the conservative E.164 digit-count bounds.
+        return digits.Length is >= 7 and <= 15 ? digits : null;
     }
 
     public static string? NormalizeDomain(string? value)
