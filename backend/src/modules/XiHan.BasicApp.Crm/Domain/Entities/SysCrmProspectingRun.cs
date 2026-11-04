@@ -48,4 +48,7 @@ public sealed class SysCrmProspectingRun : BasicAppCreationEntity, IStrictMultiT
 
     [SugarColumn(ColumnName = "Failure_Summary", Length = 2000, IsNullable = true)]
     public string? FailureSummary { get; set; }
+
+    [SugarColumn(ColumnName = "Raw_Results_Json", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
+    public string? RawResultsJson { get; set; }
 }
