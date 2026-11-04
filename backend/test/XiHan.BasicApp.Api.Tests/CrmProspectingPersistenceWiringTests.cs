@@ -490,6 +490,9 @@ public sealed class CrmProspectingPersistenceWiringTests
 
         Assert.Contains("TryClaimLeaseAsync", worker, StringComparison.Ordinal);
         Assert.Contains("RenewLeaseWithDatabaseClockAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("RunLeaseHeartbeatAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("PeriodicTimer(TimeSpan.FromMinutes(2))", worker, StringComparison.Ordinal);
+        Assert.Contains("CreateLinkedTokenSource(cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("CompleteFencedWithDatabaseClockAsync", worker, StringComparison.Ordinal);
         Assert.Contains("CancelFencedWithDatabaseClockAsync", worker, StringComparison.Ordinal);
         Assert.Contains("FailFencedWithDatabaseClockAsync", worker, StringComparison.Ordinal);
