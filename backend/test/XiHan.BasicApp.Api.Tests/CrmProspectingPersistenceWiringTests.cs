@@ -469,6 +469,28 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.DoesNotContain("catch (Exception) when", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingRunAtomicLeaseClaim_ShouldUseDatabaseClockTenantPredicateAndUpdateReturning()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingRunRepository.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("TryClaimLeaseAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("UPDATE crm_prospecting_run AS run", repository, StringComparison.Ordinal);
+        Assert.Contains("RETURNING run.*", repository, StringComparison.Ordinal);
+        Assert.Contains("clock_timestamp()", repository, StringComparison.Ordinal);
+        Assert.Contains("run.tenant_id = @tenantId", repository, StringComparison.Ordinal);
+        Assert.Contains("fencing_version = run.fencing_version + 1", repository, StringComparison.Ordinal);
+        Assert.Contains("AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L", repository, StringComparison.Ordinal);
+        Assert.Contains("client.Ado.SqlQueryAsync<SysCrmProspectingRun>", repository, StringComparison.Ordinal);
+        Assert.Contains("DbType.PostgreSQL", repository, StringComparison.Ordinal);
+
+        // The new claim primitive is deliberately not activated until heartbeat,
+        // child-write fencing, recovery and terminal transitions are migrated together.
+        Assert.DoesNotContain("TryClaimLeaseAsync", worker, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
