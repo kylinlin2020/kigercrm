@@ -3,6 +3,8 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.DomainServices;
+using XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
 using XiHan.BasicApp.Crm.Infrastructure.Seeders;
 using XiHan.Framework.Data.Extensions.DependencyInjection;
 using XiHan.BasicApp.Saas.Extensions;
@@ -41,6 +43,7 @@ public static class ServiceCollectionExtensions
     /// <summary>Registers CRM permission and navigation seeders.</summary>
     public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services)
     {
+        services.AddScoped<ICrmProspectingDomainService, CrmProspectingDomainService>();
         services.AddDataSeeder<CrmPermissionCatalogSeeder>();
         // Menu seeding is intentionally deferred until the corresponding frontend routes/components ship.
         return services;
