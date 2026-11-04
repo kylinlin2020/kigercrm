@@ -168,11 +168,14 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     // intentionally outside any nested provider exception handler.
                     if (!await requestLedger.TryFinalizeAsync(
                         attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
-                        failureCode: ex.GetType().Name, failureSummary: ex.Message,
+                        failureCode: "provider_exception",
+                        failureSummary: $"Provider invocation failed ({ex.GetType().Name}).",
                         cancellationToken: CancellationToken.None))
                         throw new InvalidOperationException("The failed provider request ledger attempt could not be finalized.", ex);
                     failures++;
-                    AddBoundedWarning(warnings, $"{providerCode}: {ex.GetType().Name}: {ex.Message}");
+                    // Exception messages can echo request URLs, query credentials or remote payloads.
+                    // Keep persisted Run warnings to a stable classification, not untrusted text.
+                    AddBoundedWarning(warnings, $"{providerCode}: {ex.GetType().Name}: provider invocation failed.");
                     Logger.LogWarning(ex, "Prospecting provider failed for Run {RunId}, provider {Provider}", run.BasicId, providerCode);
                     continue;
                 }
@@ -190,9 +193,13 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
+                var providerRequestState = result.FailureCount > 0 ? "Failed" : "Succeeded";
                 if (!await requestLedger.TryFinalizeAsync(
-                    attempt.BasicId, "Succeeded", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
-                    resultCount: result.Records.Count, cancellationToken: CancellationToken.None))
+                    attempt.BasicId, providerRequestState, DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                    resultCount: result.Records.Count,
+                    failureCode: result.FailureCount > 0 ? "provider_partial_result" : null,
+                    failureSummary: result.FailureCount > 0 ? "Provider reported one or more record-level failures." : null,
+                    cancellationToken: CancellationToken.None))
                     throw new InvalidOperationException("The provider request ledger attempt could not be finalized exactly once.");
 
                 failures += Math.Max(0, result.FailureCount);
