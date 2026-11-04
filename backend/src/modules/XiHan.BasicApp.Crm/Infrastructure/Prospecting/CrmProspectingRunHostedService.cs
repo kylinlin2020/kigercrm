@@ -899,11 +899,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         if (string.IsNullOrWhiteSpace(value)) return string.Empty;
         var sanitized = string.Concat(value.Select(character => char.IsControl(character) ? ' ' : character));
         sanitized = System.Text.RegularExpressions.Regex.Replace(
-            sanitized, @"(?i)(https?://[^\\s?#]+)[^\\s]*", "$1");
+            sanitized, @"(?i)(https?://[^\s?#]+)[^\s]*", "$1");
         sanitized = System.Text.RegularExpressions.Regex.Replace(
-            sanitized, @"(?i)\\b(Bearer|Basic)\\s+[A-Za-z0-9._~+/=-]+", "$1 [REDACTED]");
+            sanitized, @"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+", "$1 [REDACTED]");
         sanitized = System.Text.RegularExpressions.Regex.Replace(
-            sanitized, @"(?i)\\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|client_secret)\\s*[:=]\\s*[""']?[^\\s&,""']+", "$1=[REDACTED]");
+            sanitized, @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|client_secret)\s*[:=]\s*[""']?[^\s&,""']+", "$1=[REDACTED]");
         sanitized = sanitized.Trim();
         return sanitized.Length > maxLength ? sanitized[..maxLength] : sanitized;
     }
