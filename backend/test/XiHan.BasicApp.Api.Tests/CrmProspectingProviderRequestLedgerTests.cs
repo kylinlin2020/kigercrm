@@ -55,6 +55,8 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("CreateStartedAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("provider.SearchAsync(request, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("TryFinalizeAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingProviderRateLimitException", worker, StringComparison.Ordinal);
+        Assert.Contains("\"RateLimited\"", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRequestFingerprint.Create(providerCode, request)", worker, StringComparison.Ordinal);
     }
 
