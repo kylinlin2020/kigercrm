@@ -22,6 +22,9 @@ public interface ICrmProspectingProviderRequestRepository : ISaasRepository<SysC
         string? responseHash = null, bool cacheHit = false,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Mark stale Started attempts interrupted only after their owning Run is no longer actively leased.</summary>
+    Task<int> RecoverStaleStartedAsync(TimeSpan minimumAge, CancellationToken cancellationToken = default);
+
     /// <summary>Find one attempt by tenant-scoped Run/provider/attempt identity.</summary>
     Task<SysCrmProspectingProviderRequest?> GetAttemptAsync(
         long runId, string providerCode, int attemptNo,
