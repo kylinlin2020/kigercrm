@@ -204,6 +204,39 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("Length = 64", entity, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ShipmentDispatch_ShouldFenceOrderAndDeriveFulfillmentFromPersistedLedger()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var methodStart = source.IndexOf("public async Task<CrmShipmentDto> ChangeStatusAsync", StringComparison.Ordinal);
+        Assert.True(methodStart >= 0);
+        var method = source[methodStart..];
+        var dispatchStart = method.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", StringComparison.Ordinal);
+        var deliveryStart = method.IndexOf("else\n        {\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
+        Assert.True(dispatchStart >= 0 && deliveryStart > dispatchStart);
+        var dispatch = method[dispatchStart..deliveryStart];
+
+        Assert.Contains("[UnitOfWork(true)]", source[..methodStart], StringComparison.Ordinal);
+        Assert.Contains("shipment.Status != CrmShipmentStatus.Draft", dispatch, StringComparison.Ordinal);
+        Assert.Contains("orders.UpdateAsync(order, cancellationToken)", dispatch, StringComparison.Ordinal);
+        Assert.Contains("GetByIdAsync(order.BasicId, cancellationToken)", dispatch, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ReservedQuantity < shipmentLine.Quantity", dispatch, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ShippedQuantity + shipmentLine.Quantity > orderLine.Quantity", dispatch, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ReservedQuantity -= shipmentLine.Quantity", dispatch, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ShippedQuantity += shipmentLine.Quantity", dispatch, StringComparison.Ordinal);
+        Assert.Contains("ListForOrderAsync(order.BasicId, cancellationToken)", dispatch, StringComparison.Ordinal);
+        Assert.Contains("CrmSalesOrderStatus.Completed", dispatch, StringComparison.Ordinal);
+        Assert.Contains("CrmSalesOrderStatus.PartiallyShipped", dispatch, StringComparison.Ordinal);
+        Assert.Contains("shipment.Status = target", method, StringComparison.Ordinal);
+
+        var aggregateLock = dispatch.IndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal);
+        var reloadToken = dispatch.IndexOf("GetByIdAsync(order.BasicId, cancellationToken)", aggregateLock, StringComparison.Ordinal);
+        var firstLineMutation = dispatch.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal);
+        var ledgerRead = dispatch.IndexOf("ListForOrderAsync(order.BasicId, cancellationToken)", StringComparison.Ordinal);
+        Assert.True(aggregateLock >= 0 && reloadToken > aggregateLock && firstLineMutation > reloadToken && ledgerRead > firstLineMutation,
+            "Dispatch must acquire and reload the order aggregate concurrency token before mutating lines, then derive status from the persisted fulfillment ledger.");
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
