@@ -219,7 +219,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
 
         Assert.Contains("IUnitOfWorkManager", worker, StringComparison.Ordinal);
-        Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", worker, StringComparison.Ordinal);
+        Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", worker, StringComparison.Ordinal);
         Assert.Contains("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingEvidenceFactory.Create(", worker, StringComparison.Ordinal);
         Assert.Contains("await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken)", worker, StringComparison.Ordinal);
