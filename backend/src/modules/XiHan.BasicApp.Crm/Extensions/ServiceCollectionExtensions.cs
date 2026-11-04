@@ -86,6 +86,23 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmUsaSpendingProspectingProvider>());
         }
+        // Official UK procurement notices are public OCDS data. The adapter is opt-in and
+        // uses a fixed endpoint with redirects disabled.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFindTenderProvider"], out var enableFindTenderProvider)
+            && enableFindTenderProvider)
+        {
+            services.AddSingleton<CrmFindTenderProspectingProvider>(provider => new CrmFindTenderProspectingProvider(
+                new HttpClient(new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = false,
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+                })
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmFindTenderProspectingProvider>());
+        }
         services.AddDataSeeder<CrmPermissionCatalogSeeder>();
         // Menu seeding is intentionally deferred until the corresponding frontend routes/components ship.
         return services;
