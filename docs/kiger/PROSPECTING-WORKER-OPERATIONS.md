@@ -92,3 +92,11 @@ Therefore, do not assume that the unique index exists in a newly provisioned ten
 5. Do not enable multi-worker execution based on this index; lease/fencing acceptance remains a separate prerequisite.
 
 The current index also includes a URL expression whose encoded index tuple size depends on real data and PostgreSQL page limits. Exercise maximum-length and multibyte URLs against the actual PostgreSQL version before rollout. This migration is committed source, not yet a verified production-ready schema change.
+
+## 2026-11-04 Candidate identity collision hardening
+
+The Worker now keeps the Run/provider/external-record identity as a typed `(ProviderCode, ExternalId)` tuple in both its in-memory set and Candidate lookup dictionary. This matches ordinal, case-sensitive string equality without relying on a delimiter that provider-controlled values could contain. A source-contract test guards the tuple construction and rejects the old interpolated `ProviderCode::ExternalId` key. This is source-level coverage only; the test has not been executed.
+
+## Multi-process lease implementation specification
+
+The required PostgreSQL lease/fencing design is documented in [PROSPECTING-WORKER-LEASE-DESIGN.md](PROSPECTING-WORKER-LEASE-DESIGN.md). It defines the owner incarnation, expiry, heartbeat, monotonic generation, row-lock fencing for Candidate/Evidence/Score writes, and independent-connection acceptance tests. It is a design specification, not implemented functionality. Continue deploying exactly one active prospecting Worker until those changes and tests are complete.
