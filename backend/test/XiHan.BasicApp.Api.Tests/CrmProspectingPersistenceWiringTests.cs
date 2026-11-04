@@ -218,14 +218,13 @@ public sealed class CrmProspectingPersistenceWiringTests
         {
             "ix_crm_prospecting_evidence_te_ca_fi",
             "ix_crm_prospecting_evidence_te_pr_ri",
-            "ux_crm_prospecting_evidence_evidenceidentity",
             "ix_crm_prospecting_score_te_ca_ev",
             "ix_crm_prospecting_score_te_sv_pr"
         })
         {
-            Assert.Contains($"CREATE ", alignmentMigration, StringComparison.Ordinal);
-            Assert.Contains(canonicalIndex, alignmentMigration, StringComparison.Ordinal);
+            Assert.Contains($"CREATE INDEX IF NOT EXISTS {canonicalIndex}", alignmentMigration, StringComparison.Ordinal);
         }
+        Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_evidence_evidenceidentity", alignmentMigration, StringComparison.Ordinal);
 
         Assert.Contains("IF to_regclass('crm_prospecting_evidence') IS NOT NULL", alignmentMigration, StringComparison.Ordinal);
         Assert.Contains("IF to_regclass('crm_prospecting_score') IS NOT NULL", alignmentMigration, StringComparison.Ordinal);
