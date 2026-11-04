@@ -7,8 +7,8 @@ namespace XiHan.BasicApp.Crm.Domain.Repositories;
 public interface ICrmProspectingProviderRequestRepository : ISaasRepository<SysCrmProspectingProviderRequest>
 {
     /// <summary>
-    /// Persist Started before the network call. Concurrent allocators may race on the unique attempt key;
-    /// callers must retry this operation before making any provider request.
+    /// Persist Started before network I/O. The repository retries bounded unique-key collisions;
+    /// if allocation still fails, no provider request may be issued.
     /// </summary>
     Task<SysCrmProspectingProviderRequest> CreateStartedAsync(
         long runId, string providerCode, string requestKey, DateTimeOffset startedAt,
