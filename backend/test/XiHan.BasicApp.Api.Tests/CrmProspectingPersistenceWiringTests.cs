@@ -202,16 +202,40 @@ public sealed class CrmProspectingPersistenceWiringTests
 
         Assert.Contains("ix_crm_prosp_evidence_tenant_candidate_field", initialEvidenceMigration, StringComparison.Ordinal);
         Assert.Contains("ix_crm_prosp_score_tenant_candidate_evaluated", initialScoreMigration, StringComparison.Ordinal);
-        Assert.Contains("DROP INDEX IF EXISTS ix_crm_prosp_evidence_tenant_candidate_field", alignmentMigration, StringComparison.Ordinal);
-        Assert.Contains("DROP INDEX IF EXISTS ix_crm_prosp_score_tenant_candidate_evaluated", alignmentMigration, StringComparison.Ordinal);
+        foreach (var legacyIndex in new[]
+        {
+            "ix_crm_prosp_evidence_tenant_candidate_field",
+            "ix_crm_prosp_evidence_tenant_provider_retrieved",
+            "ux_crm_prosp_evidence_identity",
+            "ix_crm_prosp_score_tenant_candidate_evaluated",
+            "ix_crm_prosp_score_tenant_version_priority"
+        })
+        {
+            Assert.Contains($"DROP INDEX IF EXISTS {legacyIndex}", alignmentMigration, StringComparison.Ordinal);
+        }
 
-        Assert.Contains("ix_crm_prospecting_evidence_te_ca_fi", alignmentMigration, StringComparison.Ordinal);
-        Assert.Contains("ix_crm_prospecting_evidence_te_pr_ri", alignmentMigration, StringComparison.Ordinal);
-        Assert.Contains("ux_crm_prospecting_evidence_evidenceidentity", alignmentMigration, StringComparison.Ordinal);
-        Assert.Contains("ix_crm_prospecting_score_te_ca_ev", alignmentMigration, StringComparison.Ordinal);
-        Assert.Contains("ix_crm_prospecting_score_te_sv_pr", alignmentMigration, StringComparison.Ordinal);
+        foreach (var canonicalIndex in new[]
+        {
+            "ix_crm_prospecting_evidence_te_ca_fi",
+            "ix_crm_prospecting_evidence_te_pr_ri",
+            "ux_crm_prospecting_evidence_evidenceidentity",
+            "ix_crm_prospecting_score_te_ca_ev",
+            "ix_crm_prospecting_score_te_sv_pr"
+        })
+        {
+            Assert.Contains($"CREATE ", alignmentMigration, StringComparison.Ordinal);
+            Assert.Contains(canonicalIndex, alignmentMigration, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("IF to_regclass('crm_prospecting_evidence') IS NOT NULL", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("IF to_regclass('crm_prospecting_score') IS NOT NULL", alignmentMigration, StringComparison.Ordinal);
         Assert.Contains("ON crm_prospecting_evidence (tenant_id, candidate_id, field_name)", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ON crm_prospecting_evidence (tenant_id, provider_code, retrieved_at_utc DESC)", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ON crm_prospecting_evidence (tenant_id, candidate_id, provider_code, provider_record_id,", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("field_name, source_url_hash, raw_payload_hash", alignmentMigration, StringComparison.Ordinal);
         Assert.Contains("ON crm_prospecting_score (tenant_id, candidate_id, evaluated_at_utc DESC)", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ON crm_prospecting_score (tenant_id, scorecard_version, priority DESC)", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_evidence_evidenceidentity", alignmentMigration, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
