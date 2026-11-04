@@ -118,6 +118,22 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingWorker_ShouldRemainSingleInstanceUntilDatabaseFencingIsImplemented()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var operations = Read("docs", "kiger", "PROSPECTING-WORKER-OPERATIONS.md");
+        var leaseDesign = Read("docs", "kiger", "PROSPECTING-WORKER-LEASE-DESIGN.md");
+
+        Assert.Contains("config.UpdateMaxConcurrentTasks(1)", worker, StringComparison.Ordinal);
+        Assert.Contains("await RecoverPendingAsync(stoppingToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("run => run.Status == CrmProspectingRunStatus.Running", worker, StringComparison.Ordinal);
+        Assert.Contains("Run exactly one active application process", operations, StringComparison.Ordinal);
+        Assert.Contains("implementation specification; not implemented", leaseDesign, StringComparison.Ordinal);
+        Assert.Contains("SELECT ... FOR UPDATE", leaseDesign, StringComparison.Ordinal);
+        Assert.Contains("lease_generation", leaseDesign, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingWorker_ShouldPersistCandidateAndEvidenceInOneExplicitUnitOfWork()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
