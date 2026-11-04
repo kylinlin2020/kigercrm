@@ -211,3 +211,13 @@ If the exact winner is not visible after the unique violation, the original exce
 Evidence reconciliation now also has a single bounded retry for SQLSTATE `23505` on the exact immutable index `ux_crm_prospecting_evidence_evidenceidentity`. The failed repair UoW is disposed before the helper rereads persisted evidence and retries once. Repeated collisions and all unrelated failures propagate. This handles concurrent insertion of the same evidence identity during repair; it does not solve duplicate first-Score snapshots if multiple workers concurrently repair a legacy Candidate with no Evidence and no Score. Single-active-worker operation remains mandatory until a score idempotency/lease design is implemented.
 
 Worker Candidate and provenance repair transactions also now use `Begin(..., requiresNew: true)`. This prevents an ambient UoW (if introduced by a future worker host wrapper) from silently turning the short persistence transaction into a `ChildUnitOfWork` that merely delegates to an outer transaction. Under XiHan.Framework 4.8.0, an existing outer UoW causes the manager to request an isolated physical SqlSugar connection for these short writes.
+
+## 2026-11-04 Initial Score snapshot idempotency
+
+The worker's one-time initial Score snapshot now carries a stable key `initial:{candidateId}:{scorecardVersion}`. Ordinary Score history remains append-only: the new `IdempotencyKey` column is nullable, so manually/re-evaluated historical snapshots are not constrained by this key.
+
+Migration `5.9.29` adds nullable `idempotency_key varchar(160)` and the tenant-scoped unique index `ux_crm_prospecting_score_te_idemkey` on `(tenant_id, idempotency_key)`. The entity CodeFirst index and SQL migration use the same name and columns. Existing rows remain NULL and are not guessed/backfilled.
+
+When a legacy Candidate repair loses the first-score race, the worker catches only PostgreSQL SQLSTATE `23505` for that exact index, after the failed isolated UoW has been disposed. It then reads the exact tenant-scoped idempotency key; if no winner is visible, the original exception propagates. If visible, it reruns the repair once, allowing Evidence rolled back with the losing Score transaction to be inserted without generating another initial Score. Repeated collisions and unrelated DB failures remain fail-closed.
+
+The initial snapshot created for a newly inserted Candidate and the snapshot created during legacy repair both use the same key function. The repository lookup uses `CreateQueryable()` and therefore retains tenant isolation. This prevents duplicate initial snapshots across concurrent repair attempts, but does not introduce multi-worker leases/fencing or make the worker safe to run in multiple application processes.
