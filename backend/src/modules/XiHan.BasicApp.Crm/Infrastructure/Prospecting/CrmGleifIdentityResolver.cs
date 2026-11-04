@@ -63,6 +63,15 @@ public sealed class CrmGleifIdentityResolver : ICrmProspectingIdentityResolver, 
         if (!document.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("GLEIF response did not contain a JSON:API data array.");
 
+        // If the first page is not the whole result set, uniqueness cannot be established
+        // without scanning the complete registry result. Fail closed rather than guessing.
+        if (document.RootElement.TryGetProperty("meta", out var meta) &&
+            meta.TryGetProperty("pagination", out var pagination) &&
+            pagination.TryGetProperty("total", out var totalElement) &&
+            totalElement.TryGetInt32(out var totalMatches) &&
+            totalMatches > 10)
+            return null;
+
         var matches = new List<CrmProspectingLegalEntityMatch>();
         foreach (var item in data.EnumerateArray())
         {
@@ -77,7 +86,7 @@ public sealed class CrmGleifIdentityResolver : ICrmProspectingIdentityResolver, 
 
             var registration = GetObject(attributes, "registration");
             var address = GetObject(entity, "legalAddress");
-            var sourceUrl = new Uri(Endpoint, Uri.EscapeDataString(lei)).ToString();
+            var sourceUrl = new Uri(Endpoint.ToString().TrimEnd('/') + "/" + Uri.EscapeDataString(lei)).ToString();
             matches.Add(new CrmProspectingLegalEntityMatch(
                 lei,
                 legalName,
