@@ -10,6 +10,23 @@ public sealed class CrmProspectingCandidateRepository(ISqlSugarClientResolver cl
     : SaasRepository<SysCrmProspectingCandidate>(clientResolver), ICrmProspectingCandidateRepository
 
 {
+    public async Task<SysCrmProspectingCandidate?> GetByIdentityAsync(long runId, string providerCode, string externalId, CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(externalId);
+        cancellationToken.ThrowIfCancellationRequested();
+        var rows = await CreateQueryable()
+            .Where(candidate => candidate.RunId == runId &&
+                candidate.ProviderCode == providerCode &&
+                candidate.ExternalId == externalId)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        if (rows.Count > 1)
+            throw new InvalidOperationException("The tenant contains multiple Candidates for one provider identity; the unique-key invariant is broken.");
+        return rows.FirstOrDefault();
+    }
+
     public async Task<IReadOnlyList<SysCrmProspectingCandidate>> GetLatestByRunAsync(long runId, CrmProspectingCandidateStatus? status, int limit, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

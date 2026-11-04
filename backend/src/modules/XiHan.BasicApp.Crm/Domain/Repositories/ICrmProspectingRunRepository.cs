@@ -6,6 +6,9 @@ namespace XiHan.BasicApp.Crm.Domain.Repositories;
 /// <summary>Strictly tenant-scoped prospecting run repository.</summary>
 public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectingRun>
 {
+    /// <summary>Find one Run by its tenant-scoped idempotency key. The inherited tenant filter remains active.</summary>
+    Task<SysCrmProspectingRun?> GetByRequestKeyAsync(string requestKey, CancellationToken cancellationToken = default);
+
     /// <summary>Atomically claim a queued run. A duplicate delivery or competing worker receives null.</summary>
     Task<SysCrmProspectingRun?> ClaimQueuedAsync(long runId, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
 

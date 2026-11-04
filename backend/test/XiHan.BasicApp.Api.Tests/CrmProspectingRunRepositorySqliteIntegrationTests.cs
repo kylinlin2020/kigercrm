@@ -61,6 +61,29 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
     }
 
     [Fact]
+    public async Task GetByRequestKey_ShouldReturnOnlyTheCurrentTenantsRun()
+    {
+        long firstTenantRunId;
+        using (_tenant.Change(TenantId))
+        {
+            var run = await CreateRunAsync("shared-request-key");
+            firstTenantRunId = run.BasicId;
+            Assert.Equal(firstTenantRunId, (await _repository.GetByRequestKeyAsync("shared-request-key"))?.BasicId);
+        }
+
+        using (_tenant.Change(TenantId + 1))
+        {
+            Assert.Null(await _repository.GetByRequestKeyAsync("shared-request-key"));
+            var otherTenantRun = await CreateRunAsync("shared-request-key");
+            Assert.NotEqual(firstTenantRunId, otherTenantRun.BasicId);
+            Assert.Equal(otherTenantRun.BasicId, (await _repository.GetByRequestKeyAsync("shared-request-key"))?.BasicId);
+        }
+
+        using (_tenant.Change(TenantId))
+            Assert.Equal(firstTenantRunId, (await _repository.GetByRequestKeyAsync("shared-request-key"))?.BasicId);
+    }
+
+    [Fact]
     public async Task QueuedRun_ShouldOnlyBeClaimedOnce()
     {
         using (_tenant.Change(TenantId))

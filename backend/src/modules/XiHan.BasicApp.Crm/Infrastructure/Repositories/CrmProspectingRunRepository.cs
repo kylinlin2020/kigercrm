@@ -14,6 +14,19 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
     private static string? BoundFailureSummary(string? summary)
         => summary is { Length: > MaxFailureSummaryLength } ? summary[..MaxFailureSummaryLength] : summary;
 
+    public async Task<SysCrmProspectingRun?> GetByRequestKeyAsync(string requestKey, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestKey);
+        cancellationToken.ThrowIfCancellationRequested();
+        var rows = await CreateQueryable()
+            .Where(run => run.RequestKey == requestKey)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        if (rows.Count > 1)
+            throw new InvalidOperationException("The tenant contains multiple Runs for one idempotency key; the unique-key invariant is broken.");
+        return rows.FirstOrDefault();
+    }
+
     public async Task<SysCrmProspectingRun?> ClaimQueuedAsync(
         long runId,
         DateTimeOffset startedAt,

@@ -7,6 +7,9 @@ namespace XiHan.BasicApp.Crm.Domain.Repositories;
 /// <summary>Tenant-scoped prospecting review candidate repository.</summary>
 public interface ICrmProspectingCandidateRepository : ISaasRepository<SysCrmProspectingCandidate>
 {
+    /// <summary>Find one Candidate by the exact tenant-scoped Run/provider/external identity tuple.</summary>
+    Task<SysCrmProspectingCandidate?> GetByIdentityAsync(long runId, string providerCode, string externalId, CancellationToken cancellationToken = default);
+
     /// <summary>Atomically transition an approved candidate to Converting; false means another actor already claimed it.</summary>
     Task<bool> TryClaimForConversionAsync(long candidateId, CancellationToken cancellationToken = default);
 
