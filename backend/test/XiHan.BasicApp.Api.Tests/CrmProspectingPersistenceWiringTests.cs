@@ -562,6 +562,29 @@ public sealed class CrmProspectingPersistenceWiringTests
         }
     }
 
+    [Fact]
+    public void ProspectingExpiredLeaseRecovery_ShouldUseDatabaseClockAndNeverTouchLeaseLessRows()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingRunRepository.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("RecoverExpiredLeasesAsync", contract, StringComparison.Ordinal);
+        var start = repository.IndexOf("public async Task<int> RecoverExpiredLeasesAsync(", StringComparison.Ordinal);
+        var end = repository.IndexOf("public async Task<bool> RecoverInterruptedAsync(", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var method = repository[start..end];
+
+        Assert.Contains("clock_timestamp()", method, StringComparison.Ordinal);
+        Assert.Contains("run.tenant_id = @tenantId", method, StringComparison.Ordinal);
+        Assert.Contains("run.status = @runningStatus", method, StringComparison.Ordinal);
+        Assert.Contains("run.lease_expires_at IS NOT NULL", method, StringComparison.Ordinal);
+        Assert.Contains("run.lease_expires_at <= lease_clock.now", method, StringComparison.Ordinal);
+        Assert.Contains("lease_token = NULL", method, StringComparison.Ordinal);
+        Assert.Contains("lease_owner = NULL", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("RecoverExpiredLeasesAsync", worker, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
