@@ -89,6 +89,24 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("CreateQueryable()", repository, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingRunWorker_ShouldPersistRawProviderOutputAndTerminalStatus()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingRun.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("Raw_Results_Json", entity, StringComparison.Ordinal);
+        Assert.Contains("RawResultsJson = rawResultsJson", repository, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRunStatus.Succeeded", repository, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRunStatus.PartiallySucceeded", repository, StringComparison.Ordinal);
+        Assert.Contains("OnCompleted", app, StringComparison.Ordinal);
+        Assert.Contains("ICrmProspectingProvider", worker, StringComparison.Ordinal);
+        Assert.Contains("ITenantDataScopeRunner", worker, StringComparison.Ordinal);
+        Assert.Contains("ProviderPlanJson", worker, StringComparison.Ordinal);
+        Assert.Contains("CandidateCount = 0", repository, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
