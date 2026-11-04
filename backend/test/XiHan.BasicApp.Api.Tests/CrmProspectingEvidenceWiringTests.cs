@@ -81,7 +81,7 @@ public sealed class CrmProspectingEvidenceWiringTests
     }
 
     [Fact]
-    public void EvidenceIdentityMigration_ShouldTargetTheCodeFirstTableAndDocumentFreshTenantGap()
+    public void EvidenceIdentityMigration_ShouldTargetTheCodeFirstTableAndMatchFreshTenantSchema()
     {
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
