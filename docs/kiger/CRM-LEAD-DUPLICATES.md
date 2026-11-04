@@ -39,6 +39,13 @@ Phone and website candidate preselection now use persisted normalized keys inste
 - PostgreSQL core does not guarantee IDNA conversion. Non-ASCII domains are intentionally omitted from historical duplicate lookup until the Lead is edited through the application normalizer, which uses `Uri.IdnHost`.
 - This is a conservative false-negative tradeoff to prevent malformed or non-equivalent historical keys from creating misleading duplicate matches. PostgreSQL execution remains a required deployment validation step.
 
+## Website-key port validation follow-up (5.9.27)
+
+- Migration `5.9.27` re-runs the conservative historical website-key backfill without accepting any explicit port.
+- This intentionally clears even valid port-bearing URLs from historical duplicate lookup. It avoids indexing hosts from malformed or out-of-range ports that `.NET System.Uri` would reject.
+- The original URL remains intact; editing the Lead through the application can repopulate a normalized host when the URL is valid.
+- PostgreSQL execution is still required before treating this migration as operationally verified.
+
 ## Remaining limits
 
 - Candidate retrieval remains bounded to 100 rows per signal. Large collision groups can be truncated; an empty result is not proof that no duplicate exists.
