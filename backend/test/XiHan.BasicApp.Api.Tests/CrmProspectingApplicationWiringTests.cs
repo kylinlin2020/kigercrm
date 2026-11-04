@@ -123,6 +123,13 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("DuplicateLeadId", candidate, StringComparison.Ordinal);
         Assert.Contains("CrmLeadDuplicateMatcher.NormalizeEmail", worker, StringComparison.Ordinal);
         Assert.Contains("lead.WebsiteHost == websiteHost", worker, StringComparison.Ordinal);
+        Assert.Contains("GetDuplicateMatchesAsync", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("leadRepository.GetListAsync", worker, StringComparison.Ordinal);
+        var leadRepository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmLeadRepository.cs");
+        Assert.Contains("const int batchSize = 300", leadRepository, StringComparison.Ordinal);
+        Assert.Contains("keys.Contains(lead.DuplicateEmailNormalized)", leadRepository, StringComparison.Ordinal);
+        Assert.Contains("keys.Contains(lead.WebsiteHost)", leadRepository, StringComparison.Ordinal);
+        Assert.Contains("CreateQueryable()", leadRepository, StringComparison.Ordinal);
         Assert.Contains("crm_prospecting_candidate", candidateMigration, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = candidateCount", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs"), StringComparison.Ordinal);
         Assert.Contains("GetRunCandidatesAsync", app, StringComparison.Ordinal);
