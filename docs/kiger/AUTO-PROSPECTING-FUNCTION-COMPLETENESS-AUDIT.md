@@ -8,7 +8,7 @@
 
 ## 1. 结论
 
-**当前不能判定为完整迁移。** 目标仓库已经具备 Campaign / Strategy / Run、后台 Worker、Candidate、Evidence、Score、人工审核及转现有 Lead 的第一阶段业务闭环；但源项目中的多项独立能力在目标仓库没有发现对应实现，且目标端仍只有 Fake Provider，不能完成真实外部来源获客。
+**当前不能判定为完整迁移。** 目标仓库已经具备 Campaign / Strategy / Run、后台 Worker、Candidate、Evidence、Score、人工审核及转现有 Lead 的第一阶段业务闭环；但源项目中的多项独立能力在目标仓库没有发现对应实现，且目标端已新增 USAspending 官方采购适配器，但单一来源覆盖不足，仍不能视为完整真实获客能力。
 
 迁移目标是按 KIGER 的 .NET / SqlSugar / PostgreSQL / SaaS tenant 架构重建业务能力，不是把 TypeScript 源代码直接复制到目标后端。
 
@@ -28,7 +28,7 @@
 | 普通搜客 / 搜索计划 | `lead-finder-launch.ts`、`prospect-search-planner.ts` | SearchObjective + ProviderPlan 基础字段 | 部分实现；源端参数合并、搜索计划预览和解释尚未确认 |
 | 深度挖掘 / Super Search | `prospect-deep-mining.ts`、`prospect-super-search.ts` | 未发现等价服务/API/UI | 未发现实现 |
 | Provider 目录与能力元数据 | `provider-catalog.ts`、`provider-contract.ts` | 仅 `ICrmProspectingProvider` 与 Fake Provider | 部分实现；目录、能力/许可/字段权威级别缺失 |
-| 实际外部搜索来源 | `lead-providers.ts`、`ai-search-provider.ts` | 目标当前仅注册 Fake Provider | 未完成；无真实生产来源 |
+| 实际外部搜索来源 | `lead-providers.ts`、`ai-search-provider.ts` | 目标已新增 opt-in 的 USAspending 官方采购 Provider；其他真实来源尚未接入 | 未完成；无真实生产来源 |
 | 官方企业身份来源 | GLEIF、Companies House、KVK、SEC 等 provider | 未发现真实适配器 | 未完成 |
 | 采购 / 招标来源 | `public-procurement-providers.ts`、EU TED、World Bank、USASpending、UK Contracts Finder | 未发现真实适配器 | 未完成 |
 | 国际贸易来源 | `trade-providers.ts`、UN Comtrade、US Census、Eurostat | 未发现真实适配器 | 未完成 |
@@ -68,7 +68,7 @@
 
 ## 4. 关键阻塞
 
-1. **真实来源缺失**：当前 Fake Provider 不能产生真实企业客户。Provider catalog 中的来源清单不等于已实现适配器。
+1. **真实来源覆盖不足**：已增加 USAspending 官方联邦采购 Provider，但当前仍只有单一美国采购来源，缺少身份注册、国际招标、贸易数据和通用发现来源。
 2. **来源执行安全缺失**：未发现统一受控 HTTP 边界、SSRF/DNS/redirect 防护、限流、配额、成本账本和缓存。
 3. **候选闭环不完整**：跨 Run 覆盖记忆、身份解析、网站/联系人补全、验证和 shortlist 等能力未对齐。
 4. **调度与可观测性不足**：Schedule、来源级阶段进度、实时事件和结果反馈尚未对齐。
@@ -118,3 +118,14 @@
 ## 7. 审计后的工作定义
 
 迁移完成不是“页面能打开”或“Fake Provider 能跑”。最终验收必须证明：真实合法来源可执行、每条候选有可追溯证据、跨 Run 去重和身份冲突可审查、人工审批后复用现有 CRM Lead 转化、任务可恢复且有来源级进度/失败报告，并通过 Windows + PostgreSQL 真实运行测试。
+
+
+## 8. 本轮实现增量（2026-11-04）
+
+- 新增 `CrmUsaSpendingProspectingProvider`，调用固定官方 HTTPS API `api.usaspending.gov/api/v2/search/spending_by_award/`，无需 API Key。
+- 适配器从产品范围、搜索目标和理想客户描述提取关键词，最多请求首 20 条联邦合同记录；映射企业名称、合同描述、机构、金额和合同日期，并保留官方 award URL、检索时间、payload SHA-256 与 `official_procurement` 证据分类。
+- 响应限制为 6 MiB；仅接受固定 HTTPS host/path；DI typed HttpClient 禁止自动重定向；非成功 HTTP 状态不会把响应正文带入异常消息。
+- 适配器默认不启用，只有配置 `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true` 才注册。Fake Provider 仍需独立显式 opt-in。
+- 新增 provider 单元测试源和 wiring 回归断言，覆盖结果映射、空关键词不发请求、HTTP 429 错误处理、opt-in 注册和网络边界。
+
+**验证状态：** 以上代码和测试已提交，但当前执行环境没有 .NET SDK；这些测试尚未编译或执行。USAspending 真实网络请求、数据条款审查和 Windows/PostgreSQL 端到端验收也尚未执行。适配器目前只读取第一页，若存在更多结果会明确产生 warning，不宣称分页已完成。
