@@ -195,6 +195,20 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("already being converted", app, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CandidateReview_ShouldUseAtomicConditionalStateTransition()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingCandidateRepository.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingCandidateRepository.cs");
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
+        Assert.Contains("TryReviewAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("candidate.Status == CrmProspectingCandidateStatus.PendingReview", repository, StringComparison.Ordinal);
+        Assert.Contains("candidate.Status == CrmProspectingCandidateStatus.Duplicate", repository, StringComparison.Ordinal);
+        Assert.Contains("(!approve || overrideDuplicate)", repository, StringComparison.Ordinal);
+        Assert.Contains("TryReviewAsync(candidate.BasicId, input.Approve, input.OverrideDuplicate", app, StringComparison.Ordinal);
+        Assert.Contains("already reviewed or its review state changed", app, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
