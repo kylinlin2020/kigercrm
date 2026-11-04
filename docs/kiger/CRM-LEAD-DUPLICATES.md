@@ -46,6 +46,13 @@ Phone and website candidate preselection now use persisted normalized keys inste
 - The original URL remains intact; editing the Lead through the application can repopulate a normalized host when the URL is valid.
 - PostgreSQL execution is still required before treating this migration as operationally verified.
 
+## Lead conversion concurrency guard (5.9.28)
+
+- Customer rows created by Lead conversion now retain `ConvertedLeadId`.
+- A tenant-scoped unique index on `(TenantId, ConvertedLeadId)` prevents two concurrent conversion transactions from committing two Customer rows for the same Lead. Multiple ordinary Customers remain valid because the column is nullable; PostgreSQL and SQLite unique indexes allow multiple NULL values.
+- The unique constraint is a final database invariant, not a promise that simultaneous requests both return success: the losing transaction may receive a uniqueness error. A subsequent retry observes the already-converted Lead and returns its existing result.
+- The transaction still contains Customer, optional Contact, and Lead state update. A PostgreSQL two-connection concurrency test and Windows runtime validation remain required.
+
 ## Remaining limits
 
 - Candidate retrieval remains bounded to 100 rows per signal. Large collision groups can be truncated; an empty result is not proof that no duplicate exists.
