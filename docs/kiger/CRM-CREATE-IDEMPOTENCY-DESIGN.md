@@ -27,6 +27,13 @@ Its XML remarks state that this is deliberately an independent physical transact
 
 The framework UoW implementation itself is not vendored in this repository tree; the application consumes `XiHan.Framework.Uow`. Therefore, before implementing automatic winner recovery, verify the exact deployed package implementation for: (a) whether `Begin(..., requiresNew: true)` always creates a fresh physical transaction in the current tenant database; (b) disposal without `CompleteAsync` rolls back and releases the connection; (c) how PostgreSQL unique violations are surfaced and how the named constraint is identified; and (d) whether a new UoW can safely be opened after the failed UoW is disposed. Do not infer these details solely from the method signatures.
 
+### Repository and schema-discovery constraints verified
+
+- CRM repositories inherit `SaasRepository<TEntity>`, which in turn inherits the framework's `SqlSugarRepositoryBase`. The concrete base implementation is supplied by the external `XiHan.Framework.Data.SqlSugar` package, not vendored here.
+- The local `SaasRepository` only adds `AnyIgnoreTenantAsync`, implemented with `CreateNoTenantQueryable()`. That method is explicitly cross-tenant and is not suitable for looking up a request key or document. A new ledger repository must use the normal tenant-filtered query path.
+- The repository-local `TenantDatabaseInitializer` delegates tenant database schema creation to the framework `IDbInitializer`, and its documented contract is to build the current entity layout then baseline the upgrade engine. The existing Core CodeFirst tests separately demonstrate that SqlSugar entity attributes determine the actual persisted table/column/index shape.
+- CRM's `AddCrmFieldSecurityEntities` is specifically the field-security metadata catalog, not the authoritative database entity registration list. An internal idempotency ledger should not be exposed as a user-editable field-security entity merely to force table creation. Before adding a new entity, verify how the deployed `IDbInitializer` discovers module entities; then add a real CodeFirst shape test and a guarded migration for existing schemas.
+
 ## First implementation boundary
 
 The first ledger implementation may safely provide atomic claim + aggregate commit and deterministic conflict on a concurrent duplicate. It must not claim automatic winner replay until a tested outer recovery boundary exists. If the framework cannot expose a reliable rollback-then-new-UoW boundary through the current application-service proxy, return a conflict for the losing concurrent request and let its caller retry; the retry will then find the committed ledger row and replay the document.
