@@ -142,6 +142,8 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             DECLARE
                 table_oid regclass := to_regclass('crm_prospecting_provider_request');
             BEGIN
+                -- Serialize concurrent startup initializers across worker instances.
+                PERFORM pg_advisory_xact_lock(hashtext('crm_prospecting_provider_request_schema'));
                 IF table_oid IS NULL THEN
                     RETURN;
                 END IF;
