@@ -122,7 +122,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
 
                 failures += Math.Max(0, result.FailureCount);
-                warnings.AddRange(result.Warnings.Where(value => !string.IsNullOrWhiteSpace(value)));
+                AddBoundedProviderWarnings(warnings, result.Warnings);
                 const int maxRawRecordsPerRun = 2000;
                 var remaining = Math.Max(0, maxRawRecordsPerRun - raw.Count);
                 foreach (var record in result.Records.Take(remaining))
@@ -309,6 +309,21 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             {
                 Logger.LogError(persistException, "Could not persist prospecting Run failure: {RunId}", message.RunId);
             }
+        }
+    }
+
+    private static void AddBoundedProviderWarnings(List<string> warnings, IReadOnlyList<string>? providerWarnings)
+    {
+        const int maxWarnings = 100;
+        const int maxWarningLength = 500;
+        if (providerWarnings is null || warnings.Count >= maxWarnings) return;
+
+        foreach (var warning in providerWarnings)
+        {
+            if (warnings.Count >= maxWarnings) break;
+            if (string.IsNullOrWhiteSpace(warning)) continue;
+            var value = warning.Trim();
+            warnings.Add(value.Length > maxWarningLength ? value[..maxWarningLength] : value);
         }
     }
 
