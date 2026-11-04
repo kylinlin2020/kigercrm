@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Crm.Domain.Services;
 using XiHan.BasicApp.Saas.Domain.DomainServices;
 using XiHan.Framework.Caching.Distributed.Abstracts;
 using XiHan.Framework.MultiTenancy.Abstractions;
@@ -81,7 +82,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var plan = ParseStringArray(strategy.ProviderPlanJson, "provider plan");
             if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
             var excludedDomains = ParseStringArray(strategy.ExcludedDomainsJson, "excluded domains", allowNull: true);
-            var raw = new List<object>();
+            var raw = new List<CrmProspectingRawEnvelope>();
             var failures = 0;
             var warnings = new List<string>();
 
@@ -116,7 +117,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     const int maxRawRecordsPerRun = 2000;
                     var remaining = Math.Max(0, maxRawRecordsPerRun - raw.Count);
                     foreach (var record in result.Records.Take(remaining))
-                        raw.Add(new { Provider = provider.ProviderCode, Record = record });
+                        raw.Add(new CrmProspectingRawEnvelope(provider.ProviderCode, record));
                     if (result.Records.Count > remaining)
                     {
                         failures++;
@@ -135,6 +136,90 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
             }
 
+
+            var candidates = scope.ServiceProvider.GetRequiredService<ICrmProspectingCandidateRepository>();
+            var leadRepository = scope.ServiceProvider.GetRequiredService<ICrmLeadRepository>();
+            var existingCandidates = await candidates.GetListAsync(candidate => candidate.RunId == run.BasicId, cancellationToken);
+            var existingKeys = existingCandidates
+                .Select(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}")
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var candidateCount = existingCandidates.Count;
+
+            foreach (var envelope in raw)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var record = envelope.Record;
+                var providerCode = envelope.ProviderCode.Trim();
+                var externalId = string.IsNullOrWhiteSpace(record.ExternalId)
+                    ? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(record))))
+                    : record.ExternalId.Trim();
+                if (providerCode.Length > 80) providerCode = providerCode[..80];
+                if (externalId.Length > 200) externalId = externalId[..200];
+                var key = $"{providerCode}::{externalId}";
+                if (existingKeys.Contains(key)) continue;
+
+                var companyName = (string.IsNullOrWhiteSpace(record.CompanyName) ? record.Title : record.CompanyName)?.Trim();
+                if (string.IsNullOrWhiteSpace(companyName))
+                {
+                    failures++;
+                    warnings.Add($"Provider {providerCode} returned a record without company name/title.");
+                    continue;
+                }
+                if (companyName.Length > 200) companyName = companyName[..200];
+
+                var email = string.IsNullOrWhiteSpace(record.BusinessEmail) ? null : record.BusinessEmail.Trim();
+                if (email?.Length > 254) email = null;
+                var normalizedEmail = CrmLeadDuplicateMatcher.NormalizeEmail(email);
+                var website = string.IsNullOrWhiteSpace(record.Website) ? null : record.Website.Trim();
+                if (website?.Length > 500) website = website[..500];
+                var websiteHost = CrmLeadDuplicateMatcher.NormalizeDomain(website);
+
+                var matches = await leadRepository.GetListAsync(lead =>
+                    (normalizedEmail != null && lead.DuplicateEmailNormalized == normalizedEmail)
+                    || (websiteHost != null && lead.WebsiteHost == websiteHost), cancellationToken);
+                var duplicate = matches
+                    .Select(lead => new
+                    {
+                        Lead = lead,
+                        EmailMatch = normalizedEmail != null && lead.DuplicateEmailNormalized == normalizedEmail,
+                        WebsiteMatch = websiteHost != null && lead.WebsiteHost == websiteHost
+                    })
+                    .OrderByDescending(match => match.EmailMatch)
+                    .ThenByDescending(match => match.WebsiteMatch)
+                    .FirstOrDefault();
+
+                var source = record.Source?.Trim();
+                var title = record.Title?.Trim();
+                var contactName = record.ContactName?.Trim();
+                var summary = record.Summary?.Trim();
+                var candidate = new XiHan.BasicApp.Crm.Domain.Entities.SysCrmProspectingCandidate
+                {
+                    RunId = run.BasicId,
+                    ProviderCode = providerCode,
+                    ExternalId = externalId,
+                    Source = string.IsNullOrWhiteSpace(source) ? null : source[..Math.Min(source.Length, 200)],
+                    Title = string.IsNullOrWhiteSpace(title) ? null : title[..Math.Min(title.Length, 300)],
+                    CompanyName = companyName,
+                    ContactName = string.IsNullOrWhiteSpace(contactName) ? null : contactName[..Math.Min(contactName.Length, 200)],
+                    BusinessEmail = email,
+                    NormalizedEmail = normalizedEmail,
+                    Website = website,
+                    WebsiteHost = websiteHost,
+                    Summary = string.IsNullOrWhiteSpace(summary) ? null : summary[..Math.Min(summary.Length, 5000)],
+                    Status = duplicate is null
+                        ? CrmProspectingCandidateStatus.PendingReview
+                        : CrmProspectingCandidateStatus.Duplicate,
+                    DuplicateLeadId = duplicate?.Lead.BasicId,
+                    DuplicateReason = duplicate is null
+                        ? null
+                        : duplicate.EmailMatch && duplicate.WebsiteMatch ? "Email and website match an existing lead"
+                        : duplicate.EmailMatch ? "Email matches an existing lead" : "Website domain matches an existing lead"
+                };
+                await candidates.AddAsync(candidate, cancellationToken);
+                existingKeys.Add(key);
+                candidateCount++;
+            }
+
             var serialized = JsonSerializer.Serialize(raw);
             if (serialized.Length > 5_000_000)
                 throw new InvalidOperationException("Serialized provider output exceeds the 5 MB Run storage limit.");
@@ -148,7 +233,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 failures,
                 summary,
                 DateTimeOffset.UtcNow,
-                cancellationToken);
+                cancellationToken,
+                candidateCount);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
