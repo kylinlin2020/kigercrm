@@ -136,12 +136,15 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
     }
 
     public async Task<bool> TryFinalizeSuccessWithCoverageAsync(
-        long requestId, long campaignId, string coverageScopeHash,
-        DateTimeOffset completedAt, long durationMs, int resultCount, string responseHash,
+        long requestId, long runId, long campaignId, Guid leaseToken, long fencingVersion,
+        string coverageScopeHash, DateTimeOffset completedAt, long durationMs, int resultCount, string responseHash,
         CancellationToken cancellationToken = default)
     {
         if (requestId <= 0) throw new ArgumentOutOfRangeException(nameof(requestId));
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
         if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
         if (coverageScopeHash.Length != 64 || !coverageScopeHash.All(Uri.IsHexDigit))
             throw new ArgumentException("Coverage scope must be a SHA-256 hex digest.", nameof(coverageScopeHash));
         if (responseHash.Length != 64 || !responseHash.All(Uri.IsHexDigit))
@@ -160,7 +163,19 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
         // the request-ledger finalization rolls back with it. A missing/mismatched Run or an
         // already-finalized request produces zero rows and cannot advance coverage.
         const string sql = """
-            WITH finalized_request AS (
+            WITH valid_run AS MATERIALIZED (
+                SELECT run.tenant_id, run.basic_id, run.campaign_id
+                FROM crm_prospecting_run AS run
+                WHERE run.tenant_id = @tenantId
+                  AND run.basic_id = @runId
+                  AND run.campaign_id = @campaignId
+                  AND run.status = @runningStatus
+                  AND run.lease_token = @leaseToken
+                  AND run.fencing_version = @fencingVersion
+                  AND run.lease_expires_at > clock_timestamp()
+                FOR UPDATE
+            ),
+            finalized_request AS (
                 UPDATE crm_prospecting_provider_request AS request
                 SET state = 'Succeeded',
                     completed_at = @completedAt,
@@ -174,14 +189,13 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
                     cache_hit = false
                 WHERE request.tenant_id = @tenantId
                   AND request.basic_id = @requestId
+                  AND request.run_id = @runId
                   AND request.request_key = @coverageScopeHash
                   AND request.state = 'Started'
                   AND EXISTS (
-                      SELECT 1
-                      FROM crm_prospecting_run AS run
-                      WHERE run.tenant_id = request.tenant_id
-                        AND run.basic_id = request.run_id
-                        AND run.campaign_id = @campaignId
+                      SELECT 1 FROM valid_run
+                      WHERE valid_run.tenant_id = request.tenant_id
+                        AND valid_run.basic_id = request.run_id
                   )
                 RETURNING request.tenant_id, request.run_id, request.provider_code
             ),
@@ -222,7 +236,11 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             sql,
             new SugarParameter("@tenantId", currentTenant.TenantId),
             new SugarParameter("@requestId", requestId),
+            new SugarParameter("@runId", runId),
             new SugarParameter("@campaignId", campaignId),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
             new SugarParameter("@coverageScopeHash", coverageScopeHash.ToUpperInvariant()),
             new SugarParameter("@completedAt", completedAt),
             new SugarParameter("@durationMs", durationMs),
