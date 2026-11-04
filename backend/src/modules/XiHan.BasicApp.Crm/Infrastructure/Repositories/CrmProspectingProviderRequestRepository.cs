@@ -1,3 +1,4 @@
+using SqlSugar;
 using System.Text;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Repositories;
@@ -26,28 +27,51 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             throw new ArgumentException("Request key must be a 64-character SHA-256 hex digest.", nameof(requestKey));
         cancellationToken.ThrowIfCancellationRequested();
 
-        // The unique database index is the final concurrency arbiter. If two workers race,
-        // only one insert succeeds; the loser must retry before issuing the provider request.
-        var previous = await CreateQueryable()
-            .Where(row => row.RunId == runId && row.ProviderCode == providerCode)
-            .OrderByDescending(row => row.AttemptNo)
-            .Take(1)
-            .ToListAsync(cancellationToken);
-        var attemptNo = checked((previous.FirstOrDefault()?.AttemptNo ?? 0) + 1);
-
-        var entity = new SysCrmProspectingProviderRequest
+        // Attempt allocation is optimistic: the unique index arbitrates concurrent workers.
+        // If another worker inserts the same next number between our read and insert, re-read
+        // the maximum and retry. Other persistence failures are rethrown unchanged.
+        for (var collision = 0; collision < 5; collision++)
         {
-            RunId = runId,
-            ProviderCode = providerCode,
-            AttemptNo = attemptNo,
-            RequestKey = requestKey.ToUpperInvariant(),
-            State = "Started",
-            StartedAt = startedAt,
-            ResultCount = 0,
-            CacheHit = false
-        };
-        await AddAsync(entity, cancellationToken);
-        return entity;
+            cancellationToken.ThrowIfCancellationRequested();
+            var previous = await CreateQueryable()
+                .Where(row => row.RunId == runId && row.ProviderCode == providerCode)
+                .OrderByDescending(row => row.AttemptNo)
+                .Take(1)
+                .ToListAsync(cancellationToken);
+            var attemptNo = checked((previous.FirstOrDefault()?.AttemptNo ?? 0) + 1);
+
+            var entity = new SysCrmProspectingProviderRequest
+            {
+                RunId = runId,
+                ProviderCode = providerCode,
+                AttemptNo = attemptNo,
+                RequestKey = requestKey.ToUpperInvariant(),
+                State = "Started",
+                StartedAt = startedAt,
+                ResultCount = 0,
+                CacheHit = false
+            };
+
+            try
+            {
+                await AddAsync(entity, cancellationToken);
+                return entity;
+            }
+            catch (SqlSugarException) when (collision < 4)
+            {
+                // Only retry when a competing insert demonstrably advanced this exact
+                // tenant/run/provider sequence. Otherwise preserve the original exception.
+                var latest = await CreateQueryable()
+                    .Where(row => row.RunId == runId && row.ProviderCode == providerCode)
+                    .OrderByDescending(row => row.AttemptNo)
+                    .Take(1)
+                    .ToListAsync(cancellationToken);
+                if ((latest.FirstOrDefault()?.AttemptNo ?? 0) < attemptNo)
+                    throw;
+            }
+        }
+
+        throw new InvalidOperationException("Could not allocate a unique provider request attempt after concurrent retries.");
     }
 
     public async Task<bool> TryFinalizeAsync(
