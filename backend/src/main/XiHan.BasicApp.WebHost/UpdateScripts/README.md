@@ -46,6 +46,8 @@
 - CRM Lead 重复识别的规范化查询键从 5.9.2 起由 `5.9.2/5.9.2.sql` 增加并回填；脚本只创建普通索引，不设置业务唯一约束。
 - CRM Contact 主联系人唯一性从 5.9.3 起由 `5.9.3/5.9.3.sql` 增加 `primary_customer_id` 并建立 `(tenant_id, primary_customer_id)` 唯一索引；非主联系人该列为 NULL，允许同一客户有多个普通联系人。迁移遇到存量重复主联系人会明确失败并中断启动，需先清理重复数据。
 
+- CRM 自动获客 Phase A 持久化基础从 5.9.11 起增加 `crm_prospecting_campaign`、`crm_prospecting_strategy`、`crm_prospecting_run` 三张租户级表；仅在存在 CRM Lead 表的租户库执行，平台库跳过。策略按租户 + Campaign + Version + 删除状态唯一，Run 按租户 + RequestKey + 删除状态唯一。新库由 CRM 实体 CodeFirst 创建；本迁移用于既有 CRM 租户库。
+
 ## 失败会怎样
 
 脚本抛错即整体回滚、写入一条 `Success = false` 的台账，并**中断应用启动** —— 宁可起不来，
