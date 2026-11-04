@@ -109,6 +109,26 @@ public sealed class CrmFindTenderProspectingProviderTests
     }
 
     [Fact]
+    public async Task SearchAsync_PageCapMustNotClaimCompleteCoverage()
+    {
+        var handler = new StubHandler(request => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, request.RequestUri),
+            Content = new StringContent(
+                """{"releases":[],"links":{"next":"https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages?cursor=next-page"}}""",
+                Encoding.UTF8, "application/json")
+        });
+        var provider = new CrmFindTenderProspectingProvider(new HttpClient(handler));
+
+        var result = await provider.SearchAsync(new CrmProspectingProviderRequest(
+            22, "water pump", "water pump", "", "", "{}", []));
+
+        Assert.Equal(3, handler.CallCount);
+        Assert.False(result.IsComplete);
+        Assert.Contains(result.Warnings, warning => warning.Contains("additional pages", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task SearchAsync_EmitsStructuredRateLimitWithRetryAfter()
     {
         var handler = new StubHandler(request =>
