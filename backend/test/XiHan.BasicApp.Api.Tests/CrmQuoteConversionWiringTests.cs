@@ -56,6 +56,35 @@ public sealed class CrmQuoteConversionWiringTests
         Assert.Contains("ListForQuoteAsync", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ConversionEndpoint_ShouldUseSourceQuoteUniqueGuardAndCommitQuoteLinkWithOrderSnapshot()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrder.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.4", "5.9.4.sql");
+
+        var methodStart = app.IndexOf("public async Task<CrmSalesOrderListItemDto> ConvertToSalesOrderAsync", StringComparison.Ordinal);
+        var nextMethod = app.IndexOf("private async Task EnsureRelatedRecordsAccessibleAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && nextMethod > methodStart);
+        var method = app[methodStart..nextMethod];
+
+        Assert.Contains("[UnitOfWork(true)]", app[..methodStart], StringComparison.Ordinal);
+        Assert.Contains("UX_{table}_TeId_Sq_IsDe", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(TenantId)", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(SourceQuoteId)", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(IsDeleted)", entity, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_sales_order_teid_sq_isde", migration, StringComparison.Ordinal);
+        Assert.Contains("ON crm_sales_order (tenant_id, source_quote_id, is_deleted)", migration, StringComparison.Ordinal);
+
+        var orderInsert = method.IndexOf("salesOrders.AddAsync(order, cancellationToken)", StringComparison.Ordinal);
+        var lineInsert = method.IndexOf("salesOrderLines.AddAsync(orderLine, cancellationToken)", StringComparison.Ordinal);
+        var quoteLink = method.IndexOf("records.UpdateAsync(quote, cancellationToken)", StringComparison.Ordinal);
+        Assert.True(orderInsert >= 0 && lineInsert > orderInsert && quoteLink > lineInsert,
+            "The quote link must be persisted only after the order header and all snapshot lines have been staged in the same transaction.");
+        Assert.Contains("quote.ConvertedOrderId = createdOrder.BasicId", method, StringComparison.Ordinal);
+        Assert.Contains("existingOrder.SourceQuoteId != quote.BasicId", method, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
