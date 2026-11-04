@@ -31,7 +31,10 @@ public static class ServiceCollectionExtensions
             .Add<SysCrmSalesOrder>()
             .Add<SysCrmSalesOrderLine>()
             .Add<SysCrmShipment>()
-            .Add<SysCrmShipmentLine>());
+            .Add<SysCrmShipmentLine>()
+            .Add<SysCrmProspectingCampaign>()
+            .Add<SysCrmProspectingStrategy>()
+            .Add<SysCrmProspectingRun>());
         
     }
 
