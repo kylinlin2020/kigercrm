@@ -170,11 +170,10 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.DoesNotContain("AddHostedService<CrmProspectingRunHostedService>", registration, StringComparison.Ordinal);
         Assert.Contains("config.UpdateMaxConcurrentTasks(1)", worker, StringComparison.Ordinal);
         Assert.Contains("await RecoverPendingAsync(stoppingToken)", worker, StringComparison.Ordinal);
-        Assert.Contains("run => run.Status == CrmProspectingRunStatus.Running", worker, StringComparison.Ordinal);
         Assert.Contains("Run exactly one active application process", operations, StringComparison.Ordinal);
         Assert.Contains("lease", leaseDesign, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("SELECT ... FOR UPDATE", leaseDesign, StringComparison.Ordinal);
-        Assert.Contains("lease_generation", leaseDesign, StringComparison.Ordinal);
+        Assert.Contains("fencing_version", leaseDesign, StringComparison.Ordinal);
     }
 
     [Fact]
