@@ -2,45 +2,42 @@
 
 ## Official USAspending adapter
 
-The CRM module includes an opt-in adapter for the United States federal award search API.
-
 - Provider code: `usaspending_awards`
 - Fixed endpoint: `https://api.usaspending.gov/api/v2/search/spending_by_award/`
-- Authentication: none (public API)
-- Coverage: US federal award records only; it is not a general company directory.
-- Current behavior: one page, up to 20 awards per Run; the adapter emits a warning when another page exists.
-- Evidence: official award URL, retrieval timestamp, payload SHA-256, and `official_procurement` evidence type.
-- Safety: HTTPS fixed host/path, redirects disabled in the fixed-endpoint HttpClient, 25-second client timeout, 6 MiB response cap, and no response-body echo in HTTP error messages.
+- Authentication: none
+- Coverage: US federal award records; not a general company directory.
+- Current behavior: first page, up to 20 awards per Run; warns when additional results exist.
+- Evidence: award URL, retrieval timestamp, payload SHA-256, `official_procurement`.
+- Safety: fixed HTTPS host/path, redirects disabled, 25-second timeout, 6 MiB response cap.
 
-Enable it only in environments where outbound access to the official endpoint is allowed:
+Enable with `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true`.
 
-```json
-{
-  "XiHan": {
-    "CRM": {
-      "Prospecting": {
-        "EnableUsaSpendingProvider": true
-      }
-    }
-  }
-}
-```
+## Official UK Find a Tender adapter
 
-The provider is disabled when the setting is absent, false, or malformed. Add the provider code to an approved strategy's provider plan only after enabling it.
+- Provider code: `uk_find_tender`
+- Fixed endpoint: `https://www.find-tender.service.gov.uk/api/1.0/ocdsReleasePackages`
+- Authentication: public OCDS consumption API; no eSender API key is used.
+- Coverage: UK Find a Tender OCDS releases, filtered to tender and award stages and a rolling 30-day updated window.
+- Current behavior: up to 3 cursor pages, 100 releases per page; results are locally matched against product/search/ICP keywords.
+- Buyer mapping: only parties with the OCDS `buyer` role are treated as prospective buying organisations. A supplier party is never promoted as a buyer.
+- Evidence: official notice URL, publication time, payload SHA-256, `official_procurement`; publicly published buyer website/contact fields are carried only when present and valid.
+- Safety: fixed HTTPS host/path, redirects disabled, 30-second timeout, 6 MiB response cap, cursor link host/path validation. HTTP 429/503 is surfaced with Retry-After guidance and is not blindly retried.
 
-The synthetic `fake` adapter has a separate setting, `XiHan:CRM:Prospecting:EnableFakeProvider`, and should remain disabled outside isolated development/test environments.
+Enable with `XiHan:CRM:Prospecting:EnableFindTenderProvider=true`.
 
-## Data handling and review
+## Shared data-handling rules
 
-- Award recipient names and procurement descriptions are source facts; they are not proof that the recipient is a suitable buyer.
-- The adapter does not infer a contact, email address, phone number, or website.
-- Candidate creation and duplicate screening remain downstream worker responsibilities.
-- No adapter may create a CRM Lead directly. A human must approve a Candidate before conversion to the existing CRM Lead workflow.
-- Do not use this source to automate outreach. All outbound messages remain subject to explicit human approval.
+- Procurement notices are evidence of buyer activity, not proof of fit or purchase intent.
+- Public buyer contacts are source-published data; they still require validation before outreach.
+- No provider creates or updates CRM Leads directly.
+- Human approval is required before Candidate conversion to the existing CRM Lead workflow.
+- No outbound email or website publication is automated by these providers.
+- The fake provider is separate and remains opt-in via `XiHan:CRM:Prospecting:EnableFakeProvider`.
 
-## Current limitations
+## Known limitations and next work
 
-- Only the first page is read. The warning must not be interpreted as exhaustive search.
-- The adapter does not yet persist per-request usage/cost ledger rows or cache provider responses.
-- Network access, API availability, legal/retention terms, and Windows/PostgreSQL end-to-end behavior have not yet been verified in the target runtime.
-- Unit and source-wiring tests are checked in but have not been compiled or executed in the current development environment.
+- USAspending reads one page only.
+- Find a Tender reads at most three pages and searches only a rolling 30-day update window. It is not an exhaustive historical archive.
+- Neither adapter currently persists a dedicated provider request/cost ledger or shared response cache.
+- The GLEIF LEI API is a legal-entity registry and identity-resolution source, not a lead-discovery directory. Its planned integration should enrich/verify already discovered candidate names and must preserve entity status, LEI registration status, country and registered identifier separately.
+- Unit tests are committed but must still be compiled and run in the .NET 10 environment. Live API and Windows/PostgreSQL end-to-end acceptance remain outstanding.
