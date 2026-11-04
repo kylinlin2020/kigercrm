@@ -424,7 +424,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var detectorIndex = app.IndexOf("private static bool IsRunRequestKeyUniqueViolation", helperIndex, StringComparison.Ordinal);
         Assert.True(helperIndex > startEnd && detectorIndex > helperIndex);
         var helper = app[helperIndex..detectorIndex];
-        Assert.Contains("using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", helper, StringComparison.Ordinal);
+        Assert.Contains("using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", helper, StringComparison.Ordinal);
         Assert.Contains("domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken)", helper, StringComparison.Ordinal);
         Assert.Contains("uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero))", helper, StringComparison.Ordinal);
         Assert.Contains("await uow.CompleteAsync(cancellationToken)", helper, StringComparison.Ordinal);
