@@ -100,7 +100,6 @@ public sealed class CrmProspectingCandidateDto
     public string? Website { get; set; }
     public string? Summary { get; set; }
     public int Status { get; set; }
-    public long? DuplicateLeadId { get; set; }
     public string? DuplicateReason { get; set; }
     public long? ConvertedLeadId { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
