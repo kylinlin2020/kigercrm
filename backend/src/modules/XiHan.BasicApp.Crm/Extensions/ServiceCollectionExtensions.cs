@@ -46,7 +46,8 @@ public static class ServiceCollectionExtensions
             .Add<SysCrmProspectingCandidate>()
             .Add<SysCrmProspectingEvidence>()
             .Add<SysCrmProspectingScore>()
-            .Add<SysCrmProspectingProviderRequest>());
+            .Add<SysCrmProspectingProviderRequest>()
+            .Add<SysCrmProspectingProviderCoverage>());
         
     }
 
