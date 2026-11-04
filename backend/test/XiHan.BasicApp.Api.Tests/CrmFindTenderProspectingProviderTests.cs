@@ -109,6 +109,29 @@ public sealed class CrmFindTenderProspectingProviderTests
     }
 
     [Fact]
+    public async Task SearchAsync_EmitsStructuredRateLimitWithRetryAfter()
+    {
+        var handler = new StubHandler(request =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+            {
+                RequestMessage = new HttpRequestMessage(HttpMethod.Get, request.RequestUri)
+            };
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromMinutes(3));
+            return response;
+        });
+        var provider = new CrmFindTenderProspectingProvider(new HttpClient(handler));
+
+        var exception = await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() =>
+            provider.SearchAsync(new CrmProspectingProviderRequest(
+                22, "generator", "generator", "", "", "{}", [])));
+
+        Assert.Equal(503, exception.HttpStatus);
+        Assert.NotNull(exception.RetryAfterAt);
+        Assert.InRange(exception.RetryAfterAt.Value, DateTimeOffset.UtcNow.AddMinutes(2), DateTimeOffset.UtcNow.AddMinutes(4));
+    }
+
+    [Fact]
     public async Task SearchAsync_RejectsPaginationLinkToUnapprovedHost()
     {
         var handler = new StubHandler(request => new HttpResponseMessage(HttpStatusCode.OK)
