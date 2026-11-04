@@ -10,7 +10,7 @@ public sealed class CrmProspectingApplicationWiringTests
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Contracts", "ICrmProspectingAppService.cs");
         var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
-        foreach (var operation in new[] { "CreateCampaignAsync", "UpdateCampaignAsync", "GetCampaignAsync", "CreateStrategyVersionAsync", "SubmitStrategyForApprovalAsync", "DecideStrategyAsync", "ActivateStrategyAsync" })
+        foreach (var operation in new[] { "CreateCampaignAsync", "UpdateCampaignAsync", "GetCampaignAsync", "CreateStrategyVersionAsync", "SubmitStrategyForApprovalAsync", "DecideStrategyAsync", "ActivateStrategyAsync", "StartRunAsync", "GetRunAsync", "CancelRunAsync" })
         {
             Assert.Contains(operation, contract, StringComparison.Ordinal);
             Assert.Contains(operation, service, StringComparison.Ordinal);
@@ -19,6 +19,20 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Update)]", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Read)]", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", service, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProspectingRun_ShouldRequireApprovedActiveStrategyAndPersistRequestFingerprint()
+    {
+        var domain = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "DomainServices", "Implementations", "CrmProspectingDomainService.cs");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingRun.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.12", "5.9.12.sql");
+        Assert.Contains("Only an active campaign with an active strategy can be executed.", domain, StringComparison.Ordinal);
+        Assert.Contains("An empty provider plan cannot be executed.", domain, StringComparison.Ordinal);
+        Assert.Contains("PayloadHash = payloadHash", domain, StringComparison.Ordinal);
+        Assert.Contains("RequestKey", entity, StringComparison.Ordinal);
+        Assert.Contains("Payload_Hash", entity, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS payload_hash", migration, StringComparison.Ordinal);
     }
 
     [Fact]
