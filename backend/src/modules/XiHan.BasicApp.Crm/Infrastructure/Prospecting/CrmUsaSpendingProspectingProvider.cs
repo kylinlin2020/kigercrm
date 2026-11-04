@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -177,7 +176,8 @@ public sealed class CrmUsaSpendingProspectingProvider : ICrmProspectingProvider
         int maxBytes,
         CancellationToken cancellationToken)
     {
-        if (response.Content.Headers.ContentLength is > 0 and var length && length > maxBytes)
+        var contentLength = response.Content.Headers.ContentLength;
+        if (contentLength.HasValue && contentLength.Value > maxBytes)
             throw new InvalidDataException("USAspending response exceeded the 6 MB limit.");
 
         await using var input = await response.Content.ReadAsStreamAsync(cancellationToken);
