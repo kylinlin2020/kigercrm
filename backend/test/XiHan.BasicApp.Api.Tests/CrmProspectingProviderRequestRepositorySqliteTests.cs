@@ -168,6 +168,16 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
     }
 
     [Fact]
+    public async Task CoverageFinalization_ShouldFailClosedOutsidePostgreSql()
+    {
+        using (_tenant.Change(TenantId))
+            await Assert.ThrowsAsync<NotSupportedException>(
+                () => _repository.TryFinalizeSuccessWithCoverageAsync(
+                    9001, 7001, new string('A', 64), DateTimeOffset.UtcNow, 10, 0,
+                    new string('B', 64)));
+    }
+
+    [Fact]
     public async Task FailureDiagnostics_ShouldRedactUrlQueryAndFragmentSecrets()
     {
         using (_tenant.Change(TenantId))
