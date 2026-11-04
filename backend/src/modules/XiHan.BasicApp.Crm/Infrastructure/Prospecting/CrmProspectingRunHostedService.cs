@@ -303,13 +303,23 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 using var scope = _scopeFactory.CreateScope();
                 using var tenantScope = scope.ServiceProvider.GetRequiredService<ICurrentTenant>().Change(message.TenantId);
                 await scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>()
-                    .FailAsync(message.RunId, $"{ex.GetType().Name}: {ex.Message}", DateTimeOffset.UtcNow, cancellationToken);
+                    .FailAsync(message.RunId, BuildFailureSummary(ex), DateTimeOffset.UtcNow, cancellationToken);
             }
             catch (Exception persistException)
             {
                 Logger.LogError(persistException, "Could not persist prospecting Run failure: {RunId}", message.RunId);
             }
         }
+    }
+
+    private const int MaxFailureSummaryLength = 2000;
+
+    private static string BuildFailureSummary(Exception exception)
+    {
+        var summary = $"{exception.GetType().Name}: {exception.Message}";
+        return summary.Length > MaxFailureSummaryLength
+            ? summary[..MaxFailureSummaryLength]
+            : summary;
     }
 
     private const int MaxAggregatedWarnings = 100;
