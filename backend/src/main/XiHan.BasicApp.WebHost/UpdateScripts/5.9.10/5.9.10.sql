@@ -13,7 +13,7 @@ BEGIN
             created_id bigint NULL,
             created_by varchar(100) NULL,
             document_type varchar(32) NOT NULL,
-            request_key varchar(128) NOT NULL,
+            request_key varchar(100) NOT NULL,
             payload_hash varchar(64) NOT NULL,
             document_id bigint NULL,
             document_number varchar(40) NULL,
