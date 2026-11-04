@@ -286,7 +286,6 @@ public sealed class CrmProspectingAppService(
         Website = entity.Website,
         Summary = entity.Summary,
         Status = (int)entity.Status,
-        DuplicateLeadId = entity.DuplicateLeadId,
         DuplicateReason = entity.DuplicateReason,
         ConvertedLeadId = entity.ConvertedLeadId,
         CreatedTime = entity.CreatedTime
