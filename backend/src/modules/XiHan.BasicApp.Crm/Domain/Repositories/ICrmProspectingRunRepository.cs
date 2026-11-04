@@ -12,6 +12,15 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>Atomically claim a queued run. A duplicate delivery or competing worker receives null.</summary>
     Task<SysCrmProspectingRun?> ClaimQueuedAsync(long runId, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
 
+    /// <summary>Extend a live lease only when the exact tenant-scoped token/version still owns an unexpired Running Run.</summary>
+    Task<bool> RenewLeaseAsync(long runId, Guid leaseToken, long fencingVersion, DateTimeOffset heartbeatAt, TimeSpan leaseDuration, CancellationToken cancellationToken = default);
+
+    /// <summary>Complete only when the exact lease token/version still owns an unexpired Running Run.</summary>
+    Task<bool> CompleteFencedAsync(long runId, Guid leaseToken, long fencingVersion, DateTimeOffset now, string rawResultsJson, int rawRecordCount, int failureCount, string? failureSummary, DateTimeOffset completedAt, CancellationToken cancellationToken = default, int candidateCount = 0);
+
+    /// <summary>Fail only when the exact lease token/version still owns an unexpired Running Run.</summary>
+    Task<bool> FailFencedAsync(long runId, Guid leaseToken, long fencingVersion, DateTimeOffset now, string failureSummary, DateTimeOffset completedAt, CancellationToken cancellationToken = default);
+
     /// <summary>Read the newest runs for one campaign with the result limit applied in SQL.</summary>
     Task<IReadOnlyList<SysCrmProspectingRun>> GetLatestByCampaignAsync(long campaignId, int limit, CancellationToken cancellationToken = default);
 
