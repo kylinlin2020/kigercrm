@@ -9,6 +9,8 @@ using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 using XiHan.BasicApp.Crm.Domain.DomainServices;
 using XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
 using XiHan.BasicApp.Crm.Infrastructure.Seeders;
+using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Crm.Infrastructure.Repositories;
 using XiHan.Framework.Data.Extensions.DependencyInjection;
 using XiHan.BasicApp.Saas.Extensions;
 
@@ -50,6 +52,12 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+        services.AddScoped<ICrmProspectingCampaignRepository, CrmProspectingCampaignRepository>();
+        services.AddScoped<ICrmProspectingStrategyRepository, CrmProspectingStrategyRepository>();
+        services.AddScoped<ICrmProspectingRunRepository, CrmProspectingRunRepository>();
+        services.AddScoped<ICrmProspectingCandidateRepository, CrmProspectingCandidateRepository>();
+        services.AddScoped<ICrmProspectingEvidenceRepository, CrmProspectingEvidenceRepository>();
+        services.AddScoped<ICrmProspectingScoreRepository, CrmProspectingScoreRepository>();
         services.AddScoped<ICrmProspectingDomainService, CrmProspectingDomainService>();
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFakeProvider"], out var enableFakeProvider)
             && enableFakeProvider)
