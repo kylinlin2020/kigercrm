@@ -31,6 +31,44 @@ BEGIN
             CONSTRAINT ck_crm_prospecting_provider_request_attempt CHECK (attempt_no > 0),
             CONSTRAINT ck_crm_prospecting_provider_request_result_count CHECK (result_count >= 0),
             CONSTRAINT ck_crm_prospecting_provider_request_duration CHECK (duration_ms IS NULL OR duration_ms >= 0),
+            CONSTRAINT ck_crm_prospecting_provider_request_http_status CHECK (http_status IS NULL OR http_status BETWEEN 100 AND 599),
+            CONSTRAINT ck_crm_prospecting_provider_request_request_key CHECK (request_key ~ '^[0-9A-Fa-f]{64}
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_provider_request_te_ru_pr_at
+            ON crm_prospecting_provider_request (tenant_id, run_id, provider_code, attempt_no);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_provider_request_te_pr_st
+            ON crm_prospecting_provider_request (tenant_id, provider_code, started_at DESC);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_provider_request_te_st_st
+            ON crm_prospecting_provider_request (tenant_id, state, started_at DESC);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_provider_request_te_rq_st
+            ON crm_prospecting_provider_request (tenant_id, request_key, started_at DESC);
+    END IF;
+END
+$$;
+),
+            CONSTRAINT ck_crm_prospecting_provider_request_response_hash CHECK (response_hash IS NULL OR response_hash ~ '^[0-9A-Fa-f]{64}
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_provider_request_te_ru_pr_at
+            ON crm_prospecting_provider_request (tenant_id, run_id, provider_code, attempt_no);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_provider_request_te_pr_st
+            ON crm_prospecting_provider_request (tenant_id, provider_code, started_at DESC);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_provider_request_te_st_st
+            ON crm_prospecting_provider_request (tenant_id, state, started_at DESC);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_provider_request_te_rq_st
+            ON crm_prospecting_provider_request (tenant_id, request_key, started_at DESC);
+    END IF;
+END
+$$;
+),
+            CONSTRAINT ck_crm_prospecting_provider_request_lifecycle CHECK (
+                (state = 'Started' AND completed_at IS NULL)
+                OR (state <> 'Started' AND completed_at IS NOT NULL)
+            ),
+            CONSTRAINT ck_crm_prospecting_provider_request_rate_limit CHECK (
+                state <> 'RateLimited' OR retry_after_at IS NOT NULL
+            ),
             CONSTRAINT ck_crm_prospecting_provider_request_state CHECK (state IN ('Started','Succeeded','Failed','RateLimited','Cancelled'))
         );
 
