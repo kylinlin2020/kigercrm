@@ -70,6 +70,7 @@ export default {
       "noCandidates": "此任務尚無候選線索",
       "pendingReview": "待審核",
       "duplicate": "疑似重複",
+      "convertedStatus": "已轉為 Lead",
       "converted": "候選已轉為 CRM 線索",
       "company": "公司",
       "contact": "聯絡人",
