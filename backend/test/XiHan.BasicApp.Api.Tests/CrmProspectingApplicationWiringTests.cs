@@ -146,6 +146,20 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("CandidateCount = candidateCount", repository, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void CandidateConversion_ShouldUseAtomicConditionalRepositoryClaim()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingCandidateRepository.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingCandidateRepository.cs");
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
+        Assert.Contains("TryClaimForConversionAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("candidate.Status == CrmProspectingCandidateStatus.Approved", repository, StringComparison.Ordinal);
+        Assert.Contains("Status = CrmProspectingCandidateStatus.Converting", repository, StringComparison.Ordinal);
+        Assert.Contains("TryClaimForConversionAsync(candidate.BasicId", app, StringComparison.Ordinal);
+        Assert.Contains("already being converted", app, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
