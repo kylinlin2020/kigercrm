@@ -1,5 +1,6 @@
 using SqlSugar;
 using XiHan.BasicApp.Core.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.Framework.MultiTenancy;
 
 namespace XiHan.BasicApp.Crm.Domain.Entities;
@@ -29,7 +30,7 @@ public sealed class SysCrmProspectingCampaign : BasicAppFullAuditedEntity, IStri
     public string? IdealCustomerProfile { get; set; }
 
     [SugarColumn(ColumnName = "Status", IsNullable = false, DefaultValue = "0")]
-    public int Status { get; set; }
+    public CrmProspectingCampaignStatus Status { get; set; }
 
     [SugarColumn(ColumnName = "Owner_User_Id", IsNullable = true)]
     public long? OwnerUserId { get; set; }
