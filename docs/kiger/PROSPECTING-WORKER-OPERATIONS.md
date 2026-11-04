@@ -81,9 +81,9 @@ SQLite tests are useful repository preflight checks but do not satisfy the Postg
 
 ## Evidence identity migration rollout gate (5.9.21)
 
-Migration `5.9.21.sql` and the Evidence entity now use the same ordinary composite unique-index shape. The entity declares the CodeFirst index over tenant, candidate, provider, normalized provider-record ID, field name, URL fingerprint, and normalized payload hash. The migration adds `source_url_hash`, backfills it with uppercase PostgreSQL `md5(source_url)`, converts nullable identity values to empty strings, and creates the matching unique index. The full source URL remains stored for reviewer display but is not part of the index key, avoiding oversized B-tree entries for long URLs.
+Migration `5.9.21.sql` and the Evidence entity now use the same ordinary composite unique-index shape. The entity declares the CodeFirst index over tenant, candidate, provider, normalized provider-record ID, field name, URL fingerprint, and normalized payload hash. The migration adds `source_url_hash`, backfills it with uppercase PostgreSQL `pgcrypto` SHA-256 digest, converts nullable identity values to empty strings, and creates the matching unique index. The full source URL remains stored for reviewer display but is not part of the index key, avoiding oversized B-tree entries for long URLs.
 
-The MD5 URL fingerprint is an index-size optimization only, not a security primitive; it has a 128-bit digest and is not collision-proof. The payload hash remains SHA-256 when supplied by the provider. Before rollout:
+The URL fingerprint is a SHA-256 index-size optimization. Migration 5.9.21 requires PostgreSQL `pgcrypto` (the migration requests extension creation; a database administrator may need to install it first). The payload hash remains SHA-256 when supplied by the provider. Before rollout:
 
 1. Verify fresh-tenant CodeFirst creates `source_url_hash`, non-null identity columns, and the expected unique index.
 2. Verify existing tenants run migration 5.9.21 and the resulting index definition matches the entity metadata.
