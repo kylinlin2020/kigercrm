@@ -38,6 +38,12 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     {
         var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
         Assert.Contains(".Add<SysCrmProspectingProviderRequest>()", registration, StringComparison.Ordinal);
+        Assert.Contains("AddScoped<ICrmProspectingProviderRequestRepository, CrmProspectingProviderRequestRepository>()", registration, StringComparison.Ordinal);
+
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("CreateStartedAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("TryFinalizeAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRequestFingerprint.Create", worker, StringComparison.Ordinal);
     }
 
     [Fact]
