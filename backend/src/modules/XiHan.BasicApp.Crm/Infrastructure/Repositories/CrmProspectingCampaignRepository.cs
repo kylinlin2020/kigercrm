@@ -8,6 +8,34 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 public sealed class CrmProspectingCampaignRepository(ISqlSugarClientResolver clientResolver)
     : SaasRepository<SysCrmProspectingCampaign>(clientResolver), ICrmProspectingCampaignRepository
 {
+    public async Task<bool> TryAdvanceStrategyVersionAsync(long campaignId, int expectedSequence, int nextSequence, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await UpdateAsync(
+            campaign => new SysCrmProspectingCampaign { StrategyVersionSequence = nextSequence },
+            campaign => campaign.BasicId == campaignId &&
+                campaign.StrategyVersionSequence == expectedSequence &&
+                campaign.Status != CrmProspectingCampaignStatus.Completed &&
+                campaign.Status != CrmProspectingCampaignStatus.Archived,
+            cancellationToken);
+    }
+
+    public async Task<bool> TrySetActiveStrategyVersionAsync(long campaignId, int? expectedVersion, int nextVersion, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await UpdateAsync(
+            campaign => new SysCrmProspectingCampaign
+            {
+                ActiveStrategyVersion = nextVersion,
+                Status = CrmProspectingCampaignStatus.Active
+            },
+            campaign => campaign.BasicId == campaignId &&
+                campaign.ActiveStrategyVersion == expectedVersion &&
+                campaign.Status != CrmProspectingCampaignStatus.Completed &&
+                campaign.Status != CrmProspectingCampaignStatus.Archived,
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<SysCrmProspectingCampaign>> GetLatestAccessibleAsync(bool unrestricted, IReadOnlyCollection<long> accessibleUserIds, int limit, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
