@@ -137,6 +137,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             }
 
 
+            var serialized = JsonSerializer.Serialize(raw);
+            if (serialized.Length > 5_000_000)
+                throw new InvalidOperationException("Serialized provider output exceeds the 5 MB Run storage limit.");
+
             var candidates = scope.ServiceProvider.GetRequiredService<ICrmProspectingCandidateRepository>();
             var leadRepository = scope.ServiceProvider.GetRequiredService<ICrmLeadRepository>();
             var existingCandidates = await candidates.GetListAsync(candidate => candidate.RunId == run.BasicId, cancellationToken);
@@ -150,6 +154,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 cancellationToken.ThrowIfCancellationRequested();
                 var record = envelope.Record;
                 var providerCode = envelope.ProviderCode.Trim();
+                if (string.IsNullOrWhiteSpace(providerCode)) throw new InvalidOperationException("Provider code cannot be empty.");
                 var externalId = string.IsNullOrWhiteSpace(record.ExternalId)
                     ? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(record))))
                     : record.ExternalId.Trim();
@@ -220,9 +225,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 candidateCount++;
             }
 
-            var serialized = JsonSerializer.Serialize(raw);
-            if (serialized.Length > 5_000_000)
-                throw new InvalidOperationException("Serialized provider output exceeds the 5 MB Run storage limit.");
             var summary = warnings.Count == 0 ? null : string.Join(" | ", warnings).Trim();
             if (summary?.Length > 2000) summary = summary[..2000];
 
