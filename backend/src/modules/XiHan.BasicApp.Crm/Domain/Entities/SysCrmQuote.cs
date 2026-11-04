@@ -9,7 +9,7 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 /// A versioned commercial quotation. Amounts and customer details are snapshots for auditability.
 /// </summary>
 [SugarTable(TableName = "Crm_Quote", TableDescription = "KIGER CRM customer quotations")]
-[SugarIndex("UX_{table}_TeId_No_Ve", nameof(TenantId), OrderByType.Asc, nameof(QuoteNumber), OrderByType.Asc, nameof(Version), OrderByType.Asc, true)]
+[SugarIndex("UX_{table}_TeId_No_Ve_IsDe", nameof(TenantId), OrderByType.Asc, nameof(QuoteNumber), OrderByType.Asc, nameof(Version), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_TeId_Cu_St", nameof(TenantId), OrderByType.Asc, nameof(CustomerId), OrderByType.Asc, nameof(Status), OrderByType.Asc)]
 [SugarIndex("IX_{table}_TeId_Ow_Cr", nameof(TenantId), OrderByType.Asc, nameof(OwnerUserId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 public sealed class SysCrmQuote : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
