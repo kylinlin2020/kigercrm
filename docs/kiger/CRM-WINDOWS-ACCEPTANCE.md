@@ -11,7 +11,7 @@
 - Do not merge or modify `main` as part of this runbook.
 - The CRM is integrated into KIGER. A separate Go CRM REST connector is out of scope.
 
-The acceptance covers the CRM customer lifecycle and the quote → sales order → shipment fulfillment path, plus tenant isolation, permissions, field security, frontend routing, and upgrade safety.
+The acceptance covers the CRM customer lifecycle, the quote → sales order → shipment fulfillment path, and the automatic-prospecting workflow (provider execution → Candidate/Evidence/Score → human review → explicit Lead conversion), plus tenant isolation, permissions, field security, frontend routing, worker recovery, and upgrade safety.
 
 ## 2. Windows prerequisites
 
@@ -81,7 +81,7 @@ Source-wiring tests are useful regression guards but are not substitutes for rep
 1. Take and verify a restorable backup of the test database before starting.
 2. Confirm the database's recorded migration version and whether the CRM tables exist.
 3. Run the application using the normal upgrade mechanism against the test database.
-4. Inspect the migration ledger and confirm each applicable migration from 5.9.2 through 5.9.10 is recorded as successful.
+4. Inspect the migration ledger and confirm every applicable migration from 5.9.2 through 5.9.32 is recorded as successful. Do not stop at the original CRM-core migrations; the current branch contains later CRM, prospecting, provider-coverage, and worker-lease schema increments.
 5. Inspect the resulting columns, constraints, and indexes, especially:
    - Lead normalized email, phone-digit, and website-host keys and tenant-prefixed lookup indexes.
    - Contact primary-customer slot and uniqueness behavior.
@@ -90,6 +90,7 @@ Source-wiring tests are useful regression guards but are not substitutes for rep
    - Permanent tenant-scoped quote/version, sales-order-number, and shipment-number uniqueness.
    - Nullable `creation_request_fingerprint` columns on sales orders (5.9.9) and shipments (5.9.8); existing rows must remain NULL.
    - `crm_create_request` ledger table (5.9.10), permanent unique `(tenant_id, document_type, request_key)` index, and no `is_deleted` column.
+   - All later CRM/prospecting columns, indexes, and lease metadata introduced through 5.9.32, checked against both migration SQL and CodeFirst entity definitions.
 6. Re-run startup after successful migration and verify it is safe/idempotent.
 7. Test a disposable legacy database containing a deliberate preflight conflict. The migration must stop with an actionable error and must not leave a partially upgraded schema.
 8. Verify both platform and isolated tenant database paths. Scripts touching platform-only tables must safely skip when those tables do not exist in a tenant database.
@@ -125,12 +126,15 @@ Run the WebHost with a dedicated test configuration and PostgreSQL database. Do 
 Verify:
 
 - Authentication, tenant selection, menu seeding, and route resolution.
-- All nine CRM routes: customers, contacts, activities, leads, opportunities, tasks, quotes, sales orders, and shipments.
+- All ten CRM routes: customers, contacts, activities, leads, opportunities, tasks, quotes, sales orders, shipments, and prospecting.
 - Page visibility and create/update/delete/execute buttons match the caller's permissions.
 - A user without record access cannot read or mutate another owner's records by guessing IDs or calling APIs directly.
 - Tenant A cannot read, mutate, or infer Tenant B's CRM records.
 - Field masking applies to both list and detail endpoints.
 - The UI can create and inspect a lead, convert it to a customer/contact, record an activity, create an opportunity, create and revise a quote, accept and convert the quote, edit an eligible draft order, create multiple partial shipments, dispatch them, and mark them delivered.
+- The Prospecting workspace can create a campaign and approved strategy version, start/cancel a Run, display Run status and candidates, inspect source evidence and score details, review/reject candidates, and convert only an approved Candidate to an existing CRM Lead.
+- Exercise each explicitly enabled official provider against its documented bounded query window. Verify provider opt-in defaults, fixed HTTPS host/path restrictions, redirect rejection, response-size limits, pagination caps, and source URLs/evidence hashes. Do not enable Fake Provider as a production source.
+- Verify the worker is deployed as a single active instance. Exercise cancellation and controlled restart/recovery; multi-instance deployment remains prohibited until independent PostgreSQL concurrency and fencing tests pass.
 - Refreshing each route preserves correct server-backed state; no success toast is shown for a failed API operation.
 - Logs contain no unhandled exception, cross-tenant data leak, or failed migration.
 
@@ -179,7 +183,8 @@ Release gates:
 - [ ] PostgreSQL migrations succeed on a legacy test database and are safe on a fresh database.
 - [ ] Tenant isolation, permission, owner scope, and field security pass.
 - [ ] Quote/order/shipment transaction and concurrency tests pass.
-- [ ] Nine CRM routes pass runtime smoke tests.
+- [ ] All ten CRM routes pass runtime smoke tests.
+- [ ] Prospecting provider, evidence, human-review, Lead-conversion, and single-worker recovery checks pass; do not claim multi-instance safety without PostgreSQL race-test evidence.
 - [ ] No unresolved blocker or data-integrity defect remains.
 
 Only after every gate has evidence should PR #1 be considered ready for review and merge. Until then, keep it Draft and leave `main` unchanged.
