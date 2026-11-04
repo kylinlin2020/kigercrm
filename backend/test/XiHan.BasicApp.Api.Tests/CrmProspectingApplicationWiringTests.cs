@@ -416,7 +416,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var startEnd = app.IndexOf("\n    private async Task<CrmProspectingRunDto> StartRunInUnitOfWorkAsync", startIndex, StringComparison.Ordinal);
         Assert.True(startEnd > startIndex);
         var startMethod = app[startIndex..startEnd];
-        Assert.DoesNotContain("[UnitOfWork(true)]", app[(app.LastIndexOf("\n", startIndex - 2, StringComparison.Ordinal) + 1)..startIndex], StringComparison.Ordinal);
+        Assert.DoesNotContain("[UnitOfWork(true)]\n    [PermissionAuthorize(CrmPermissionCodes.Execute)]\n    public async Task<CrmProspectingRunDto> StartRunAsync", app, StringComparison.Ordinal);
         Assert.Contains("catch (Exception ex) when (IsRunRequestKeyUniqueViolation(ex))", startMethod, StringComparison.Ordinal);
         Assert.Contains("return await StartRunInUnitOfWorkAsync(input, cancellationToken)", startMethod, StringComparison.Ordinal);
 
@@ -424,7 +424,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var detectorIndex = app.IndexOf("private static bool IsRunRequestKeyUniqueViolation", helperIndex, StringComparison.Ordinal);
         Assert.True(helperIndex > startEnd && detectorIndex > helperIndex);
         var helper = app[helperIndex..detectorIndex];
-        Assert.Contains("unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", helper, StringComparison.Ordinal);
+        Assert.Contains("using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true))", helper, StringComparison.Ordinal);
         Assert.Contains("domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken)", helper, StringComparison.Ordinal);
         Assert.Contains("uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero))", helper, StringComparison.Ordinal);
         Assert.Contains("await uow.CompleteAsync(cancellationToken)", helper, StringComparison.Ordinal);
