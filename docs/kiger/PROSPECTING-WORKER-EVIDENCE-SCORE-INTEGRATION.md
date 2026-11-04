@@ -93,3 +93,19 @@ The backend review-detail read path is now exposed as `GetCandidateReviewDetailA
 A source-level backend wiring guard now checks the permission attribute, campaign data-scope authorization, evidence/score repository reads, and DTO mapping. The frontend API route test covers the new GET route. These tests have been added but have not been executed in this environment.
 
 The module follows the repository's documented convention: `SaasRepository` implementations and application services are convention-registered by the framework. The new evidence/score repositories therefore do not need duplicate explicit registrations in the CRM module. This convention still needs runtime DI resolution verification during build/startup testing.
+
+## Retry and concurrency gap discovered during implementation review
+
+The existing Candidate unique key is tenant + Run + Provider + ExternalId + IsDeleted. It protects the normalized Candidate identity within one Run, but it does not by itself make the three-record persistence sequence idempotent.
+
+A failure window currently exists in the Worker design: if Candidate insertion succeeds and a later Evidence/Score write fails, a retry can load that Candidate into the existing-key set and skip it. Unless retry processing explicitly repairs missing child rows, the Candidate can remain permanently without its provenance or score snapshot. The current Worker does not yet write Evidence or Score, so this is a design constraint to close before enabling those writes.
+
+Required implementation decisions:
+- Do not treat an existing Candidate as a completed ingestion record. On retry, reconcile its expected Evidence set and score snapshot, or persist a per-envelope processing state that can be resumed safely.
+- Define a deterministic evidence idempotency key from stable source identity (candidate, provider, field, canonical source URL, and payload hash where present). Preserve distinct observations when the payload hash or retrieval event differs; do not collapse legitimate history.
+- Make the score snapshot idempotency key include candidate + scorecard version + source/evaluation fingerprint, rather than relying on a process-local check.
+- Keep the Candidate/Evidence/Score writes in one short transaction. If framework transaction participation cannot be proven, do not enable partial writes.
+- Add independent PostgreSQL connection tests for: candidate committed but evidence absent retry repair; evidence insert rollback; score insert rollback; concurrent duplicate envelope; repeated same envelope; and cross-tenant foreign-key rejection.
+
+The 5.9.18 and 5.9.19 migration guards now have source-level coverage for tenant/candidate composite foreign keys and score bounds. These tests are source assertions only and have not been executed. They do not prove the SQL runs successfully on PostgreSQL.
+
