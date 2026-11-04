@@ -338,6 +338,17 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("new CrmProspectingRawEnvelope(provider.ProviderCode.Trim(), record)", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingWorker_ShouldStripControlCharactersFromUntrustedWarnings()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("char.IsControl(character) ? ' ' : character", worker, StringComparison.Ordinal);
+        Assert.Contains("if (value.Length == 0) return;", worker, StringComparison.Ordinal);
+        Assert.Contains("MaxAggregatedWarningLength = 500", worker, StringComparison.Ordinal);
+        Assert.Contains("MaxAggregatedWarnings = 100", worker, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
