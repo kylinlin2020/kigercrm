@@ -96,7 +96,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds),
             new SugarParameter("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
-            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running));
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested),
+            new SugarParameter("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled));
 
         return rows.SingleOrDefault();
     }
@@ -610,15 +612,25 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         const string sql = """
             WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
             UPDATE crm_prospecting_run AS run
-            SET status = @queuedStatus,
-                started_at = NULL,
+            SET status = CASE
+                    WHEN run.status = @cancelRequestedStatus THEN @cancelledStatus
+                    ELSE @queuedStatus
+                END,
+                started_at = CASE
+                    WHEN run.status = @runningStatus THEN NULL
+                    ELSE run.started_at
+                END,
+                completed_at = CASE
+                    WHEN run.status = @cancelRequestedStatus THEN lease_clock.now
+                    ELSE run.completed_at
+                END,
                 lease_owner = NULL,
                 lease_token = NULL,
                 lease_expires_at = NULL,
                 lease_heartbeat_at = NULL
             FROM lease_clock
             WHERE run.tenant_id = @tenantId
-              AND run.status = @runningStatus
+              AND run.status IN (@runningStatus, @cancelRequestedStatus)
               AND run.lease_expires_at IS NOT NULL
               AND run.lease_expires_at <= lease_clock.now
             RETURNING run.basic_id AS "BasicId";

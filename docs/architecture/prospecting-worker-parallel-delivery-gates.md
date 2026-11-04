@@ -97,3 +97,8 @@ The legacy `ClaimQueuedAsync`, `RecoverInterruptedAsync`, `CompleteAsync`, and `
 ## Reject partial lease metadata in legacy paths (2026-11-04)
 
 The legacy claim, recovery, completion, and failure predicates now require all four lease fields to be NULL: `lease_owner`, `lease_token`, `lease_heartbeat_at`, and `lease_expires_at`. Checking only token and expiry could allow a malformed/partially migrated row carrying owner or heartbeat metadata to be mutated by the legacy worker. The source contract test now asserts all four fields across the legacy transitions. This remains a compatibility hardening step; HostedService lease claim/heartbeat/write fencing is not yet integrated.
+
+
+## Expired cancellation lease recovery (2026-11-04)
+
+Expired-lease recovery now handles both active states without losing cancellation intent: an expired `Running` lease is returned to `Queued`, while an expired `CancelRequested` lease is finalized as `Cancelled` with the database clock. Both paths require a non-null expired lease and tenant scope, and both clear active lease metadata. Lease-less legacy rows remain outside this recovery operation. This closes the abandoned-cancellation case where the prior fenced cancel operation correctly refused an expired lease but recovery previously ignored `CancelRequested` rows.

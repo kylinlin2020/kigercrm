@@ -578,7 +578,11 @@ public sealed class CrmProspectingPersistenceWiringTests
 
         Assert.Contains("clock_timestamp()", method, StringComparison.Ordinal);
         Assert.Contains("run.tenant_id = @tenantId", method, StringComparison.Ordinal);
-        Assert.Contains("run.status = @runningStatus", method, StringComparison.Ordinal);
+        Assert.Contains("run.status IN (@runningStatus, @cancelRequestedStatus)", method, StringComparison.Ordinal);
+        Assert.Contains("WHEN run.status = @cancelRequestedStatus THEN @cancelledStatus", method, StringComparison.Ordinal);
+        Assert.Contains("WHEN run.status = @cancelRequestedStatus THEN lease_clock.now", method, StringComparison.Ordinal);
+        Assert.Contains("new SugarParameter(\"@cancelRequestedStatus\", (int)CrmProspectingRunStatus.CancelRequested)", method, StringComparison.Ordinal);
+        Assert.Contains("new SugarParameter(\"@cancelledStatus\", (int)CrmProspectingRunStatus.Cancelled)", method, StringComparison.Ordinal);
         Assert.Contains("run.lease_expires_at IS NOT NULL", method, StringComparison.Ordinal);
         Assert.Contains("run.lease_expires_at <= lease_clock.now", method, StringComparison.Ordinal);
         Assert.Contains("lease_token = NULL", method, StringComparison.Ordinal);
