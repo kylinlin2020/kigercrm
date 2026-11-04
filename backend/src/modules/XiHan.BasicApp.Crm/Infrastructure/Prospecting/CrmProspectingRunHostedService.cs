@@ -182,7 +182,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     // intentionally outside any nested provider exception handler.
                     if (!await requestLedger.TryFinalizeAsync(
                         attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
-                        failureCode: "provider_exception",
+                        httpStatus: ex is HttpRequestException httpFailure && httpFailure.StatusCode.HasValue
+                            ? (int)httpFailure.StatusCode.Value : null,
+                        failureCode: ex is HttpRequestException ? "provider_http_error" : "provider_exception",
                         failureSummary: $"Provider invocation failed ({ex.GetType().Name}).",
                         cancellationToken: CancellationToken.None))
                         throw new InvalidOperationException("The failed provider request ledger attempt could not be finalized.", ex);
