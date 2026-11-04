@@ -64,11 +64,14 @@ public sealed class CrmUsaSpendingProspectingProviderTests
         });
         var provider = new CrmUsaSpendingProspectingProvider(new HttpClient(handler));
 
-        var error = await Assert.ThrowsAsync<HttpRequestException>(() =>
+        var error = await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() =>
             provider.SearchAsync(new CrmProspectingProviderRequest(
                 17, "generator", "generator", "", "", "{}", [])));
 
-        Assert.Contains("429", error.Message, StringComparison.Ordinal);
+        Assert.Equal(429, error.HttpStatus);
+        Assert.NotNull(error.RetryAfterAt);
+        Assert.True(error.RetryAfterAt > DateTimeOffset.UtcNow);
+        Assert.DoesNotContain("sensitive-provider-response", error.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("sensitive-provider-response", error.Message, StringComparison.Ordinal);
     }
 
