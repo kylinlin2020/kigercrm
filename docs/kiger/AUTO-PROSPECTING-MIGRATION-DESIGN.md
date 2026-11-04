@@ -103,3 +103,20 @@ Provider 契约、配置/凭据安全、来源计划验证、请求记录、限�
 - 不自动发送开发信或对外联系；未来若增加外联，必须有独立授权和人工审批。
 - 不把搜索任务“已启动”报告为“获客完成”。
 
+
+
+## 9. Phase A implementation progress (2026-11-04)
+
+The first persistence slice has now been added to `kiger-dev`:
+
+- `SysCrmProspectingCampaign`: tenant-owned campaign objective, product scope, target markets, ideal customer profile, owner and active strategy version.
+- `SysCrmProspectingStrategy`: versioned search objective, provider-plan JSON, excluded-domain JSON and approval metadata.
+- `SysCrmProspectingRun`: durable execution record with strategy snapshot reference, permanent request key, lifecycle state, timestamps and counters.
+- Three typed lifecycle enums define campaign, approval and run states; queued is explicitly distinct from completed.
+- Three repository contracts and SqlSugar implementations inherit `SaasRepository`, preserving tenant-scoped access.
+- Campaign, Strategy and Run entities are registered with the existing field-security metadata catalog.
+- PostgreSQL migration `5.9.11` creates the three tables only in tenant databases that already contain `crm_lead`; platform databases skip the migration. New databases are expected to receive tables through CodeFirst before baseline.
+- Campaign and Strategy use full-audit base columns and the required tenant/creation/deletion audit indexes. Run uses the creation-only base and a permanent unique key on (tenant_id, request_key), with no soft-delete column, so deleting an execution cannot release its idempotency key.
+- Added source-wiring regression test source for entity bases, tenant scope, repository inheritance, metadata registration, migration/index alignment and permanent run keys.
+
+**Not implemented yet:** campaign/strategy/run application services and API contracts, create/edit/approve/activate commands, permission catalog entries, frontend screens, worker/queue execution, provider adapters and raw candidate storage. The migration and test source have not been executed. The entity and SQL mapping still requires actual CodeFirst comparison and PostgreSQL migration validation before treating the schema as accepted.
