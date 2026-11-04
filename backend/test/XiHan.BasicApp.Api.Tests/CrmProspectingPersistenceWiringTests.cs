@@ -64,6 +64,24 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingRepositories_ShouldBeExplicitlyRegisteredForWorkerAndApplicationServices()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        foreach (var repository in new[]
+        {
+            "Campaign", "Strategy", "Run", "Candidate", "Evidence", "Score"
+        })
+        {
+            Assert.Contains($"AddScoped<ICrmProspecting{repository}Repository, CrmProspecting{repository}Repository>()", registration, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("GetRequiredService<ICrmProspectingScoreRepository>()", worker, StringComparison.Ordinal);
+        Assert.Contains("GetRequiredService<ICrmProspectingEvidenceRepository>()", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingEntities_ShouldBeRegisteredForFieldSecurity()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
