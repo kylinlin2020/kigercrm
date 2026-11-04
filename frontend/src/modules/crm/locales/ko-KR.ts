@@ -70,6 +70,7 @@ export default {
       "noCandidates": "후보가 없습니다",
       "pendingReview": "검토 대기",
       "duplicate": "중복",
+      "convertedStatus": "전환됨",
       "converted": "CRM Lead로 전환됨",
       "company": "회사",
       "contact": "담당자",
