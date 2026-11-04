@@ -271,3 +271,8 @@ Code review found that RecoverInterruptedAsync returned an int computed from two
 The strategy-history and campaign-run-history application endpoints now cap returned items at the newest 500 entries, matching the existing 500-item candidate and campaign response convention. This limits response size but the current GetListAsync calls still materialize the matching rows before ordering/taking; database-side pagination remains follow-up work for large tenants.
 
 During the same review, the source-wiring test still asserted an obsolete conversion comment ("Claim the candidate inside this transactional UoW") that had been replaced by the explicit conditional database-update concurrency-boundary comment. The assertion now checks the current implementation wording. This source-level correction has not been compiled or executed.
+
+
+## 28. Database-side bounds for strategy and Run history (2026-11-04)
+
+Strategy history and campaign Run history now use dedicated repository queries. Each query applies tenant-scoped CreateQueryable filtering, descending order, and Take(limit) before ToListAsync, so the 500-row response cap is applied by the database rather than after materializing all matching rows. Repository methods clamp requested limits to 1–500. AppService maps only the bounded result set. Existing API response shape remains IReadOnlyList and no total count/cursor is introduced in this pass.
