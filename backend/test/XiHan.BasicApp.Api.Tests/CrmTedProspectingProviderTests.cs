@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Net.Http.Headers;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 using Xunit;
@@ -85,6 +86,29 @@ public sealed class CrmTedProspectingProviderTests
         await Assert.ThrowsAsync<HttpRequestException>(() =>
             provider.SearchAsync(new CrmProspectingProviderRequest(
                 22, "generator", "generator", "", "", "{}", [])));
+    }
+
+    [Fact]
+    public async Task SearchAsync_EmitsStructuredRateLimitWithRetryAfter()
+    {
+        var handler = new StubHandler(request =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+            {
+                RequestMessage = new HttpRequestMessage(HttpMethod.Post, request.RequestUri)
+            };
+            response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(2));
+            return response;
+        });
+        var provider = new CrmTedProspectingProvider(new HttpClient(handler));
+
+        var exception = await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() =>
+            provider.SearchAsync(new CrmProspectingProviderRequest(
+                22, "generator", "generator", "", "", "{}", [])));
+
+        Assert.Equal(429, exception.HttpStatus);
+        Assert.NotNull(exception.RetryAfterAt);
+        Assert.InRange(exception.RetryAfterAt.Value, DateTimeOffset.UtcNow.AddMinutes(1), DateTimeOffset.UtcNow.AddMinutes(3));
     }
 
     private sealed class StubHandler : HttpMessageHandler
