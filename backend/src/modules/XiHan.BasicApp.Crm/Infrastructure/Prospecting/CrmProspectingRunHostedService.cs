@@ -566,6 +566,14 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 using var scope = _scopeFactory.CreateScope();
                 using var tenantScope = scope.ServiceProvider.GetRequiredService<ICurrentTenant>().Change(tenantId);
                 var runs = scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>();
+                var current = await runs.GetByIdAsync(runId, runCancellation.Token);
+                // CancelRequested intentionally stops lease renewal without cancelling the
+                // worker token: the processing path must observe it and finalize via the
+                // fenced Cancel transition rather than treating user cancellation as lease loss.
+                if (current?.Status == CrmProspectingRunStatus.CancelRequested)
+                    return;
+                if (current?.Status != CrmProspectingRunStatus.Running)
+                    throw new InvalidOperationException("The prospecting Run heartbeat found a non-running or missing Run.");
                 if (!await runs.RenewLeaseWithDatabaseClockAsync(
                     runId, leaseToken, fencingVersion, RunLeaseDuration, runCancellation.Token))
                     throw new InvalidOperationException("The prospecting Run heartbeat detected an expired or superseded lease.");
