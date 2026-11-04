@@ -118,11 +118,13 @@ public sealed class CrmContractsFinderProspectingProviderTests
         });
         var provider = new CrmContractsFinderProspectingProvider(new HttpClient(handler));
 
-        var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+        var exception = await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() =>
             provider.SearchAsync(new CrmProspectingProviderRequest(
                 22, "generator", "generator", "", "", "{}", [])));
 
-        Assert.Contains("five minutes", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(403, exception.HttpStatus);
+        Assert.NotNull(exception.RetryAfterAt);
+        Assert.True(exception.RetryAfterAt > DateTimeOffset.UtcNow);
     }
 
     [Fact]
