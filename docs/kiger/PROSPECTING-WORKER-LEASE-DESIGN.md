@@ -2,17 +2,17 @@
 
 Date: 2026-11-04
 
-Status: partially implemented. Schema and an additive PostgreSQL atomic-claim primitive exist; lifecycle integration, child-write fencing, PostgreSQL verification, and multi-instance approval remain outstanding.
+Status: lease lifecycle wired into the HostedService on 2026-11-04. Atomic claim, between-work renewal, transactional child-write fencing, fenced terminal transitions and expiry recovery are active in source. Independent heartbeat, PostgreSQL verification and multi-instance approval remain outstanding.
 
 ## Current safety boundary
 
-The current Run repository uses a conditional Queued -> Running update, but startup recovery resets every Running row in the tenant to Queued. Complete/Fail identify a Run by ID and status, not by process ownership. This is safe only with exactly one active prospecting Worker and no overlapping startup recovery.
+The HostedService now uses PostgreSQL lease claim, token/version renewal, transactional child-write fences, fenced terminal transitions and expired-lease recovery. It remains single-worker operationally until the PostgreSQL race suite passes. Lease renewal is opportunistic between provider calls and every 25 candidate records; there is no independent heartbeat task.
 
 Redis is a delivery mechanism only. PostgreSQL must be authoritative for ownership and stale-worker rejection.
 
 ## Run lease fields already added
 
-The additive 5.9.30 migration and entity metadata currently define:
+The additive 5.9.30 migration and entity metadata define:
 
 - `lease_owner varchar(160) NULL`: process-incarnation identity.
 - `lease_token uuid NULL`: fresh ownership token per claim attempt.
@@ -20,11 +20,11 @@ The additive 5.9.30 migration and entity metadata currently define:
 - `lease_heartbeat_at timestamptz NULL`: last successful heartbeat.
 - `fencing_version bigint NOT NULL DEFAULT 0`: monotonically increasing fencing generation.
 
-The atomic claim increments `fencing_version` in the database and returns the exact row containing the new token/version. The fields are additive groundwork; the worker does not yet use them.
+The atomic claim increments `fencing_version` in the database and returns the exact row containing the new token/version. The HostedService now uses the returned ownership identity.
 
 ## State transitions
 
-1. Claim: the repository now has an additive PostgreSQL conditional UPDATE ... RETURNING primitive for a Queued Run or a Running Run with a non-null expired lease. It sets owner/token, increments fencing_version, and writes heartbeat/expiry using one database-clock CTE. It is not yet wired into the worker or verified against a live PostgreSQL database.
+1. Claim: the repository now has an additive PostgreSQL conditional UPDATE ... RETURNING primitive for a Queued Run or a Running Run with a non-null expired lease. It sets owner/token, increments fencing_version, and writes heartbeat/expiry using one database-clock CTE. The HostedService now uses this claim protocol; it is not yet verified against a live PostgreSQL database.
 2. Heartbeat: update heartbeat and expiry only when tenant, Run ID, lease token, fencing_version, Running status, and an unexpired lease all match. A zero-row update means ownership is lost; stop processing immediately.
 3. Complete/Fail: terminal transition must include tenant, Run ID, lease token, fencing_version and expected status in the WHERE predicate. A stale generation must update zero rows.
 4. Cancellation: cancellation changes Running to CancelRequested without clearing lease identity. The current owner may finalize Cancelled only when owner and generation still match. An expired owner cannot finalize.
