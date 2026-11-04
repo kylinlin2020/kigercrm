@@ -104,6 +104,43 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.DoesNotContain("field_name, source_url,", migration, StringComparison.Ordinal);
         Assert.Contains("source_url_hash", migration, StringComparison.Ordinal);
         Assert.Contains("to_regclass('crm_prospecting_evidence')", migration, StringComparison.Ordinal);
+
+        // Keep the fresh CodeFirst index and the upgrade index on the exact same identity tuple.
+        var identityProperties = new[]
+        {
+            "nameof(TenantId)", "nameof(CandidateId)", "nameof(ProviderCode)",
+            "nameof(ProviderRecordId)", "nameof(FieldName)", "nameof(SourceUrlHash)",
+            "nameof(RawPayloadHash)"
+        };
+        var identityIndex = entity.IndexOf("UX_{table}_EvidenceIdentity", StringComparison.Ordinal);
+        Assert.True(identityIndex >= 0, "The Evidence CodeFirst unique identity index must exist.");
+        var identityDeclaration = entity[identityIndex..entity.IndexOf("public sealed class", identityIndex, StringComparison.Ordinal)];
+        var previousPropertyPosition = -1;
+        foreach (var property in identityProperties)
+        {
+            var propertyPosition = identityDeclaration.IndexOf(property, StringComparison.Ordinal);
+            Assert.True(propertyPosition > previousPropertyPosition,
+                $"CodeFirst identity index must contain {property} in the migration key order.");
+            previousPropertyPosition = propertyPosition;
+        }
+
+        var migrationIdentity = migration.IndexOf(
+            "ON crm_prospecting_evidence (", StringComparison.Ordinal);
+        Assert.True(migrationIdentity >= 0, "The upgrade migration must create the Evidence identity index.");
+        var migrationKey = migration[migrationIdentity..migration.IndexOf(");", migrationIdentity, StringComparison.Ordinal)];
+        var migrationProperties = new[]
+        {
+            "tenant_id", "candidate_id", "provider_code", "provider_record_id",
+            "field_name", "source_url_hash", "raw_payload_hash"
+        };
+        previousPropertyPosition = -1;
+        foreach (var property in migrationProperties)
+        {
+            var propertyPosition = migrationKey.IndexOf(property, StringComparison.Ordinal);
+            Assert.True(propertyPosition > previousPropertyPosition,
+                $"Upgrade identity index must contain {property} in the CodeFirst key order.");
+            previousPropertyPosition = propertyPosition;
+        }
         Assert.Contains("fresh-tenant CodeFirst", operations, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CodeFirst", upgradeReadme, StringComparison.Ordinal);
         Assert.Contains("pgcrypto", upgradeReadme, StringComparison.Ordinal);
