@@ -137,7 +137,9 @@ public sealed class CrmProspectingPersistenceWiringTests
 
         Assert.Contains("existingCandidateByKey.TryGetValue(key, out var existingCandidate)", worker, StringComparison.Ordinal);
         Assert.Contains(".ToHashSet(StringComparer.Ordinal)", worker, StringComparison.Ordinal);
-        Assert.Contains(".ToDictionary(candidate =>", worker, StringComparison.Ordinal);
+        Assert.Contains(".ToDictionary(candidate => (candidate.ProviderCode, candidate.ExternalId))", worker, StringComparison.Ordinal);
+        Assert.Contains(".Select(candidate => (candidate.ProviderCode, candidate.ExternalId))", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("$\"{candidate.ProviderCode}::{candidate.ExternalId}\"", worker, StringComparison.Ordinal);
         Assert.Contains("StringComparer.Ordinal);", worker, StringComparison.Ordinal);
         Assert.Contains("evidenceRepository.GetByCandidateAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("evidence.ProviderRecordId,", worker, StringComparison.Ordinal);
