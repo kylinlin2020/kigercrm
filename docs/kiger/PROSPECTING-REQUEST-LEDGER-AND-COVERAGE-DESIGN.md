@@ -197,7 +197,7 @@ On a structurally valid provider result, the Worker now computes a SHA-256 diges
 
 ### Additional provider throttling coverage
 
-The USAspending adapter also emits the structured 429/503 signal. GLEIF identity resolution now emits the same typed 429/503 signal with the provider Retry-After date/delta or a five-minute fallback. GLEIF lookups are auxiliary identity enrichment rather than a search-provider invocation, so their throttling is isolated as enrichment failure and is not yet written to the provider request ledger or shared cooldown gate.
+The USAspending adapter also emits the structured 429/503 signal. GLEIF identity resolution emits the same typed 429/503 signal with the provider Retry-After date/delta or a five-minute fallback. The Worker records each GLEIF lookup under the synthetic provider code `gleif_identity`, using the same tenant-scoped request ledger and fingerprint. It checks the persisted cooldown before lookup and persists success, failure, cancellation or rate-limit outcomes; a GLEIF 429/503 therefore suppresses later identity lookups across Runs until Retry-After expires.
 
 
 ### Shared diagnostic sanitization
@@ -213,3 +213,8 @@ The 5.9.31 upgrade script constrains HTTP status to 100–599, request/response 
 ### CodeFirst and upgrade schema parity
 
 `EnsureSchemaConstraintsAsync` applies the same named PostgreSQL CHECK constraints to a CodeFirst-created ledger table. It is idempotent, tenant-connection scoped, and runs before startup recovery and before a Run is claimed. Constraints are added `NOT VALID` so legacy rows are not scanned or blocked during startup; PostgreSQL still enforces them for new/updated rows. Existing-table upgrade path 5.9.31 creates validated constraints at table creation. A later maintenance migration may validate CodeFirst constraints after an explicit data audit.
+
+
+### GLEIF identity lookups included in the shared ledger
+
+The auxiliary GLEIF exact-name resolver now uses the same request-attempt ledger with provider code `gleif_identity`. Each lookup writes Started before HTTP I/O, records a terminal result, and shares the persisted tenant/provider cooldown gate. The per-Run cap remains 20 lookups; cooldown skips do not issue network requests. This does not change the rule that registry evidence remains unverified and cannot automatically create a Lead.
