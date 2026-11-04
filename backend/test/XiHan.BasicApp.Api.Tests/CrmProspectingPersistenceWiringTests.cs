@@ -660,6 +660,21 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Equal(4, CountOccurrences(terminal, "run.LeaseExpiresAt == null"));
     }
 
+    [Fact]
+    public void UsaSpendingProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUsaSpendingProspectingProvider.cs");
+
+        Assert.Contains("EnableUsaSpendingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("AddHttpClient<CrmUsaSpendingProspectingProvider>", registration, StringComparison.Ordinal);
+        Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
+        Assert.Contains("api.usaspending.gov/api/v2/search/spending_by_award/", provider, StringComparison.Ordinal);
+        Assert.Contains("ReadBoundedAsync(response, 6 * 1024 * 1024", provider, StringComparison.Ordinal);
+        Assert.Contains("official_procurement", provider, StringComparison.Ordinal);
+        Assert.Contains("RawPayloadHash", provider, StringComparison.Ordinal);
+    }
+
     private static int CountOccurrences(string value, string needle)
     {
         var count = 0;
