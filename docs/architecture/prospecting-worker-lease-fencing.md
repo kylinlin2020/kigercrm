@@ -111,3 +111,11 @@ The Run repository now exposes three conditional-update primitives:
 SQLite integration test cases have been added for wrong token, wrong version, expired lease, successful heartbeat, successful terminal completion, and lease cleanup.
 
 **Important boundary:** these methods are not yet called by the hosted worker. The existing `ClaimQueuedAsync`, blanket startup recovery, candidate/evidence/score transaction, and current Complete/Fail paths remain unchanged. In particular, no lease claim currently creates a token or increments the fencing version. These primitives therefore do not yet make worker execution safe for multiple instances. Tests are authored but have not been run.
+
+A further SQLite repository test now checks that a tenant holding another tenant's Run ID and token cannot renew, complete, or fail that Run. The test verifies that the original tenant's status, token, and fencing version remain unchanged. This is a repository query-filter regression check, not a substitute for PostgreSQL row-locking or two-connection concurrency tests.
+
+## Next implementation gate: transaction and SQL client access
+
+The CRM module obtains its client through `ISqlSugarClientResolver` and inherits from the framework's `SqlSugarRepositoryBase` via `SaasRepository<TEntity>`. The base implementation is supplied by the XiHan.Framework NuGet dependency in the standalone BasicApp build, not present as source in this repository. Before introducing PostgreSQL-specific `UPDATE ... RETURNING` or `SELECT ... FOR UPDATE`, confirm the resolved SqlSugar client/ADO APIs and how its active transaction/UoW connection is shared across repositories. Do not introduce a second connection or raw SQL path that bypasses the strict tenant query filter.
+
+The next safe implementation must make the Run ownership check and Candidate/Evidence/Score writes share one transaction and one connection. A separate lease check followed by normal repository writes remains vulnerable to a time-of-check/time-of-use race. Until that transaction boundary is implemented and exercised against PostgreSQL, the existing worker must remain single-active-instance and the new fenced methods remain unused primitives.
