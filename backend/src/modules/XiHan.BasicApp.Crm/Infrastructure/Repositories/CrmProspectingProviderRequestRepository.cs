@@ -113,6 +113,28 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
     }
 
 
+    public async Task<SysCrmProspectingProviderCoverage?> GetCoverageCheckpointAsync(
+        long campaignId, string providerCode, string coverageScopeHash,
+        CancellationToken cancellationToken = default)
+    {
+        if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        if (coverageScopeHash.Length != 64 || !coverageScopeHash.All(Uri.IsHexDigit))
+            throw new ArgumentException("Coverage scope must be a SHA-256 hex digest.", nameof(coverageScopeHash));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for provider coverage reads.");
+        var rows = await DbClient.Queryable<SysCrmProspectingProviderCoverage>()
+            .Where(row => row.TenantId == currentTenant.TenantId &&
+                row.CampaignId == campaignId &&
+                row.ProviderCode == providerCode.Trim().ToLowerInvariant() &&
+                row.CoverageScopeHash == coverageScopeHash.ToUpperInvariant())
+            .Take(1)
+            .ToListAsync(cancellationToken);
+        return rows.SingleOrDefault();
+    }
+
     public async Task<bool> TryFinalizeSuccessWithCoverageAsync(
         long requestId, long campaignId, string coverageScopeHash,
         DateTimeOffset completedAt, long durationMs, int resultCount, string responseHash,
