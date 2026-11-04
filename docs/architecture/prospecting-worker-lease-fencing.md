@@ -6,7 +6,7 @@ Design gate for the prospecting worker. Until the implementation and PostgreSQL 
 
 ## Why the current claim is insufficient
 
-`ClaimQueuedAsync` conditionally changes Queued to Running, which prevents two workers from claiming the same queued row at the same instant. It does not fence a worker after process pause, network partition, or lease expiry. Startup recovery currently changes every Running row back to Queued. An old worker could resume after a replacement has claimed the run and still write Candidate, Evidence, or Score rows.
+The HostedService no longer uses `ClaimQueuedAsync`; it uses the PostgreSQL lease claim with a token and monotonically increasing fencing version. Startup recovery reclaims only expired lease-backed Runs and restricts legacy recovery to rows without lease metadata. Child writes and terminal transitions validate the live token/version. These source changes still require independent PostgreSQL race tests before multi-instance deployment.
 
 A status check before a write is not sufficient: the lease may change between the check and the write.
 
@@ -53,7 +53,7 @@ Terminal Complete/Fail/Cancel updates must include token + version. A stale work
 
 ## Recovery
 
-Remove blanket Running -> Queued recovery once lease support is active. Requeue only rows whose lease is expired, using a conditional update and incrementing the fencing version on the next claim. Preserve CancelRequested precedence. Never recover a non-expired lease merely because a process started.
+Startup recovery invokes PostgreSQL-clock-based expired-lease recovery before queue reconstruction. It requeues only expired lease-backed Running rows, finalizes expired CancelRequested rows as Cancelled, and separately recovers legacy rows whose lease metadata is entirely NULL. Never recover a non-expired lease merely because a process started.
 
 ## Queue semantics
 
@@ -84,6 +84,8 @@ PostgreSQL integration tests using two independent connections and separate scop
 No multi-instance claim should be made until all tests above pass against PostgreSQL.
 
 ## Schema and worker lifecycle integration landed (2026-11-04)
+
+The older repository-primitive notes later in this file are historical snapshots. Any statement below that the HostedService does not yet call lease methods is superseded by this lifecycle integration section.
 
 Migration `5.9.30` and the Run entity now contain additive lease metadata:
 
