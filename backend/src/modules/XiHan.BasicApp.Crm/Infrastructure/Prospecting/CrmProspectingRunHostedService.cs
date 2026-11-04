@@ -154,10 +154,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     providerTimer.Stop();
-                    await requestLedger.TryFinalizeAsync(
+                    if (!await requestLedger.TryFinalizeAsync(
                         attempt.BasicId, "Cancelled", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
                         failureCode: "operation_cancelled", failureSummary: "Provider request was cancelled.",
-                        cancellationToken: CancellationToken.None);
+                        cancellationToken: CancellationToken.None))
+                        throw new InvalidOperationException("The cancelled provider request ledger attempt could not be finalized.");
                     throw;
                 }
                 catch (Exception ex)
@@ -165,10 +166,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     providerTimer.Stop();
                     // Isolate provider failures only. Ledger write failures remain fatal and are
                     // intentionally outside any nested provider exception handler.
-                    await requestLedger.TryFinalizeAsync(
+                    if (!await requestLedger.TryFinalizeAsync(
                         attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
                         failureCode: ex.GetType().Name, failureSummary: ex.Message,
-                        cancellationToken: CancellationToken.None);
+                        cancellationToken: CancellationToken.None))
+                        throw new InvalidOperationException("The failed provider request ledger attempt could not be finalized.", ex);
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: {ex.GetType().Name}: {ex.Message}");
                     Logger.LogWarning(ex, "Prospecting provider failed for Run {RunId}, provider {Provider}", run.BasicId, providerCode);
@@ -178,10 +180,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 providerTimer.Stop();
                 if (result is null || result.Records is null)
                 {
-                    await requestLedger.TryFinalizeAsync(
+                    if (!await requestLedger.TryFinalizeAsync(
                         attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
                         failureCode: "malformed_result", failureSummary: "Provider returned an empty or malformed result envelope.",
-                        cancellationToken: CancellationToken.None);
+                        cancellationToken: CancellationToken.None))
+                        throw new InvalidOperationException("The malformed provider request ledger attempt could not be finalized.");
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: provider returned an empty or malformed result envelope.");
                     continue;
