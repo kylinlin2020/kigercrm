@@ -25,6 +25,19 @@ Enable with `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true`.
 
 Enable with `XiHan:CRM:Prospecting:EnableFindTenderProvider=true`.
 
+## Official UK Contracts Finder adapter
+
+- Provider code: `uk_contracts_finder`
+- Fixed endpoint: `https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search`
+- Authentication: public OCDS search API; no API key is configured.
+- Coverage: UK Contracts Finder published notices, using the API's publication-date and stage filters over a rolling 30-day window.
+- Current behavior: up to 3 pages × 100 releases; locally matched against product/search/ICP keywords.
+- Buyer mapping: only OCDS parties explicitly carrying the `buyer` role are used for buyer contact details. Supplier-only parties are not promoted as buyers.
+- Evidence: official Contracts Finder notice URL, publication time, payload SHA-256, `official_procurement`.
+- Safety: fixed HTTPS host/path, redirects disabled, 30-second timeout, 6 MiB response cap, validated pagination links, and explicit HTTP 429/503 handling.
+
+Enable with `XiHan:CRM:Prospecting:EnableContractsFinderProvider=true`.
+
 ## GLEIF legal-entity identity enrichment
 
 - Resolver: `CrmGleifIdentityResolver`
