@@ -264,3 +264,10 @@ Added repository-level SQLite integration test source covering four state/tenant
 ## 26. Recovery result contract correction (2026-11-04)
 
 Code review found that RecoverInterruptedAsync returned an int computed from two boolean UpdateAsync results. That value represented the number of transition categories that changed (0–2), not the number of Runs recovered, despite the int return type being easy to misread as a row count. The repository contract now returns bool: true means at least one recovery transition occurred, false means neither transition changed any row. SQLite repository test source now asserts true on the first recovery pass and false on the immediate second pass. This does not change the single-active-worker restriction and has not been compiled or executed.
+
+
+## 27. Prospecting history response bounds and source-guard correction (2026-11-04)
+
+The strategy-history and campaign-run-history application endpoints now cap returned items at the newest 500 entries, matching the existing 500-item candidate and campaign response convention. This limits response size but the current GetListAsync calls still materialize the matching rows before ordering/taking; database-side pagination remains follow-up work for large tenants.
+
+During the same review, the source-wiring test still asserted an obsolete conversion comment ("Claim the candidate inside this transactional UoW") that had been replaced by the explicit conditional database-update concurrency-boundary comment. The assertion now checks the current implementation wording. This source-level correction has not been compiled or executed.
