@@ -260,6 +260,7 @@ public sealed class CrmSalesOrderCreateWiringTests
         Assert.Contains("input.CustomerId", source, StringComparison.Ordinal);
         Assert.Contains("input.ContactId", source, StringComparison.Ordinal);
         Assert.Contains("input.OpportunityId", source, StringComparison.Ordinal);
+        Assert.Contains("OwnerUserId = ownerUserId", source, StringComparison.Ordinal);
         Assert.Contains("CreationRequestFingerprint = creationRequestFingerprint", source, StringComparison.Ordinal);
         Assert.Contains("Creation_Request_Fingerprint", entity, StringComparison.Ordinal);
         Assert.Contains("Length = 64", entity, StringComparison.Ordinal);
