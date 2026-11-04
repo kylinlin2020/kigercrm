@@ -59,3 +59,27 @@ public sealed class CrmProspectingStrategyDecisionDto
     public long StrategyId { get; set; }
     public bool Approve { get; set; }
 }
+
+/// <summary>Idempotent request to queue a prospecting run for the campaign's active strategy.</summary>
+public sealed class CrmProspectingRunStartDto
+{
+    public long CampaignId { get; set; }
+    public string RequestKey { get; set; } = string.Empty;
+}
+
+/// <summary>Execution state and counters; queue acceptance does not mean completion.</summary>
+public sealed class CrmProspectingRunDto
+{
+    public long BasicId { get; set; }
+    public long CampaignId { get; set; }
+    public long StrategyId { get; set; }
+    public int StrategyVersion { get; set; }
+    public int Status { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public int RawRecordCount { get; set; }
+    public int CandidateCount { get; set; }
+    public int FailureCount { get; set; }
+    public string? FailureSummary { get; set; }
+}
