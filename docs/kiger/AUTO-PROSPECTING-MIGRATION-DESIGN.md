@@ -221,3 +221,14 @@ The synthetic `fake` adapter is the only registered provider. This is an end-to-
 ## 19. Cancellation result accounting (2026-11-04)
 
 When cancellation wins the race against Run completion, the repository now persists the raw provider snapshot and actual raw/candidate/failure counters while setting the terminal Cancelled state. This keeps partial work auditable and the Run counters consistent when cancellation arrives during candidate normalization. The worker still checks cancellation between provider calls and candidate records; it does not forcibly interrupt a provider that ignores cancellation or expose partial candidates as approved.
+
+
+## 20. Prospecting frontend management surface (2026-11-04)
+
+- Registered the Prospecting page in the single CRM PageRegistry at `/crm/prospecting`, with resource-scoped Create and Execute button permissions and a backend page/view wiring test.
+- Added typed frontend API contracts and route tests for campaigns, strategy versions, run history, candidate review and approved-candidate conversion.
+- Added a responsive Vue management view for creating campaigns, creating/submitting/approving/rejecting/activating strategy versions, starting/cancelling runs, selecting run history, reviewing/approving/rejecting candidates, explicit duplicate override confirmation and converting approved candidates into existing CRM Leads.
+- Added prospecting navigation and interface strings in all seven CRM locales.
+- Campaign creation now defaults the owner to the current user when no owner is supplied; campaign listing applies the existing accessible-user data-scope filter and is capped at 500 records.
+- UI explicitly warns that only the synthetic `fake` provider is currently configured; no live internet search is performed.
+- This is source implementation only. Frontend type-check/build/tests, backend compilation/tests, menu seeding in a real tenant, PostgreSQL/Redis execution and Windows acceptance have not been run.
