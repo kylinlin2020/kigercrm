@@ -337,7 +337,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 {
                     using (var unitOfWork = scope.ServiceProvider
                         .GetRequiredService<IUnitOfWorkManager>()
-                        .Begin(new XiHanUnitOfWorkOptions(isTransactional: true)))
+                        .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true))
                     {
                         insertedCandidate = await candidates.AddAsync(candidate, cancellationToken);
                         var evidenceRows = CrmProspectingEvidenceFactory.Create(
@@ -518,7 +518,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         {
             using var repairUnitOfWork = serviceProvider
                 .GetRequiredService<IUnitOfWorkManager>()
-                .Begin(new XiHanUnitOfWorkOptions(isTransactional: true));
+                .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
 
             if (missingEvidence.Length > 0)
             {
