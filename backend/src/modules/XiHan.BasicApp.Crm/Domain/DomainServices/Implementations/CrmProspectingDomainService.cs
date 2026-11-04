@@ -121,8 +121,21 @@ public sealed class CrmProspectingDomainService(
                 throw new InvalidOperationException("An empty provider plan cannot be executed.");
         }
 
+        var snapshot = new
+        {
+            CampaignId = campaign.BasicId,
+            StrategyId = strategy.BasicId,
+            StrategyVersion = strategy.Version,
+            SearchObjective = strategy.SearchObjective,
+            ProductScope = campaign.ProductScope,
+            TargetMarkets = campaign.TargetMarkets,
+            IdealCustomerProfile = campaign.IdealCustomerProfile,
+            ProviderPlanJson = strategy.ProviderPlanJson,
+            ExcludedDomainsJson = strategy.ExcludedDomainsJson
+        };
+        var snapshotJson = JsonSerializer.Serialize(snapshot);
         var payloadHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes($"{campaign.BasicId}|{strategy.BasicId}|{strategy.Version}")));
+            System.Text.Encoding.UTF8.GetBytes(snapshotJson)));
         var existing = (await runs.GetListAsync(x => x.RequestKey == requestKey, cancellationToken)).SingleOrDefault();
         if (existing is not null)
         {
@@ -138,6 +151,12 @@ public sealed class CrmProspectingDomainService(
             StrategyVersion = strategy.Version,
             RequestKey = requestKey,
             PayloadHash = payloadHash,
+            SnapshotSearchObjective = strategy.SearchObjective,
+            SnapshotProductScope = campaign.ProductScope,
+            SnapshotTargetMarkets = campaign.TargetMarkets,
+            SnapshotIdealCustomerProfile = campaign.IdealCustomerProfile,
+            SnapshotProviderPlanJson = strategy.ProviderPlanJson,
+            SnapshotExcludedDomainsJson = strategy.ExcludedDomainsJson,
             Status = CrmProspectingRunStatus.Queued
         };
         return await runs.AddAsync(run, cancellationToken);
