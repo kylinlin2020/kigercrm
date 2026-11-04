@@ -108,6 +108,27 @@ public sealed class CrmLeadDuplicateMatcherTests
         Assert.Null(CrmLeadDuplicateMatcher.NormalizeDomain("http://[invalid"));
     }
 
+    [Theory]
+    [InlineData("123")]
+    [InlineData("123456")]
+    [InlineData("1234567890123456")]
+    public void NormalizePhone_ShouldRejectTooShortOrOverlongIdentityFragments(string value)
+    {
+        Assert.Null(CrmLeadDuplicateMatcher.NormalizePhone(value));
+    }
+
+    [Fact]
+    public void Score_ShouldNotTreatEqualShortPhoneFragmentsAsHighConfidenceDuplicates()
+    {
+        var source = new SysCrmLead { BasicId = 1, CompanyName = "First Company", Phone = "123" };
+        var candidate = new SysCrmLead { BasicId = 2, CompanyName = "Second Company", Phone = "123" };
+
+        var result = CrmLeadDuplicateMatcher.Score(source, candidate);
+
+        Assert.Equal(0, result.Score);
+        Assert.Empty(result.MatchedSignals);
+    }
+
     [Fact]
     public void NormalizePhone_ShouldReturnNullWhenNoDigitsExist()
     {
