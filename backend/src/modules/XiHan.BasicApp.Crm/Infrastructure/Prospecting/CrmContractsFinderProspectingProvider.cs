@@ -39,7 +39,10 @@ public sealed class CrmContractsFinderProspectingProvider : ICrmProspectingProvi
             return new CrmProspectingProviderResult(
                 [],
                 0,
-                ["Contracts Finder requires product or industry keywords to avoid collecting unrelated notices."]);
+                ["Contracts Finder requires product or industry keywords to avoid collecting unrelated notices."])
+            {
+                IsComplete = false
+            };
         }
 
         var now = DateTimeOffset.UtcNow;
