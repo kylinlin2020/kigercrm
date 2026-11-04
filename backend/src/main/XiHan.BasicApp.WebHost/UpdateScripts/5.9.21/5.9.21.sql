@@ -4,9 +4,8 @@
 -- URL value to stay within PostgreSQL B-tree index tuple limits.
 DO $$
 BEGIN
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
     IF to_regclass('crm_prospecting_evidence') IS NOT NULL THEN
+        CREATE EXTENSION IF NOT EXISTS pgcrypto;
         ALTER TABLE crm_prospecting_evidence
             ADD COLUMN IF NOT EXISTS source_url_hash varchar(64) NOT NULL DEFAULT '';
 
