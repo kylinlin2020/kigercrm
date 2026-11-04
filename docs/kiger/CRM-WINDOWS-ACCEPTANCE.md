@@ -73,7 +73,7 @@ Save complete console output and test result files. Do not convert skipped, undi
 - Concurrent shipment creation/dispatch on the same order: no line can exceed ordered quantity; stale writes roll back the complete transaction.
 - Permission, tenant, owner/assignee data scope, and field-level masking/query guards on reads and writes.
 
-Source-wiring tests are useful regression guards but are not substitutes for repository-backed integration tests.
+Source-wiring tests are useful regression guards but are not substitutes for repository-backed integration tests. SQLite repository tests for sales-order/shipment creation fingerprints verify CodeFirst persistence and tenant-scoped lookup; they do not prove PostgreSQL migration behavior, transaction rollback, or concurrent first-request recovery.
 
 ## 5. PostgreSQL migration acceptance
 
