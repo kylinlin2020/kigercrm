@@ -57,7 +57,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
 
             try
             {
-                await AddAsync(entity, cancellationToken);
+                await AddAsync(entity);
                 return entity;
             }
             catch (SqlSugarException) when (collision < 4)
