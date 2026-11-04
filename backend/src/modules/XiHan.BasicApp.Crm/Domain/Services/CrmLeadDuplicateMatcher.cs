@@ -73,9 +73,17 @@ public static partial class CrmLeadDuplicateMatcher
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         var normalized = value.Trim().Normalize(NormalizationForm.FormKC).ToLowerInvariant();
-        var separator = normalized.LastIndexOf('@');
-        if (separator <= 0 || separator == normalized.Length - 1) return normalized;
-        return normalized[..separator] + "@" + normalized[(separator + 1)..].TrimEnd('.');
+        var separator = normalized.IndexOf('@');
+        if (separator <= 0 || separator != normalized.LastIndexOf('@') || separator == normalized.Length - 1)
+            return null;
+
+        var local = normalized[..separator];
+        var domain = normalized[(separator + 1)..];
+        if (local.Any(char.IsWhiteSpace) || domain.Any(char.IsWhiteSpace)
+            || domain.StartsWith('.') || domain.EndsWith('.') || domain.Contains("..", StringComparison.Ordinal))
+            return null;
+
+        return local + "@" + domain;
     }
 
     /// <summary>Removes visual phone formatting but deliberately preserves all digits, including country code.</summary>
@@ -94,7 +102,7 @@ public static partial class CrmLeadDuplicateMatcher
         if (!Uri.TryCreate(input, UriKind.Absolute, out var uri)
             || string.IsNullOrWhiteSpace(uri.Host))
         {
-            return NormalizeCompany(value);
+            return null;
         }
 
         var host = uri.IdnHost.TrimEnd('.').ToLowerInvariant();
