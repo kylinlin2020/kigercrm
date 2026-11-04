@@ -73,6 +73,22 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>()", registration, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingRunRepository_ShouldUseConditionalClaimAndRecoverInterruptedStates()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingRunRepository.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+        Assert.Contains("ClaimQueuedAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("GetQueuedIdsAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("RecoverInterruptedAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("run.Status == CrmProspectingRunStatus.Queued", repository, StringComparison.Ordinal);
+        Assert.Contains("Status = CrmProspectingRunStatus.Running", repository, StringComparison.Ordinal);
+        Assert.Contains("Status = CrmProspectingRunStatus.Queued", repository, StringComparison.Ordinal);
+        Assert.Contains("run.Status == CrmProspectingRunStatus.CancelRequested", repository, StringComparison.Ordinal);
+        Assert.Contains("Status = CrmProspectingRunStatus.Cancelled", repository, StringComparison.Ordinal);
+        Assert.Contains("CreateQueryable()", repository, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
