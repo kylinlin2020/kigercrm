@@ -356,6 +356,27 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("IsNullable = false", scoreEntity, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingWorker_ShouldPreserveCancellationAndFailRunsOnPersistenceErrors()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        var cancellationCatch = worker.IndexOf(
+            "catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)",
+            StringComparison.Ordinal);
+        var generalCatch = worker.IndexOf("catch (Exception ex)", cancellationCatch, StringComparison.Ordinal);
+        var failCall = worker.IndexOf(".FailAsync(message.RunId", generalCatch, StringComparison.Ordinal);
+
+        Assert.True(cancellationCatch >= 0 && generalCatch > cancellationCatch && failCall > generalCatch,
+            "Cancellation must be rethrown, while non-cancellation failures must be persisted as failed Runs.");
+        var cancellationPath = worker[cancellationCatch..generalCatch];
+        Assert.Contains("throw;", cancellationPath, StringComparison.Ordinal);
+        Assert.Contains("Logger.LogError(ex", worker[generalCatch..], StringComparison.Ordinal);
+        Assert.Contains("BuildFailureSummary(ex)", worker[failCall..], StringComparison.Ordinal);
+        Assert.DoesNotContain("catch (SqlSugarException)", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("catch (Exception) when", worker, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
