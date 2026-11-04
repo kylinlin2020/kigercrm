@@ -92,6 +92,12 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("Length = 2000", entity, StringComparison.Ordinal);
         Assert.Contains("Source_Url_Hash", entity, StringComparison.Ordinal);
         Assert.Contains("nameof(SourceUrlHash)", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(ProviderRecordId)", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(RawPayloadHash)", entity, StringComparison.Ordinal);
+        Assert.Contains("true)]", entity, StringComparison.Ordinal);
+        Assert.Contains("source_url_hash, raw_payload_hash", migration, StringComparison.Ordinal);
+        Assert.DoesNotContain("field_name, source_url,", migration, StringComparison.Ordinal);
+        Assert.Contains("source_url_hash", migration, StringComparison.Ordinal);
         Assert.Contains("to_regclass('crm_prospecting_evidence')", migration, StringComparison.Ordinal);
         Assert.Contains("fresh-tenant CodeFirst", operations, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CodeFirst", upgradeReadme, StringComparison.Ordinal);
