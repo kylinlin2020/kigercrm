@@ -4,6 +4,9 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Saas.Infrastructure.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using XiHan.Framework.MultiTenancy;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
+using SqlSugar;
 
 namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 
@@ -107,6 +110,68 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             },
             row => row.BasicId == requestId && row.State == "Started",
             cancellationToken);
+    }
+
+
+    public async Task<int> RecoverStaleStartedAsync(TimeSpan minimumAge, CancellationToken cancellationToken = default)
+    {
+        if (minimumAge <= TimeSpan.Zero || minimumAge > TimeSpan.FromDays(7))
+            throw new ArgumentOutOfRangeException(nameof(minimumAge), "Stale request age must be positive and at most seven days.");
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Stale provider request recovery requires PostgreSQL.");
+
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for provider request recovery.");
+        var ageMilliseconds = checked((long)Math.Ceiling(minimumAge.TotalMilliseconds));
+        const string sql = """
+            WITH recovery_clock AS MATERIALIZED (
+                SELECT clock_timestamp() AS now
+            )
+            UPDATE crm_prospecting_provider_request AS request
+            SET state = 'Failed',
+                completed_at = recovery_clock.now,
+                duration_ms = GREATEST(
+                    0,
+                    FLOOR(EXTRACT(EPOCH FROM (recovery_clock.now - request.started_at)) * 1000)::bigint
+                ),
+                failure_code = 'worker_interrupted',
+                failure_summary = 'Provider request was interrupted before a terminal outcome.'
+            FROM recovery_clock
+            WHERE request.tenant_id = @tenantId
+              AND request.state = 'Started'
+              AND request.started_at <= recovery_clock.now - (@ageMilliseconds * INTERVAL '1 millisecond')
+              AND (
+                    NOT EXISTS (
+                        SELECT 1
+                        FROM crm_prospecting_run AS run
+                        WHERE run.tenant_id = request.tenant_id
+                          AND run.basic_id = request.run_id
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM crm_prospecting_run AS run
+                        WHERE run.tenant_id = request.tenant_id
+                          AND run.basic_id = request.run_id
+                          AND (
+                                run.status NOT IN (@runningStatus, @cancelRequestedStatus)
+                                OR run.lease_expires_at IS NOT NULL
+                                   AND run.lease_expires_at <= recovery_clock.now
+                          )
+                    )
+              )
+            RETURNING request.basic_id AS "BasicId";
+            """;
+
+        var recovered = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", currentTenant.TenantId),
+            new SugarParameter("@ageMilliseconds", ageMilliseconds),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested));
+        return recovered.Count;
     }
 
     public async Task<SysCrmProspectingProviderRequest?> GetAttemptAsync(
