@@ -236,7 +236,7 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     public void ProviderAdapters_ShouldExposePageCapAsIncompleteCoverage()
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingProviderContracts.cs");
-        Assert.Contains("public bool IsComplete { get; init; } = true", contract, StringComparison.Ordinal);
+        Assert.Contains("public bool IsComplete { get; init; } = false", contract, StringComparison.Ordinal);
 
         var providerFiles = new[]
         {
@@ -254,6 +254,8 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
         Assert.Contains("result.IsComplete && result.FailureCount == 0", worker, StringComparison.Ordinal);
         Assert.Contains("provider_scan_incomplete", worker, StringComparison.Ordinal);
+        var fake = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "FakeCrmProspectingProvider.cs");
+        Assert.Contains("IsComplete = true", fake, StringComparison.Ordinal);
     }
 
     [Fact]
