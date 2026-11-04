@@ -10,7 +10,7 @@ BEGIN
                 regexp_replace(
                     regexp_replace(
                         coalesce(phone, ''),
-                        '(?i)(\\mext(ension)?\\.?[[:space:]]*|[;,#][[:space:]]*|[[:space:]]+x[[:space:]]*)[0-9]+[[:space:]]*$',
+                        '(?i)(\mext(ension)?\.?[[:space:]]*|[;,#][[:space:]]*|[[:space:]]+x[[:space:]]*)[0-9]+[[:space:]]*$',
                         '',
                         'g'
                     ),
@@ -22,7 +22,7 @@ BEGIN
             THEN regexp_replace(
                 regexp_replace(
                     coalesce(phone, ''),
-                    '(?i)(\\mext(ension)?\\.?[[:space:]]*|[;,#][[:space:]]*|[[:space:]]+x[[:space:]]*)[0-9]+[[:space:]]*$',
+                    '(?i)(\mext(ension)?\.?[[:space:]]*|[;,#][[:space:]]*|[[:space:]]+x[[:space:]]*)[0-9]+[[:space:]]*$',
                     '',
                     'g'
                 ),
