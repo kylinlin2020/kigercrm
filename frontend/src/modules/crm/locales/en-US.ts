@@ -70,6 +70,7 @@ export default {
       "noCandidates": "No candidates for this run",
       "pendingReview": "Pending review",
       "duplicate": "Duplicate",
+      "convertedStatus": "Converted",
       "converted": "Candidate converted to CRM Lead",
       "company": "Company",
       "contact": "Contact",
