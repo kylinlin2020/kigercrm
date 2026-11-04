@@ -1,17 +1,19 @@
 -- 5.9.21: align retry-safe evidence identity across CodeFirst and upgraded tenant databases.
 -- Normalize nullable identity fields so ordinary composite unique indexes have identical semantics
--- in fresh tenants and upgraded tenants. Index the compact MD5 URL fingerprint rather than a 2000-byte
+-- in fresh tenants and upgraded tenants. Index the SHA-256 URL fingerprint rather than a 2000-byte
 -- URL value to stay within PostgreSQL B-tree index tuple limits.
 DO $$
 BEGIN
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
     IF to_regclass('crm_prospecting_evidence') IS NOT NULL THEN
         ALTER TABLE crm_prospecting_evidence
-            ADD COLUMN IF NOT EXISTS source_url_hash varchar(32) NOT NULL DEFAULT '';
+            ADD COLUMN IF NOT EXISTS source_url_hash varchar(64) NOT NULL DEFAULT '';
 
         UPDATE crm_prospecting_evidence
            SET provider_record_id = COALESCE(provider_record_id, ''),
                raw_payload_hash = COALESCE(raw_payload_hash, ''),
-               source_url_hash = upper(md5(source_url))
+               source_url_hash = upper(encode(digest(source_url, 'sha256'), 'hex'))
          WHERE provider_record_id IS NULL
             OR raw_payload_hash IS NULL
             OR source_url_hash = '';
