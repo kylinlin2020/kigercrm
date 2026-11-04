@@ -109,11 +109,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             foreach (var providerCode in plan.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
-
                 var current = await runs.GetByIdAsync(run.BasicId, cancellationToken);
                 if (current?.Status == CrmProspectingRunStatus.CancelRequested)
                     break;
+                await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
 
                 if (!providers.TryGetValue(providerCode, out var provider))
                 {
@@ -191,10 +190,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 // observe it immediately when that call returns and avoid starting later providers.
                 // Keep this database read outside the provider exception handler: a read failure
                 // must fail the Run rather than be mistaken for a provider outage.
-                await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
                 var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken);
                 if (afterProvider?.Status == CrmProspectingRunStatus.CancelRequested)
                     break;
+                await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
             }
 
 
@@ -259,9 +258,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 cancellationToken.ThrowIfCancellationRequested();
                 if (recordIndex % cancellationPollInterval == 0)
                 {
-                    await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
                     var runState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
                     if (runState?.Status == CrmProspectingRunStatus.CancelRequested) break;
+                    await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
                 }
 
                 var envelope = raw[recordIndex];
