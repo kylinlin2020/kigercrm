@@ -56,6 +56,28 @@ public sealed class CrmShipmentPersistenceWiringTests
     }
 
     [Fact]
+    public void ShipmentCreateFingerprintMigration_ShouldAddNullableColumnForExistingRows()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmShipment.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.8", "5.9.8.sql");
+        Assert.Contains("Creation_Request_Fingerprint", entity, StringComparison.Ordinal);
+        Assert.Contains("creation_request_fingerprint varchar(64) NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS", migration, StringComparison.Ordinal);
+        Assert.Contains("information_schema.tables", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ShipmentRepository_ShouldLookupByTenantScopedShipmentNumber()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmShipmentRepository.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmShipmentRepository.cs");
+        Assert.Contains("GetByShipmentNumberAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("CreateQueryable()", repository, StringComparison.Ordinal);
+        Assert.Contains("shipment.ShipmentNumber == shipmentNumber", repository, StringComparison.Ordinal);
+        Assert.Contains("ToListAsync(cancellationToken)", repository, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ShipmentEntities_ShouldBeRegisteredForFieldSecurity()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
