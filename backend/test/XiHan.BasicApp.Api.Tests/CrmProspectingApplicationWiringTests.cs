@@ -403,6 +403,37 @@ public sealed class CrmProspectingApplicationWiringTests
             "Run creation must revalidate persisted plans before snapshotting them.");
     }
 
+    [Fact]
+    public void ProspectingRunCreation_ShouldKeepRequestLookupInsideTransactionalUowAndPublishOnlyAfterCompletion()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "AppServices", "CrmProspectingAppService.cs");
+        var domain = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "DomainServices", "Implementations", "CrmProspectingDomainService.cs");
+
+        var startIndex = app.IndexOf("public async Task<CrmProspectingRunDto> StartRunAsync", StringComparison.Ordinal);
+        Assert.True(startIndex > 0);
+        var startAttribute = app.LastIndexOf("[UnitOfWork(true)]", startIndex, StringComparison.Ordinal);
+        Assert.True(startAttribute >= 0, "Run creation must remain inside its transactional application UnitOfWork.");
+        var startEnd = app.IndexOf("\n    [PermissionAuthorize(CrmPermissionCodes.Read)]", startIndex, StringComparison.Ordinal);
+        Assert.True(startEnd > startIndex);
+        var startMethod = app[startIndex..startEnd];
+
+        var createRun = startMethod.IndexOf("domain.CreateRunAsync(", StringComparison.Ordinal);
+        var completionHook = startMethod.IndexOf("uow.OnCompleted(", StringComparison.Ordinal);
+        Assert.True(createRun >= 0 && completionHook > createRun,
+            "Queue publication must remain registered after Run creation and execute only after successful UoW completion.");
+        Assert.Contains("unitOfWorkManager.Current", startMethod, StringComparison.Ordinal);
+
+        var domainCreateIndex = domain.IndexOf("public async Task<SysCrmProspectingRun> CreateRunAsync", StringComparison.Ordinal);
+        Assert.True(domainCreateIndex >= 0);
+        var existingLookup = domain.IndexOf("runs.GetByRequestKeyAsync(requestKey, cancellationToken)", domainCreateIndex, StringComparison.Ordinal);
+        var insert = domain.IndexOf("return await runs.AddAsync(run, cancellationToken)", domainCreateIndex, StringComparison.Ordinal);
+        Assert.True(existingLookup > domainCreateIndex && insert > existingLookup,
+            "The tenant-scoped idempotency lookup must remain before Run insertion.");
+        Assert.Contains("existing.PayloadHash, payloadHash", domain, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
