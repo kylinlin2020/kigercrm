@@ -491,6 +491,26 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.DoesNotContain("TryClaimLeaseAsync", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingChildWriteFence_ShouldRequireTransactionAndLockTheLiveTenantScopedRun()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingRunRepository.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("TryLockLeaseForWriteAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("client.Ado.Transaction is null", repository, StringComparison.Ordinal);
+        Assert.Contains("FOR UPDATE", repository, StringComparison.Ordinal);
+        Assert.Contains("run.tenant_id = @tenantId", repository, StringComparison.Ordinal);
+        Assert.Contains("run.lease_token = @leaseToken", repository, StringComparison.Ordinal);
+        Assert.Contains("run.fencing_version = @fencingVersion", repository, StringComparison.Ordinal);
+        Assert.Contains("run.lease_expires_at > clock_timestamp()", repository, StringComparison.Ordinal);
+
+        // The guard is a repository primitive only; do not imply child-write safety
+        // until the worker passes its lease identity into every child-write UoW.
+        Assert.DoesNotContain("TryLockLeaseForWriteAsync", worker, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
