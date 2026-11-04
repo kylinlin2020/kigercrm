@@ -3,9 +3,6 @@
 -- PostgreSQL core has no guaranteed IDNA conversion facility, so non-ASCII/IDN
 -- values are deliberately left unindexed rather than creating non-equivalent keys.
 DO $$
-DECLARE
-    raw_website text;
-    authority text;
 BEGIN
     IF to_regclass('crm_lead') IS NOT NULL THEN
         UPDATE crm_lead
