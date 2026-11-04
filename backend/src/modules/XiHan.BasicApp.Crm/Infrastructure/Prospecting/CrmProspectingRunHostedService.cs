@@ -69,13 +69,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var run = await runs.ClaimQueuedAsync(message.RunId, DateTimeOffset.UtcNow, cancellationToken);
             if (run is null) return;
 
-            var campaigns = scope.ServiceProvider.GetRequiredService<ICrmProspectingCampaignRepository>();
-            var strategies = scope.ServiceProvider.GetRequiredService<ICrmProspectingStrategyRepository>();
-            var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
-                ?? throw new InvalidOperationException("Prospecting campaign snapshot is missing.");
-            var strategy = await strategies.GetByIdAsync(run.StrategyId, cancellationToken)
-                ?? throw new InvalidOperationException("Prospecting strategy snapshot is missing.");
-
             var providers = scope.ServiceProvider.GetServices<ICrmProspectingProvider>()
                 .GroupBy(provider => provider.ProviderCode, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
