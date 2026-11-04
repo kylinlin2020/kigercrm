@@ -130,3 +130,11 @@ Until this is implemented, do not manually flip a Failed Run back to Queued in p
 Lead conversion uses a transactional application UnitOfWork and writes the source Lead ID onto Customer under a tenant-scoped unique index. If a competing conversion wins and commits, a subsequent request reloads the Lead, verifies its existing Customer/Contact references, and returns the converted Lead without creating new records. A source-contract test now guards this idempotent retry branch.
 
 The losing request in a simultaneous race is **not yet guaranteed to transparently return the winner's result in the same request**: the unique-index exception may surface to that caller. The database constraint prevents duplicate Customers; a client retry after the winner commits should take the already-converted branch. A PostgreSQL two-connection service-level test and narrowly classified conflict recovery are still required before describing this as seamless concurrent conversion.
+
+## 2026-11-04 Provider plan validation boundary
+
+Strategy creation now validates the provider plan before allocating an immutable strategy version. The plan must be a non-empty JSON array containing at most 32 distinct provider codes; each entry must be a non-blank string of at most 80 characters, without control characters. Duplicate codes are rejected case-insensitively because provider registration and dispatch use case-insensitive provider-code lookup.
+
+Run creation repeats the validation against the persisted active strategy before taking the execution snapshot. This protects the execution boundary from malformed legacy rows as well as newly submitted strategy input. A syntactically valid code that has no registered provider is still handled as a per-provider Run warning/failure by the Worker; registration availability is deployment configuration and is not inferred during strategy authoring.
+
+The validation is covered by source-level application wiring checks and unit test sources for empty, blank, duplicate, non-string, oversized, over-count, and control-character entries. These tests have not yet been executed in CI or on the Windows acceptance environment.
