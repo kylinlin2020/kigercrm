@@ -121,6 +121,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var failures = 0;
             var warnings = new List<string>();
 
+            var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
             foreach (var providerCode in plan.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -136,7 +137,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
-                var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
                 var cooldownUntil = await requestLedger.GetActiveCooldownUntilAsync(
                     providerCode, DateTimeOffset.UtcNow, cancellationToken);
                 if (cooldownUntil is DateTimeOffset activeCooldown)
