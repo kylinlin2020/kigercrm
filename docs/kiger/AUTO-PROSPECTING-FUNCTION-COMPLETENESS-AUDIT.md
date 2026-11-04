@@ -144,6 +144,15 @@
 **验证边界：** 代码和测试已提交，尚未在 .NET 10 环境编译/执行；也未进行实时 Find a Tender API 联调。适配器只读取 30 天窗口和最多 3 页，不应被描述为完整历史抓取。
 
 
+## 11. Worker lease recovery increment (2026-11-04)
+
+- Tenant startup recovery now calls the PostgreSQL-clock-based `RecoverExpiredLeasesAsync` before listing queued Runs for Redis reconstruction.
+- Expired lease-backed `Running` Runs return to `Queued`; expired `CancelRequested` Runs become `Cancelled`. Lease-less legacy rows remain governed by the existing legacy recovery path.
+- A wiring regression test asserts expired lease recovery occurs before queue reconstruction.
+
+**Important boundary:** the HostedService still uses the legacy claim, child-write and terminal transition path. Atomic lease claiming, heartbeat/renewal, transactional child-write fencing and fenced terminal transitions remain unintegrated. Worker concurrency remains one; multi-instance operation is not approved. This increment is recovery groundwork, not completion of Worker fencing.
+
+
 ## 10. GLEIF identity enrichment increment (2026-11-04)
 
 - Added `ICrmProspectingIdentityResolver` and `CrmGleifIdentityResolver` against the official GLEIF LEI Records API.
