@@ -22,13 +22,13 @@ The source confirms:
 4. The framework's data package documents that the resolver registers the client in the transaction-aware UnitOfWork, and the SqlSugar transaction adapter wraps the client's ADO transaction.
 5. Conditional repository `UpdateAsync(columns, predicate)` adds a strict current-tenant write predicate. It is not, however, a substitute for PostgreSQL `UPDATE ... RETURNING`: it returns only whether any row changed, not the exact lease token/version granted by that statement.
 
-This resolves the earlier uncertainty about whether a repository subclass can access its active client. It does **not** prove that any proposed raw SQL implementation is correct or transactionally enlisted in this application; that still requires a provider-backed test.
+This resolves the earlier uncertainty about whether a repository subclass can access its active client. The Run repository now contains an additive `TryClaimLeaseAsync` implementation using inherited `DbClient`, PostgreSQL `UPDATE ... RETURNING`, explicit tenant predicate, database `clock_timestamp()`, and an atomic fencing-version increment. A source-level contract test guards these properties. This does **not** yet prove that the raw SQL is correctly mapped or transactionally enlisted in this application; provider-backed tests and a real build remain required.
 
 ## Safe implementation direction
 
-The next implementation should remain inside `CrmProspectingRunRepository` and use its inherited `DbClient`, rather than constructing an independent Npgsql connection.
+The implemented claim primitive remains inside `CrmProspectingRunRepository` and uses its inherited `DbClient`, rather than constructing an independent Npgsql connection.
 
-For PostgreSQL, the claim must be one statement equivalent to:
+The current PostgreSQL claim uses one statement with a materialized database-clock CTE and is structurally equivalent to:
 
 ```sql
 UPDATE crm_prospecting_run
@@ -48,9 +48,9 @@ WHERE tenant_id = @tenant_id
 RETURNING *;
 ```
 
-The actual implementation must first verify the mapped physical table/column names and parameter binding against the repository's SqlSugar version. The explicit `tenant_id` predicate is required even though the active client is tenant-aware: it makes the raw statement's isolation boundary reviewable and prevents an accidental cross-tenant update if query filters are not applied to ADO SQL.
+The current implementation uses the physical table/column names from the versioned migration and entity metadata. Parameter binding and row materialization still require compilation and a real PostgreSQL test against the resolved SqlSugarCore 5.1.4.221 package. The explicit `tenant_id` predicate is required even though the active client is tenant-aware: it makes the raw statement's isolation boundary reviewable and prevents an accidental cross-tenant update if query filters are not applied to ADO SQL.
 
-The returned row must be materialized directly from this statement. Do not perform a follow-up SELECT to discover the token/version.
+The returned row is materialized directly from this statement. Do not perform a follow-up SELECT to discover the token/version.
 
 The lease duration and owner identifier must be validated before executing the statement. A fresh UUID must be generated for every claim attempt. The database must increment `fencing_version` as part of the same UPDATE.
 
@@ -85,4 +85,4 @@ Do not enable multiple worker instances. The existing hosted worker still calls 
 
 ## Current status
 
-This is a source audit and implementation decision record only. No production code was changed by this audit. No .NET build, test, PostgreSQL migration, two-connection concurrency test, or Windows runtime test was executed. The single-active-worker restriction remains in force.
+The atomic claim method and a source-level contract test are committed to `kiger-dev`; the HostedService has not been switched to it. No .NET build, test, PostgreSQL migration, two-connection concurrency test, or Windows runtime test was executed. The single-active-worker restriction remains in force.

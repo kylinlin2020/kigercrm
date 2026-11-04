@@ -1,19 +1,19 @@
 # Prospecting Worker: Parallel Delivery Gates
 
 **Branch:** `kiger-dev`  
-**Status:** design/verification checklist; no lease activation authorized.
+**Status:** atomic claim primitive implemented but not PostgreSQL-verified; no lease activation authorized.
 
 This checklist separates the workstreams so implementation can proceed independently without accidentally enabling unsafe worker concurrency.
 
 ## Workstream A — Atomic lease acquisition
 
-- [ ] Add a PostgreSQL-only repository operation that performs one conditional `UPDATE ... RETURNING`.
-- [ ] Resolve the client through inherited `DbClient` so the active tenant's transaction-aware SqlSugar client is reused.
-- [ ] Bind `tenant_id`, Run ID, status, owner, new UUID token, expiry, and current time as parameters.
-- [ ] Increment `fencing_version` in the UPDATE expression, not in application memory.
-- [ ] Return the row produced by RETURNING; never follow with a SELECT to discover the winning token.
-- [ ] Fail closed for non-PostgreSQL providers; SQLite's current repository tests are not a substitute.
-- [ ] Verify exact SqlSugar ADO overload and transaction enlistment using the package version resolved by the actual project restore.
+- [x] Add a PostgreSQL-only repository operation that performs one conditional `UPDATE ... RETURNING` (`TryClaimLeaseAsync`; not wired into the HostedService).
+- [x] Resolve the client through inherited `DbClient` so the active tenant's transaction-aware SqlSugar client is reused.
+- [x] Bind `tenant_id`, Run ID, status, owner, new UUID token, and lease duration as parameters; use PostgreSQL `clock_timestamp()` for authoritative time.
+- [x] Increment `fencing_version` in the UPDATE expression, not in application memory.
+- [x] Return the row produced by RETURNING; never follow with a SELECT to discover the winning token.
+- [x] Fail closed for non-PostgreSQL providers; SQLite's current repository tests are not a substitute.
+- [ ] Compile against the actual resolved SqlSugarCore 5.1.4.221 package and prove the ADO command enlists in the active UnitOfWork transaction.
 
 ## Workstream B — Lease lifecycle
 
@@ -65,6 +65,6 @@ The test fixture must be explicitly opt-in through an environment variable and m
 
 ## Activation rule
 
-Until Workstreams A–D are implemented and tested, retain the single-active-application-instance restriction. The current `ClaimQueuedAsync` remains the legacy conditional status update followed by a read; it does not return a database-atomically granted lease. The current `RecoverInterruptedAsync` blanket-requeues Running rows and must not be used as multi-instance lease recovery.
+Until Workstreams A–D are implemented and tested, retain the single-active-application-instance restriction. A new `TryClaimLeaseAsync` primitive now performs the database-atomic claim, but the HostedService still calls legacy `ClaimQueuedAsync`. The new primitive is not active until ADO transaction enlistment, PostgreSQL concurrency tests, heartbeat, child-write fencing, recovery, and terminal transitions are complete. The current `RecoverInterruptedAsync` blanket-requeues Running rows and must not be used as multi-instance lease recovery.
 
 A green SQLite test suite, a source-level assertion, or a successful build alone does not authorize multi-instance deployment.
