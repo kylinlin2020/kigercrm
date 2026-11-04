@@ -25,6 +25,7 @@ public sealed class CrmProspectingAppService(
     ICrmProspectingStrategyRepository strategies,
     ICrmProspectingRunRepository runs,
     ICrmProspectingCandidateRepository candidates,
+    ICrmLeadRepository leads,
     ICrmLeadDomainService leadDomain,
     IFieldSecurityService fieldSecurity,
     IUserDataScopeFilterService dataScope,
@@ -255,13 +256,24 @@ public sealed class CrmProspectingAppService(
         if (candidateId <= 0) throw new ArgumentOutOfRangeException(nameof(candidateId));
         var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting candidate does not exist.");
-        if (candidate.Status != CrmProspectingCandidateStatus.Approved)
-            throw new InvalidOperationException("Only an approved prospecting candidate can be converted to a Lead.");
         var run = await runs.GetByIdAsync(candidate.RunId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting run does not exist.");
         var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+
+        // A retry after a successful commit returns the already-created Lead instead of
+        // creating a second one or reporting a misleading conversion failure.
+        if (candidate.Status == CrmProspectingCandidateStatus.Converted)
+        {
+            if (candidate.ConvertedLeadId is not > 0)
+                throw new InvalidOperationException("Converted prospecting candidate is missing its Lead reference.");
+            var existingLead = await leads.GetByIdAsync(candidate.ConvertedLeadId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Converted prospecting candidate references a missing Lead.");
+            return CrmLeadMapper.ToDetailDto(existingLead);
+        }
+        if (candidate.Status != CrmProspectingCandidateStatus.Approved)
+            throw new InvalidOperationException("Only an approved prospecting candidate can be converted to a Lead.");
         // The conditional database update is the concurrency boundary: exactly one caller can
         // transition Approved -> Converting. The surrounding UoW rolls the claim back if Lead creation fails.
         if (!await candidates.TryClaimForConversionAsync(candidate.BasicId, cancellationToken))
