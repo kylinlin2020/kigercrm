@@ -197,6 +197,23 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingWorker_ShouldRepairMissingScoreEvenWhenNoEvidenceIsEligible()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        var expectedEvidenceIndex = worker.IndexOf("var expectedEvidence = CrmProspectingEvidenceFactory.Create(", StringComparison.Ordinal);
+        var persistedEvidenceIndex = worker.IndexOf("var persistedEvidence = await evidenceRepository.GetByCandidateAsync(", expectedEvidenceIndex, StringComparison.Ordinal);
+        var scoreLookupIndex = worker.IndexOf("var existingScores = await scoreRepository.GetLatestByCandidateAsync(", persistedEvidenceIndex, StringComparison.Ordinal);
+        var scoreRepairIndex = worker.IndexOf("var needsScoreRepair = existingScores.Count == 0", scoreLookupIndex, StringComparison.Ordinal);
+
+        Assert.True(expectedEvidenceIndex >= 0 && persistedEvidenceIndex > expectedEvidenceIndex);
+        Assert.True(scoreLookupIndex > persistedEvidenceIndex && scoreRepairIndex > scoreLookupIndex);
+        Assert.DoesNotContain("if (expectedEvidence.Count == 0) continue;", worker, StringComparison.Ordinal);
+        Assert.Contains("if (missingEvidence.Length > 0 || needsScoreRepair)", worker, StringComparison.Ordinal);
+        Assert.Contains("await scoreRepository.AddAsync(scoreSnapshot, cancellationToken)", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingWorker_ShouldPersistCandidateAndEvidenceInOneExplicitUnitOfWork()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
