@@ -59,6 +59,23 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("CHECK (", migration, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void EvidenceIdentityMigration_ShouldEnforceRetrySafeUniqueness()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
+
+        Assert.Contains("ux_crm_prosp_evidence_identity", migration, StringComparison.Ordinal);
+        Assert.Contains("CREATE UNIQUE INDEX", migration, StringComparison.Ordinal);
+        Assert.Contains("tenant_id", migration, StringComparison.Ordinal);
+        Assert.Contains("candidate_id", migration, StringComparison.Ordinal);
+        Assert.Contains("COALESCE(provider_record_id, '')", migration, StringComparison.Ordinal);
+        Assert.Contains("field_name", migration, StringComparison.Ordinal);
+        Assert.Contains("source_url", migration, StringComparison.Ordinal);
+        Assert.Contains("COALESCE(raw_payload_hash, '')", migration, StringComparison.Ordinal);
+        Assert.Contains("HAVING COUNT(*) > 1", migration, StringComparison.Ordinal);
+        Assert.Contains("RAISE EXCEPTION", migration, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
