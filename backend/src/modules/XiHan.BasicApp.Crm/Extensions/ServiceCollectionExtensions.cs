@@ -103,6 +103,23 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmFindTenderProspectingProvider>());
         }
+        // Contracts Finder publishes public UK procurement notices as OCDS data.
+        // This separate opt-in adapter complements Find a Tender and does not infer supplier-as-buyer.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableContractsFinderProvider"], out var enableContractsFinderProvider)
+            && enableContractsFinderProvider)
+        {
+            services.AddSingleton<CrmContractsFinderProspectingProvider>(provider => new CrmContractsFinderProspectingProvider(
+                new HttpClient(new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = false,
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+                })
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmContractsFinderProspectingProvider>());
+        }
         // GLEIF is an identity-resolution source, not a discovery directory. It is opt-in
         // and only used by the worker to enrich already-discovered candidate names.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableGleifIdentityResolver"], out var enableGleifIdentityResolver)
