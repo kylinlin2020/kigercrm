@@ -601,6 +601,13 @@ public sealed class CrmProspectingPersistenceWiringTests
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
             "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
 
+        var heartbeat = worker.IndexOf("private async Task RunLeaseHeartbeatAsync", StringComparison.Ordinal);
+        var heartbeatCancelCheck = worker.IndexOf("current?.Status == CrmProspectingRunStatus.CancelRequested", heartbeat, StringComparison.Ordinal);
+        var heartbeatCancelReturn = worker.IndexOf("return;", heartbeatCancelCheck, StringComparison.Ordinal);
+        var heartbeatRenew = worker.IndexOf("RenewLeaseWithDatabaseClockAsync", heartbeatCancelReturn, StringComparison.Ordinal);
+        Assert.True(heartbeat >= 0 && heartbeatCancelCheck > heartbeat && heartbeatCancelReturn > heartbeatCancelCheck && heartbeatRenew > heartbeatCancelReturn,
+            "Heartbeat must stop renewing on CancelRequested without cancelling the processing token, allowing the worker to finalize fenced cancellation.");
+
         var providerLoop = worker.IndexOf("foreach (var providerCode in plan.Distinct", StringComparison.Ordinal);
         var currentState = worker.IndexOf("var current = await runs.GetByIdAsync", providerLoop, StringComparison.Ordinal);
         var providerRenewal = worker.IndexOf("RenewLeaseOrThrowAsync", currentState, StringComparison.Ordinal);
