@@ -178,6 +178,23 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingScore_ShouldHaveTenantScopedOptionalIdempotencyKey()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingScore.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.29", "5.9.29.sql");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingScoreRepository.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("nameof(IdempotencyKey), OrderByType.Asc, true", entity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Idempotency_Key\", Length = 160, IsNullable = true", entity, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_prospecting_score_te_idemkey", migration, StringComparison.Ordinal);
+        Assert.Contains("(tenant_id, idempotency_key)", migration, StringComparison.Ordinal);
+        Assert.Contains("GetByIdempotencyKeyAsync", repository, StringComparison.Ordinal);
+        Assert.Contains("IsScoreIdempotencyUniqueViolation(ex)", worker, StringComparison.Ordinal);
+        Assert.Contains("BuildInitialScoreIdempotencyKey", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingWorker_ShouldRepairMissingScoreSnapshotsWithEvidenceAtomically()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
@@ -186,7 +203,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("var needsScoreRepair = existingScores.Count == 0", worker, StringComparison.Ordinal);
         Assert.Contains("var completeEvidence = persistedEvidence.Concat(missingEvidence).ToArray()", worker, StringComparison.Ordinal);
         Assert.Contains(".Take(32)", worker, StringComparison.Ordinal);
-        Assert.Contains("existingCandidate.BasicId, scoreResult, scoreEvidence)", worker, StringComparison.Ordinal);
+        Assert.Contains("candidate.BasicId, scoreResult, scoreEvidence, BuildInitialScoreIdempotencyKey(candidate.BasicId, scoreResult.ScorecardVersion))", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc)", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingScoreSnapshotFactory.Create(", worker, StringComparison.Ordinal);
         Assert.Contains("await scoreRepository.AddAsync(scoreSnapshot, cancellationToken)", worker, StringComparison.Ordinal);
