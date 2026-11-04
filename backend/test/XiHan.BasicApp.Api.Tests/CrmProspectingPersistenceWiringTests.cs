@@ -726,6 +726,24 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingCandidates_ShouldDeduplicateAcrossRunsByProviderIdentityEmailAndWebsite()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Repositories", "CrmProspectingCandidateRepository.cs");
+
+        Assert.Contains("GetCrossRunDuplicateMatchesAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("crossRunIdentityKeys.Contains(key)", worker, StringComparison.Ordinal);
+        Assert.Contains("crossRunCandidateEmails.Contains(normalizedEmail)", worker, StringComparison.Ordinal);
+        Assert.Contains("crossRunCandidateWebsites.Contains(websiteHost)", worker, StringComparison.Ordinal);
+        Assert.Contains("Provider notice identity already exists in an earlier Run", worker, StringComparison.Ordinal);
+        Assert.Contains("candidate.RunId != runId", repository, StringComparison.Ordinal);
+        Assert.Contains("candidate.Status != CrmProspectingCandidateStatus.Rejected", repository, StringComparison.Ordinal);
+        Assert.Contains("candidate.ProviderCode == pair.Key", repository, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TedProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
     {
         var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
