@@ -100,7 +100,7 @@ public sealed class CrmProspectingAppService(
         return items.Select(ToDto).ToArray();
     }
 
-    [UnitOfWork(true)]
+    [UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]
     [PermissionAuthorize(CrmPermissionCodes.Create)]
     public async Task<CrmProspectingStrategyDto> CreateStrategyVersionAsync(CrmProspectingStrategyInputDto input, CancellationToken cancellationToken = default)
     {
@@ -147,7 +147,7 @@ public sealed class CrmProspectingAppService(
         return ToDto(await domain.DecideStrategyAsync(input.StrategyId, input.Approve, approverId, cancellationToken));
     }
 
-    [UnitOfWork(true)]
+    [UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public async Task<CrmProspectingCampaignDto> ActivateStrategyAsync(long strategyId, CancellationToken cancellationToken = default)
     {
