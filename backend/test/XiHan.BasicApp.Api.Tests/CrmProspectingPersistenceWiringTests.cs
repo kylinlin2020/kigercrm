@@ -247,7 +247,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.True(helperIndex > repairCall && helperEnd > helperIndex);
         var helper = worker[helperIndex..helperEnd];
         Assert.Contains("candidate.Status == CrmProspectingCandidateStatus.Duplicate", helper, StringComparison.Ordinal);
-        Assert.DoesNotContain("candidate.Status =", helper, StringComparison.Ordinal);
+        Assert.DoesNotContain("candidate.Status = CrmProspectingCandidateStatus", helper, StringComparison.Ordinal);
         Assert.Contains("await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken)", helper, StringComparison.Ordinal);
         Assert.Contains("await scoreRepository.AddAsync(scoreSnapshot, cancellationToken)", helper, StringComparison.Ordinal);
         Assert.Contains("await repairUnitOfWork.CompleteAsync(cancellationToken)", helper, StringComparison.Ordinal);
