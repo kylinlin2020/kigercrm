@@ -147,3 +147,15 @@ Added read endpoints for campaign strategy history and execution history:
 - Both use strict tenant-scoped repositories and the existing CRM Read permission.
 
 These endpoints currently return the complete history for the campaign; paging and server-side filtering should be added before high-volume production use. No worker execution or provider integration is implied by these read APIs.
+
+
+## 13. Search provider boundary and local smoke adapter (2026-11-04)
+
+Added a provider-neutral contract under `Domain/Prospecting`:
+
+- `ICrmProspectingProvider` identifies an adapter by stable `ProviderCode` and accepts an immutable run/search input snapshot.
+- Provider output is represented as raw records (external ID, source, title, company, website, contact, business email, summary), plus failure count and warnings.
+- The contract explicitly forbids providers from creating/updating CRM leads. Raw provider output must later pass normalization, deduplication and human review.
+- Registered `FakeCrmProspectingProvider` as the initial adapter. It is deterministic, makes no network calls and emits synthetic `.example` records only; it is for local smoke tests, not production lead acquisition.
+
+Important boundary: this commit establishes the adapter contract and a safe synthetic implementation only. It does not yet parse provider plans, invoke providers from a worker, persist raw records, or turn records into CRM leads. No external search provider is configured.
