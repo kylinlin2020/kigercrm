@@ -20,6 +20,7 @@ namespace XiHan.BasicApp.Crm.Application.AppServices;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Shipments")]
 public sealed class CrmShipmentAppService(
     ICrmShipmentRepository shipments,
+    ICrmCreateRequestRepository createRequests,
     ICrmShipmentLineRepository shipmentLines,
     ICrmSalesOrderRepository orders,
     ICrmSalesOrderLineRepository orderLines,
@@ -35,7 +36,10 @@ public sealed class CrmShipmentAppService(
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
         if (input.SalesOrderId <= 0) throw new ArgumentOutOfRangeException(nameof(input.SalesOrderId));
-        var number = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
+        var requestKey = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
+            ? null
+            : NormalizeRequired(input.NumberingIdempotencyKey, 128, nameof(input.NumberingIdempotencyKey));
+        var number = requestKey is null
             ? NormalizeRequired(input.ShipmentNumber, 40, nameof(input.ShipmentNumber))
             : string.Empty;
         if (input.Lines is null || input.Lines.Count == 0)
@@ -59,20 +63,37 @@ public sealed class CrmShipmentAppService(
         var trackingNumber = NormalizeOptional(input.TrackingNumber, 120, nameof(input.TrackingNumber));
         string? creationRequestFingerprint = null;
 
-        // Number allocation alone is not create idempotency. Persist a request fingerprint on
-        // the shipment and replay the existing aggregate before touching fulfillment quantities.
-        if (!string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey))
+        // The permanent request ledger is checked before order locks or quantity reservations.
+        // A replay therefore cannot reserve the same sales-order quantity twice.
+        if (requestKey is not null)
         {
+            creationRequestFingerprint = CreateRequestFingerprint(input, owner, carrier, trackingNumber, requestedLines);
+            var existingRequest = await createRequests.GetByRequestKeyAsync("SHIPMENT", requestKey, cancellationToken);
+            if (existingRequest is not null)
+            {
+                if (!string.Equals(existingRequest.PayloadHash, creationRequestFingerprint, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The shipment idempotency key was already used with a different create request.");
+                if (!existingRequest.DocumentId.HasValue || string.IsNullOrWhiteSpace(existingRequest.DocumentNumber))
+                    throw new InvalidOperationException("The shipment request ledger contains an incomplete committed record; manual repair is required.");
+
+                var replayShipment = await shipments.GetByIdAsync(existingRequest.DocumentId.Value, cancellationToken)
+                    ?? throw new InvalidOperationException("The shipment linked to this idempotency key no longer exists or is not visible.");
+                await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, replayShipment.OwnerUserId, cancellationToken);
+                if (!string.Equals(replayShipment.ShipmentNumber, existingRequest.DocumentNumber, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The shipment request ledger does not match its linked document.");
+                return ToDto(replayShipment);
+            }
+
             var allocation = await numberGenerator.GenerateAsync(
                 new NumberGenerateRequest(
                     CrmNumberingRuleCodes.Shipment,
                     NumberingScope.Auto,
-                    input.NumberingIdempotencyKey,
+                    requestKey,
                     "CRM_SHIPMENT"),
                 cancellationToken);
             number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
-            creationRequestFingerprint = CreateRequestFingerprint(input, owner, carrier, trackingNumber, requestedLines);
 
+            // Adopt a matching pre-ledger shipment created by the previous fingerprint-only implementation.
             var existingShipment = await shipments.GetByShipmentNumberAsync(number, cancellationToken);
             if (existingShipment is not null)
             {
@@ -80,6 +101,15 @@ public sealed class CrmShipmentAppService(
                 if (existingShipment.CreationRequestFingerprint is null ||
                     !string.Equals(existingShipment.CreationRequestFingerprint, creationRequestFingerprint, StringComparison.Ordinal))
                     throw new InvalidOperationException("The shipment idempotency key was already used with a different or unverifiable create request.");
+
+                await createRequests.AddAsync(new SysCrmCreateRequest
+                {
+                    DocumentType = "SHIPMENT",
+                    RequestKey = requestKey,
+                    PayloadHash = creationRequestFingerprint,
+                    DocumentId = existingShipment.BasicId,
+                    DocumentNumber = existingShipment.ShipmentNumber
+                }, cancellationToken);
                 return ToDto(existingShipment);
             }
         }
@@ -134,6 +164,18 @@ public sealed class CrmShipmentAppService(
             };
             await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmShipmentLine), line, cancellationToken);
             await shipmentLines.AddAsync(line, cancellationToken);
+        }
+
+        if (requestKey is not null && creationRequestFingerprint is not null)
+        {
+            await createRequests.AddAsync(new SysCrmCreateRequest
+            {
+                DocumentType = "SHIPMENT",
+                RequestKey = requestKey,
+                PayloadHash = creationRequestFingerprint,
+                DocumentId = saved.BasicId,
+                DocumentNumber = saved.ShipmentNumber
+            }, cancellationToken);
         }
 
         return ToDto(saved);
