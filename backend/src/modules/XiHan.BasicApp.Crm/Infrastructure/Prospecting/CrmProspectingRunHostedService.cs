@@ -112,6 +112,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
             var excludedDomains = ParseStringArray(run.SnapshotExcludedDomainsJson, "excluded domains", allowNull: true);
             var raw = new List<CrmProspectingRawEnvelope>();
+            // Do not advance incremental coverage while provider records are only in memory.
+            // Candidate/evidence persistence must finish first so a worker crash cannot skip data.
+            var pendingCoverage = new List<(long AttemptId, string RequestKey, int ResultCount, string ResponseHash, long DurationMs)>();
             long estimatedRawJsonBytes = 2; // JSON array delimiters
             const long maxRawJsonBytes = 5_000_000;
             const long maxRawRecordJsonBytes = 64_000;
@@ -257,25 +260,15 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 var responseHash = CrmProspectingResponseFingerprint.Create(result.Records);
                 if (providerCanAdvanceCoverage)
                 {
-                    var finalizedWithCoverage = await requestLedger.TryFinalizeSuccessWithCoverageAsync(
-                        attempt.BasicId, run.BasicId, run.CampaignId, leaseToken, activeFencingVersion,
-                        requestKey, DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
-                        result.Records.Count, responseHash, CancellationToken.None);
-                    if (!finalizedWithCoverage)
-                    {
-                        var latestRun = await runs.GetByIdAsync(run.BasicId, CancellationToken.None);
-                        if (latestRun?.Status == CrmProspectingRunStatus.CancelRequested)
-                        {
-                            if (!await requestLedger.TryFinalizeAsync(
-                                attempt.BasicId, "Cancelled", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
-                                failureCode: "run_cancel_requested",
-                                failureSummary: "The Run was cancelled before provider coverage could be committed.",
-                                cancellationToken: CancellationToken.None))
-                                throw new InvalidOperationException("The cancelled provider request ledger attempt could not be finalized.");
-                            break;
-                        }
-                        throw new InvalidOperationException("The complete provider request could not atomically finalize and advance coverage; the Run lease or request scope may have changed.");
-                    }
+                    // Keep the attempt Started until every accepted record has been durably
+                    // reconciled into Candidate/Evidence/Score. Coverage is committed after
+                    // candidate processing below, never ahead of durable prospect persistence.
+                    pendingCoverage.Add((
+                        attempt.BasicId,
+                        requestKey,
+                        result.Records.Count,
+                        responseHash,
+                        providerTimer.ElapsedMilliseconds));
                 }
                 else
                 {
@@ -728,10 +721,59 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 candidateCount++;
             }
 
+            // Incremental scan coverage must never get ahead of durable Candidate/Evidence/Score
+            // writes. If the process crashes before this point, the Started ledger attempts are
+            // recoverable and the old checkpoint causes a safe overlapping rescan. If cancellation
+            // was requested, finalize attempts as cancelled and leave coverage unchanged.
+            var finalRunState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+            if (finalRunState?.Status == CrmProspectingRunStatus.CancelRequested)
+            {
+                foreach (var pending in pendingCoverage)
+                {
+                    if (!await requestLedger.TryFinalizeAsync(
+                        pending.AttemptId, "Cancelled", DateTimeOffset.UtcNow, pending.DurationMs,
+                        resultCount: pending.ResultCount,
+                        failureCode: "run_cancel_requested",
+                        failureSummary: "The Run was cancelled before provider coverage could be committed.",
+                        responseHash: pending.ResponseHash,
+                        cancellationToken: CancellationToken.None))
+                        throw new InvalidOperationException("A cancelled provider request ledger attempt could not be finalized.");
+                }
+            }
+            else
+            {
+                foreach (var pending in pendingCoverage)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
+                    var finalizedWithCoverage = await requestLedger.TryFinalizeSuccessWithCoverageAsync(
+                        pending.AttemptId, run.BasicId, run.CampaignId, leaseToken, activeFencingVersion,
+                        pending.RequestKey, DateTimeOffset.UtcNow, pending.DurationMs,
+                        pending.ResultCount, pending.ResponseHash, CancellationToken.None);
+                    if (!finalizedWithCoverage)
+                    {
+                        var latestRun = await runs.GetByIdAsync(run.BasicId, CancellationToken.None);
+                        if (latestRun?.Status == CrmProspectingRunStatus.CancelRequested)
+                        {
+                            if (!await requestLedger.TryFinalizeAsync(
+                                pending.AttemptId, "Cancelled", DateTimeOffset.UtcNow, pending.DurationMs,
+                                resultCount: pending.ResultCount,
+                                failureCode: "run_cancel_requested",
+                                failureSummary: "The Run was cancelled before provider coverage could be committed.",
+                                responseHash: pending.ResponseHash,
+                                cancellationToken: CancellationToken.None))
+                                throw new InvalidOperationException("The cancelled provider request ledger attempt could not be finalized.");
+                            break;
+                        }
+                        throw new InvalidOperationException("The complete provider request could not atomically finalize and advance coverage after candidate persistence.");
+                    }
+                }
+            }
+
             var summary = warnings.Count == 0 ? null : string.Join(" | ", warnings).Trim();
             if (summary?.Length > 2000) summary = summary[..2000];
 
-            var finalRunState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+            finalRunState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
             var finalized = finalRunState?.Status == CrmProspectingRunStatus.CancelRequested
                 ? await runs.CancelFencedWithDatabaseClockAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken)
                 : await runs.CompleteFencedWithDatabaseClockAsync(
