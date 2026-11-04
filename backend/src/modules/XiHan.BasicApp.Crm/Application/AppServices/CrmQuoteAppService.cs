@@ -105,10 +105,36 @@ public sealed class CrmQuoteAppService(
             ?? throw new InvalidOperationException("CRM quote does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, quote.OwnerUserId, cancellationToken);
         await EnsureRelatedRecordsAccessibleAsync(quote.CustomerId, quote.ContactId, quote.OpportunityId, cancellationToken);
-        if (quote.Status != CrmQuoteStatus.Accepted || quote.ConvertedOrderId.HasValue)
-            throw new InvalidOperationException("Only an accepted, unconverted quote can be converted to a sales order.");
+        if (quote.Status != CrmQuoteStatus.Accepted && quote.Status != CrmQuoteStatus.Converted)
+            throw new InvalidOperationException("Only an accepted quote can be converted to a sales order.");
 
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmQuote), quote.BasicId, quote, cancellationToken);
+
+        // A retry after a lost HTTP response must return the order already committed for this quote.
+        // The tenant-scoped unique source-quote index remains the concurrent first-request guard.
+        if (quote.ConvertedOrderId.HasValue)
+        {
+            var existingOrder = await salesOrders.GetByIdAsync(quote.ConvertedOrderId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("The quote is marked converted, but its linked sales order does not exist.");
+            if (existingOrder.SourceQuoteId != quote.BasicId)
+                throw new InvalidOperationException("The quote's linked sales order has an inconsistent source-quote reference.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existingOrder.OwnerUserId, cancellationToken);
+            return new CrmSalesOrderListItemDto
+            {
+                BasicId = existingOrder.BasicId,
+                OrderNumber = existingOrder.OrderNumber,
+                SourceQuoteId = existingOrder.SourceQuoteId,
+                CustomerId = existingOrder.CustomerId,
+                CustomerNameSnapshot = existingOrder.CustomerNameSnapshot,
+                Status = (int)existingOrder.Status,
+                OrderDate = existingOrder.OrderDate,
+                Currency = existingOrder.Currency,
+                GrandTotal = existingOrder.GrandTotal,
+                OwnerUserId = existingOrder.OwnerUserId,
+                CreatedTime = existingOrder.CreatedTime
+            };
+        }
+
         var sourceLines = await quoteLines.ListForQuoteAsync(quote.BasicId, cancellationToken);
         if (sourceLines.Count == 0)
             throw new InvalidOperationException("A quotation without lines cannot be converted.");
