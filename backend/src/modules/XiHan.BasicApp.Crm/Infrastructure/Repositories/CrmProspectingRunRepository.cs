@@ -169,7 +169,10 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 CompletedAt = null,
                 FailureSummary = null
             },
-            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.Queued,
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.Queued &&
+                run.LeaseToken == null &&
+                run.LeaseExpiresAt == null,
             cancellationToken);
 
         if (!claimed)
@@ -632,14 +635,18 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        // A crashed worker can safely be retried from the immutable strategy snapshot.
+        // Legacy recovery is restricted to rows that have never entered the lease protocol.
+        // Never requeue or cancel a row carrying lease metadata: its active holder must finish
+        // through the fenced terminal path, or an expired lease must be reclaimed explicitly.
         var requeued = await UpdateAsync(
             run => new SysCrmProspectingRun
             {
                 Status = CrmProspectingRunStatus.Queued,
                 StartedAt = null
             },
-            run => run.Status == CrmProspectingRunStatus.Running,
+            run => run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseToken == null &&
+                run.LeaseExpiresAt == null,
             cancellationToken);
 
         // Cancellation intent survives process death and must not be converted back to executable work.
@@ -649,7 +656,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 Status = CrmProspectingRunStatus.Cancelled,
                 CompletedAt = recoveredAt
             },
-            run => run.Status == CrmProspectingRunStatus.CancelRequested,
+            run => run.Status == CrmProspectingRunStatus.CancelRequested &&
+                run.LeaseToken == null &&
+                run.LeaseExpiresAt == null,
             cancellationToken);
 
         return requeued || cancelled;
@@ -683,7 +692,10 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 FailureSummary = failureSummary,
                 CompletedAt = completedAt
             },
-            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.Running,
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseToken == null &&
+                run.LeaseExpiresAt == null,
             cancellationToken);
         if (completed) return true;
 
@@ -699,7 +711,10 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 FailureSummary = failureSummary,
                 CompletedAt = completedAt
             },
-            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.CancelRequested,
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.CancelRequested &&
+                run.LeaseToken == null &&
+                run.LeaseExpiresAt == null,
             cancellationToken);
     }
 
@@ -718,7 +733,10 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 FailureSummary = failureSummary,
                 CompletedAt = completedAt
             },
-            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.Running,
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseToken == null &&
+                run.LeaseExpiresAt == null,
             cancellationToken);
         if (failed) return true;
 
@@ -728,7 +746,10 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 Status = CrmProspectingRunStatus.Cancelled,
                 CompletedAt = completedAt
             },
-            run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.CancelRequested,
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.CancelRequested &&
+                run.LeaseToken == null &&
+                run.LeaseExpiresAt == null,
             cancellationToken);
     }
 }
