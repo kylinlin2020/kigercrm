@@ -584,8 +584,16 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         }
         catch (Exception ex) when (repairAttempt == 0 && (IsEvidenceIdentityUniqueViolation(ex) || IsScoreIdempotencyUniqueViolation(ex)))
         {
-            // The failed repair UoW has been disposed. Re-read immutable Evidence and Score
-            // identities and retry once; unrelated DB errors and repeated collisions fail closed.
+            // The failed repair UoW has been disposed. Confirm the exact score winner before
+            // retrying a score-key collision; evidence collisions are reconciled by full identity.
+            if (IsScoreIdempotencyUniqueViolation(ex))
+            {
+                var scoreKey = BuildInitialScoreIdempotencyKey(candidate.BasicId, CrmProspectingScorecard.Version);
+                var winningScore = await scoreRepository.GetByIdempotencyKeyAsync(scoreKey, cancellationToken);
+                if (winningScore is null) throw;
+            }
+
+            // Retry once; unrelated DB errors and repeated collisions fail closed.
             await RepairCandidateProvenanceAsync(
                 serviceProvider,
                 evidenceRepository,
