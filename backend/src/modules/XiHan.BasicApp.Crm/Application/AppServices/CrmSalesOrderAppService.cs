@@ -39,7 +39,7 @@ public sealed class CrmSalesOrderAppService(
         cancellationToken.ThrowIfCancellationRequested();
         var requestKey = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
             ? null
-            : NormalizeRequired(input.NumberingIdempotencyKey, 128, nameof(input.NumberingIdempotencyKey));
+            : NormalizeRequired(input.NumberingIdempotencyKey, 100, nameof(input.NumberingIdempotencyKey));
         var number = requestKey is null
             ? NormalizeRequired(input.OrderNumber, 40, nameof(input.OrderNumber))
             : string.Empty;
