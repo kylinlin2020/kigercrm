@@ -93,14 +93,38 @@ public sealed class CrmProspectingEvidenceIdentitySqliteIntegrationTests : IDisp
         }
     }
 
+    [Fact]
+    public async Task EvidenceUniqueCollision_ShouldRequireTransactionRollbackBeforeReconciliation()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            _db.Ado.BeginTran();
+            try
+            {
+                await _repository.AddAsync(CreateEvidence("D", candidateId: 99102));
+                await Assert.ThrowsAsync<SqlSugarException>(
+                    () => _repository.AddAsync(CreateEvidence("D", candidateId: 99102)));
+            }
+            finally
+            {
+                // Do not query or attempt another insert in the failed transaction.
+                _db.Ado.RollbackTran();
+            }
+
+            var persisted = await _repository.GetByCandidateAsync(99102);
+            Assert.Empty(persisted);
+        }
+    }
+
     private static SysCrmProspectingEvidence CreateEvidence(
         string sourceFingerprint,
         string rawPayloadHash = "",
         string fieldName = "company_name",
-        string providerRecordId = "")
+        string providerRecordId = "",
+        long candidateId = 99101)
         => new()
         {
-            CandidateId = 99101,
+            CandidateId = candidateId,
             ProviderCode = "official-registry",
             ProviderRecordId = providerRecordId,
             FieldName = fieldName,
