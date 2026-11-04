@@ -448,3 +448,14 @@ This is source-level hardening only. The framework UpdateAsync affected-row/bool
 Strategy submission and approval previously used read-check-write through entity UpdateAsync. Concurrent reviewers could both observe PendingApproval and overwrite Approved/Rejected decisions. The repository now provides TryTransitionApprovalAsync, whose database update predicate includes both strategy ID and expected persisted ApprovalStatus. Draft -> PendingApproval and PendingApproval -> Approved/Rejected therefore compete on the stored state; a losing request receives a refresh/retry conflict. Approval/rejection also requires a positive authenticated approver ID, and the transition stores the decision timestamp and approver together with the new state.
 
 This does not yet make strategy activation atomic, nor does it solve concurrent version allocation (MAX(Version)+1). It is source-level hardening only: resolved framework UpdateAsync affected-row semantics and PostgreSQL two-connection race behavior still require verification. Tests must prove exactly one approval/rejection winner, no decision overwrite, and correct approver/audit fields. No compilation or runtime result is claimed.
+
+
+## 47. First opt-in official procurement adapter (2026-11-04)
+
+Added `CrmUsaSpendingProspectingProvider` as the first real external provider in the .NET target. It calls the fixed USAspending public award endpoint, maps recipient and award details into raw provider records, preserves the official award URL and a SHA-256 payload fingerprint, and marks the evidence as `official_procurement`. It reads at most the first 20 results and emits an explicit warning if another page exists.
+
+Registration is opt-in through `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true`; the synthetic fake adapter remains separately opt-in. The typed HttpClient disables redirects, uses a bounded timeout, validates the final HTTPS host/path, and caps response reads at 6 MiB. HTTP failure messages omit response bodies.
+
+Added adapter unit-test source for record mapping, empty-query no-network behavior and HTTP error handling, plus a source-wiring regression guard and provider operations documentation.
+
+**Not yet verified:** no .NET SDK is available in the current execution environment, so no compile/test has run. The provider has not yet been exercised against the live USAspending endpoint or Windows/PostgreSQL target runtime. It is one official US procurement source, not full provider parity, and pagination, provider request ledger, rate/cost accounting, and cross-source deduplication remain open.
