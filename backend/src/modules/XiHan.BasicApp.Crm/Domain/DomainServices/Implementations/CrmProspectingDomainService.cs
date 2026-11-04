@@ -38,18 +38,28 @@ public sealed class CrmProspectingDomainService(
 
     public async Task<SysCrmProspectingStrategy> CreateStrategyVersionAsync(SysCrmProspectingStrategy strategy, CancellationToken cancellationToken = default)
     {
-        var campaign = await campaigns.GetByIdAsync(strategy.CampaignId, cancellationToken)
-            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        if (campaign.Status is CrmProspectingCampaignStatus.Completed or CrmProspectingCampaignStatus.Archived)
-            throw new InvalidOperationException("A completed or archived campaign cannot receive a new strategy.");
         ValidateStrategy(strategy);
-        var versions = await strategies.GetListAsync(x => x.CampaignId == strategy.CampaignId, cancellationToken);
-        strategy.Version = checked((versions.Count == 0 ? 0 : versions.Max(x => x.Version)) + 1);
-        strategy.ApprovalStatus = CrmProspectingStrategyApprovalStatus.Draft;
-        strategy.ApprovedBy = null;
-        strategy.ApprovedAt = null;
-        strategy.ActivatedAt = null;
-        return await strategies.AddAsync(strategy, cancellationToken);
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var campaign = await campaigns.GetByIdAsync(strategy.CampaignId, cancellationToken)
+                ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+            if (campaign.Status is CrmProspectingCampaignStatus.Completed or CrmProspectingCampaignStatus.Archived)
+                throw new InvalidOperationException("A completed or archived campaign cannot receive a new strategy.");
+
+            var expectedSequence = campaign.StrategyVersionSequence;
+            var nextSequence = checked(expectedSequence + 1);
+            if (!await campaigns.TryAdvanceStrategyVersionAsync(campaign.BasicId, expectedSequence, nextSequence, cancellationToken))
+                continue;
+
+            strategy.Version = nextSequence;
+            strategy.ApprovalStatus = CrmProspectingStrategyApprovalStatus.Draft;
+            strategy.ApprovedBy = null;
+            strategy.ApprovedAt = null;
+            strategy.ActivatedAt = null;
+            return await strategies.AddAsync(strategy, cancellationToken);
+        }
+
+        throw new InvalidOperationException("Strategy version allocation is busy. Refresh the campaign and retry.");
     }
 
     public async Task<SysCrmProspectingStrategy> SubmitStrategyForApprovalAsync(long strategyId, CancellationToken cancellationToken = default)
@@ -94,17 +104,18 @@ public sealed class CrmProspectingDomainService(
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         if (campaign.Status is CrmProspectingCampaignStatus.Completed or CrmProspectingCampaignStatus.Archived)
             throw new InvalidOperationException("A completed or archived campaign cannot activate a strategy.");
-        var current = await strategies.GetListAsync(x => x.CampaignId == campaign.BasicId && x.ActivatedAt != null, cancellationToken);
-        foreach (var previous in current)
-        {
-            previous.ActivatedAt = null;
-            await strategies.UpdateAsync(previous, cancellationToken);
-        }
-        strategy.ActivatedAt = DateTimeOffset.UtcNow;
-        await strategies.UpdateAsync(strategy, cancellationToken);
-        campaign.ActiveStrategyVersion = strategy.Version;
-        campaign.Status = CrmProspectingCampaignStatus.Active;
-        return await campaigns.UpdateAsync(campaign, cancellationToken);
+        var expectedVersion = campaign.ActiveStrategyVersion;
+        if (!await campaigns.TrySetActiveStrategyVersionAsync(campaign.BasicId, expectedVersion, strategy.Version, cancellationToken))
+            throw new InvalidOperationException("The campaign active strategy changed concurrently. Refresh before activating again.");
+
+        // The campaign pointer compare-and-swap is the serialization gate. All following writes
+        // participate in this application's transaction, so a failure rolls the pointer back too.
+        await strategies.ClearOtherActiveVersionsAsync(campaign.BasicId, strategy.BasicId, cancellationToken);
+        if (!await strategies.TryMarkActivatedAsync(campaign.BasicId, strategy.BasicId, DateTimeOffset.UtcNow, cancellationToken))
+            throw new InvalidOperationException("The approved strategy changed before activation could complete.");
+
+        return await campaigns.GetByIdAsync(campaign.BasicId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign disappeared during strategy activation.");
     }
 
     public async Task<SysCrmProspectingRun> CreateRunAsync(long campaignId, string requestKey, CancellationToken cancellationToken = default)
