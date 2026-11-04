@@ -90,7 +90,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (!providers.TryGetValue(providerCode, out var provider))
                 {
                     failures++;
-                    warnings.Add($"Provider is not registered: {providerCode}");
+                    AddBoundedWarning(warnings, $"Provider is not registered: {providerCode}");
                     continue;
                 }
 
@@ -116,7 +116,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     // Isolate provider failures only. Database/state/persistence failures below
                     // must fail the Run instead of being misreported as a provider outage.
                     failures++;
-                    warnings.Add($"{providerCode}: {ex.GetType().Name}: {ex.Message}");
+                    AddBoundedWarning(warnings, $"{providerCode}: {ex.GetType().Name}: {ex.Message}");
                     Logger.LogWarning(ex, "Prospecting provider failed for Run {RunId}, provider {Provider}", run.BasicId, providerCode);
                     continue;
                 }
@@ -130,7 +130,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (result.Records.Count > remaining)
                 {
                     failures++;
-                    warnings.Add($"Raw result cap reached; {result.Records.Count - remaining} provider records were not retained.");
+                    AddBoundedWarning(warnings, $"Raw result cap reached; {result.Records.Count - remaining} provider records were not retained.");
                 }
 
                 // Persisted cancellation cannot interrupt an arbitrary provider call, but
@@ -216,7 +216,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (string.IsNullOrWhiteSpace(companyName))
                 {
                     failures++;
-                    warnings.Add($"Provider {providerCode} returned a record without company name/title.");
+                    AddBoundedWarning(warnings, $"Provider {providerCode} returned a record without company name/title.");
                     continue;
                 }
                 if (companyName.Length > 200) companyName = companyName[..200];
@@ -312,18 +312,26 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         }
     }
 
+    private const int MaxAggregatedWarnings = 100;
+    private const int MaxAggregatedWarningLength = 500;
+
+    private static void AddBoundedWarning(List<string> warnings, string? warning)
+    {
+        if (warnings.Count >= MaxAggregatedWarnings || string.IsNullOrWhiteSpace(warning)) return;
+        var value = warning.Trim();
+        warnings.Add(value.Length > MaxAggregatedWarningLength
+            ? value[..MaxAggregatedWarningLength]
+            : value);
+    }
+
     private static void AddBoundedProviderWarnings(List<string> warnings, IReadOnlyList<string>? providerWarnings)
     {
-        const int maxWarnings = 100;
-        const int maxWarningLength = 500;
-        if (providerWarnings is null || warnings.Count >= maxWarnings) return;
+        if (providerWarnings is null || warnings.Count >= MaxAggregatedWarnings) return;
 
         foreach (var warning in providerWarnings)
         {
-            if (warnings.Count >= maxWarnings) break;
-            if (string.IsNullOrWhiteSpace(warning)) continue;
-            var value = warning.Trim();
-            warnings.Add(value.Length > maxWarningLength ? value[..maxWarningLength] : value);
+            if (warnings.Count >= MaxAggregatedWarnings) break;
+            AddBoundedWarning(warnings, warning);
         }
     }
 
