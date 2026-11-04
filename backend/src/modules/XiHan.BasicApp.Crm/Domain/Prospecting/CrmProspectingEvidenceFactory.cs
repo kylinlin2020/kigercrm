@@ -38,15 +38,18 @@ public static class CrmProspectingEvidenceFactory
         };
         var payloadHash = IsSha256(record.RawPayloadHash) ? record.RawPayloadHash!.ToUpperInvariant() : string.Empty;
         var sourceUrlHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl)));
+        // Hash the same trimmed/bounded values that the Candidate normalizer persists.
+        // Otherwise an oversized provider field could produce provenance for a value that
+        // was silently truncated in the Candidate row.
         var fields = new (string Name, string? Value, bool HashValue)[]
         {
-            ("company_name", record.CompanyName, true),
-            ("title", record.Title, true),
-            ("website", record.Website, true),
+            ("company_name", Bound(record.CompanyName ?? record.Title, 200), true),
+            ("title", Bound(record.Title, 300), true),
+            ("website", Bound(record.Website, 500), true),
             // Avoid unsalted hashes of low-entropy personal data (e.g. email addresses).
-            ("contact_name", record.ContactName, false),
-            ("business_email", record.BusinessEmail, false),
-            ("summary", record.Summary, true)
+            ("contact_name", Bound(record.ContactName, 200), false),
+            ("business_email", Bound(record.BusinessEmail, 254), false),
+            ("summary", Bound(record.Summary, 5000), true)
         };
 
         return fields
@@ -60,7 +63,7 @@ public static class CrmProspectingEvidenceFactory
                     : record.ExternalId[..Math.Min(record.ExternalId.Length, 240)],
                 FieldName = field.Name,
                 FieldValueHash = field.HashValue
-                    ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(field.Value!.Trim())))
+                    ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(field.Value!)))
                     : null,
                 SourceUrl = sourceUrl,
                 SourceUrlHash = sourceUrlHash,
@@ -94,6 +97,13 @@ public static class CrmProspectingEvidenceFactory
 
         canonicalUrl = uri.GetLeftPart(UriPartial.Path);
         return canonicalUrl.Length is > 0 and <= 2000;
+    }
+
+    private static string? Bound(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var normalized = value.Trim();
+        return normalized.Length > maxLength ? normalized[..maxLength] : normalized;
     }
 
     private static bool IsSha256(string? value) =>
