@@ -67,3 +67,5 @@
 - CRM 自动获客 Run 的原始 Provider 结果快照从 5.9.13 起由 `5.9.13/5.9.13.sql` 为既有 CRM 租户库增加可空 `raw_results_json`（PostgreSQL text）；新库由 Run 实体 CodeFirst 创建。只有 Worker 完成 Provider 调用后才写入该字段，候选数仍为 0，原始结果不等于已审核线索。
 
 - CRM 自动获客候选审核表从 5.9.14 起由 `5.9.14/5.9.14.sql` 为已有 CRM 租户库创建（要求 `crm_lead` 与 `crm_prospecting_run` 已存在）；新库由 `SysCrmProspectingCandidate` CodeFirst 创建。候选与 CRM Lead 分表保存，必须经人工审核后才允许转为 Lead。
+
+- CRM 自动获客 Run 从 5.9.15 起保存启动时的完整执行输入快照（搜索目标、产品范围、目标市场、客户画像、Provider 计划及排除域名）；Worker 只读取 Run 快照，不再依赖可变 Campaign/Strategy 当前值。既有 Run 不会被伪造回填为历史快照；旧的未完成 Run 若需恢复，应在升级前完成或由运维核查后重新发起。
