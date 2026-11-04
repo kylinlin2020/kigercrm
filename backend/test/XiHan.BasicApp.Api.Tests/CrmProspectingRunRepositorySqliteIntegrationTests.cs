@@ -148,6 +148,30 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
     }
 
     [Fact]
+    public async Task FailFenced_ShouldPersistFailureAndClearLeaseMetadata()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var token = Guid.NewGuid();
+            var run = await CreateLeasedRunAsync("fenced-failure", token, 5, now.AddMinutes(1));
+
+            Assert.True(await _repository.FailFencedAsync(
+                run.BasicId, token, 5, now, new string('x', 2500), now));
+
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(CrmProspectingRunStatus.Failed, persisted.Status);
+            Assert.Equal(1, persisted.FailureCount);
+            Assert.Equal(2000, persisted.FailureSummary?.Length);
+            Assert.Null(persisted.LeaseOwner);
+            Assert.Null(persisted.LeaseToken);
+            Assert.Null(persisted.LeaseExpiresAt);
+            Assert.Null(persisted.LeaseHeartbeatAt);
+        }
+    }
+
+    [Fact]
     public async Task FencedTerminalTransitions_ShouldRejectExpiredLease()
     {
         using (_tenant.Change(TenantId))
