@@ -240,6 +240,9 @@ public sealed class CrmProspectingPersistenceWiringTests
             "Candidate identity recovery must occur after the failed insert UoW has left scope and must resolve the exact tenant-scoped identity.");
         Assert.Contains("run.BasicId,\n                        providerCode,\n                        externalId", worker, StringComparison.Ordinal);
         Assert.Contains("ux_crm_prospecting_candidate_te_ru_pr_ex_is", worker, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_prospecting_evidence_evidenceidentity", worker, StringComparison.Ordinal);
+        Assert.Contains("repairAttempt == 0 && IsEvidenceIdentityUniqueViolation(ex)", worker, StringComparison.Ordinal);
+        Assert.Contains("repairAttempt: 1", worker, StringComparison.Ordinal);
         Assert.Contains("23505", worker, StringComparison.Ordinal);
 
         var helperIndex = worker.IndexOf("private static async Task RepairCandidateProvenanceAsync", repairCall, StringComparison.Ordinal);
