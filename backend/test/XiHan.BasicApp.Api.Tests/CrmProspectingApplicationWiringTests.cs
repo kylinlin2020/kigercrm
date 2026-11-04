@@ -183,6 +183,36 @@ public sealed class CrmProspectingApplicationWiringTests
 
 
     [Fact]
+    public void CandidateConversion_ShouldBeTransactionalAndReturnExistingLeadOnRetry()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
+        var methodIndex = app.IndexOf("public async Task<CrmLeadDetailDto> ConvertApprovedCandidateToLeadAsync", StringComparison.Ordinal);
+        Assert.True(methodIndex > 0, "Candidate conversion application method must exist.");
+
+        var methodStart = app.LastIndexOf("[UnitOfWork(true)]", methodIndex, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0, "Candidate conversion must run inside an explicit transactional UnitOfWork.");
+
+        var methodEnd = app.IndexOf("\n    private static CrmProspectingCandidateDto", methodIndex, StringComparison.Ordinal);
+        Assert.True(methodEnd > methodIndex, "Candidate conversion method boundary must be found.");
+        var method = app[methodIndex..methodEnd];
+
+        var retryBranch = method.IndexOf("candidate.Status == CrmProspectingCandidateStatus.Converted", StringComparison.Ordinal);
+        var existingLeadRead = method.IndexOf("leads.GetByIdAsync(candidate.ConvertedLeadId.Value", StringComparison.Ordinal);
+        var claim = method.IndexOf("candidates.TryClaimForConversionAsync(candidate.BasicId", StringComparison.Ordinal);
+        var leadCreate = method.IndexOf("leadDomain.CreateAsync", StringComparison.Ordinal);
+        var candidateFinalize = method.IndexOf("candidate.Status = CrmProspectingCandidateStatus.Converted", StringComparison.Ordinal);
+        var candidateSave = method.IndexOf("candidates.UpdateAsync(candidate", StringComparison.Ordinal);
+
+        Assert.True(retryBranch >= 0 && existingLeadRead > retryBranch && claim > existingLeadRead,
+            "A retry after commit must return the existing Lead before attempting a new conversion claim.");
+        Assert.True(claim >= 0 && leadCreate > claim && candidateFinalize > leadCreate && candidateSave > candidateFinalize,
+            "Conversion must claim, create the Lead, then persist the Converted state and Lead reference.");
+        Assert.Contains("Converted prospecting candidate is missing its Lead reference.", method, StringComparison.Ordinal);
+        Assert.Contains("Converted prospecting candidate references a missing Lead.", method, StringComparison.Ordinal);
+        Assert.Contains("The conditional database update is the concurrency boundary", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CandidateConversion_ShouldUseAtomicConditionalRepositoryClaim()
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingCandidateRepository.cs");
