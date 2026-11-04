@@ -1,5 +1,6 @@
 using SqlSugar;
 using XiHan.BasicApp.Core.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.Framework.MultiTenancy;
 
 namespace XiHan.BasicApp.Crm.Domain.Entities;
@@ -35,7 +36,7 @@ public sealed class SysCrmProspectingStrategy : BasicAppFullAuditedEntity, IStri
     public string? ExcludedDomainsJson { get; set; }
 
     [SugarColumn(ColumnName = "Approval_Status", IsNullable = false, DefaultValue = "0")]
-    public int ApprovalStatus { get; set; }
+    public CrmProspectingStrategyApprovalStatus ApprovalStatus { get; set; }
 
     [SugarColumn(ColumnName = "Approved_By", IsNullable = true)]
     public long? ApprovedBy { get; set; }
