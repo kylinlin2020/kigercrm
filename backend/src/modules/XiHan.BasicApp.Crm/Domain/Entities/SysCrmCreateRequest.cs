@@ -9,6 +9,8 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 /// This is a creation-only entity: it intentionally has no soft-delete state.
 /// </summary>
 [SugarTable(TableName = "Crm_Create_Request", TableDescription = "KIGER CRM document creation idempotency ledger")]
+[SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
+[SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
 [SugarIndex("UX_{table}_TeId_Dt_RqKe", nameof(TenantId), OrderByType.Asc, nameof(DocumentType), OrderByType.Asc, nameof(RequestKey), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_TeId_DcId", nameof(TenantId), OrderByType.Asc, nameof(DocumentId), OrderByType.Asc)]
 public sealed class SysCrmCreateRequest : BasicAppCreationEntity, IStrictMultiTenantEntity
