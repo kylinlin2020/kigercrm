@@ -67,7 +67,7 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("run.lease_expires_at <= recovery_clock.now", repository, StringComparison.Ordinal);
         Assert.Contains("worker_interrupted", repository, StringComparison.Ordinal);
         Assert.Contains("RecoverStaleStartedAsync(", worker, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMinutes(15)", worker, StringComparison.Ordinal);
+        Assert.Contains("RunLeaseDuration, cancellationToken", worker, StringComparison.Ordinal);
     }
 
     [Fact]
