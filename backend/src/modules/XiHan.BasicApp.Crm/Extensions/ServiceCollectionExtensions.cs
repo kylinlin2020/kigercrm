@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.Extensions.Configuration;
+using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
@@ -66,6 +67,22 @@ public static class ServiceCollectionExtensions
             && enableFakeProvider)
         {
             services.AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();
+        }
+
+        // Official public procurement data is opt-in. Redirects are disabled because provider
+        // endpoints are fixed and must never be able to redirect the worker to an arbitrary host.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUsaSpendingProvider"], out var enableUsaSpendingProvider)
+            && enableUsaSpendingProvider)
+        {
+            services.AddHttpClient<CrmUsaSpendingProspectingProvider>(client =>
+                client.Timeout = TimeSpan.FromSeconds(25))
+                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = false,
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
+                });
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmUsaSpendingProspectingProvider>());
         }
         services.AddDataSeeder<CrmPermissionCatalogSeeder>();
         // Menu seeding is intentionally deferred until the corresponding frontend routes/components ship.
