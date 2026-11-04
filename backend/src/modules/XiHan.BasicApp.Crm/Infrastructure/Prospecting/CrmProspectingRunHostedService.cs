@@ -258,92 +258,14 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         continue;
                     }
 
-                    var expectedEvidence = CrmProspectingEvidenceFactory.Create(
-                        existingCandidate.BasicId,
+                    // Reconcile old/partial Candidates without changing their review or conversion state.
+                    await RepairCandidateProvenanceAsync(
+                        scope.ServiceProvider,
+                        evidenceRepository,
+                        scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>(),
+                        existingCandidate,
                         envelope,
-                        DateTimeOffset.UtcNow);
-                    // A record may legitimately have no eligible Evidence (for example, an
-                    // unsafe or missing source URL). Still continue to the Score check below so
-                    // legacy Candidates can receive their missing first Score snapshot.
-                    var persistedEvidence = await evidenceRepository.GetByCandidateAsync(
-                        existingCandidate.BasicId,
                         cancellationToken);
-                    var persistedEvidenceKeys = persistedEvidence
-                        .Select(evidence => (
-                            evidence.ProviderCode,
-                            evidence.ProviderRecordId,
-                            evidence.FieldName,
-                            evidence.SourceUrlHash,
-                            evidence.RawPayloadHash))
-                        .ToHashSet();
-                    var missingEvidence = expectedEvidence
-                        .Where(evidence => !persistedEvidenceKeys.Contains((
-                            evidence.ProviderCode,
-                            evidence.ProviderRecordId,
-                            evidence.FieldName,
-                            evidence.SourceUrlHash,
-                            evidence.RawPayloadHash)))
-                        .ToArray();
-
-                    var scoreRepository = scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>();
-                    var existingScores = await scoreRepository.GetLatestByCandidateAsync(
-                        existingCandidate.BasicId, 1, cancellationToken);
-                    var needsScoreRepair = existingScores.Count == 0;
-                    if (missingEvidence.Length > 0 || needsScoreRepair)
-                    {
-                        // Keep evidence repair and the first missing score snapshot atomic.
-                        // This path is intentionally conservative: it does not infer procurement,
-                        // organization verification, product fit, or market fit from unverified data.
-                        using var repairUnitOfWork = scope.ServiceProvider
-                            .GetRequiredService<IUnitOfWorkManager>()
-                            .Begin(new XiHanUnitOfWorkOptions(isTransactional: true));
-
-                        if (missingEvidence.Length > 0)
-                        {
-                            await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken);
-                        }
-
-                        if (needsScoreRepair)
-                        {
-                            var completeEvidence = persistedEvidence.Concat(missingEvidence).ToArray();
-                            // The score snapshot is deliberately smaller than the full evidence ledger.
-                            // Prioritize traceable primary rows, then use stable identity ordering.
-                            var scoreEvidence = completeEvidence
-                                .OrderByDescending(evidence =>
-                                    (evidence.EvidenceType is "direct" or "registry") &&
-                                    !string.IsNullOrWhiteSpace(evidence.SourceUrlHash))
-                                .ThenBy(evidence => evidence.ProviderCode, StringComparer.Ordinal)
-                                .ThenBy(evidence => evidence.ProviderRecordId, StringComparer.Ordinal)
-                                .ThenBy(evidence => evidence.FieldName, StringComparer.Ordinal)
-                                .ThenBy(evidence => evidence.SourceUrlHash, StringComparer.Ordinal)
-                                .ThenBy(evidence => evidence.RawPayloadHash, StringComparer.Ordinal)
-                                .Take(32)
-                                .ToArray();
-                            var evaluatedAtUtc = DateTimeOffset.UtcNow;
-                            var scoreInput = new CrmProspectingScoreInput(
-                                HasVerifiableOrganization: false,
-                                HasDirectProcurementSignal: false,
-                                HasDirectProductFit: false,
-                                HasTargetMarketFit: false,
-                                PublishedAtUtc: completeEvidence
-                                    .Where(evidence => evidence.PublishedAtUtc.HasValue)
-                                    .Select(evidence => evidence.PublishedAtUtc)
-                                    .Max(),
-                                HasTraceablePrimaryEvidence: completeEvidence.Any(evidence =>
-                                    (evidence.EvidenceType is "direct" or "registry") &&
-                                    evidence.VerificationStatus == "unverified" &&
-                                    !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
-                                HasPublicBusinessContact: !string.IsNullOrWhiteSpace(existingCandidate.BusinessEmail),
-                                IsKnownDuplicate: existingCandidate.Status == CrmProspectingCandidateStatus.Duplicate,
-                                IsRestrictedOrUnsafeSource: false);
-                            var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
-                            var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(
-                                existingCandidate.BasicId, scoreResult, scoreEvidence);
-                            await scoreRepository.AddAsync(scoreSnapshot, cancellationToken);
-                        }
-
-                        await repairUnitOfWork.CompleteAsync(cancellationToken);
-                    }
 
                     continue;
                 }
@@ -409,45 +331,70 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 // The background worker is not an HTTP request and must not rely on MVC/AOP
                 // UnitOfWork interception. Use an explicit short transaction for the candidate
                 // and its provenance rows; provider network calls stay outside this transaction.
-                using (var unitOfWork = scope.ServiceProvider
-                    .GetRequiredService<IUnitOfWorkManager>()
-                    .Begin(new XiHanUnitOfWorkOptions(isTransactional: true)))
+                SysCrmProspectingCandidate insertedCandidate;
+                try
                 {
-                    var insertedCandidate = await candidates.AddAsync(candidate, cancellationToken);
-                    var evidenceRows = CrmProspectingEvidenceFactory.Create(
-                        insertedCandidate.BasicId,
-                        envelope,
-                        DateTimeOffset.UtcNow);
-                    if (evidenceRows.Count > 0)
+                    using (var unitOfWork = scope.ServiceProvider
+                        .GetRequiredService<IUnitOfWorkManager>()
+                        .Begin(new XiHanUnitOfWorkOptions(isTransactional: true)))
                     {
-                        await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken);
+                        insertedCandidate = await candidates.AddAsync(candidate, cancellationToken);
+                        var evidenceRows = CrmProspectingEvidenceFactory.Create(
+                            insertedCandidate.BasicId,
+                            envelope,
+                            DateTimeOffset.UtcNow);
+                        if (evidenceRows.Count > 0)
+                        {
+                            await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken);
+                        }
+
+                        // Persist a conservative, explainable score snapshot in the same transaction
+                        // as Candidate and Evidence. Unknown procurement/product/market facts remain
+                        // false; the scorecard therefore keeps unverified prospects on Hold.
+                        var evaluatedAtUtc = DateTimeOffset.UtcNow;
+                        var scoreInput = new CrmProspectingScoreInput(
+                            HasVerifiableOrganization: false,
+                            HasDirectProcurementSignal: false,
+                            HasDirectProductFit: false,
+                            HasTargetMarketFit: false,
+                            PublishedAtUtc: record.PublishedAtUtc?.ToUniversalTime(),
+                            HasTraceablePrimaryEvidence: evidenceRows.Any(evidence =>
+                                (evidence.EvidenceType is "direct" or "registry") &&
+                                evidence.VerificationStatus == "unverified" &&
+                                !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
+                            HasPublicBusinessContact: !string.IsNullOrWhiteSpace(email),
+                            IsKnownDuplicate: candidate.Status == CrmProspectingCandidateStatus.Duplicate,
+                            IsRestrictedOrUnsafeSource: false);
+                        var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
+                        var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult, evidenceRows);
+                        await scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>()
+                            .AddAsync(scoreSnapshot, cancellationToken);
+
+                        await unitOfWork.CompleteAsync(cancellationToken);
                     }
-
-                    // Persist a conservative, explainable score snapshot in the same transaction
-                    // as Candidate and Evidence. Unknown procurement/product/market facts remain
-                    // false; the scorecard therefore keeps unverified prospects on Hold.
-                    var evaluatedAtUtc = DateTimeOffset.UtcNow;
-                    var scoreInput = new CrmProspectingScoreInput(
-                        HasVerifiableOrganization: false,
-                        HasDirectProcurementSignal: false,
-                        HasDirectProductFit: false,
-                        HasTargetMarketFit: false,
-                        PublishedAtUtc: record.PublishedAtUtc?.ToUniversalTime(),
-                        HasTraceablePrimaryEvidence: evidenceRows.Any(evidence =>
-                            (evidence.EvidenceType is "direct" or "registry") &&
-                            evidence.VerificationStatus == "unverified" &&
-                            !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
-                        HasPublicBusinessContact: !string.IsNullOrWhiteSpace(email),
-                        IsKnownDuplicate: candidate.Status == CrmProspectingCandidateStatus.Duplicate,
-                        IsRestrictedOrUnsafeSource: false);
-                    var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
-                    var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult, evidenceRows);
-                    await scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>()
-                        .AddAsync(scoreSnapshot, cancellationToken);
-
-                    await unitOfWork.CompleteAsync(cancellationToken);
-                    existingCandidateByKey[key] = insertedCandidate;
                 }
+                catch (Exception ex) when (IsCandidateIdentityUniqueViolation(ex))
+                {
+                    // The failed insertion UoW has been disposed before this catch. Read the winner
+                    // in the current tenant and repair only missing provenance; never rewrite review state.
+                    var winner = await candidates.GetByIdentityAsync(
+                        run.BasicId,
+                        providerCode,
+                        externalId,
+                        cancellationToken);
+                    if (winner is null) throw;
+
+                    insertedCandidate = winner;
+                    await RepairCandidateProvenanceAsync(
+                        scope.ServiceProvider,
+                        evidenceRepository,
+                        scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>(),
+                        insertedCandidate,
+                        envelope,
+                        cancellationToken);
+                }
+
+                existingCandidateByKey[key] = insertedCandidate;
 
                 existingKeys.Add(key);
                 if (normalizedEmail is not null) seenCandidateEmails.Add(normalizedEmail);
@@ -488,6 +435,112 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 Logger.LogError(persistException, "Could not persist prospecting Run failure: {RunId}", message.RunId);
             }
         }
+    }
+
+    private static bool IsCandidateIdentityUniqueViolation(Exception exception)
+    {
+        // Deliberately fail closed for other providers and unrelated unique constraints.
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            var type = current.GetType();
+            if (!string.Equals(type.FullName, "Npgsql.PostgresException", StringComparison.Ordinal))
+                continue;
+
+            var sqlState = type.GetProperty("SqlState")?.GetValue(current) as string;
+            var constraintName = type.GetProperty("ConstraintName")?.GetValue(current) as string;
+            return string.Equals(sqlState, "23505", StringComparison.Ordinal)
+                && string.Equals(constraintName, "ux_crm_prospecting_candidate_te_ru_pr_ex_is", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
+    }
+
+    private static async Task RepairCandidateProvenanceAsync(
+        IServiceProvider serviceProvider,
+        ICrmProspectingEvidenceRepository evidenceRepository,
+        ICrmProspectingScoreRepository scoreRepository,
+        SysCrmProspectingCandidate candidate,
+        CrmProspectingRawEnvelope envelope,
+        CancellationToken cancellationToken)
+    {
+        var expectedEvidence = CrmProspectingEvidenceFactory.Create(
+            candidate.BasicId,
+            envelope,
+            DateTimeOffset.UtcNow);
+        var persistedEvidence = await evidenceRepository.GetByCandidateAsync(
+            candidate.BasicId,
+            cancellationToken);
+        var persistedEvidenceKeys = persistedEvidence
+            .Select(evidence => (
+                evidence.ProviderCode,
+                evidence.ProviderRecordId,
+                evidence.FieldName,
+                evidence.SourceUrlHash,
+                evidence.RawPayloadHash))
+            .ToHashSet();
+        var missingEvidence = expectedEvidence
+            .Where(evidence => !persistedEvidenceKeys.Contains((
+                evidence.ProviderCode,
+                evidence.ProviderRecordId,
+                evidence.FieldName,
+                evidence.SourceUrlHash,
+                evidence.RawPayloadHash)))
+            .ToArray();
+
+        var existingScores = await scoreRepository.GetLatestByCandidateAsync(
+            candidate.BasicId, 1, cancellationToken);
+        var needsScoreRepair = existingScores.Count == 0;
+        if (missingEvidence.Length == 0 && !needsScoreRepair) return;
+
+        // Evidence repair and the first missing Score snapshot remain atomic.
+        // Candidate review/conversion fields are intentionally never updated here.
+        using var repairUnitOfWork = serviceProvider
+            .GetRequiredService<IUnitOfWorkManager>()
+            .Begin(new XiHanUnitOfWorkOptions(isTransactional: true));
+
+        if (missingEvidence.Length > 0)
+        {
+            await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken);
+        }
+
+        if (needsScoreRepair)
+        {
+            var completeEvidence = persistedEvidence.Concat(missingEvidence).ToArray();
+            var scoreEvidence = completeEvidence
+                .OrderByDescending(evidence =>
+                    (evidence.EvidenceType is "direct" or "registry") &&
+                    !string.IsNullOrWhiteSpace(evidence.SourceUrlHash))
+                .ThenBy(evidence => evidence.ProviderCode, StringComparer.Ordinal)
+                .ThenBy(evidence => evidence.ProviderRecordId, StringComparer.Ordinal)
+                .ThenBy(evidence => evidence.FieldName, StringComparer.Ordinal)
+                .ThenBy(evidence => evidence.SourceUrlHash, StringComparer.Ordinal)
+                .ThenBy(evidence => evidence.RawPayloadHash, StringComparer.Ordinal)
+                .Take(32)
+                .ToArray();
+            var evaluatedAtUtc = DateTimeOffset.UtcNow;
+            var scoreInput = new CrmProspectingScoreInput(
+                HasVerifiableOrganization: false,
+                HasDirectProcurementSignal: false,
+                HasDirectProductFit: false,
+                HasTargetMarketFit: false,
+                PublishedAtUtc: completeEvidence
+                    .Where(evidence => evidence.PublishedAtUtc.HasValue)
+                    .Select(evidence => evidence.PublishedAtUtc)
+                    .Max(),
+                HasTraceablePrimaryEvidence: completeEvidence.Any(evidence =>
+                    (evidence.EvidenceType is "direct" or "registry") &&
+                    evidence.VerificationStatus == "unverified" &&
+                    !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
+                HasPublicBusinessContact: !string.IsNullOrWhiteSpace(candidate.BusinessEmail),
+                IsKnownDuplicate: candidate.Status == CrmProspectingCandidateStatus.Duplicate,
+                IsRestrictedOrUnsafeSource: false);
+            var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
+            var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(
+                candidate.BasicId, scoreResult, scoreEvidence);
+            await scoreRepository.AddAsync(scoreSnapshot, cancellationToken);
+        }
+
+        await repairUnitOfWork.CompleteAsync(cancellationToken);
     }
 
     private const int MaxFailureSummaryLength = 2000;
