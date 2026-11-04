@@ -109,6 +109,57 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
     }
 
     [Fact]
+    public async Task Failure_ShouldBeTerminalAndBoundFailureSummaryToColumnLimit()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var run = await CreateRunAsync("failure-terminal");
+            Assert.NotNull(await _repository.ClaimQueuedAsync(run.BasicId, DateTimeOffset.UtcNow));
+
+            var summary = new string('x', 2500);
+            Assert.True(await _repository.FailAsync(run.BasicId, summary, DateTimeOffset.UtcNow));
+
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(CrmProspectingRunStatus.Failed, persisted.Status);
+            Assert.Equal(1, persisted.FailureCount);
+            Assert.Equal(2000, persisted.FailureSummary?.Length);
+
+            Assert.False(await _repository.FailAsync(run.BasicId, "second failure", DateTimeOffset.UtcNow));
+            Assert.False(await _repository.CompleteAsync(
+                run.BasicId, "[]", 0, 0, null, DateTimeOffset.UtcNow,
+                candidateCount: 0));
+
+            var unchanged = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(unchanged);
+            Assert.Equal(CrmProspectingRunStatus.Failed, unchanged.Status);
+            Assert.Equal(summary[..2000], unchanged.FailureSummary);
+        }
+    }
+
+    [Fact]
+    public async Task FailAfterCancellationRequest_ShouldFinalizeCancelledNotFailed()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var run = await CreateRunAsync("fail-after-cancel");
+            Assert.NotNull(await _repository.ClaimQueuedAsync(run.BasicId, DateTimeOffset.UtcNow));
+
+            Assert.True(await _repository.UpdateAsync(
+                entity => new SysCrmProspectingRun { Status = CrmProspectingRunStatus.CancelRequested },
+                entity => entity.BasicId == run.BasicId && entity.Status == CrmProspectingRunStatus.Running));
+
+            Assert.True(await _repository.FailAsync(run.BasicId, "shutdown", DateTimeOffset.UtcNow));
+
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(CrmProspectingRunStatus.Cancelled, persisted.Status);
+            Assert.Equal(0, persisted.FailureCount);
+            Assert.NotNull(persisted.CompletedAt);
+        }
+    }
+
+    [Fact]
     public async Task InterruptedRecovery_ShouldRequeueRunningAndFinalizeCancellation()
     {
         using (_tenant.Change(TenantId))
