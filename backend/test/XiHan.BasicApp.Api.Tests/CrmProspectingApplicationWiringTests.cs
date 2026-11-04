@@ -357,6 +357,20 @@ public sealed class CrmProspectingApplicationWiringTests
     }
 
     [Fact]
+    public void ProspectingWorker_ShouldPersistConservativeScoreWithCandidateAndEvidence()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("GetRequiredService<ICrmProspectingScoreRepository>()", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc)", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult)", worker, StringComparison.Ordinal);
+        Assert.Contains("HasDirectProcurementSignal: false", worker, StringComparison.Ordinal);
+        Assert.Contains("HasDirectProductFit: false", worker, StringComparison.Ordinal);
+        Assert.Contains("HasTargetMarketFit: false", worker, StringComparison.Ordinal);
+        Assert.Contains("await unitOfWork.CompleteAsync(cancellationToken)", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingWorker_ShouldStripControlCharactersFromUntrustedWarnings()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
