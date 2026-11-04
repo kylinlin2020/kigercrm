@@ -586,6 +586,44 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.DoesNotContain("RecoverExpiredLeasesAsync", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingLegacyRunTransitions_ShouldNeverMutateRowsWithLeaseMetadata()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+
+        var claimStart = repository.IndexOf("public async Task<SysCrmProspectingRun?> ClaimQueuedAsync(", StringComparison.Ordinal);
+        var claimEnd = repository.IndexOf("public async Task<bool> RenewLeaseWithDatabaseClockAsync(", claimStart, StringComparison.Ordinal);
+        Assert.True(claimStart >= 0 && claimEnd > claimStart);
+        var claim = repository[claimStart..claimEnd];
+        Assert.Contains("run.LeaseToken == null", claim, StringComparison.Ordinal);
+        Assert.Contains("run.LeaseExpiresAt == null", claim, StringComparison.Ordinal);
+
+        var recoveryStart = repository.IndexOf("public async Task<bool> RecoverInterruptedAsync(", StringComparison.Ordinal);
+        var recoveryEnd = repository.IndexOf("public async Task<bool> CompleteAsync(", recoveryStart, StringComparison.Ordinal);
+        Assert.True(recoveryStart >= 0 && recoveryEnd > recoveryStart);
+        var recovery = repository[recoveryStart..recoveryEnd];
+        Assert.Contains("run.LeaseToken == null", recovery, StringComparison.Ordinal);
+        Assert.Contains("run.LeaseExpiresAt == null", recovery, StringComparison.Ordinal);
+
+        var terminalStart = repository.IndexOf("public async Task<bool> CompleteAsync(", StringComparison.Ordinal);
+        var terminal = repository[terminalStart..];
+        Assert.Equal(4, CountOccurrences(terminal, "run.LeaseToken == null"));
+        Assert.Equal(4, CountOccurrences(terminal, "run.LeaseExpiresAt == null"));
+    }
+
+    private static int CountOccurrences(string value, string needle)
+    {
+        var count = 0;
+        var offset = 0;
+        while ((offset = value.IndexOf(needle, offset, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            offset += needle.Length;
+        }
+
+        return count;
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
