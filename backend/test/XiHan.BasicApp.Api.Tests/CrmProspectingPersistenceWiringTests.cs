@@ -626,8 +626,10 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("lease_expires_at = NULL", method, StringComparison.Ordinal);
         Assert.Contains("lease_heartbeat_at = NULL", method, StringComparison.Ordinal);
         Assert.DoesNotContain("fencing_version =", method, StringComparison.Ordinal);
-        Assert.Contains("RecoverExpiredLeasesAsync(cancellationToken)", worker, StringComparison.Ordinal);
-        Assert.Contains("RecoverExpiredLeasesAsync(cancellationToken)", worker, StringComparison.Ordinal);
+        var leaseRecovery = worker.IndexOf("RecoverExpiredLeasesAsync(cancellationToken)", StringComparison.Ordinal);
+        var queueRecovery = worker.IndexOf("GetQueuedIdsAsync(cancellationToken)", StringComparison.Ordinal);
+        Assert.True(leaseRecovery >= 0 && queueRecovery > leaseRecovery,
+            "Expired lease-backed Runs must be recovered before queued work is re-enqueued.");
     }
 
     [Fact]
