@@ -94,34 +94,18 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
+                var request = new CrmProspectingProviderRequest(
+                    run.BasicId,
+                    run.SnapshotSearchObjective,
+                    run.SnapshotProductScope ?? string.Empty,
+                    run.SnapshotTargetMarkets ?? string.Empty,
+                    run.SnapshotIdealCustomerProfile ?? string.Empty,
+                    "{}",
+                    excludedDomains);
+                CrmProspectingProviderResult result;
                 try
                 {
-                    var request = new CrmProspectingProviderRequest(
-                        run.BasicId,
-                        run.SnapshotSearchObjective,
-                        run.SnapshotProductScope ?? string.Empty,
-                        run.SnapshotTargetMarkets ?? string.Empty,
-                        run.SnapshotIdealCustomerProfile ?? string.Empty,
-                        "{}",
-                        excludedDomains);
-                    var result = await provider.SearchAsync(request, cancellationToken);
-                    failures += Math.Max(0, result.FailureCount);
-                    warnings.AddRange(result.Warnings.Where(value => !string.IsNullOrWhiteSpace(value)));
-                    const int maxRawRecordsPerRun = 2000;
-                    var remaining = Math.Max(0, maxRawRecordsPerRun - raw.Count);
-                    foreach (var record in result.Records.Take(remaining))
-                        raw.Add(new CrmProspectingRawEnvelope(provider.ProviderCode, record));
-                    if (result.Records.Count > remaining)
-                    {
-                        failures++;
-                        warnings.Add($"Raw result cap reached; {result.Records.Count - remaining} provider records were not retained.");
-                    }
-
-                    // Persisted cancellation cannot interrupt an arbitrary provider call, but
-                    // observe it immediately when that call returns and avoid starting later providers.
-                    var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken);
-                    if (afterProvider?.Status == CrmProspectingRunStatus.CancelRequested)
-                        break;
+                    result = await provider.SearchAsync(request, cancellationToken);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -129,10 +113,33 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
                 catch (Exception ex)
                 {
+                    // Isolate provider failures only. Database/state/persistence failures below
+                    // must fail the Run instead of being misreported as a provider outage.
                     failures++;
                     warnings.Add($"{providerCode}: {ex.GetType().Name}: {ex.Message}");
                     Logger.LogWarning(ex, "Prospecting provider failed for Run {RunId}, provider {Provider}", run.BasicId, providerCode);
+                    continue;
                 }
+
+                failures += Math.Max(0, result.FailureCount);
+                warnings.AddRange(result.Warnings.Where(value => !string.IsNullOrWhiteSpace(value)));
+                const int maxRawRecordsPerRun = 2000;
+                var remaining = Math.Max(0, maxRawRecordsPerRun - raw.Count);
+                foreach (var record in result.Records.Take(remaining))
+                    raw.Add(new CrmProspectingRawEnvelope(provider.ProviderCode, record));
+                if (result.Records.Count > remaining)
+                {
+                    failures++;
+                    warnings.Add($"Raw result cap reached; {result.Records.Count - remaining} provider records were not retained.");
+                }
+
+                // Persisted cancellation cannot interrupt an arbitrary provider call, but
+                // observe it immediately when that call returns and avoid starting later providers.
+                // Keep this database read outside the provider exception handler: a read failure
+                // must fail the Run rather than be mistaken for a provider outage.
+                var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+                if (afterProvider?.Status == CrmProspectingRunStatus.CancelRequested)
+                    break;
             }
 
 
