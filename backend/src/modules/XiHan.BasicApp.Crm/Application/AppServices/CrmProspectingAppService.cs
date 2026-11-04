@@ -37,8 +37,9 @@ public sealed class CrmProspectingAppService(
     public async Task<CrmProspectingCampaignDto> CreateCampaignAsync(CrmProspectingCampaignInputDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
-        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
         var entity = Map(input);
+        entity.OwnerUserId ??= CurrentUser?.Id;
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, entity.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmProspectingCampaign), input, cancellationToken);
         return ToDto(await domain.CreateCampaignAsync(entity, cancellationToken));
     }
@@ -52,9 +53,11 @@ public sealed class CrmProspectingAppService(
         var existing = await campaigns.GetByIdAsync(input.BasicId.Value, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken);
-        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, input.OwnerUserId, cancellationToken);
+        var updated = Map(input, input.BasicId.Value);
+        updated.OwnerUserId ??= existing.OwnerUserId ?? CurrentUser?.Id;
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, updated.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmProspectingCampaign), input.BasicId.Value, input, cancellationToken);
-        return ToDto(await domain.UpdateCampaignAsync(Map(input, input.BasicId.Value), cancellationToken));
+        return ToDto(await domain.UpdateCampaignAsync(updated, cancellationToken));
     }
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]
