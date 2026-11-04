@@ -124,6 +124,8 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("CrmLeadDuplicateMatcher.NormalizeEmail", worker, StringComparison.Ordinal);
         Assert.Contains("lead.WebsiteHost == websiteHost", worker, StringComparison.Ordinal);
         Assert.Contains("GetDuplicateMatchesAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("afterProvider?.Status == CrmProspectingRunStatus.CancelRequested", worker, StringComparison.Ordinal);
         Assert.Contains("const int cancellationPollInterval = 25", worker, StringComparison.Ordinal);
         Assert.Contains("recordIndex % cancellationPollInterval == 0", worker, StringComparison.Ordinal);
         Assert.Contains("for (var recordIndex = 0; recordIndex < raw.Count; recordIndex++)", worker, StringComparison.Ordinal);
