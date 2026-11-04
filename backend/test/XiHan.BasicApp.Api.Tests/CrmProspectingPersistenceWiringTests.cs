@@ -164,6 +164,16 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("nameof(SourceUrlHash)", entity, StringComparison.Ordinal);
         Assert.Contains("evidence.SourceUrlHash", worker, StringComparison.Ordinal);
         Assert.DoesNotContain("evidence.SourceUrl,", worker, StringComparison.Ordinal);
+
+        var persistedKeysStart = worker.IndexOf("var persistedEvidenceKeys", StringComparison.Ordinal);
+        var missingEvidenceStart = worker.IndexOf("var missingEvidence", StringComparison.Ordinal);
+        var missingEvidenceEnd = worker.IndexOf(".ToArray();", missingEvidenceStart, StringComparison.Ordinal);
+        Assert.True(persistedKeysStart >= 0 && missingEvidenceStart > persistedKeysStart && missingEvidenceEnd > missingEvidenceStart);
+        var persistedKeyProjection = worker[persistedKeysStart..missingEvidenceStart];
+        var expectedKeyProjection = worker[missingEvidenceStart..missingEvidenceEnd];
+        Assert.Contains("evidence.SourceUrlHash", persistedKeyProjection, StringComparison.Ordinal);
+        Assert.Contains("evidence.SourceUrlHash", expectedKeyProjection, StringComparison.Ordinal);
+        Assert.DoesNotContain("evidence.SourceUrl,", expectedKeyProjection, StringComparison.Ordinal);
     }
 
     [Fact]
