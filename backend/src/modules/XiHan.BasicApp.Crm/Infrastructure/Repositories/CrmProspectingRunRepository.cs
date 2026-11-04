@@ -117,6 +117,11 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             run => new SysCrmProspectingRun
             {
                 Status = CrmProspectingRunStatus.Cancelled,
+                RawResultsJson = rawResultsJson,
+                RawRecordCount = rawRecordCount,
+                CandidateCount = candidateCount,
+                FailureCount = failureCount,
+                FailureSummary = failureSummary,
                 CompletedAt = completedAt
             },
             run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.CancelRequested,
