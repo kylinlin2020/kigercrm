@@ -153,6 +153,18 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     "{}",
                     excludedDomains);
                 var requestKey = CrmProspectingRequestFingerprint.Create(providerCode, request);
+                var coverageCheckpoint = await requestLedger.GetCoverageCheckpointAsync(
+                    run.CampaignId, providerCode, requestKey, cancellationToken);
+                if (coverageCheckpoint is not null)
+                {
+                    // Keep a 48-hour overlap to tolerate publication/update delays and clock skew.
+                    // Providers that support CoverageSinceUtc use this lower bound; others ignore it.
+                    request = request with
+                    {
+                        CoverageSinceUtc = coverageCheckpoint.LastSuccessfulScanAt.AddHours(-48)
+                    };
+                }
+
                 // The Started row is durable before the provider is allowed to perform network I/O.
                 // If ledger persistence fails, fail the Run rather than making an untracked request.
                 var attempt = await requestLedger.CreateStartedAsync(
