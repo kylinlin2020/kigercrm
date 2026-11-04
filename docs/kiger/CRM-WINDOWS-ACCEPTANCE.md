@@ -87,7 +87,9 @@ Source-wiring tests are useful regression guards but are not substitutes for rep
    - Contact primary-customer slot and uniqueness behavior.
    - Quote version, source-quote, and source-quote-line uniqueness.
    - Order fulfillment revision and reserved/shipped quantity columns and check constraint.
-   - Permanent tenant-scoped quote/version, sales-order-number, and shipment-number uniqueness.\n   - Nullable `creation_request_fingerprint` columns on sales orders (5.9.9) and shipments (5.9.8); existing rows must remain NULL.
+   - Permanent tenant-scoped quote/version, sales-order-number, and shipment-number uniqueness.
+   - Nullable `creation_request_fingerprint` columns on sales orders (5.9.9) and shipments (5.9.8); existing rows must remain NULL.
+   - `crm_create_request` ledger table (5.9.10), permanent unique `(tenant_id, document_type, request_key)` index, and no `is_deleted` column.
 6. Re-run startup after successful migration and verify it is safe/idempotent.
 7. Test a disposable legacy database containing a deliberate preflight conflict. The migration must stop with an actionable error and must not leave a partially upgraded schema.
 8. Verify both platform and isolated tenant database paths. Scripts touching platform-only tables must safely skip when those tables do not exist in a tenant database.
