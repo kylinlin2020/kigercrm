@@ -29,12 +29,12 @@ This checklist separates the workstreams so implementation can proceed independe
 
 ## Workstream C — Child-write transaction fence
 
-The existing Candidate/Evidence/Score write path is not yet protected by the lease guard. A repository primitive, `TryLockLeaseForWriteAsync`, now requires an active transactional UnitOfWork and executes a tenant/token/version/expiry-checked `SELECT ... FOR UPDATE` using database time. It is not called by the HostedService yet. A pre-read is insufficient.
+The existing Candidate/Evidence/Score write path is not yet protected by the lease guard. A repository primitive, `TryLockLeaseForWriteAsync`, now requires an active transactional UnitOfWork. It first materializes a tenant/token/version-scoped `SELECT ... FOR UPDATE`, then checks expiry with `clock_timestamp()` after acquiring the row lock so lock wait time cannot make an already-expired lease appear live. It is not called by the HostedService yet. A pre-read is insufficient.
 
 - [ ] Begin one explicit transactional UnitOfWork.
 - [x] Add a repository guard that verifies/locks the Run row using the active tenant-scoped client and exact token/version; it fails closed without an active ADO transaction.
 - [ ] Call the guard before every Candidate/Evidence/Score insert or repair, using the same UnitOfWork and lease identity.
-- [x] Guard checks that the lease is still live using PostgreSQL database time.
+- [x] Guard checks that the lease is still live using PostgreSQL database time after row-lock acquisition.
 - [ ] Integrate the guard into every child persistence transaction; the HostedService currently does not call it.
 - [ ] Verify takeover and child-write serialization with two independent PostgreSQL connections.
 - [ ] Insert/repair Candidate, Evidence, and initial Score in that same transaction.
@@ -84,3 +84,6 @@ From a clean checkout of `kiger-dev`, run in PowerShell:
 ```
 
 Use `-SkipTests` only when performing a build-only pass. The script deliberately refuses another branch or a dirty working tree. It does not provision PostgreSQL and does not authorize multi-instance operation.
+
+
+The child-write guard was tightened after review: lease expiry is now evaluated by an outer query after a materialized `FOR UPDATE` CTE has acquired the Run row. This avoids relying on a clock predicate evaluated before a potentially blocking row-lock wait. A source-level assertion checks the materialized CTE and post-lock expiry predicate; a real two-connection PostgreSQL test is still required.
