@@ -14,6 +14,10 @@ public sealed class SysCrmShipment : BasicAppFullAuditedEntity, IStrictMultiTena
     [SugarColumn(ColumnName = "Shipment_Number", Length = 40, IsNullable = false)]
     public string ShipmentNumber { get; set; } = string.Empty;
 
+    /// <summary>SHA-256 fingerprint of the normalized create request when server-numbered idempotency is used.</summary>
+    [SugarColumn(ColumnName = "Creation_Request_Fingerprint", Length = 64, IsNullable = true)]
+    public string? CreationRequestFingerprint { get; set; }
+
     [SugarColumn(ColumnName = "Sales_Order_Id", IsNullable = false)]
     public long SalesOrderId { get; set; }
 
