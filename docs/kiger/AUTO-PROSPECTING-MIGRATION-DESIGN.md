@@ -135,3 +135,15 @@ Implemented on `kiger-dev`:
 - Added source-level regression guards for approved/active strategy gating, non-empty provider plan and migration/entity fingerprint mapping.
 
 **Important execution boundary:** this slice persists a `Queued` run only. It does not yet dispatch a worker, perform provider requests, update progress counters, or transition a run to Succeeded/Failed. A queued task is not a completed prospecting job. The 5.9.12 migration, .NET build/tests, PostgreSQL behavior and Windows acceptance have not been executed. Historical Run rows receive an empty fingerprint during migration and are deliberately not considered safe idempotent replays.
+
+
+## 12. Prospecting history read APIs (2026-11-04)
+
+Added read endpoints for campaign strategy history and execution history:
+
+- `GetStrategiesAsync(campaignId)` returns strategy versions newest-first.
+- `GetCampaignRunsAsync(campaignId)` returns runs newest-first.
+- Both endpoints verify campaign existence and enforce the existing owner/data-scope access check before reading child rows.
+- Both use strict tenant-scoped repositories and the existing CRM Read permission.
+
+These endpoints currently return the complete history for the campaign; paging and server-side filtering should be added before high-volume production use. No worker execution or provider integration is implied by these read APIs.
