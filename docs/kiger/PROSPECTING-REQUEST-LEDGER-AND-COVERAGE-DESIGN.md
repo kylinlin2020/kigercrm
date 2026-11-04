@@ -26,8 +26,8 @@ Proposed tenant table: `Crm_Prospecting_Provider_Request`.
 | Run_Id | bigint, indexed | Parent execution |
 | Provider_Code | varchar(80) | Stable provider key |
 | Attempt_No | int | 1-based attempt within provider execution |
-| Request_Key | char(64) | SHA-256 of canonical safe request fingerprint |
-| State | smallint | Started, Succeeded, Failed, RateLimited, Cancelled |
+| Request_Key | varchar(64) | SHA-256 of canonical safe request fingerprint |
+| State | varchar(24) | Started, Succeeded, Failed, RateLimited, Cancelled |
 | Started_At / Completed_At | timestamptz | Operational timing |
 | Duration_Ms | bigint nullable | Measured elapsed duration |
 | Http_Status | int nullable | Sanitized response status |
