@@ -59,6 +59,123 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         return rows.FirstOrDefault();
     }
 
+    public async Task<bool> RenewLeaseAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        DateTimeOffset heartbeatAt,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        if (leaseDuration <= TimeSpan.Zero || leaseDuration > TimeSpan.FromHours(1))
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration), "Lease duration must be greater than zero and at most one hour.");
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await UpdateAsync(
+            run => new SysCrmProspectingRun
+            {
+                LeaseHeartbeatAt = heartbeatAt,
+                LeaseExpiresAt = heartbeatAt.Add(leaseDuration)
+            },
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseToken == leaseToken &&
+                run.FencingVersion == fencingVersion &&
+                run.LeaseExpiresAt != null &&
+                run.LeaseExpiresAt > heartbeatAt,
+            cancellationToken);
+    }
+
+    public async Task<bool> CompleteFencedAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        DateTimeOffset now,
+        string rawResultsJson,
+        int rawRecordCount,
+        int failureCount,
+        string? failureSummary,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken = default,
+        int candidateCount = 0)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        ArgumentNullException.ThrowIfNull(rawResultsJson);
+        if (rawRecordCount < 0 || candidateCount < 0 || failureCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(rawRecordCount));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var status = failureCount == 0
+            ? CrmProspectingRunStatus.Succeeded
+            : rawRecordCount > 0
+                ? CrmProspectingRunStatus.PartiallySucceeded
+                : CrmProspectingRunStatus.Failed;
+
+        return await UpdateAsync(
+            run => new SysCrmProspectingRun
+            {
+                Status = status,
+                RawResultsJson = rawResultsJson,
+                RawRecordCount = rawRecordCount,
+                CandidateCount = candidateCount,
+                FailureCount = failureCount,
+                FailureSummary = BoundFailureSummary(failureSummary),
+                CompletedAt = completedAt,
+                LeaseOwner = null,
+                LeaseToken = null,
+                LeaseExpiresAt = null,
+                LeaseHeartbeatAt = null
+            },
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseToken == leaseToken &&
+                run.FencingVersion == fencingVersion &&
+                run.LeaseExpiresAt != null &&
+                run.LeaseExpiresAt > now,
+            cancellationToken);
+    }
+
+    public async Task<bool> FailFencedAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        DateTimeOffset now,
+        string failureSummary,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureSummary);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return await UpdateAsync(
+            run => new SysCrmProspectingRun
+            {
+                Status = CrmProspectingRunStatus.Failed,
+                FailureCount = 1,
+                FailureSummary = BoundFailureSummary(failureSummary),
+                CompletedAt = completedAt,
+                LeaseOwner = null,
+                LeaseToken = null,
+                LeaseExpiresAt = null,
+                LeaseHeartbeatAt = null
+            },
+            run => run.BasicId == runId &&
+                run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseToken == leaseToken &&
+                run.FencingVersion == fencingVersion &&
+                run.LeaseExpiresAt != null &&
+                run.LeaseExpiresAt > now,
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<SysCrmProspectingRun>> GetLatestByCampaignAsync(long campaignId, int limit, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
