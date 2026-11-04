@@ -174,11 +174,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 .Select(candidate => candidate.WebsiteHost!)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var envelope in raw)
+            // Persisted cancellation is polled at a bounded interval; the host token is still
+            // checked for every record. CompleteAsync resolves cancellation arriving after the
+            // last poll and gives CancelRequested precedence over success.
+            const int cancellationPollInterval = 25;
+            for (var recordIndex = 0; recordIndex < raw.Count; recordIndex++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var runState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
-                if (runState?.Status == CrmProspectingRunStatus.CancelRequested) break;
+                if (recordIndex % cancellationPollInterval == 0)
+                {
+                    var runState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+                    if (runState?.Status == CrmProspectingRunStatus.CancelRequested) break;
+                }
+
+                var envelope = raw[recordIndex];
                 var record = envelope.Record;
                 var providerCode = envelope.ProviderCode.Trim();
                 if (string.IsNullOrWhiteSpace(providerCode)) throw new InvalidOperationException("Provider code cannot be empty.");
