@@ -128,7 +128,7 @@ public sealed class CrmTedProspectingProviderTests
             CoverageSinceUtc = lowerBound
         });
 
-        Assert.Single(handler.RequestBody);
+        Assert.Equal(1, handler.CallCount);
         Assert.Contains("PD=(20261020", handler.RequestBody, StringComparison.Ordinal);
         Assert.True(result.IsComplete);
     }
