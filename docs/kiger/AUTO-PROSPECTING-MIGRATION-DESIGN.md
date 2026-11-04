@@ -459,3 +459,17 @@ Registration is opt-in through `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=
 Added adapter unit-test source for record mapping, empty-query no-network behavior and HTTP error handling, plus a source-wiring regression guard and provider operations documentation.
 
 **Not yet verified:** no .NET SDK is available in the current execution environment, so no compile/test has run. The provider has not yet been exercised against the live USAspending endpoint or Windows/PostgreSQL target runtime. It is one official US procurement source, not full provider parity, and pagination, provider request ledger, rate/cost accounting, and cross-source deduplication remain open.
+
+
+## 48. UK procurement and GLEIF identity source delivery (2026-11-04)
+
+Two additional real-data capabilities are now implemented on `kiger-dev`:
+
+1. `CrmFindTenderProspectingProvider`: official UK Find a Tender OCDS release API, rolling 30-day updated window, tender/award stages, cursor pagination capped at three pages, local keyword filtering, buyer-role-only organization extraction, official notice URL and immutable payload hash. It is opt-in through `XiHan:CRM:Prospecting:EnableFindTenderProvider=true`.
+2. `CrmGleifIdentityResolver`: official GLEIF LEI Records API, used only to enrich already-discovered candidates. It requires a unique exact normalized legal-name match, requires the API pagination total to prove the first page is complete, and returns no match for ambiguous/incomplete results. The worker caps lookups at 20 per Run and stores registry evidence as unverified. It is opt-in through `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`.
+
+Both adapters use fixed HTTPS endpoints, disabled redirects, bounded timeouts and response sizes. Find a Tender cursor links are host/path validated. The GLEIF resolver stores the LEI record URL, payload fingerprint, entity status, LEI registration status, country and registered identifier; it does not upgrade a score or create a Lead.
+
+Tests added for procurement mapping, buyer-role handling, pagination and cursor host validation, GLEIF exact/ambiguous matching, and DI/worker wiring.
+
+**Validation still outstanding:** the current development environment does not contain the .NET 10 SDK, and GitHub Actions has not produced a run for `kiger-dev`. No compilation, automated test execution, live API exercise, Windows acceptance or PostgreSQL concurrency acceptance is claimed.
