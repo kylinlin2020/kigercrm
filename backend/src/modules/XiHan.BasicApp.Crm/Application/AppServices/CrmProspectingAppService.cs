@@ -1,7 +1,9 @@
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Domain.DomainServices;
+using XiHan.BasicApp.Crm.Domain.Services;
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Saas.Application.QueryServices;
@@ -21,6 +23,8 @@ public sealed class CrmProspectingAppService(
     ICrmProspectingCampaignRepository campaigns,
     ICrmProspectingStrategyRepository strategies,
     ICrmProspectingRunRepository runs,
+    ICrmProspectingCandidateRepository candidates,
+    ICrmLeadDomainService leadDomain,
     IFieldSecurityService fieldSecurity,
     IUserDataScopeFilterService dataScope,
     IRedisDelayQueue<CrmProspectingRunMessage> runQueue,
@@ -189,6 +193,103 @@ public sealed class CrmProspectingAppService(
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
         return ToDto(await domain.CancelRunAsync(runId, cancellationToken));
     }
+
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<IReadOnlyList<CrmProspectingCandidateDto>> GetRunCandidatesAsync(long runId, int? status = null, CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        var run = await runs.GetByIdAsync(runId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        if (status.HasValue && !Enum.IsDefined(typeof(CrmProspectingCandidateStatus), status.Value))
+            throw new ArgumentOutOfRangeException(nameof(status));
+        var items = await candidates.GetListAsync(candidate =>
+            candidate.RunId == runId && (!status.HasValue || (int)candidate.Status == status.Value), cancellationToken);
+        return items.OrderByDescending(candidate => candidate.CreatedTime).Take(500).Select(ToCandidateDto).ToArray();
+    }
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingCandidateDto> ReviewCandidateAsync(CrmProspectingCandidateReviewDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.CandidateId <= 0) throw new ArgumentOutOfRangeException(nameof(input.CandidateId));
+        var candidate = await candidates.GetByIdAsync(input.CandidateId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting candidate does not exist.");
+        if (candidate.Status is not (CrmProspectingCandidateStatus.PendingReview or CrmProspectingCandidateStatus.Duplicate))
+            throw new InvalidOperationException("Only pending or duplicate candidates can be reviewed.");
+        if (input.Approve && candidate.Status == CrmProspectingCandidateStatus.Duplicate && !input.OverrideDuplicate)
+            throw new InvalidOperationException("Duplicate candidate approval requires an explicit duplicate override.");
+        var run = await runs.GetByIdAsync(candidate.RunId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmProspectingCandidate), candidate.BasicId,
+            new { Status = input.Approve ? CrmProspectingCandidateStatus.Approved : CrmProspectingCandidateStatus.Rejected, input.OverrideDuplicate }, cancellationToken);
+        candidate.Status = input.Approve ? CrmProspectingCandidateStatus.Approved : CrmProspectingCandidateStatus.Rejected;
+        await candidates.UpdateAsync(candidate, cancellationToken);
+        return ToCandidateDto(candidate);
+    }
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Create)]
+    public async Task<CrmLeadDetailDto> ConvertApprovedCandidateToLeadAsync(long candidateId, CancellationToken cancellationToken = default)
+    {
+        if (candidateId <= 0) throw new ArgumentOutOfRangeException(nameof(candidateId));
+        var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting candidate does not exist.");
+        if (candidate.Status != CrmProspectingCandidateStatus.Approved)
+            throw new InvalidOperationException("Only an approved prospecting candidate can be converted to a Lead.");
+        var run = await runs.GetByIdAsync(candidate.RunId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        var leadInput = new CrmLeadCreateDto
+        {
+            CompanyName = candidate.CompanyName,
+            ContactName = candidate.ContactName,
+            Email = candidate.BusinessEmail,
+            Website = candidate.Website,
+            Source = "Prospecting",
+            SourceReference = $"{candidate.ProviderCode}:{candidate.ExternalId}",
+            OwnerUserId = campaign.OwnerUserId,
+            Notes = candidate.Summary
+        };
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmLead), leadInput, cancellationToken);
+        var lead = await leadDomain.CreateAsync(new CrmLeadCreateCommand(
+            leadInput.CompanyName, leadInput.ContactName, leadInput.Email, leadInput.Phone, leadInput.Website,
+            leadInput.CountryRegion, leadInput.Source, leadInput.SourceReference, leadInput.OwnerUserId, leadInput.Notes), cancellationToken);
+        candidate.Status = CrmProspectingCandidateStatus.Converted;
+        candidate.ConvertedLeadId = lead.BasicId;
+        await candidates.UpdateAsync(candidate, cancellationToken);
+        return CrmLeadMapper.ToDetailDto(lead);
+    }
+
+    private static CrmProspectingCandidateDto ToCandidateDto(SysCrmProspectingCandidate entity) => new()
+    {
+        BasicId = entity.BasicId,
+        RunId = entity.RunId,
+        ProviderCode = entity.ProviderCode,
+        ExternalId = entity.ExternalId,
+        Source = entity.Source,
+        Title = entity.Title,
+        CompanyName = entity.CompanyName,
+        ContactName = entity.ContactName,
+        BusinessEmail = entity.BusinessEmail,
+        Website = entity.Website,
+        Summary = entity.Summary,
+        Status = (int)entity.Status,
+        DuplicateLeadId = entity.DuplicateLeadId,
+        DuplicateReason = entity.DuplicateReason,
+        ConvertedLeadId = entity.ConvertedLeadId,
+        CreatedTime = entity.CreatedTime
+    };
 
     private static CrmProspectingRunDto ToDto(SysCrmProspectingRun entity) => new()
     {
