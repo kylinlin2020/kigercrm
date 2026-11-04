@@ -123,3 +123,20 @@ Do not catch a unique violation and continue querying in the same PostgreSQL tra
 - No guarantee that numbering sequences have no gaps; the numbering subsystem intentionally commits allocations independently.
 - No replay for manually numbered creates unless a request key is explicitly supplied and the ledger path is used.
 - No automatic retry loop around arbitrary database failures. Only a recognized unique violation on the ledger's exact unique constraint may enter winner recovery.
+
+
+## Implementation status — permanent request ledger introduced
+
+The first ledger implementation is now present on `kiger-dev`:
+
+- `SysCrmCreateRequest` is a CRM-owned `BasicAppCreationEntity` implementing strict tenant isolation. It intentionally has no soft-delete field.
+- Unique identity is `TenantId + DocumentType + RequestKey`; payload hash, document ID, and document number are stored on the ledger row.
+- `CrmCreateRequestRepository` uses `CreateQueryable()`, preserving the current tenant filter; it never uses the cross-tenant query helper.
+- Migration `5.9.10` creates the ledger and its permanent unique index.
+- Direct sales-order and shipment create flows check the ledger before creating/locking/reserving, replay a matching existing document, reject same-key/different-payload reuse, and insert the ledger record after document lines are written in the same `[UnitOfWork(true)]` transaction.
+- Existing fingerprint-only server-numbered documents can be adopted into the ledger only when their persisted fingerprint matches the new request.
+- The shipment replay path resolves the ledger before incrementing `FulfillmentRevision` or changing `ReservedQuantity`, preventing a sequential replay from reserving twice.
+
+The implementation currently covers server-numbered creates that provide `NumberingIdempotencyKey`. Manual-numbered creates remain outside this ledger. Concurrent first submissions still rely on the stable numbering key plus tenant-scoped unique document-number constraint to ensure at most one aggregate commits; the losing request may receive a database conflict and must retry to read the winner. Transparent winner recovery is intentionally not implemented.
+
+Added SQLite repository integration tests for persistence, strict tenant isolation, and per-tenant/document-type uniqueness, plus source-wiring tests for both create flows. These tests have been authored but not executed in this environment. SQLite tests do not establish PostgreSQL migration or concurrency correctness.
