@@ -725,6 +725,8 @@ public sealed class CrmProspectingPersistenceWiringTests
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmFindTenderProspectingProvider.cs");
 
         Assert.Contains("EnableFindTenderProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableContractsFinderProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmContractsFinderProspectingProvider", registration, StringComparison.Ordinal);
         Assert.Contains("new HttpClient(new SocketsHttpHandler", registration, StringComparison.Ordinal);
         Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
         Assert.Contains("find-tender.service.gov.uk/api/1.0/ocdsReleasePackages", provider, StringComparison.Ordinal);
