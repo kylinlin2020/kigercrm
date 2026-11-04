@@ -177,3 +177,19 @@ A source-contract test was added to guard the explicit UoW, Candidate insert, ev
 - No Score rows are persisted by this change.
 
 The source guard test has been added but not executed. No build, unit-test run, PostgreSQL integration test, or Windows runtime acceptance is claimed.
+
+## 2026-11-04 retry reconciliation for pre-existing Candidates
+
+The Worker now handles a duplicate Candidate identity as a possible evidence-repair opportunity rather than immediately skipping it:
+
+- It resolves the already persisted Candidate by the same Run/provider/external identity.
+- It regenerates the expected field-level evidence from the current raw provider envelope.
+- It loads existing evidence for that Candidate and compares stable descriptive identity fields: provider code, provider record ID, field name, canonical source URL, and raw payload hash.
+- It inserts only missing evidence rows inside a short explicit transactional unit of work.
+- Newly inserted Candidates are added to the in-memory identity map using the entity returned by `AddAsync`, preserving the generated Candidate ID for subsequent duplicate envelopes in the same Run.
+
+The reconciliation deliberately does not use retrieval timestamp as identity, because a retry naturally occurs at a later time. Different source URLs or payload hashes can therefore add new provenance evidence for the same Candidate. Multiple envelopes for the same Candidate are checked independently so distinct source records are not discarded after the first match.
+
+A source-contract test guards this retry path. This remains an application-level reconciliation strategy, not a database uniqueness guarantee. Until a stable evidence identity is enforced by a PostgreSQL unique constraint and multi-worker fencing is implemented, the single-active-worker deployment restriction remains mandatory. Concurrent reconciliation can still race.
+
+No PostgreSQL rollback, retry, or concurrent-writer test has been executed; no build or Windows runtime acceptance is claimed.
