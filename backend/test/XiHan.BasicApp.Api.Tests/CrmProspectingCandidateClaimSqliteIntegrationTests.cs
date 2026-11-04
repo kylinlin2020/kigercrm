@@ -180,6 +180,33 @@ public sealed class CrmProspectingCandidateClaimSqliteIntegrationTests : IDispos
         }
     }
 
+
+    [Theory]
+    [InlineData(CrmProspectingCandidateStatus.Converting)]
+    [InlineData(CrmProspectingCandidateStatus.Converted)]
+    [InlineData(CrmProspectingCandidateStatus.Rejected)]
+    public async Task CandidateReview_ShouldNotReopenConvertingOrTerminalStates(CrmProspectingCandidateStatus initialStatus)
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var candidate = await _repository.AddAsync(new SysCrmProspectingCandidate
+            {
+                RunId = 7005,
+                ProviderCode = "official",
+                ExternalId = $"candidate-review-locked-{(int)initialStatus}",
+                CompanyName = "Locked State Example",
+                Status = initialStatus
+            });
+
+            Assert.False(await _repository.TryReviewAsync(candidate.BasicId, approve: true, overrideDuplicate: true));
+            Assert.False(await _repository.TryReviewAsync(candidate.BasicId, approve: false, overrideDuplicate: false));
+
+            var persisted = await _repository.GetByIdAsync(candidate.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(initialStatus, persisted.Status);
+        }
+    }
+
     public void Dispose()
     {
         _db.Dispose();
