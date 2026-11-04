@@ -99,6 +99,52 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         return rows.SingleOrDefault();
     }
 
+    /// <summary>
+    /// Locks and validates the current live lease for the duration of the caller's transactional UnitOfWork.
+    /// Child Candidate/Evidence/Score writes must execute on this same transaction after this method succeeds.
+    /// </summary>
+    public async Task<bool> TryLockLeaseForWriteAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting write fencing requires PostgreSQL.");
+        if (client.Ado.Transaction is null)
+            throw new InvalidOperationException("Prospecting write fencing must run inside an active transactional UnitOfWork.");
+
+        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        const string sql = """
+            SELECT run.basic_id AS "BasicId"
+            FROM crm_prospecting_run AS run
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @runningStatus
+              AND run.lease_token = @leaseToken
+              AND run.fencing_version = @fencingVersion
+              AND run.lease_expires_at IS NOT NULL
+              AND run.lease_expires_at > clock_timestamp()
+            FOR UPDATE;
+            """;
+
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+
+        return rows.Count == 1;
+    }
+
     public async Task<SysCrmProspectingRun?> ClaimQueuedAsync(
         long runId,
         DateTimeOffset startedAt,

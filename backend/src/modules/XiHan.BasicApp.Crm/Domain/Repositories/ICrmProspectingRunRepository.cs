@@ -12,6 +12,9 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>Atomically claim a queued or expired-lease Run using PostgreSQL database time; returns the exact token/version granted by UPDATE RETURNING.</summary>
     Task<SysCrmProspectingRun?> TryClaimLeaseAsync(long runId, string leaseOwner, TimeSpan leaseDuration, CancellationToken cancellationToken = default);
 
+    /// <summary>Lock and validate a live lease in the caller's active transactional UnitOfWork before any Candidate/Evidence/Score child writes.</summary>
+    Task<bool> TryLockLeaseForWriteAsync(long runId, Guid leaseToken, long fencingVersion, CancellationToken cancellationToken = default);
+
     /// <summary>Atomically claim a queued run. A duplicate delivery or competing worker receives null.</summary>
     Task<SysCrmProspectingRun?> ClaimQueuedAsync(long runId, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
 
