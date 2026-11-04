@@ -204,6 +204,35 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
     }
 
     [Fact]
+    public async Task CancelFenced_ShouldRequireCurrentLeaseAndPreserveCancellationIntent()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var token = Guid.NewGuid();
+            var run = await CreateLeasedRunAsync("fenced-cancel", token, 6, now.AddMinutes(1));
+            Assert.True(await _repository.UpdateAsync(
+                entity => new SysCrmProspectingRun { Status = CrmProspectingRunStatus.CancelRequested },
+                entity => entity.BasicId == run.BasicId && entity.Status == CrmProspectingRunStatus.Running));
+
+            Assert.False(await _repository.CancelFencedAsync(
+                run.BasicId, Guid.NewGuid(), 6, now, now));
+            Assert.False(await _repository.CancelFencedAsync(
+                run.BasicId, token, 5, now, now));
+            Assert.True(await _repository.CancelFencedAsync(
+                run.BasicId, token, 6, now, now));
+
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(CrmProspectingRunStatus.Cancelled, persisted.Status);
+            Assert.Null(persisted.LeaseOwner);
+            Assert.Null(persisted.LeaseToken);
+            Assert.Null(persisted.LeaseExpiresAt);
+            Assert.Null(persisted.LeaseHeartbeatAt);
+        }
+    }
+
+    [Fact]
     public async Task FencedTerminalTransitions_ShouldRejectExpiredLease()
     {
         using (_tenant.Change(TenantId))
