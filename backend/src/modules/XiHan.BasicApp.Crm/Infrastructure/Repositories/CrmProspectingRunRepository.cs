@@ -88,7 +88,8 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         int failureCount,
         string? failureSummary,
         DateTimeOffset completedAt,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int candidateCount = 0)
     {
         var status = failureCount == 0
             ? CrmProspectingRunStatus.Succeeded
@@ -102,7 +103,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 Status = status,
                 RawResultsJson = rawResultsJson,
                 RawRecordCount = rawRecordCount,
-                CandidateCount = 0,
+                CandidateCount = candidateCount,
                 FailureCount = failureCount,
                 FailureSummary = failureSummary,
                 CompletedAt = completedAt
