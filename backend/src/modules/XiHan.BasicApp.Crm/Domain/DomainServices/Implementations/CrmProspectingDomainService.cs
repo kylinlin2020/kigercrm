@@ -104,6 +104,10 @@ public sealed class CrmProspectingDomainService(
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         if (campaign.Status is CrmProspectingCampaignStatus.Completed or CrmProspectingCampaignStatus.Archived)
             throw new InvalidOperationException("A completed or archived campaign cannot activate a strategy.");
+        // Repeating activation of the already-active strategy is an idempotent no-op.
+        if (campaign.ActiveStrategyVersion == strategy.Version && strategy.ActivatedAt != null)
+            return campaign;
+
         var expectedVersion = campaign.ActiveStrategyVersion;
         if (!await campaigns.TrySetActiveStrategyVersionAsync(campaign.BasicId, expectedVersion, strategy.Version, cancellationToken))
             throw new InvalidOperationException("The campaign active strategy changed concurrently. Refresh before activating again.");
