@@ -85,7 +85,7 @@ public sealed class CrmSalesOrderAppService(
                 cancellationToken);
             number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
             creationRequestFingerprint = CreateRequestFingerprint(
-                input, currency, customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+                input, owner, currency, customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
 
             var existingOrder = await repository.GetByOrderNumberAsync(number, cancellationToken);
             if (existingOrder is not null)
@@ -289,6 +289,7 @@ public sealed class CrmSalesOrderAppService(
 
     private static string CreateRequestFingerprint(
         CrmSalesOrderCreateDto input,
+        long? ownerUserId,
         string currency,
         string? customerPurchaseOrderNumber,
         string? paymentTerms,
@@ -302,7 +303,7 @@ public sealed class CrmSalesOrderAppService(
             input.OpportunityId,
             input.OrderDate,
             Currency = currency,
-            input.OwnerUserId,
+            OwnerUserId = ownerUserId,
             CustomerPurchaseOrderNumber = customerPurchaseOrderNumber,
             PaymentTerms = paymentTerms,
             DeliveryTerms = deliveryTerms,
