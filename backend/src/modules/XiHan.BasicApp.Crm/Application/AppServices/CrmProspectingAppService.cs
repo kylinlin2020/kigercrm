@@ -91,8 +91,8 @@ public sealed class CrmProspectingAppService(
         var campaign = await campaigns.GetByIdAsync(campaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
-        var items = await strategies.GetListAsync(x => x.CampaignId == campaignId, cancellationToken);
-        return items.OrderByDescending(x => x.Version).Take(500).Select(ToDto).ToArray();
+        var items = await strategies.GetLatestByCampaignAsync(campaignId, 500, cancellationToken);
+        return items.Select(ToDto).ToArray();
     }
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]
@@ -102,8 +102,8 @@ public sealed class CrmProspectingAppService(
         var campaign = await campaigns.GetByIdAsync(campaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
-        var items = await runs.GetListAsync(x => x.CampaignId == campaignId, cancellationToken);
-        return items.OrderByDescending(x => x.CreatedTime).Take(500).Select(ToDto).ToArray();
+        var items = await runs.GetLatestByCampaignAsync(campaignId, 500, cancellationToken);
+        return items.Select(ToDto).ToArray();
     }
 
     [UnitOfWork(true)]
