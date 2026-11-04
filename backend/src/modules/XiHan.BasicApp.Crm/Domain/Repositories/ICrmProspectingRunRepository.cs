@@ -9,6 +9,9 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>Atomically claim a queued run. A duplicate delivery or competing worker receives null.</summary>
     Task<SysCrmProspectingRun?> ClaimQueuedAsync(long runId, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
 
+    /// <summary>Read the newest runs for one campaign with the result limit applied in SQL.</summary>
+    Task<IReadOnlyList<SysCrmProspectingRun>> GetLatestByCampaignAsync(long campaignId, int limit, CancellationToken cancellationToken = default);
+
     /// <summary>List queued run IDs in creation order for startup/queue-loss recovery in the current tenant scope.</summary>
     Task<IReadOnlyList<long>> GetQueuedIdsAsync(CancellationToken cancellationToken = default);
 
