@@ -29,7 +29,7 @@ The framework UoW implementation itself is not vendored in this repository tree;
 
 ### Upstream framework source inspection (additional verification)
 
-The public `XiHanFun/XiHan.Framework` source was inspected for the concrete UoW and SqlSugar integration used by BasicApp. The repository currently declares BasicApp version `5.9.5`; the inspected upstream `main` source is useful implementation evidence, but the exact deployed NuGet package/source revision has not yet been pinned to that version. Treat the following as verified upstream behavior, pending version alignment:
+The public `XiHanFun/XiHan.Framework` source was inspected for the concrete UoW and SqlSugar integration used by BasicApp. The BasicApp project explicitly references `XiHan.Framework.*` NuGet packages at version `4.8.0`, and the inspected upstream framework `framework/props/version.props` also declares `4.8.0`. The inspected implementation therefore aligns with the framework package version declared by the application (although the exact upstream Git commit hash used to publish the package is not independently pinned). The following behavior is verified in the matching `4.8.0` source tree:
 
 - `UnitOfWorkManager.Begin(..., requiresNew: true)` creates a new UoW scope and, when an outer UoW exists, sets `RequiresIsolatedConnection = true`. The SqlSugar resolver then calls `CopyNew()` for the same ConfigId, opens a transaction on that isolated concrete client, and pins it to the inner UoW. Disposal restores the outer ambient UoW and disposes the isolated client.
 - `UnitOfWork.CompleteAsync` catches commit/save exceptions, rolls back all registered database/transaction APIs, and rethrows. `SqlSugarTransactionApi.Dispose()` also rolls back any owned transaction not completed, then disposes an owned isolated client.
@@ -39,7 +39,7 @@ The public `XiHanFun/XiHan.Framework` source was inspected for the concrete UoW 
 
 **Concurrency recovery caveat remains:** an isolated nested UoW is a real new connection, so it can query a committed winner after the failing statement's UoW has been rolled back. However, catching a PostgreSQL unique violation *inside* the outer `[UnitOfWork(true)]` service leaves the outer transaction in failed state. Opening a nested isolated UoW alone does not make the outer transaction healthy, and the interceptor will still attempt to complete the outer UoW after the service returns. Do not implement catch-and-return winner inside the current method until there is a tested way to terminate/rollback the failed outer UoW without the interceptor subsequently treating that rollback as a successful completion. The conservative loser-conflict + caller retry behavior remains the safe first release.
 
-The exact framework package/source revision corresponding to BasicApp `5.9.5`, PostgreSQL provider exception shape (including SQLSTATE and constraint-name access), and an executable PostgreSQL concurrency test are still open verification items.
+The exact upstream Git commit used to publish framework package `4.8.0`, PostgreSQL provider exception shape (including SQLSTATE and constraint-name access), and an executable PostgreSQL concurrency test remain open verification items.
 
 ### Repository and schema-discovery constraints verified
 
@@ -140,3 +140,8 @@ The first ledger implementation is now present on `kiger-dev`:
 The implementation currently covers server-numbered creates that provide `NumberingIdempotencyKey`. Manual-numbered creates remain outside this ledger. Concurrent first submissions still rely on the stable numbering key plus tenant-scoped unique document-number constraint to ensure at most one aggregate commits; the losing request may receive a database conflict and must retry to read the winner. Transparent winner recovery is intentionally not implemented.
 
 Added SQLite repository integration tests for persistence, strict tenant isolation, and per-tenant/document-type uniqueness, plus source-wiring tests for both create flows. These tests have been authored but not executed in this environment. SQLite tests do not establish PostgreSQL migration or concurrency correctness.
+
+
+### Replay stability across owner reassignment
+
+The sales-order and shipment replay branches now recompute the candidate payload fingerprint using the persisted document owner when the original request omitted `OwnerUserId`. This preserves a legitimate retry if the customer or source order's default owner has since changed. Explicitly supplied owner values remain part of the fingerprint and must match. Assignment authorization is deferred until after an existing request/document replay has been ruled out; record-access checks on the existing customer/order and the linked document still apply.
