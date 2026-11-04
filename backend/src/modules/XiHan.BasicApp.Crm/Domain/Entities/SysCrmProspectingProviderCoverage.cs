@@ -8,7 +8,6 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 /// It stores no provider payload; the scope hash is the canonical request fingerprint.
 /// </summary>
 [SugarTable(TableName = "Crm_Prospecting_Provider_Coverage", TableDescription = "KIGER CRM prospecting provider coverage checkpoints")]
-[SugarIndex("UX_{table}_Te_Ca_Pr_Sc", nameof(TenantId), OrderByType.Asc, nameof(CampaignId), OrderByType.Asc, nameof(ProviderCode), OrderByType.Asc, nameof(CoverageScopeHash), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_Te_Ca_ScAt", nameof(TenantId), OrderByType.Asc, nameof(CampaignId), OrderByType.Asc, nameof(LastSuccessfulScanAt), OrderByType.Desc)]
 public sealed class SysCrmProspectingProviderCoverage : IStrictMultiTenantEntity
 {
