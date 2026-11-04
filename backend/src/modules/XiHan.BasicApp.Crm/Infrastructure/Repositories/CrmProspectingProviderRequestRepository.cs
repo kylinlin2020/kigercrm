@@ -174,6 +174,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
                     cache_hit = false
                 WHERE request.tenant_id = @tenantId
                   AND request.basic_id = @requestId
+                  AND request.request_key = @coverageScopeHash
                   AND request.state = 'Started'
                   AND EXISTS (
                       SELECT 1
