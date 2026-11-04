@@ -32,11 +32,14 @@ public sealed class CrmProspectingRunMessage : IBackgroundTaskItem
 }
 
 /// <summary>
-/// Executes approved prospecting provider plans. Recovery follows the existing SaaS export worker pattern
-/// and therefore requires a single active application worker until lease/fencing support is implemented.
+/// Executes approved prospecting provider plans with tenant-scoped leases and fenced child writes.
+/// Keep one active worker until multi-instance PostgreSQL acceptance is complete.
 /// </summary>
 public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<CrmProspectingRunHostedService>
 {
+    private static readonly TimeSpan RunLeaseDuration = TimeSpan.FromMinutes(10);
+    private static readonly string LeaseOwner = $"{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IRedisDelayQueue<CrmProspectingRunMessage> _queue;
 
@@ -72,14 +75,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             return;
         }
 
+        Guid? activeLeaseToken = null;
+        long activeFencingVersion = 0;
         try
         {
             using var scope = _scopeFactory.CreateScope();
             using var tenantScope = scope.ServiceProvider.GetRequiredService<ICurrentTenant>().Change(message.TenantId);
 
             var runs = scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>();
-            var run = await runs.ClaimQueuedAsync(message.RunId, DateTimeOffset.UtcNow, cancellationToken);
+            var run = await runs.TryClaimLeaseAsync(message.RunId, LeaseOwner, RunLeaseDuration, cancellationToken);
             if (run is null) return;
+            if (run.LeaseToken is not Guid leaseToken || leaseToken == Guid.Empty || run.FencingVersion <= 0)
+                throw new InvalidOperationException("The claimed Run did not return a valid lease token and fencing version.");
+            activeLeaseToken = leaseToken;
+            activeFencingVersion = run.FencingVersion;
 
             // Provider implementations are extension points; ignore malformed registrations
             // rather than letting a null/blank/oversized key crash the entire Run before dispatch.
@@ -100,6 +109,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             foreach (var providerCode in plan.Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
 
                 var current = await runs.GetByIdAsync(run.BasicId, cancellationToken);
                 if (current?.Status == CrmProspectingRunStatus.CancelRequested)
@@ -181,6 +191,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 // observe it immediately when that call returns and avoid starting later providers.
                 // Keep this database read outside the provider exception handler: a read failure
                 // must fail the Run rather than be mistaken for a provider outage.
+                await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
                 var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken);
                 if (afterProvider?.Status == CrmProspectingRunStatus.CancelRequested)
                     break;
@@ -196,10 +207,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var existingCandidates = await candidates.GetListAsync(candidate => candidate.RunId == run.BasicId, cancellationToken);
             if (beforeCandidates?.Status == CrmProspectingRunStatus.CancelRequested)
             {
-                await runs.CompleteAsync(
-                    run.BasicId, serialized, raw.Count, failures,
-                    "Run cancelled before candidate normalization.", DateTimeOffset.UtcNow,
-                    cancellationToken, existingCandidates.Count);
+                if (!await runs.CancelFencedWithDatabaseClockAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
+                    throw new InvalidOperationException("The Run lease was lost before cancellation could be finalized.");
                 return;
             }
 
@@ -250,6 +259,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 cancellationToken.ThrowIfCancellationRequested();
                 if (recordIndex % cancellationPollInterval == 0)
                 {
+                    await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
                     var runState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
                     if (runState?.Status == CrmProspectingRunStatus.CancelRequested) break;
                 }
@@ -274,6 +284,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     // Reconcile old/partial Candidates without changing their review or conversion state.
                     await RepairCandidateProvenanceAsync(
                         scope.ServiceProvider,
+                        runs,
+                        run.BasicId,
+                        leaseToken,
+                        activeFencingVersion,
                         evidenceRepository,
                         scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>(),
                         existingCandidate,
@@ -352,6 +366,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         .GetRequiredService<IUnitOfWorkManager>()
                         .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true))
                     {
+                        if (!await runs.TryLockLeaseForWriteAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
+                            throw new InvalidOperationException("The Run lease expired or was superseded before Candidate/Evidence/Score persistence.");
                         insertedCandidate = await candidates.AddAsync(candidate, cancellationToken);
                         var evidenceRows = CrmProspectingEvidenceFactory.Create(
                             insertedCandidate.BasicId,
@@ -402,6 +418,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     candidateWasInserted = false;
                     await RepairCandidateProvenanceAsync(
                         scope.ServiceProvider,
+                        runs,
+                        run.BasicId,
+                        leaseToken,
+                        activeFencingVersion,
                         evidenceRepository,
                         scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>(),
                         insertedCandidate,
@@ -441,6 +461,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                                 using var identityUnitOfWork = scope.ServiceProvider
                                     .GetRequiredService<IUnitOfWorkManager>()
                                     .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+                                if (!await runs.TryLockLeaseForWriteAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
+                                    throw new InvalidOperationException("The Run lease expired or was superseded before registry evidence persistence.");
                                 await evidenceRepository.AddRangeAsync([identityEvidence], cancellationToken);
                                 await identityUnitOfWork.CompleteAsync(cancellationToken);
                             }
@@ -468,15 +490,14 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var summary = warnings.Count == 0 ? null : string.Join(" | ", warnings).Trim();
             if (summary?.Length > 2000) summary = summary[..2000];
 
-            await runs.CompleteAsync(
-                run.BasicId,
-                serialized,
-                raw.Count,
-                failures,
-                summary,
-                DateTimeOffset.UtcNow,
-                cancellationToken,
-                candidateCount);
+            var finalRunState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+            var finalized = finalRunState?.Status == CrmProspectingRunStatus.CancelRequested
+                ? await runs.CancelFencedWithDatabaseClockAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken)
+                : await runs.CompleteFencedWithDatabaseClockAsync(
+                    run.BasicId, leaseToken, activeFencingVersion, serialized, raw.Count, failures,
+                    summary, cancellationToken, candidateCount);
+            if (!finalized)
+                throw new InvalidOperationException("The Run lease was lost before its terminal transition.");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -490,8 +511,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             {
                 using var scope = _scopeFactory.CreateScope();
                 using var tenantScope = scope.ServiceProvider.GetRequiredService<ICurrentTenant>().Change(message.TenantId);
-                await scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>()
-                    .FailAsync(message.RunId, BuildFailureSummary(ex), DateTimeOffset.UtcNow, cancellationToken);
+                if (activeLeaseToken is Guid failureLeaseToken && activeFencingVersion > 0)
+                    await scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>()
+                        .FailFencedWithDatabaseClockAsync(
+                            message.RunId, failureLeaseToken, activeFencingVersion, BuildFailureSummary(ex), cancellationToken);
             }
             catch (Exception persistException)
             {
@@ -556,6 +579,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
     private static async Task RepairCandidateProvenanceAsync(
         IServiceProvider serviceProvider,
+        ICrmProspectingRunRepository runs,
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
         ICrmProspectingEvidenceRepository evidenceRepository,
         ICrmProspectingScoreRepository scoreRepository,
         SysCrmProspectingCandidate candidate,
@@ -599,6 +626,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             using var repairUnitOfWork = serviceProvider
                 .GetRequiredService<IUnitOfWorkManager>()
                 .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+            if (!await runs.TryLockLeaseForWriteAsync(runId, leaseToken, fencingVersion, cancellationToken))
+                throw new InvalidOperationException("The Run lease expired or was superseded before provenance repair.");
 
             if (missingEvidence.Length > 0)
             {
@@ -658,6 +687,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             // Retry once; unrelated DB errors and repeated collisions fail closed.
             await RepairCandidateProvenanceAsync(
                 serviceProvider,
+                runs,
+                runId,
+                leaseToken,
+                fencingVersion,
                 evidenceRepository,
                 scoreRepository,
                 candidate,
@@ -665,6 +698,18 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 cancellationToken,
                 repairAttempt: 1);
         }
+    }
+
+    private static async Task RenewLeaseOrThrowAsync(
+        ICrmProspectingRunRepository runs,
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        CancellationToken cancellationToken)
+    {
+        if (!await runs.RenewLeaseWithDatabaseClockAsync(
+            runId, leaseToken, fencingVersion, RunLeaseDuration, cancellationToken))
+            throw new InvalidOperationException("The prospecting Run lease expired or was superseded.");
     }
 
     private static string BuildInitialScoreIdempotencyKey(long candidateId, string scorecardVersion)
