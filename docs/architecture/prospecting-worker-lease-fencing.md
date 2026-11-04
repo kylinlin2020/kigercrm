@@ -99,3 +99,15 @@ The migration is guarded by `to_regclass('crm_prospecting_run')`, uses `ADD COLU
 A source-level test checks the entity mapping, additive migration shape, and that the worker does not yet consume lease tokens. Neither this test nor the migration has been executed in this environment; PostgreSQL migration and two-connection tests remain required.
 
 The Run repository's SQLite integration suite also contains a CodeFirst round-trip test for all five lease fields (owner, UUID token, expiry, heartbeat, and fencing version). This checks entity-to-provider mapping only; it does not prove PostgreSQL migration correctness, atomic claim behavior, or stale-worker fencing. The test has been added but not executed.
+
+## Fenced repository primitives landed (2026-11-04)
+
+The Run repository now exposes three conditional-update primitives:
+
+- `RenewLeaseAsync`: matches tenant-scoped Run ID, Running status, exact token, exact fencing version, and an unexpired lease; validates a positive lease duration no greater than one hour.
+- `CompleteFencedAsync`: matches the same ownership predicate, writes terminal result fields, and clears owner/token/expiry/heartbeat while retaining the fencing version for audit.
+- `FailFencedAsync`: applies the same predicate for failure and clears active lease metadata.
+
+SQLite integration test cases have been added for wrong token, wrong version, expired lease, successful heartbeat, successful terminal completion, and lease cleanup.
+
+**Important boundary:** these methods are not yet called by the hosted worker. The existing `ClaimQueuedAsync`, blanket startup recovery, candidate/evidence/score transaction, and current Complete/Fail paths remain unchanged. In particular, no lease claim currently creates a token or increments the fencing version. These primitives therefore do not yet make worker execution safe for multiple instances. Tests are authored but have not been run.
