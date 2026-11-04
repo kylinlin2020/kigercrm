@@ -124,7 +124,7 @@
 
 - 新增 `CrmUsaSpendingProspectingProvider`，调用固定官方 HTTPS API `api.usaspending.gov/api/v2/search/spending_by_award/`，无需 API Key。
 - 适配器从产品范围、搜索目标和理想客户描述提取关键词，最多请求首 20 条联邦合同记录；映射企业名称、合同描述、机构、金额和合同日期，并保留官方 award URL、检索时间、payload SHA-256 与 `official_procurement` 证据分类。
-- 响应限制为 6 MiB；仅接受固定 HTTPS host/path；DI typed HttpClient 禁止自动重定向；非成功 HTTP 状态不会把响应正文带入异常消息。
+- 响应限制为 6 MiB；仅接受固定 HTTPS host/path；DI fixed-endpoint HttpClient 禁止自动重定向；非成功 HTTP 状态不会把响应正文带入异常消息。
 - 适配器默认不启用，只有配置 `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true` 才注册。Fake Provider 仍需独立显式 opt-in。
 - 新增 provider 单元测试源和 wiring 回归断言，覆盖结果映射、空关键词不发请求、HTTP 429 错误处理、opt-in 注册和网络边界。
 
