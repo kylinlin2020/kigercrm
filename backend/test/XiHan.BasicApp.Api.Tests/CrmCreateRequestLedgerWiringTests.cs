@@ -66,7 +66,7 @@ public sealed class CrmCreateRequestLedgerWiringTests
         Assert.Contains("CREATE TABLE crm_create_request", migration, StringComparison.Ordinal);
         Assert.Contains("UNIQUE INDEX IF NOT EXISTS", migration, StringComparison.Ordinal);
         Assert.Contains("(tenant_id, document_type, request_key)", migration, StringComparison.Ordinal);
-        var executableSql = string.Join("\\n", migration.Split('\\n').Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)));
+        var executableSql = string.Join("\n", migration.Split('\n').Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)));
         Assert.DoesNotContain("is_deleted", executableSql, StringComparison.OrdinalIgnoreCase);
     }
 
