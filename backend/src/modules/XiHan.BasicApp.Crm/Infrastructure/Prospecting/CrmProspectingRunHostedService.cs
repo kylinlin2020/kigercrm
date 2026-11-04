@@ -345,6 +345,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 // UnitOfWork interception. Use an explicit short transaction for the candidate
                 // and its provenance rows; provider network calls stay outside this transaction.
                 SysCrmProspectingCandidate insertedCandidate;
+                var candidateWasInserted = true;
                 try
                 {
                     using (var unitOfWork = scope.ServiceProvider
@@ -398,6 +399,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     if (winner is null) throw;
 
                     insertedCandidate = winner;
+                    candidateWasInserted = false;
                     await RepairCandidateProvenanceAsync(
                         scope.ServiceProvider,
                         evidenceRepository,
@@ -410,7 +412,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 // Optional authoritative identity enrichment is performed only after a
                 // Candidate exists. Exact normalized legal-name matches only; ambiguity or
                 // registry unavailability never blocks procurement evidence or Candidate review.
-                if (identityResolver is not null && gleifLookups < maxGleifLookupsPerRun)
+                if (candidateWasInserted && identityResolver is not null && gleifLookups < maxGleifLookupsPerRun)
                 {
                     gleifLookups++;
                     try
