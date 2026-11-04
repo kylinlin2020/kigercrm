@@ -42,7 +42,7 @@ public sealed class CrmProspectingEvidenceFactoryTests
         var longTitle = new string('T', 350);
         var longSummary = new string('S', 5100);
         var record = new CrmProspectingRawRecord(
-            "record-oversized", "source", longTitle, null,
+            "record-oversized", "source", longTitle, "   ",
             " https://buyer.example " + new string('w', 510), new string('C', 220),
             "buyer@example.com", longSummary)
         {
