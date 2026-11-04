@@ -34,6 +34,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Only an active campaign with an active strategy can be executed.", domain, StringComparison.Ordinal);
         Assert.Contains("An empty provider plan cannot be executed.", domain, StringComparison.Ordinal);
         Assert.Contains("PayloadHash = payloadHash", domain, StringComparison.Ordinal);
+        Assert.Contains("SnapshotSearchObjective = strategy.SearchObjective", domain, StringComparison.Ordinal);
+        Assert.Contains("SnapshotProductScope = campaign.ProductScope", domain, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Serialize(snapshot)", domain, StringComparison.Ordinal);
         Assert.Contains("RequestKey", entity, StringComparison.Ordinal);
         Assert.Contains("Payload_Hash", entity, StringComparison.Ordinal);
         Assert.Contains("ADD COLUMN IF NOT EXISTS payload_hash", migration, StringComparison.Ordinal);
@@ -108,7 +111,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("OnCompleted", app, StringComparison.Ordinal);
         Assert.Contains("ICrmProspectingProvider", worker, StringComparison.Ordinal);
         Assert.Contains("ITenantDataScopeRunner", worker, StringComparison.Ordinal);
-        Assert.Contains("ProviderPlanJson", worker, StringComparison.Ordinal);
+        Assert.Contains("SnapshotProviderPlanJson", worker, StringComparison.Ordinal);
+        Assert.Contains("SnapshotSearchObjective", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("campaign.ProductScope ?? string.Empty", worker, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = candidateCount", repository, StringComparison.Ordinal);
         Assert.Contains("ADD COLUMN IF NOT EXISTS raw_results_json text", migration, StringComparison.Ordinal);
         Assert.Contains("Raw result cap reached", worker, StringComparison.Ordinal);
