@@ -192,18 +192,18 @@ public sealed class CrmFindTenderProspectingProvider : ICrmProspectingProvider, 
         {
             var nextText = next.GetString();
             if (string.IsNullOrWhiteSpace(nextText)) return null;
-            if (Uri.TryCreate(nextText, UriKind.Absolute, out var nextUri))
+            if (!Uri.TryCreate(Endpoint, nextText, out var nextUri) ||
+                !string.Equals(nextUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(nextUri.Host, Endpoint.Host, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(nextUri.AbsolutePath, Endpoint.AbsolutePath, StringComparison.Ordinal))
+                throw new InvalidDataException("Find a Tender returned a pagination link outside its approved endpoint.");
+
+            var query = nextUri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var pair in query)
             {
-                if (!string.Equals(nextUri.Host, Endpoint.Host, StringComparison.OrdinalIgnoreCase) ||
-                    !string.Equals(nextUri.AbsolutePath, Endpoint.AbsolutePath, StringComparison.Ordinal))
-                    throw new InvalidDataException("Find a Tender returned a pagination link outside its approved endpoint.");
-                var query = nextUri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var pair in query)
-                {
-                    var parts = pair.Split('=', 2);
-                    if (parts.Length == 2 && string.Equals(Uri.UnescapeDataString(parts[0]), "cursor", StringComparison.OrdinalIgnoreCase))
-                        return Uri.UnescapeDataString(parts[1]);
-                }
+                var parts = pair.Split('=', 2);
+                if (parts.Length == 2 && string.Equals(Uri.UnescapeDataString(parts[0]), "cursor", StringComparison.OrdinalIgnoreCase))
+                    return Uri.UnescapeDataString(parts[1]);
             }
             return null;
         }
