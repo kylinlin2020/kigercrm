@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Net;
 using XiHan.BasicApp.Crm.Domain.Entities;
 
 namespace XiHan.BasicApp.Crm.Domain.Services;
@@ -89,10 +90,10 @@ public static partial class CrmLeadDuplicateMatcher
     /// <summary>Removes visual phone formatting but deliberately preserves all digits, including country code.</summary>
     public static string? NormalizePhone(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return null;
+        if (string.IsNullOrWhiteSpace(value) || PhoneExtension().IsMatch(value)) return null;
         var digits = NonDigits().Replace(value, string.Empty);
-        // A short fragment or an overlong value (often a phone plus extension) is not
-        // a reliable identity signal. Keep the conservative E.164 digit-count bounds.
+        // A short fragment or an overlong value is not a reliable identity signal.
+        // Extension-bearing values are rejected above rather than concatenating the extension.
         return digits.Length is >= 7 and <= 15 ? digits : null;
     }
 
@@ -102,14 +103,23 @@ public static partial class CrmLeadDuplicateMatcher
         var input = value.Trim();
         if (!input.Contains("://", StringComparison.Ordinal)) input = "https://" + input;
         if (!Uri.TryCreate(input, UriKind.Absolute, out var uri)
-            || string.IsNullOrWhiteSpace(uri.Host))
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            || string.IsNullOrWhiteSpace(uri.Host)
+            || !string.IsNullOrEmpty(uri.UserInfo))
         {
             return null;
         }
 
         var host = uri.IdnHost.TrimEnd('.').ToLowerInvariant();
         if (host.StartsWith("www.", StringComparison.Ordinal)) host = host[4..];
-        return host.Length == 0 ? null : host;
+        if (host.Length == 0 || !host.Contains('.', StringComparison.Ordinal)
+            || IPAddress.TryParse(host, out _)
+            || Uri.CheckHostName(host) != UriHostNameType.Dns)
+        {
+            return null;
+        }
+
+        return host;
     }
 
     public static string? NormalizeCompany(string? value)
@@ -126,6 +136,9 @@ public static partial class CrmLeadDuplicateMatcher
 
     [GeneratedRegex(@"[^0-9]+", RegexOptions.CultureInvariant)]
     private static partial Regex NonDigits();
+
+    [GeneratedRegex(@"(?:\bext(?:ension)?\.?\s*|[;,#]\s*|\s+x\s*)\d+\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex PhoneExtension();
 
     [GeneratedRegex(@"[^\p{L}\p{N}]+", RegexOptions.CultureInvariant)]
     private static partial Regex NonCompanyCharacters();
