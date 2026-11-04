@@ -8,8 +8,7 @@ public sealed class CrmProspectingPersistenceWiringTests
     [Theory]
     [InlineData("SysCrmProspectingCampaign.cs", "Crm_Prospecting_Campaign", "OwnerUserId")]
     [InlineData("SysCrmProspectingStrategy.cs", "Crm_Prospecting_Strategy", "CampaignId")]
-    [InlineData("SysCrmProspectingRun.cs", "Crm_Prospecting_Run", "RequestKey")]
-    public void ProspectingEntities_ShouldBeAuditedAndStrictlyTenantScoped(string fileName, string tableName, string indexedProperty)
+    public void MutableProspectingEntities_ShouldBeAuditedAndStrictlyTenantScoped(string fileName, string tableName, string indexedProperty)
     {
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", fileName);
 
@@ -17,6 +16,20 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("IStrictMultiTenantEntity", entity, StringComparison.Ordinal);
         Assert.Contains($"TableName = \"{tableName}\"", entity, StringComparison.Ordinal);
         Assert.Contains($"nameof({indexedProperty})", entity, StringComparison.Ordinal);
+        Assert.Contains("IX_{table}_TeId_CrTi", entity, StringComparison.Ordinal);
+        Assert.Contains("IX_{table}_CrId", entity, StringComparison.Ordinal);
+        Assert.Contains("IX_{table}_TeId_IsDe", entity, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProspectingRun_ShouldBePermanentCreationOnlyIdempotencyLedger()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingRun.cs");
+        Assert.Contains("BasicAppCreationEntity", entity, StringComparison.Ordinal);
+        Assert.Contains("IStrictMultiTenantEntity", entity, StringComparison.Ordinal);
+        Assert.Contains("UX_{table}_Te_Rq", entity, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsDeleted", entity, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRunStatus", entity, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -55,6 +68,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("ix_crm_prospecting_campaign_teid_crti", migration, StringComparison.Ordinal);
         Assert.Contains("ix_crm_prospecting_strategy_teid_isde", migration, StringComparison.Ordinal);
         Assert.Contains("ix_crm_prospecting_run_crid", migration, StringComparison.Ordinal);
+        Assert.DoesNotContain("is_deleted boolean", migration[migration.IndexOf("CREATE TABLE IF NOT EXISTS crm_prospecting_run", StringComparison.Ordinal)..], StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
