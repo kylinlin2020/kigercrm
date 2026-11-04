@@ -28,6 +28,25 @@ public sealed class SysCrmProspectingRun : BasicAppCreationEntity, IStrictMultiT
     [SugarColumn(ColumnName = "Payload_Hash", Length = 64, IsNullable = false)]
     public string PayloadHash { get; set; } = string.Empty;
 
+    // Immutable execution inputs captured at queue time; workers must not read mutable Campaign/Strategy fields.
+    [SugarColumn(ColumnName = "Snapshot_Search_Objective", Length = 2000, IsNullable = false)]
+    public string SnapshotSearchObjective { get; set; } = string.Empty;
+
+    [SugarColumn(ColumnName = "Snapshot_Product_Scope", Length = 500, IsNullable = true)]
+    public string? SnapshotProductScope { get; set; }
+
+    [SugarColumn(ColumnName = "Snapshot_Target_Markets", Length = 2000, IsNullable = true)]
+    public string? SnapshotTargetMarkets { get; set; }
+
+    [SugarColumn(ColumnName = "Snapshot_Ideal_Customer_Profile", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
+    public string? SnapshotIdealCustomerProfile { get; set; }
+
+    [SugarColumn(ColumnName = "Snapshot_Provider_Plan_Json", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = false)]
+    public string SnapshotProviderPlanJson { get; set; } = "[]";
+
+    [SugarColumn(ColumnName = "Snapshot_Excluded_Domains_Json", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
+    public string? SnapshotExcludedDomainsJson { get; set; }
+
     [SugarColumn(ColumnName = "Status", IsNullable = false, DefaultValue = "0")]
     public CrmProspectingRunStatus Status { get; set; }
 
