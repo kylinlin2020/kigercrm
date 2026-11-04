@@ -27,7 +27,7 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
     }
 
     [Fact]
-    public void ConvertDomainWorkflow_ShouldPersistCustomerAndContactBeforeOptimisticallyUpdatingLead()
+    public void ConvertDomainWorkflow_ShouldPersistCustomerAndContactBeforeUpdatingLead()
     {
         var source = File.ReadAllText(RepositoryPath(
             "backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain",
@@ -42,6 +42,12 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         Assert.True(leadUpdate > contactInsert);
         Assert.Contains("if (lead.Status == CrmLeadStatus.Converted)", source, StringComparison.Ordinal);
         Assert.Contains("return lead;", source, StringComparison.Ordinal);
+        Assert.Contains("ConvertedLeadId = lead.BasicId", source, StringComparison.Ordinal);
+
+        var customerEntity = File.ReadAllText(RepositoryPath(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmCustomer.cs"));
+        Assert.Contains("nameof(ConvertedLeadId)", customerEntity, StringComparison.Ordinal);
+        Assert.Contains("UX_{table}_TeId_ConvLead", customerEntity, StringComparison.Ordinal);
     }
 
     private static string RepositoryPath(params string[] segments) =>
