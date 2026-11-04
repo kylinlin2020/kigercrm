@@ -18,3 +18,7 @@ Branch: kiger-dev
 - Failed lease validation rolls back Candidate, Evidence and Score writes in the same transaction.
 
 This is a review record only. It does not enable leases. No build, migration, PostgreSQL test or Windows-native test was run.
+
+## Implementation follow-up (2026-11-04)
+
+The six raw-SQL lease operations now fail closed when the AsyncLocal tenant context is absent. A source-level contract assertion guards against reintroducing the prior `?? 0L` fallback. This remains uncompiled and untested against PostgreSQL.
