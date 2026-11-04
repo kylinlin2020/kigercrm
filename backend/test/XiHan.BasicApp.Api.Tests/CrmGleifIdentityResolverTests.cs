@@ -14,7 +14,7 @@ public sealed class CrmGleifIdentityResolverTests
         {
             RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://api.gleif.org/api/v1/lei-records"),
             Content = new StringContent(
-                """{"data":[{"type":"lei-records","id":"549300NYKK9MWM7GGW15","attributes":{"entity":{"legalName":{"name":"Example Generator Holdings Ltd"},"status":"ACTIVE","registeredAs":"123456","legalAddress":{"country":"GB"}},"registration":{"status":"ISSUED"}}}]}""",
+                """{"meta":{"pagination":{"total":1}},"data":[{"type":"lei-records","id":"549300NYKK9MWM7GGW15","attributes":{"entity":{"legalName":{"name":"Example Generator Holdings Ltd"},"status":"ACTIVE","registeredAs":"123456","legalAddress":{"country":"GB"}},"registration":{"status":"ISSUED"}}}]}""",
                 Encoding.UTF8, "application/vnd.api+json")
         });
         var resolver = new CrmGleifIdentityResolver(new HttpClient(handler));
@@ -40,7 +40,24 @@ public sealed class CrmGleifIdentityResolverTests
         {
             RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://api.gleif.org/api/v1/lei-records"),
             Content = new StringContent(
-                """{"data":[{"id":"549300NYKK9MWM7GGW15","attributes":{"entity":{"legalName":{"name":"Example Generator Holdings Ltd"}}}},{"id":"213800D1EI4B9WTWWD28","attributes":{"entity":{"legalName":{"name":"Example Generator Holdings Ltd"}}}}]}""",
+                """{"meta":{"pagination":{"total":2}},"data":[{"id":"549300NYKK9MWM7GGW15","attributes":{"entity":{"legalName":{"name":"Example Generator Holdings Ltd"}}}},{"id":"213800D1EI4B9WTWWD28","attributes":{"entity":{"legalName":{"name":"Example Generator Holdings Ltd"}}}}]}""",
+                Encoding.UTF8, "application/vnd.api+json")
+        });
+        var resolver = new CrmGleifIdentityResolver(new HttpClient(handler));
+
+        var match = await resolver.ResolveExactAsync("Example Generator Holdings Ltd");
+
+        Assert.Null(match);
+    }
+
+    [Fact]
+    public async Task ResolveExactAsync_FailsClosedWhenPaginationMetadataIsMissing()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://api.gleif.org/api/v1/lei-records"),
+            Content = new StringContent(
+                """{"data":[{"id":"549300NYKK9MWM7GGW15","attributes":{"entity":{"legalName":{"name":"Example Generator Holdings Ltd"}}}}]}""",
                 Encoding.UTF8, "application/vnd.api+json")
         });
         var resolver = new CrmGleifIdentityResolver(new HttpClient(handler));
