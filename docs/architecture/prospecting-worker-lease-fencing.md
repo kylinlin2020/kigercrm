@@ -36,7 +36,7 @@ A worker may execute only when it has the returned token/version. A read after a
 
 ## Heartbeat protocol
 
-Lease renewal updates match tenant + Run ID + Lease_Token + Fencing_Version + Running status and require an unexpired lease. The worker renews before and after provider requests and every 25 candidate records. A zero-row update means ownership was lost: stop processing and reject later writes. This is work-boundary renewal, not an independent heartbeat loop; provider timeouts are bounded below the 10-minute lease.
+Lease renewal updates match tenant + Run ID + Lease_Token + Fencing_Version + Running status and require an unexpired lease. The worker renews before and after provider requests and every 25 candidate records, plus an independent two-minute heartbeat. Each heartbeat tick creates a fresh DI scope, applies the tenant context, and uses its own repository instance; it never shares the processing scope's DbContext/UoW. A zero-row update or unexpected heartbeat exception cancels the linked Run token. The work-boundary renewals remain as defense in depth, and child writes/terminal transitions must still be fenced.
 
 ## Fencing every write
 
