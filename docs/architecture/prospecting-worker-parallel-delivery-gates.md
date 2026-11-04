@@ -120,6 +120,8 @@ The current processing flow has two distinct child-persistence entry points:
 1. New Candidate path: requiresNew: true transactional UnitOfWork inserts Candidate, then Evidence, then the initial Score snapshot, and commits all three together. Candidate identity collision is handled after the failed UnitOfWork is disposed, followed by a tenant-scoped winner lookup and provenance repair.
 2. Existing Candidate / collision repair path: RepairCandidateProvenanceAsync reads existing Evidence and Score, then opens a separate requiresNew: true transaction to add missing Evidence and (when absent) the initial Score. It deliberately does not modify review, approval, or conversion state.
 
+**Important implementation detail:** in the current source, the Evidence and Score preflight reads in `RepairCandidateProvenanceAsync` occur *before* `repairUnitOfWork` is opened. Therefore the future lease integration must move those reads inside the new transaction, then make `TryLockLeaseForWriteAsync` the first database operation in that transaction, before either read. Merely placing the guard immediately before `AddRangeAsync` would still leave the repair decision based on an unfenced snapshot. The recursive unique-conflict retry must receive the same immutable lease identity and acquire a fresh guard in its own new transaction.
+
 Both transaction entry points must call TryLockLeaseForWriteAsync as the first database operation inside their own transaction, using the exact lease token and fencing version returned by the claim. The lock must remain held until the child transaction commits. A pre-transaction Run read or a guard executed in a different scope/transaction does not fence the child writes.
 
 ### Required lease-aware Worker sequence
