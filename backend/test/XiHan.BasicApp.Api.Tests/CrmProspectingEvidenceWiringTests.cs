@@ -68,10 +68,12 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("CREATE UNIQUE INDEX", migration, StringComparison.Ordinal);
         Assert.Contains("tenant_id", migration, StringComparison.Ordinal);
         Assert.Contains("candidate_id", migration, StringComparison.Ordinal);
-        Assert.Contains("COALESCE(provider_record_id, '')", migration, StringComparison.Ordinal);
+        Assert.Contains("provider_record_id SET NOT NULL", migration, StringComparison.Ordinal);
         Assert.Contains("field_name", migration, StringComparison.Ordinal);
         Assert.Contains("source_url", migration, StringComparison.Ordinal);
-        Assert.Contains("COALESCE(raw_payload_hash, '')", migration, StringComparison.Ordinal);
+        Assert.Contains("raw_payload_hash SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("source_url_hash", migration, StringComparison.Ordinal);
+        Assert.Contains("md5(source_url)", migration, StringComparison.Ordinal);
         Assert.Contains("HAVING COUNT(*) > 1", migration, StringComparison.Ordinal);
         Assert.Contains("RAISE EXCEPTION", migration, StringComparison.Ordinal);
     }
@@ -86,9 +88,12 @@ public sealed class CrmProspectingEvidenceWiringTests
 
         Assert.Contains("TableName = \"Crm_Prospecting_Evidence\"", entity, StringComparison.Ordinal);
         Assert.Contains("Length = 2000", entity, StringComparison.Ordinal);
+        Assert.Contains("Source_Url_Hash", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(SourceUrlHash)", entity, StringComparison.Ordinal);
         Assert.Contains("to_regclass('crm_prospecting_evidence')", migration, StringComparison.Ordinal);
         Assert.Contains("newly provisioned tenant", operations, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("尚未声明与该表达式索引等价的 CodeFirst 唯一索引", upgradeReadme, StringComparison.Ordinal);
+        Assert.Contains("Source_Url_Hash", entity, StringComparison.Ordinal);
+        Assert.Contains("CodeFirst", upgradeReadme, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
