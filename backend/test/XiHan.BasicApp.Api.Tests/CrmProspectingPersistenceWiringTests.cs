@@ -136,6 +136,27 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingRunLeaseSchema_ShouldBeAdditiveAndRemainInactiveUntilFencingIsComplete()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingRun.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.30", "5.9.30.sql");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var leaseDesign = Read("docs", "architecture", "prospecting-worker-lease-fencing.md");
+
+        Assert.Contains("nameof(LeaseExpiresAt)", entity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Lease_Owner\", Length = 160, IsNullable = true", entity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Lease_Token\", IsNullable = true", entity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Fencing_Version\", IsNullable = false, DefaultValue = \"0\"", entity, StringComparison.Ordinal);
+        Assert.Contains("IF to_regclass('crm_prospecting_run') IS NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS lease_token uuid NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS fencing_version bigint NOT NULL DEFAULT 0", migration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prospecting_run_te_st_leaseexp", migration, StringComparison.Ordinal);
+        Assert.Contains("single-active-instance only", leaseDesign, StringComparison.Ordinal);
+        Assert.Contains("ClaimQueuedAsync", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("LeaseToken", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingWorker_ShouldRemainSingleInstanceUntilDatabaseFencingIsImplemented()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
