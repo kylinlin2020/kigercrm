@@ -1,6 +1,6 @@
 # Prospecting Provider Request Ledger and Coverage Design
 
-> Status: request-ledger schema, repository lifecycle, Worker integration and stale Started recovery implemented on `kiger-dev`; PostgreSQL concurrency acceptance, coverage cursor, cache and persisted cooldown remain pending.
+> Status: request-ledger schema, repository lifecycle, Worker integration and stale Started recovery implemented on `kiger-dev`; PostgreSQL concurrency acceptance, coverage cursor, cache, deferred retry scheduling and circuit breaker remain pending.
 > Target branch: `kiger-dev`. Keep PR #1 Draft and do not modify `main`.
 
 ## 1. Goals
@@ -151,7 +151,7 @@ Do not combine the entire rollout into one migration or enable cache/cursor adva
 
 Already present on `kiger-dev`: bounded provider result retention, per-provider exception isolation, source evidence hashes, cross-Run candidate deduplication, lease/fencing lifecycle, independent heartbeat, and human review before CRM Lead conversion.
 
-Not yet implemented: coverage cursor, response cache, persisted cooldown/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
+Not yet implemented: coverage cursor, response cache, deferred retry scheduling/exponential backoff/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
 
 ### Implemented prerequisite: canonical request fingerprint
 
@@ -183,3 +183,8 @@ This is observability/classification only. A persisted cooldown scheduler that p
 TED, Find a Tender, Contracts Finder and USAspending now use the existing `CrmProspectingProviderRateLimitException` contract for documented throttle responses. HTTP 429/503 carry the provider's `Retry-After` date or delta; if absent, the adapter applies a bounded five-minute fallback. Contracts Finder additionally treats HTTP 403 as a five-minute cooldown signal, preserving its existing source-specific behavior. The Worker records `RateLimited`, HTTP status and `RetryAfterAt` in the request ledger. Other HTTP errors are raised as `HttpRequestException` with the status code, and the Worker records that status with a sanitized failure classification. Provider response bodies and arbitrary error text are not persisted.
 
 Provider adapter tests cover TED 429, Find a Tender 503, Contracts Finder 403 and USAspending 429. These tests are source additions only until the .NET test suite is run. The durable provider cooldown/scheduling queue is still not implemented: recording `RetryAfterAt` does not itself defer a future Run or guarantee that a provider will not be called again early.
+
+
+### Implemented: persisted cooldown enforcement from the request ledger
+
+The repository queries the latest future `RetryAfterAt` among tenant-scoped `RateLimited` attempts for the provider, across Runs. Before creating a new Started attempt or making network I/O, the Worker checks this cooldown and skips the provider while it remains active. This reuses the append-only request ledger rather than introducing a second cooldown table. It does not sleep a worker thread or automatically requeue a partially completed Run: a later Run can use the provider after the cooldown expires. Deferred queue scheduling, exponential backoff and circuit-breaker state remain pending.
