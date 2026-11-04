@@ -160,3 +160,22 @@ Report these independently; do not infer one from another:
 5. Windows native pull, build, startup, and runtime acceptance.
 
 As of this audit, no current CI workflow run has been observed for the latest branch head. The newly added SQLite tests have not been executed in this environment. PostgreSQL migrations/concurrency tests and Windows native acceptance remain open. PR #1 remains Draft and must not be merged before the required gates pass.
+
+## 2026-11-04 application UnitOfWork boundary audit
+
+The current call graph has now been checked in source:
+
+- `CrmProspectingAppService.StartRunAsync` is decorated with `[UnitOfWork(true)]`.
+- It calls `domain.CreateRunAsync` while that application method is executing.
+- After obtaining the Run, it registers queue publication with `unitOfWorkManager.Current.OnCompleted(...)` when a current UoW exists. This correctly keeps queue publication after successful completion.
+- `CrmProspectingDomainService.CreateRunAsync` performs the tenant-scoped RequestKey lookup and then calls `runs.AddAsync`; it has no independent transaction boundary.
+- The repository lookup uses `CreateQueryable()`, so the normal tenant filter is retained.
+
+Consequences:
+
+1. A unique-key exception raised by `runs.AddAsync` occurs inside the application method's transactional UoW boundary.
+2. Catching that exception inside the domain method and immediately calling `GetByRequestKeyAsync` is not a safe PostgreSQL recovery strategy: the read may still enlist in the failed/aborted transaction.
+3. The current source confirms the attribute and call order, but does not establish the XiHan.Framework 4.8.0 interceptor's nested-UoW semantics, rollback/disposal timing, or availability of a true independent UoW. Those framework behaviors must be verified from the actual runtime/package source or with an integration test before choosing an implementation.
+4. Do not move queue publication before commit, and do not remove the `OnCompleted` callback as a shortcut.
+
+Implementation decision for this iteration: keep the current fail-closed behavior. Do not add a broad `SqlSugarException` catch or an in-transaction re-read. The next safe implementation must put the retry/read boundary outside the failed transactional interceptor (or use a provider-specific atomic insert contract), then compare the winner's exact `PayloadHash`. The concurrent PostgreSQL tests listed above remain a release gate.
