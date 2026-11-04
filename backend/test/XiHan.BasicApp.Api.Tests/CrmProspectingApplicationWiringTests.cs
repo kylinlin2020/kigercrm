@@ -18,10 +18,10 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Create)]", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Update)]", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Read)]", service, StringComparison.Ordinal);
-        Assert.Contains("OrderByDescending(x => x.Version)", service, StringComparison.Ordinal);
+        Assert.Contains("OrderByDescending(x => x.Version).Take(500)", service, StringComparison.Ordinal);
         Assert.Contains("ResolveAccessibleUsersAsync", service, StringComparison.Ordinal);
         Assert.Contains("entity.OwnerUserId ??= CurrentUser?.Id", service, StringComparison.Ordinal);
-        Assert.Contains("OrderByDescending(x => x.CreatedTime)", service, StringComparison.Ordinal);
+        Assert.Contains("OrderByDescending(x => x.CreatedTime).Take(500)", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", service, StringComparison.Ordinal);
     }
 
@@ -130,7 +130,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("ConvertApprovedCandidateToLeadAsync", app, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingCandidateStatus.Approved", app, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingCandidateStatus.Converting", app, StringComparison.Ordinal);
-        Assert.Contains("Claim the candidate inside this transactional UoW", app, StringComparison.Ordinal);
+        Assert.Contains("The conditional database update is the concurrency boundary", app, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingCandidateStatus.Rejected", app, StringComparison.Ordinal);
         Assert.Contains("Converting = 4", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs"), StringComparison.Ordinal);
         Assert.Contains("EnsureRecordAccessibleAsync", app, StringComparison.Ordinal);
