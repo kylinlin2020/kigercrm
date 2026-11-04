@@ -6,6 +6,9 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 
 /// <summary>Tenant-owned container for a prospecting objective and its approved strategy versions.</summary>
 [SugarTable(TableName = "Crm_Prospecting_Campaign", TableDescription = "KIGER CRM prospecting campaigns")]
+[SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
+[SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
+[SugarIndex("IX_{table}_TeId_IsDe", nameof(TenantId), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc)]
 [SugarIndex("IX_{table}_TeId_St_Cr", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 [SugarIndex("IX_{table}_TeId_Ow", nameof(TenantId), OrderByType.Asc, nameof(OwnerUserId), OrderByType.Asc)]
 public sealed class SysCrmProspectingCampaign : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
