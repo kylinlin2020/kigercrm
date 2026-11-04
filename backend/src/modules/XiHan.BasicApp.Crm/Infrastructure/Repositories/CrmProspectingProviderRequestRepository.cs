@@ -113,6 +113,102 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
     }
 
 
+    public async Task<bool> TryFinalizeSuccessWithCoverageAsync(
+        long requestId, long campaignId, string coverageScopeHash,
+        DateTimeOffset completedAt, long durationMs, int resultCount, string responseHash,
+        CancellationToken cancellationToken = default)
+    {
+        if (requestId <= 0) throw new ArgumentOutOfRangeException(nameof(requestId));
+        if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
+        if (coverageScopeHash.Length != 64 || !coverageScopeHash.All(Uri.IsHexDigit))
+            throw new ArgumentException("Coverage scope must be a SHA-256 hex digest.", nameof(coverageScopeHash));
+        if (responseHash.Length != 64 || !responseHash.All(Uri.IsHexDigit))
+            throw new ArgumentException("Response hash must be a SHA-256 hex digest.", nameof(responseHash));
+        if (durationMs < 0) throw new ArgumentOutOfRangeException(nameof(durationMs));
+        if (resultCount < 0) throw new ArgumentOutOfRangeException(nameof(resultCount));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Atomic provider coverage advancement requires PostgreSQL.");
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for provider coverage advancement.");
+
+        // One PostgreSQL statement is the transaction boundary: if the coverage upsert fails,
+        // the request-ledger finalization rolls back with it. A missing/mismatched Run or an
+        // already-finalized request produces zero rows and cannot advance coverage.
+        const string sql = """
+            WITH finalized_request AS (
+                UPDATE crm_prospecting_provider_request AS request
+                SET state = 'Succeeded',
+                    completed_at = @completedAt,
+                    duration_ms = @durationMs,
+                    result_count = @resultCount,
+                    http_status = NULL,
+                    failure_code = NULL,
+                    failure_summary = NULL,
+                    retry_after_at = NULL,
+                    response_hash = @responseHash,
+                    cache_hit = false
+                WHERE request.tenant_id = @tenantId
+                  AND request.basic_id = @requestId
+                  AND request.state = 'Started'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM crm_prospecting_run AS run
+                      WHERE run.tenant_id = request.tenant_id
+                        AND run.basic_id = request.run_id
+                        AND run.campaign_id = @campaignId
+                  )
+                RETURNING request.tenant_id, request.run_id, request.provider_code
+            ),
+            coverage_upsert AS (
+                INSERT INTO crm_prospecting_provider_coverage
+                    (tenant_id, campaign_id, provider_code, coverage_scope_hash,
+                     last_successful_scan_at, last_run_id, last_result_count, last_response_hash, version)
+                SELECT tenant_id, @campaignId, provider_code, @coverageScopeHash,
+                       @completedAt, run_id, @resultCount, @responseHash, 1
+                FROM finalized_request
+                ON CONFLICT (tenant_id, campaign_id, provider_code, coverage_scope_hash)
+                DO UPDATE SET
+                    last_successful_scan_at = GREATEST(
+                        crm_prospecting_provider_coverage.last_successful_scan_at,
+                        EXCLUDED.last_successful_scan_at),
+                    last_run_id = CASE
+                        WHEN EXCLUDED.last_successful_scan_at >= crm_prospecting_provider_coverage.last_successful_scan_at
+                        THEN EXCLUDED.last_run_id
+                        ELSE crm_prospecting_provider_coverage.last_run_id
+                    END,
+                    last_result_count = CASE
+                        WHEN EXCLUDED.last_successful_scan_at >= crm_prospecting_provider_coverage.last_successful_scan_at
+                        THEN EXCLUDED.last_result_count
+                        ELSE crm_prospecting_provider_coverage.last_result_count
+                    END,
+                    last_response_hash = CASE
+                        WHEN EXCLUDED.last_successful_scan_at >= crm_prospecting_provider_coverage.last_successful_scan_at
+                        THEN EXCLUDED.last_response_hash
+                        ELSE crm_prospecting_provider_coverage.last_response_hash
+                    END,
+                    version = crm_prospecting_provider_coverage.version + 1
+                RETURNING 1
+            )
+            SELECT COUNT(*)::integer FROM coverage_upsert;
+            """;
+
+        var rows = await client.Ado.SqlQueryAsync<int>(
+            sql,
+            new SugarParameter("@tenantId", currentTenant.TenantId),
+            new SugarParameter("@requestId", requestId),
+            new SugarParameter("@campaignId", campaignId),
+            new SugarParameter("@coverageScopeHash", coverageScopeHash.ToUpperInvariant()),
+            new SugarParameter("@completedAt", completedAt),
+            new SugarParameter("@durationMs", durationMs),
+            new SugarParameter("@resultCount", resultCount),
+            new SugarParameter("@responseHash", responseHash.ToUpperInvariant()));
+        cancellationToken.ThrowIfCancellationRequested();
+        return rows.SingleOrDefault() == 1;
+    }
+
     public async Task<DateTimeOffset?> GetActiveCooldownUntilAsync(
         string providerCode, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
