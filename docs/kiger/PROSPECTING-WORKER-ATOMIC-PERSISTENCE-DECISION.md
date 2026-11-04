@@ -179,3 +179,22 @@ Consequences:
 4. Do not move queue publication before commit, and do not remove the `OnCompleted` callback as a shortcut.
 
 Implementation decision for this iteration: keep the current fail-closed behavior. Do not add a broad `SqlSugarException` catch or an in-transaction re-read. The next safe implementation must put the retry/read boundary outside the failed transactional interceptor (or use a provider-specific atomic insert contract), then compare the winner's exact `PayloadHash`. The concurrent PostgreSQL tests listed above remain a release gate.
+
+## 2026-11-04 Run RequestKey recovery implementation
+
+The XiHan.Framework source was checked at the exact `v4.8.0` tag used by this repository (Core project PackageReferences are `4.8.0`):
+
+- `IUnitOfWorkManager.Begin(options, requiresNew: true)` creates a new logical UoW; when an outer UoW exists, `UnitOfWorkManager` marks it `RequiresIsolatedConnection`.
+- The SqlSugar resolver honors that flag by calling `CopyNew()`, starting a transaction on the isolated client, and owning/disposal of that client. The transaction adapter fails closed if the supposedly isolated connection already has a transaction.
+- `UnitOfWork.Dispose` rolls back unfinished owned transactions; the SqlSugar adapter also rolls back unfinished transactions on disposal.
+- The UoW interceptor's ordinary nested path uses a child UoW, which delegates to the parent and is not an independent transaction. Do not use that path for race recovery.
+
+Based on this exact-version audit, Run creation now owns its transaction explicitly in `StartRunInUnitOfWorkAsync`. The public `StartRunAsync` wrapper catches only a PostgreSQL unique violation whose SQLSTATE is `23505` and whose constraint name is exactly `ux_crm_prospecting_run_te_rq`. The helper's `using` scope has disposed/rolled back before the exception reaches the wrapper. It then retries once in a fresh UoW; the domain service performs the tenant-scoped RequestKey lookup first and compares the existing `PayloadHash` before deciding whether to return the winner or reject a different payload.
+
+Queue publication remains an `OnCompleted` callback inside each successful UoW, so it cannot run before commit. A same-payload race may enqueue the winning Run more than once; this is safe only because worker claiming is conditional and duplicate queue deliveries do not independently transition a Run from Queued more than once. Keep the claim predicate and this behavior covered by tests.
+
+Failure policy:
+- Non-PostgreSQL providers, unknown wrappers, other SQLSTATEs, and any other constraint name fail closed and propagate the original error.
+- A same RequestKey with a different PayloadHash must remain a conflict; it must never return the winner as if the payloads matched.
+- Recovery is bounded to one retry; no unbounded loops or broad database-exception catches.
+- PostgreSQL independent-connection concurrency tests and Windows build/test remain required before calling this production-verified.
