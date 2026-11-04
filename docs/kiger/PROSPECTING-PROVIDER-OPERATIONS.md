@@ -10,7 +10,7 @@ The CRM module includes an opt-in adapter for the United States federal award se
 - Coverage: US federal award records only; it is not a general company directory.
 - Current behavior: one page, up to 20 awards per Run; the adapter emits a warning when another page exists.
 - Evidence: official award URL, retrieval timestamp, payload SHA-256, and `official_procurement` evidence type.
-- Safety: HTTPS fixed host/path, redirects disabled in the typed HttpClient, 25-second client timeout, 6 MiB response cap, and no response-body echo in HTTP error messages.
+- Safety: HTTPS fixed host/path, redirects disabled in the fixed-endpoint HttpClient, 25-second client timeout, 6 MiB response cap, and no response-body echo in HTTP error messages.
 
 Enable it only in environments where outbound access to the official endpoint is allowed:
 
