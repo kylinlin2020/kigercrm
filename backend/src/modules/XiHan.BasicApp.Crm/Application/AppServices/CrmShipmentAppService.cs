@@ -55,8 +55,6 @@ public sealed class CrmShipmentAppService(
             ?? throw new InvalidOperationException("Sales order does not exist in the current tenant.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken);
         var owner = input.OwnerUserId ?? order.OwnerUserId;
-        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, owner, cancellationToken);
-
         // Resolve the stable order of request lines before fingerprinting and locking.
         var requestedLines = input.Lines.OrderBy(line => line.SalesOrderLineId).ToArray();
         var carrier = NormalizeOptional(input.Carrier, 100, nameof(input.Carrier));
@@ -119,6 +117,8 @@ public sealed class CrmShipmentAppService(
                 return ToDto(existingShipment);
             }
         }
+
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, owner, cancellationToken);
 
         if (order.Status is not (CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.PartiallyShipped))
             throw new InvalidOperationException("A shipment can only be prepared for a confirmed or in-progress sales order.");
