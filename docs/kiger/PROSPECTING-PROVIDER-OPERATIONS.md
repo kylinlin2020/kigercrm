@@ -82,6 +82,7 @@ Enable with `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`.
 - Public buyer contacts are source-published data; they still require validation before outreach.
 - No provider creates or updates CRM Leads directly.
 - Human approval is required before Candidate conversion to the existing CRM Lead workflow.
+- Candidate deduplication checks exact provider/external identity, normalized email and website host across earlier non-rejected Runs, in addition to same-Run duplicates and existing CRM Leads. Rejected prior Candidates do not block rediscovery.
 - No outbound email or website publication is automated by these providers.
 - The fake provider is separate and remains opt-in via `XiHan:CRM:Prospecting:EnableFakeProvider`.
 
@@ -91,6 +92,6 @@ Enable with `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`.
 - Find a Tender and Contracts Finder each read at most three pages and search a rolling 30-day window. Neither is an exhaustive historical archive.
 - TED reads at most two pages × 100 notices per Run and searches a rolling 30-day publication window.
 - World Bank Finances One exposes a large procurement-notice dataset, but the published dataset schema currently exposes bid description, project, country, dates and notice URL—not a buyer organisation/contact field. It must remain research-only until a separate, source-backed project/implementing-agency resolution step is designed; do not turn bid descriptions into fake company names.
-- A persistent provider request/cost ledger, shared response cache, cross-Run coverage cursor and rate-limit circuit breaker remain outstanding.
+- A persistent provider request/cost ledger, shared response cache, cross-Run coverage cursor and durable rate-limit circuit breaker remain outstanding. Cross-Run Candidate deduplication by provider identity/email/website is now implemented, but it does not yet maintain a first-class observation-to-prior-Candidate link or source coverage cursor.
 - GLEIF is a legal-entity identity-resolution source, not a discovery directory; it enriches already-discovered candidates and preserves entity status, LEI registration status, country and registered identifier separately.
 - Test source is committed but still needs compilation and execution in the .NET 10 environment. Live API and Windows/PostgreSQL end-to-end acceptance remain outstanding.
