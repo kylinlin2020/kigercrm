@@ -207,4 +207,4 @@ A shared domain sanitizer now protects both request-ledger failure summaries and
 
 ### Request-ledger database invariants
 
-Migration 5.9.31 now constrains HTTP status to 100–599, request/response fingerprints to 64 hexadecimal characters, Started rows to have no completion timestamp, terminal rows to have one, and RateLimited rows to carry a retry-after timestamp. These constraints make malformed state transitions fail at the database boundary as well as in repository validation.
+The 5.9.31 upgrade script constrains HTTP status to 100–599, request/response fingerprints to 64 hexadecimal characters, Started rows to have no completion timestamp, terminal rows to have one, and RateLimited rows to carry a retry-after timestamp. These constraints make malformed state transitions fail at the database boundary for upgraded tenant databases, in addition to repository validation. Fresh CodeFirst database creation currently relies on entity metadata and repository validation; matching CodeFirst CHECK-constraint generation remains a schema-parity task.
