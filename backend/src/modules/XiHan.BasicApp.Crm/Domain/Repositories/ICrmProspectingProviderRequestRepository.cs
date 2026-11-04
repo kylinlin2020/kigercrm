@@ -22,6 +22,9 @@ public interface ICrmProspectingProviderRequestRepository : ISaasRepository<SysC
         string? responseHash = null, bool cacheHit = false,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Return the latest active tenant/provider cooldown persisted by a RateLimited attempt, if any.</summary>
+    Task<DateTimeOffset?> GetActiveCooldownUntilAsync(string providerCode, DateTimeOffset now, CancellationToken cancellationToken = default);
+
     /// <summary>Mark stale Started attempts interrupted only after their owning Run is no longer actively leased.</summary>
     Task<int> RecoverStaleStartedAsync(TimeSpan minimumAge, CancellationToken cancellationToken = default);
 
