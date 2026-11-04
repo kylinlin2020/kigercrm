@@ -181,7 +181,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var existingCandidateByKey = existingCandidates
                 .ToDictionary(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}", StringComparer.OrdinalIgnoreCase);
-            var evidenceCheckedCandidateIds = new HashSet<long>();
             var evidenceRepository = scope.ServiceProvider.GetRequiredService<ICrmProspectingEvidenceRepository>();
             var candidateCount = existingCandidates.Count;
             var seenCandidateEmails = existingCandidates
@@ -221,8 +220,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     // Older Runs may already contain a Candidate created before evidence persistence
                     // was wired. Reconcile missing field evidence on retry instead of treating the
                     // Candidate identity as proof that its child records are complete.
-                    if (!existingCandidateByKey.TryGetValue(key, out var existingCandidate) ||
-                        !evidenceCheckedCandidateIds.Add(existingCandidate.BasicId))
+                    if (!existingCandidateByKey.TryGetValue(key, out var existingCandidate))
                     {
                         continue;
                     }
@@ -345,7 +343,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 existingKeys.Add(key);
                 existingCandidateByKey[key] = insertedCandidate;
-                evidenceCheckedCandidateIds.Add(insertedCandidate.BasicId);
                 if (normalizedEmail is not null) seenCandidateEmails.Add(normalizedEmail);
                 if (websiteHost is not null) seenCandidateWebsites.Add(websiteHost);
                 candidateCount++;
