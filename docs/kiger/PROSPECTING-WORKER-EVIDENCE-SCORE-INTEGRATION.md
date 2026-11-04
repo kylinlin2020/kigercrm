@@ -227,3 +227,5 @@ A source-contract test now checks the migration fields, duplicate preflight, and
 The unique index is the final database guard, not a substitute for worker ownership. Two concurrent workers may still race; one can receive a unique-constraint violation and fail its Run. The current Worker does not yet classify that exact PostgreSQL constraint violation and retry reconciliation. Multi-worker execution remains disabled by deployment policy until database leases/fencing and independent-connection PostgreSQL tests are delivered.
 
 No migration execution, build, unit-test execution, PostgreSQL integration test, or Windows runtime test is claimed.
+
+The in-memory evidence comparison uses a typed tuple of the same identity fields rather than delimiter-concatenated strings. This avoids ambiguous composite keys if provider IDs or URLs themselves contain the delimiter characters.
