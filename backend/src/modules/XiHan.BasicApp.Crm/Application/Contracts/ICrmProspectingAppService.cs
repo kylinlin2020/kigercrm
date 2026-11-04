@@ -13,4 +13,7 @@ public interface ICrmProspectingAppService : IApplicationService
     Task<CrmProspectingStrategyDto> SubmitStrategyForApprovalAsync(long strategyId, CancellationToken cancellationToken = default);
     Task<CrmProspectingStrategyDto> DecideStrategyAsync(CrmProspectingStrategyDecisionDto input, CancellationToken cancellationToken = default);
     Task<CrmProspectingCampaignDto> ActivateStrategyAsync(long strategyId, CancellationToken cancellationToken = default);
+    Task<CrmProspectingRunDto> StartRunAsync(CrmProspectingRunStartDto input, CancellationToken cancellationToken = default);
+    Task<CrmProspectingRunDto?> GetRunAsync(long runId, CancellationToken cancellationToken = default);
+    Task<CrmProspectingRunDto> CancelRunAsync(long runId, CancellationToken cancellationToken = default);
 }
