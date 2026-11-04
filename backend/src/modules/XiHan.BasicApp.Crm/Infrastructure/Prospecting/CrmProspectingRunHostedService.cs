@@ -71,8 +71,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var run = await runs.ClaimQueuedAsync(message.RunId, DateTimeOffset.UtcNow, cancellationToken);
             if (run is null) return;
 
+            // Provider implementations are extension points; ignore malformed registrations
+            // rather than letting a null/blank/oversized key crash the entire Run before dispatch.
             var providers = scope.ServiceProvider.GetServices<ICrmProspectingProvider>()
-                .GroupBy(provider => provider.ProviderCode, StringComparer.OrdinalIgnoreCase)
+                .Where(provider => !string.IsNullOrWhiteSpace(provider.ProviderCode) && provider.ProviderCode.Trim().Length <= 80)
+                .GroupBy(provider => provider.ProviderCode.Trim(), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
             var plan = ParseStringArray(run.SnapshotProviderPlanJson, "provider plan");
             if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
@@ -123,12 +126,28 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
+                if (result is null || result.Records is null)
+                {
+                    failures++;
+                    AddBoundedWarning(warnings, $"{providerCode}: provider returned an empty or malformed result envelope.");
+                    continue;
+                }
+
                 failures += Math.Max(0, result.FailureCount);
                 AddBoundedProviderWarnings(warnings, result.Warnings);
                 const int maxRawRecordsPerRun = 2000;
                 var remaining = Math.Max(0, maxRawRecordsPerRun - raw.Count);
                 foreach (var record in result.Records.Take(remaining))
-                    raw.Add(new CrmProspectingRawEnvelope(provider.ProviderCode, record));
+                {
+                    if (record is null)
+                    {
+                        failures++;
+                        AddBoundedWarning(warnings, $"{providerCode}: provider returned a null record; it was skipped.");
+                        continue;
+                    }
+
+                    raw.Add(new CrmProspectingRawEnvelope(provider.ProviderCode.Trim(), record));
+                }
                 if (result.Records.Count > remaining)
                 {
                     failures++;
