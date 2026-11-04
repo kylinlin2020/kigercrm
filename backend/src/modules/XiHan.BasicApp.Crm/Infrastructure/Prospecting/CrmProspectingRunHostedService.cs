@@ -778,6 +778,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
             await runner.RunAsync(async tenantId =>
             {
+                // Recover lease-backed work first using PostgreSQL's clock. This is safe to run
+                // at startup even while the legacy single-worker path remains active: only expired
+                // rows carrying lease metadata are touched by this operation.
+                await runs.RecoverExpiredLeasesAsync(cancellationToken);
                 await runs.RecoverInterruptedAsync(DateTimeOffset.UtcNow, cancellationToken);
                 var ids = await runs.GetQueuedIdsAsync(cancellationToken);
                 foreach (var id in ids)
