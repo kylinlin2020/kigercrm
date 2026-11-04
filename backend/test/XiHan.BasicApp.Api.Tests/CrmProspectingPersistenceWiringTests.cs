@@ -187,7 +187,11 @@ public sealed class CrmProspectingPersistenceWiringTests
 
         Assert.Contains("nameof(IdempotencyKey), OrderByType.Asc, true", entity, StringComparison.Ordinal);
         Assert.Contains("ColumnName = \"Idempotency_Key\", Length = 160, IsNullable = true", entity, StringComparison.Ordinal);
+        Assert.Contains("IF to_regclass('crm_prospecting_score') IS NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ALTER TABLE crm_prospecting_score", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS idempotency_key varchar(160) NULL", migration, StringComparison.Ordinal);
         Assert.Contains("ux_crm_prospecting_score_te_idemkey", migration, StringComparison.Ordinal);
+        Assert.Contains("ON crm_prospecting_score (tenant_id, idempotency_key)", migration, StringComparison.Ordinal);
         Assert.Contains("(tenant_id, idempotency_key)", migration, StringComparison.Ordinal);
         Assert.Contains("GetByIdempotencyKeyAsync", repository, StringComparison.Ordinal);
         Assert.Contains("IsScoreIdempotencyUniqueViolation(ex)", worker, StringComparison.Ordinal);
