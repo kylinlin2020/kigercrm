@@ -225,6 +225,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     resultCount: result.Records.Count,
                     failureCode: result.FailureCount > 0 ? "provider_partial_result" : null,
                     failureSummary: result.FailureCount > 0 ? "Provider reported one or more record-level failures." : null,
+                    responseHash: CrmProspectingResponseFingerprint.Create(result.Records),
                     cancellationToken: CancellationToken.None))
                     throw new InvalidOperationException("The provider request ledger attempt could not be finalized exactly once.");
 
