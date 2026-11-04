@@ -273,7 +273,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("existingCandidateByKey[key] = insertedCandidate", worker, StringComparison.Ordinal);
         Assert.Contains(".ToHashSet(StringComparer.Ordinal);", worker, StringComparison.Ordinal);
 
-        var insertIndex = worker.IndexOf("var insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", StringComparison.Ordinal);
+        var insertIndex = worker.IndexOf("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", StringComparison.Ordinal);
         var commitIndex = worker.IndexOf("await unitOfWork.CompleteAsync(cancellationToken)", insertIndex, StringComparison.Ordinal);
         var identityMapIndex = worker.IndexOf("existingCandidateByKey[key] = insertedCandidate", commitIndex, StringComparison.Ordinal);
         Assert.True(insertIndex >= 0 && commitIndex > insertIndex && identityMapIndex > commitIndex,
