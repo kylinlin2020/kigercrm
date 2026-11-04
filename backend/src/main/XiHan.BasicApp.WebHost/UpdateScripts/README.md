@@ -79,3 +79,5 @@
 - `ICrmProspectingProviderRequestRepository` 在 Worker 发起网络请求前写入 `Started`，结束后条件更新为 `Succeeded`、`Failed`、`RateLimited` 或 `Cancelled`。失败诊断会限制长度、清理控制字符并移除 URL 查询串/片段；不要把未经清理的 Provider 错误正文或凭据写入台账。
 - Provider 请求台账的崩溃遗留恢复纳入 Worker 启动流程：Run 过期租约恢复后，超过 Run 租约时长（10 分钟）且所属 Run 已不再持有有效 Running/CancelRequested 租约的 Started 尝试会被标记为 `Failed/worker_interrupted`；活跃租约下的请求不会被恢复逻辑抢先终结。恢复 SQL 使用 PostgreSQL 数据库时钟并严格限定租户，仍需 PostgreSQL 实机验证。
 - Contracts Finder、Find a Tender 与 EU TED 的 403/429/503 限流响应采用结构化 `RateLimited` 终态，记录 HTTP 状态及解析后的 `Retry-After` 时间；缺少响应头时使用 5 分钟回退。该阶段仅持久化限流事实，尚未实现按该时间阻止后续 Provider 请求的持久化调度器。
+
+- Provider 请求台账运行时会将 TED、Find a Tender、Contracts Finder、USAspending 的限流状态写入 `RateLimited`，并保存 HTTP 状态码与 `RetryAfterAt`；其他 HTTP 错误也记录状态码。该记录尚未连接持久化延迟队列，不能保证自动延后下一次 Run。
