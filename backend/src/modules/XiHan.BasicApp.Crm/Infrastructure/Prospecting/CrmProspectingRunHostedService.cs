@@ -272,7 +272,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                             evidence.ProviderCode,
                             evidence.ProviderRecordId,
                             evidence.FieldName,
-                            evidence.SourceUrl,
+                            evidence.SourceUrlHash,
                             evidence.RawPayloadHash))
                         .ToHashSet();
                     var missingEvidence = expectedEvidence
