@@ -171,7 +171,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             },
             run => run.BasicId == runId &&
                 run.Status == CrmProspectingRunStatus.Queued &&
+                run.LeaseOwner == null &&
                 run.LeaseToken == null &&
+                run.LeaseHeartbeatAt == null &&
                 run.LeaseExpiresAt == null,
             cancellationToken);
 
@@ -645,7 +647,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 StartedAt = null
             },
             run => run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseOwner == null &&
                 run.LeaseToken == null &&
+                run.LeaseHeartbeatAt == null &&
                 run.LeaseExpiresAt == null,
             cancellationToken);
 
@@ -657,7 +661,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 CompletedAt = recoveredAt
             },
             run => run.Status == CrmProspectingRunStatus.CancelRequested &&
+                run.LeaseOwner == null &&
                 run.LeaseToken == null &&
+                run.LeaseHeartbeatAt == null &&
                 run.LeaseExpiresAt == null,
             cancellationToken);
 
@@ -694,7 +700,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             },
             run => run.BasicId == runId &&
                 run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseOwner == null &&
                 run.LeaseToken == null &&
+                run.LeaseHeartbeatAt == null &&
                 run.LeaseExpiresAt == null,
             cancellationToken);
         if (completed) return true;
@@ -713,7 +721,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             },
             run => run.BasicId == runId &&
                 run.Status == CrmProspectingRunStatus.CancelRequested &&
+                run.LeaseOwner == null &&
                 run.LeaseToken == null &&
+                run.LeaseHeartbeatAt == null &&
                 run.LeaseExpiresAt == null,
             cancellationToken);
     }
@@ -735,7 +745,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             },
             run => run.BasicId == runId &&
                 run.Status == CrmProspectingRunStatus.Running &&
+                run.LeaseOwner == null &&
                 run.LeaseToken == null &&
+                run.LeaseHeartbeatAt == null &&
                 run.LeaseExpiresAt == null,
             cancellationToken);
         if (failed) return true;
@@ -748,7 +760,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             },
             run => run.BasicId == runId &&
                 run.Status == CrmProspectingRunStatus.CancelRequested &&
+                run.LeaseOwner == null &&
                 run.LeaseToken == null &&
+                run.LeaseHeartbeatAt == null &&
                 run.LeaseExpiresAt == null,
             cancellationToken);
     }
