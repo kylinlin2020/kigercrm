@@ -43,7 +43,7 @@ public static class CrmProspectingEvidenceFactory
         // was silently truncated in the Candidate row.
         var fields = new (string Name, string? Value, bool HashValue)[]
         {
-            ("company_name", Bound(record.CompanyName ?? record.Title, 200), true),
+            ("company_name", Bound(string.IsNullOrWhiteSpace(record.CompanyName) ? record.Title : record.CompanyName, 200), true),
             ("title", Bound(record.Title, 300), true),
             ("website", Bound(record.Website, 500), true),
             // Avoid unsalted hashes of low-entropy personal data (e.g. email addresses).
