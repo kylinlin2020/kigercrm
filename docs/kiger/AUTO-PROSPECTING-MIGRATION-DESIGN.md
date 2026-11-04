@@ -380,3 +380,21 @@ The previous warning cap covered only the provider-supplied warning collection. 
 All worker warning paths now use one bounded append helper. The shared limits are 100 non-empty warnings and 500 characters per warning, applied before the warning is retained in the aggregate list. Provider-supplied warning lists use the same helper, so the limit is global across warning sources rather than a separate allowance for each source. The final persisted summary remains capped at 2,000 characters. A source-wiring guard asserts the configured limits and that the helper is the only direct writer to the warning list.
 
 This limits the worker's retained diagnostic strings; it does not cap the provider's own allocations before SearchAsync returns, the raw provider records, or exception object internals. It is not a substitute for provider request timeouts and response-size limits. The guard is source-level only. No build, unit test, runtime, PostgreSQL or Windows test was executed.
+
+
+## 40. Reconfirm startup recovery is unsafe against a live peer (2026-11-04)
+
+A fresh source-level trace of the current implementation confirms the multi-instance hazard and narrows its impact:
+
+- CrmProspectingRunHostedService.ExecuteAsync invokes RecoverPendingAsync before entering the background polling loop.
+- Recovery iterates tenant data scopes, calls RecoverInterruptedAsync, then republishes queued IDs to Redis.
+- In each current tenant scope, CrmProspectingRunRepository.RecoverInterruptedAsync conditionally updates every Running row to Queued (run.Status == Running); there is no owner, heartbeat, age threshold, lease expiry or process identity predicate.
+- The same method converts CancelRequested to Cancelled, preserving cancellation intent.
+- ClaimQueuedAsync conditionally transitions Queued to Running. This prevents two claimers from winning the same queued state transition, but it does not prevent a second process's startup recovery from changing a live worker's Running row back to Queued.
+- The worker writes candidate rows with candidates.AddAsync(...) during normalization. Those inserts do not carry a lease/fencing token or atomically validate the Run's ownership. A reclaimed Run can therefore have two workers reach candidate persistence; final CompleteAsync state predicates do not fence earlier candidate writes.
+
+**Operational boundary remains unchanged:** run only one active application instance that hosts prospecting execution. Do not rely on Redis queue delivery or the conditional Queued-to-Running claim as a multi-instance lock.
+
+**Implementation decision:** do not add a timestamp-only stale threshold or a process-local mutex; neither is a correctness boundary across hosts. Before enabling multiple workers, implement database-authoritative lease ownership with expiry/heartbeat and a monotonically increasing fencing token, and ensure every candidate/result/status write validates the current token in the same database transaction as the write. Verify claim/reclaim/renew races and a stale worker attempting candidate insertion against PostgreSQL using separate connections/processes. Framework SqlSugar transaction and row-lock semantics still require source/package verification before implementation.
+
+This section is a source review, not a runtime proof. No build, automated test, PostgreSQL test or Windows test was executed.
