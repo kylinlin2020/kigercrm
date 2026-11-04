@@ -131,6 +131,17 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
+                var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
+                var cooldownUntil = await requestLedger.GetActiveCooldownUntilAsync(
+                    providerCode, DateTimeOffset.UtcNow, cancellationToken);
+                if (cooldownUntil is DateTimeOffset activeCooldown)
+                {
+                    failures++;
+                    AddBoundedWarning(warnings,
+                        $"{providerCode}: provider cooldown is active until {activeCooldown:O}; request was skipped.");
+                    continue;
+                }
+
                 var request = new CrmProspectingProviderRequest(
                     run.BasicId,
                     run.SnapshotSearchObjective,
@@ -139,7 +150,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     run.SnapshotIdealCustomerProfile ?? string.Empty,
                     "{}",
                     excludedDomains);
-                var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
                 var requestKey = CrmProspectingRequestFingerprint.Create(providerCode, request);
                 // The Started row is durable before the provider is allowed to perform network I/O.
                 // If ledger persistence fails, fail the Run rather than making an untracked request.
