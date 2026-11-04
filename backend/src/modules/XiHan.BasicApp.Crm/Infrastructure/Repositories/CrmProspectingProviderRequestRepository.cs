@@ -23,6 +23,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
     {
         if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
         ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        providerCode = providerCode.Trim().ToLowerInvariant();
         ArgumentException.ThrowIfNullOrWhiteSpace(requestKey);
         if (providerCode.Length > 80) throw new ArgumentOutOfRangeException(nameof(providerCode));
         if (requestKey.Length != 64 || !requestKey.All(Uri.IsHexDigit))
@@ -116,6 +117,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
         string providerCode, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        providerCode = providerCode.Trim().ToLowerInvariant();
         cancellationToken.ThrowIfCancellationRequested();
 
         var rows = await CreateQueryable()
@@ -196,6 +198,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
     {
         if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
         ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        providerCode = providerCode.Trim().ToLowerInvariant();
         if (attemptNo <= 0) throw new ArgumentOutOfRangeException(nameof(attemptNo));
         cancellationToken.ThrowIfCancellationRequested();
 
