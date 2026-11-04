@@ -106,6 +106,18 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingRunRepository_ShouldGuardTerminalTransitionsAndDocumentSingleWorkerRecovery()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingRunRepository.cs");
+
+        Assert.Contains("run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.Running", repository, StringComparison.Ordinal);
+        Assert.Contains("run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.CancelRequested", repository, StringComparison.Ordinal);
+        Assert.Contains("run => run.Status == CrmProspectingRunStatus.Running", repository, StringComparison.Ordinal);
+        Assert.Contains("Do not run concurrently with live workers; multi-instance recovery requires leases/fencing", contract, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingCandidateStatusMigration_ShouldPreservePreviouslyConvertedRows()
     {
         var status = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs");
