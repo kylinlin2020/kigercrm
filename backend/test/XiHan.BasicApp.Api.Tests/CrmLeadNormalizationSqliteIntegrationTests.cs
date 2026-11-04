@@ -26,6 +26,7 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
     private readonly SqlSugarScope _db;
     private readonly ProbeCurrentTenant _tenant = new();
     private readonly CrmLeadDomainService _service;
+    private readonly CrmLeadRepository _repository;
 
     public CrmLeadNormalizationSqliteIntegrationTests()
     {
@@ -60,9 +61,9 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
 
         var resolver = new Mock<ISqlSugarClientResolver>();
         resolver.Setup(value => value.GetClientForEntity(It.IsAny<Type>())).Returns(_db);
-        var repository = new CrmLeadRepository(resolver.Object);
+        _repository = new CrmLeadRepository(resolver.Object);
         _service = new CrmLeadDomainService(
-            repository,
+            _repository,
             new Mock<ICrmCustomerRepository>().Object,
             new Mock<ICrmContactRepository>().Object);
     }
@@ -115,6 +116,40 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
             Assert.Equal("sales@acme.example", updated.DuplicateEmailNormalized);
             Assert.Equal("12125550199", updated.PhoneDigits);
             Assert.Equal("acme.example", updated.WebsiteHost);
+        }
+    }
+
+    [Fact]
+    public async Task GetDuplicateMatchesAsync_ShouldBatchMatchEmailAndWebsiteWithinTenant()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            await _service.CreateAsync(new CrmLeadCreateCommand(
+                "Email Match Ltd", "Alex", "sales@email-match.example", null, null,
+                "US", "Website", null, null, null));
+            await _service.CreateAsync(new CrmLeadCreateCommand(
+                "Website Match Ltd", "Sam", null, null, "https://www.website-match.example",
+                "US", "Website", null, null, null));
+            await _service.CreateAsync(new CrmLeadCreateCommand(
+                "Unrelated Ltd", "Taylor", "other@unrelated.example", null, "https://unrelated.example",
+                "US", "Website", null, null, null));
+
+            var matches = await _repository.GetDuplicateMatchesAsync(
+                new[] { "sales@email-match.example" },
+                new[] { "website-match.example" });
+
+            Assert.Equal(2, matches.Count);
+            Assert.Contains(matches, lead => lead.CompanyName == "Email Match Ltd");
+            Assert.Contains(matches, lead => lead.CompanyName == "Website Match Ltd");
+            Assert.DoesNotContain(matches, lead => lead.CompanyName == "Unrelated Ltd");
+        }
+
+        using (_tenant.Change(TenantId + 1))
+        {
+            var crossTenantMatches = await _repository.GetDuplicateMatchesAsync(
+                new[] { "sales@email-match.example" },
+                new[] { "website-match.example" });
+            Assert.Empty(crossTenantMatches);
         }
     }
 
