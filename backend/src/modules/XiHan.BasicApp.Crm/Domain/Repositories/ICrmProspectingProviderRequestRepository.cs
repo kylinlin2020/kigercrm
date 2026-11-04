@@ -25,6 +25,11 @@ public interface ICrmProspectingProviderRequestRepository : ISaasRepository<SysC
     /// <summary>Return the latest active tenant/provider cooldown persisted by a RateLimited attempt, if any.</summary>
     Task<DateTimeOffset?> GetActiveCooldownUntilAsync(string providerCode, DateTimeOffset now, CancellationToken cancellationToken = default);
 
+    /// <summary>Read the tenant/campaign/provider/scope checkpoint used to seed an incremental provider window.</summary>
+    Task<SysCrmProspectingProviderCoverage?> GetCoverageCheckpointAsync(
+        long campaignId, string providerCode, string coverageScopeHash,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Atomically finalize a complete successful request and advance its campaign/provider coverage checkpoint.
     /// Partial, truncated or failed results must use TryFinalizeAsync instead.
