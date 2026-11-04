@@ -161,6 +161,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         throw new InvalidOperationException("The cancelled provider request ledger attempt could not be finalized.");
                     throw;
                 }
+                catch (CrmProspectingProviderRateLimitException ex)
+                {
+                    providerTimer.Stop();
+                    if (!await requestLedger.TryFinalizeAsync(
+                        attempt.BasicId, "RateLimited", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                        httpStatus: ex.HttpStatus, failureCode: "provider_rate_limited",
+                        failureSummary: ex.Message, retryAfterAt: ex.RetryAfterAt,
+                        cancellationToken: CancellationToken.None))
+                        throw new InvalidOperationException("The rate-limited provider request ledger attempt could not be finalized.", ex);
+                    failures++;
+                    AddBoundedWarning(warnings, $"{providerCode}: provider rate limit (HTTP {ex.HttpStatus}); retry after {ex.RetryAfterAt?.ToString("O") ?? "provider cooldown"}.");
+                    Logger.LogWarning(ex, "Prospecting provider rate limited for Run {RunId}, provider {Provider}", run.BasicId, providerCode);
+                    continue;
+                }
                 catch (Exception ex)
                 {
                     providerTimer.Stop();
