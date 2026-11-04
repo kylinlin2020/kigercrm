@@ -71,8 +71,6 @@ public sealed class CrmShipmentAppService(
             var existingRequest = await createRequests.GetByRequestKeyAsync("SHIPMENT", requestKey, cancellationToken);
             if (existingRequest is not null)
             {
-                if (!string.Equals(existingRequest.PayloadHash, creationRequestFingerprint, StringComparison.Ordinal))
-                    throw new InvalidOperationException("The shipment idempotency key was already used with a different create request.");
                 if (!existingRequest.DocumentId.HasValue || string.IsNullOrWhiteSpace(existingRequest.DocumentNumber))
                     throw new InvalidOperationException("The shipment request ledger contains an incomplete committed record; manual repair is required.");
 
@@ -81,6 +79,12 @@ public sealed class CrmShipmentAppService(
                 await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, replayShipment.OwnerUserId, cancellationToken);
                 if (!string.Equals(replayShipment.ShipmentNumber, existingRequest.DocumentNumber, StringComparison.Ordinal))
                     throw new InvalidOperationException("The shipment request ledger does not match its linked document.");
+
+                // Owner defaults from the sales order; retain the persisted effective owner on replay.
+                var replayFingerprint = CreateRequestFingerprint(
+                    input, input.OwnerUserId ?? replayShipment.OwnerUserId, carrier, trackingNumber, requestedLines);
+                if (!string.Equals(existingRequest.PayloadHash, replayFingerprint, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The shipment idempotency key was already used with a different create request.");
                 return ToDto(replayShipment);
             }
 
@@ -98,15 +102,17 @@ public sealed class CrmShipmentAppService(
             if (existingShipment is not null)
             {
                 await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existingShipment.OwnerUserId, cancellationToken);
+                var legacyFingerprint = CreateRequestFingerprint(
+                    input, input.OwnerUserId ?? existingShipment.OwnerUserId, carrier, trackingNumber, requestedLines);
                 if (existingShipment.CreationRequestFingerprint is null ||
-                    !string.Equals(existingShipment.CreationRequestFingerprint, creationRequestFingerprint, StringComparison.Ordinal))
+                    !string.Equals(existingShipment.CreationRequestFingerprint, legacyFingerprint, StringComparison.Ordinal))
                     throw new InvalidOperationException("The shipment idempotency key was already used with a different or unverifiable create request.");
 
                 await createRequests.AddAsync(new SysCrmCreateRequest
                 {
                     DocumentType = "SHIPMENT",
                     RequestKey = requestKey,
-                    PayloadHash = creationRequestFingerprint,
+                    PayloadHash = legacyFingerprint,
                     DocumentId = existingShipment.BasicId,
                     DocumentNumber = existingShipment.ShipmentNumber
                 }, cancellationToken);
