@@ -35,6 +35,8 @@ public sealed class CrmUsaSpendingProspectingProviderTests
         Assert.Empty(result.Warnings);
         Assert.Equal(0, result.FailureCount);
         Assert.Contains("diesel", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpMethod.Post, handler.RequestMethod);
+        Assert.Equal("https://api.usaspending.gov/api/v2/search/spending_by_award/", handler.RequestUri);
     }
 
     [Fact]
@@ -70,6 +72,23 @@ public sealed class CrmUsaSpendingProspectingProviderTests
         Assert.DoesNotContain("sensitive-provider-response", error.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task SearchAsync_RejectsResponseLargerThanSixMiB()
+    {
+        var oversized = new string('x', 6 * 1024 * 1024 + 1);
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Post,
+                "https://api.usaspending.gov/api/v2/search/spending_by_award/"),
+            Content = new StringContent(oversized, Encoding.UTF8, "application/json")
+        });
+        var provider = new CrmUsaSpendingProspectingProvider(new HttpClient(handler));
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            provider.SearchAsync(new CrmProspectingProviderRequest(
+                17, "generator", "generator", "", "", "{}", [])));
+    }
+
     private sealed class StubHandler : HttpMessageHandler
     {
         private readonly Func<HttpRequestMessage, HttpResponseMessage> _responseFactory;
@@ -81,12 +100,16 @@ public sealed class CrmUsaSpendingProspectingProviderTests
 
         public int CallCount { get; private set; }
         public string RequestBody { get; private set; } = string.Empty;
+        public HttpMethod? RequestMethod { get; private set; }
+        public string? RequestUri { get; private set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
             CallCount++;
+            RequestMethod = request.Method;
+            RequestUri = request.RequestUri?.ToString();
             RequestBody = request.Content is null
                 ? string.Empty
                 : await request.Content.ReadAsStringAsync(cancellationToken);
