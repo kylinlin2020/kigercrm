@@ -11,6 +11,7 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 [SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
 [SugarIndex("UX_{table}_Te_Rq", nameof(TenantId), OrderByType.Asc, nameof(RequestKey), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_Te_Ca_St_Cr", nameof(TenantId), OrderByType.Asc, nameof(CampaignId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
+[SugarIndex("IX_{table}_Te_St_LeaseExp", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(LeaseExpiresAt), OrderByType.Asc)]
 public sealed class SysCrmProspectingRun : BasicAppCreationEntity, IStrictMultiTenantEntity
 {
     [SugarColumn(ColumnName = "Campaign_Id", IsNullable = false)]
@@ -70,4 +71,21 @@ public sealed class SysCrmProspectingRun : BasicAppCreationEntity, IStrictMultiT
 
     [SugarColumn(ColumnName = "Raw_Results_Json", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
     public string? RawResultsJson { get; set; }
+
+    // Lease metadata is additive groundwork. The worker must not rely on these fields until
+    // claim, heartbeat, every persistence transaction, and terminal transitions are fenced.
+    [SugarColumn(ColumnName = "Lease_Owner", Length = 160, IsNullable = true)]
+    public string? LeaseOwner { get; set; }
+
+    [SugarColumn(ColumnName = "Lease_Token", IsNullable = true)]
+    public Guid? LeaseToken { get; set; }
+
+    [SugarColumn(ColumnName = "Lease_Expires_At", IsNullable = true)]
+    public DateTimeOffset? LeaseExpiresAt { get; set; }
+
+    [SugarColumn(ColumnName = "Lease_Heartbeat_At", IsNullable = true)]
+    public DateTimeOffset? LeaseHeartbeatAt { get; set; }
+
+    [SugarColumn(ColumnName = "Fencing_Version", IsNullable = false, DefaultValue = "0")]
+    public long FencingVersion { get; set; }
 }
