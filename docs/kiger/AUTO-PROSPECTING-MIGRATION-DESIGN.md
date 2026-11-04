@@ -461,6 +461,19 @@ Added adapter unit-test source for record mapping, empty-query no-network behavi
 **Not yet verified:** no .NET SDK is available in the current execution environment, so no compile/test has run. The provider has not yet been exercised against the live USAspending endpoint or Windows/PostgreSQL target runtime. It is one official US procurement source, not full provider parity, and pagination, provider request ledger, rate/cost accounting, and cross-source deduplication remain open.
 
 
+## 50. Worker lease/fencing lifecycle integration (2026-11-04)
+
+The prospecting HostedService now uses the PostgreSQL lease protocol end-to-end at source level:
+
+- Atomic Run claim through `TryClaimLeaseAsync`; the returned token and fencing version are held for the full execution.
+- PostgreSQL-clock lease renewal before and after provider requests and every 25 candidate records. Cancellation is read before renewal to preserve `CancelRequested` behavior.
+- Candidate, Evidence and initial Score writes share a short explicit transaction that begins with `TryLockLeaseForWriteAsync`; provenance repair and optional GLEIF evidence writes are fenced in their own transactions.
+- Complete, Cancel and Fail use exact-token/version database-clock transitions. A final Complete-vs-Cancel race attempts the fenced Cancel transition if Complete loses.
+- Startup recovery reclaims expired lease-backed Runs before queue reconstruction and leaves non-expired leases untouched; legacy recovery is limited to lease-less rows.
+
+Source-wiring regression guards were updated for these paths. This is not a claim of runtime acceptance: no .NET SDK is available here, no tests/build have run, and PostgreSQL two-connection/worker-crash tests remain outstanding. There is no independent heartbeat task yet; renewal relies on bounded provider timeouts and work-boundary checks. Keep one worker instance until full acceptance is complete.
+
+
 ## 49. Startup recovery for expired prospecting leases (2026-11-04)
 
 Tenant startup recovery now invokes `RecoverExpiredLeasesAsync` using PostgreSQL `clock_timestamp()` before rebuilding the Redis queue from queued Run IDs. This makes the existing lease-expiry recovery primitive reachable from the HostedService startup path and preserves tenant scoping. Expired `Running` lease-backed Runs are requeued; expired cancellation requests are finalized as cancelled. Legacy lease-less Runs continue through the separate legacy recovery method.
