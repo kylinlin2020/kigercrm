@@ -117,7 +117,6 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("lead.WebsiteHost == websiteHost", worker, StringComparison.Ordinal);
         Assert.Contains("crm_prospecting_candidate", candidateMigration, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = candidateCount", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs"), StringComparison.Ordinal);
-        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
         Assert.Contains("GetRunCandidatesAsync", app, StringComparison.Ordinal);
         Assert.Contains("ReviewCandidateAsync", app, StringComparison.Ordinal);
         Assert.Contains("Duplicate candidate approval requires an explicit duplicate override", app, StringComparison.Ordinal);
