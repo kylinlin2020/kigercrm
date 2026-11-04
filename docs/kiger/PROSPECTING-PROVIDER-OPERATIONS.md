@@ -25,6 +25,19 @@ Enable with `XiHan:CRM:Prospecting:EnableUsaSpendingProvider=true`.
 
 Enable with `XiHan:CRM:Prospecting:EnableFindTenderProvider=true`.
 
+## GLEIF legal-entity identity enrichment
+
+- Resolver: `CrmGleifIdentityResolver`
+- Official API: `https://api.gleif.org/api/v1/lei-records`
+- Authentication: none; JSON:API response.
+- Purpose: resolve an already-discovered Candidate's legal name to an LEI record. This is not a discovery provider and is never used to search generic product keywords.
+- Matching: normalized legal name must match exactly and there must be exactly one result among the first 10 registry matches. Ambiguous, partial or fuzzy matches return no identity.
+- Stored provenance: LEI is stored as the registry record identity; evidence stores a hash of the LEI plus the official API record URL, raw record hash, entity status, LEI registration status, country and registered identifier in the evidence summary.
+- Safety: fixed HTTPS host/path, redirects disabled, 20-second timeout, 2 MiB response cap, descriptive User-Agent, and at most 20 candidate lookups per Run.
+- The evidence remains `unverified` and requires human review. `ACTIVE` entity status and `ISSUED` LEI registration status are reported separately; neither is treated as proof of buyer intent.
+
+Enable with `XiHan:CRM:Prospecting:EnableGleifIdentityResolver=true`.
+
 ## Shared data-handling rules
 
 - Procurement notices are evidence of buyer activity, not proof of fit or purchase intent.
