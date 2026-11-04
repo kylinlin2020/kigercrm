@@ -81,5 +81,5 @@
 - Contracts Finder、Find a Tender 与 EU TED 的 403/429/503 限流响应采用结构化 `RateLimited` 终态，记录 HTTP 状态及解析后的 `Retry-After` 时间；缺少响应头时使用 5 分钟回退。Worker 会查询同一租户、同一 Provider 的最新未过期 RateLimited 台账，并在 Retry-After 到期前跳过后续请求；不在 Worker 线程内休眠，也不自动重新排队当前 Run。延迟队列重试、指数退避与熔断器仍待实现。
 
 - Provider 请求台账运行时会将 TED、Find a Tender、Contracts Finder、USAspending 的限流状态写入 `RateLimited`，并保存 HTTP 状态码与 `RetryAfterAt`；其他 HTTP 错误也记录状态码。该记录尚未连接持久化延迟队列，不能保证自动延后下一次 Run。
-- CRM 自动获客的 Run 级失败摘要、聚合警告与 Provider 请求台账共用诊断脱敏器：清理 URL 查询串/片段、Bearer/Basic、常见 API Key/Token/Secret/Password 赋值和控制字符，并按字段长度截断。GLEIF 身份补充的 429/503 也转为结构化限流信号，但暂不进入 Provider 请求台账的冷却门控。
+- CRM 自动获客的 Run 级失败摘要、聚合警告与 Provider 请求台账共用诊断脱敏器：清理 URL 查询串/片段、Bearer/Basic、常见 API Key/Token/Secret/Password 赋值和控制字符，并按字段长度截断。GLEIF 身份补充使用 `gleif_identity` Provider 代码写入同一请求台账，429/503 的 Retry-After 会跨 Run 生效。
 - 5.9.31 SQL 升级脚本为既有 CRM 租户库创建台账表及已验证 CHECK 约束。全新库由实体 CodeFirst 建表后，`EnsureSchemaConstraintsAsync` 在 Worker 启动租户恢复和每次 Run 认领前幂等补齐同名 PostgreSQL CHECK 约束（`NOT VALID`，保护新写入而不在启动时扫描历史行）；两条路径对新写入执行相同约束。
