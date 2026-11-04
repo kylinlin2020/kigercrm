@@ -1,5 +1,6 @@
 using SqlSugar;
 using XiHan.BasicApp.Core.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.Framework.MultiTenancy;
 
 namespace XiHan.BasicApp.Crm.Domain.Entities;
@@ -25,7 +26,7 @@ public sealed class SysCrmProspectingRun : BasicAppCreationEntity, IStrictMultiT
     public string RequestKey { get; set; } = string.Empty;
 
     [SugarColumn(ColumnName = "Status", IsNullable = false, DefaultValue = "0")]
-    public int Status { get; set; }
+    public CrmProspectingRunStatus Status { get; set; }
 
     [SugarColumn(ColumnName = "Started_At", IsNullable = true)]
     public DateTimeOffset? StartedAt { get; set; }
