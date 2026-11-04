@@ -339,6 +339,24 @@ public sealed class CrmProspectingApplicationWiringTests
     }
 
     [Fact]
+    public void ProspectingWorker_ShouldBoundUntrustedRawRecordsBeforeRetention()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var identity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingRecordIdentity.cs");
+        var evidence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingEvidenceFactory.cs");
+
+        Assert.Contains("IsWithinRawRecordLimits(record, out var estimatedRecordBytes)", worker, StringComparison.Ordinal);
+        Assert.Contains("maxRawRecordJsonBytes = 64_000", worker, StringComparison.Ordinal);
+        Assert.Contains("maxRawJsonBytes = 5_000_000", worker, StringComparison.Ordinal);
+        Assert.Contains("oversized provider record was rejected before retention", worker, StringComparison.Ordinal);
+        Assert.Contains("characters * 6", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRecordIdentity.NormalizeExternalId(record)", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRecordIdentity.NormalizeExternalId(record)", evidence, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRecordIdentity.GetPayloadHash(record)", evidence, StringComparison.Ordinal);
+        Assert.Contains("SerializeToUtf8Bytes(record, CanonicalJsonOptions)", identity, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingWorker_ShouldStripControlCharactersFromUntrustedWarnings()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
