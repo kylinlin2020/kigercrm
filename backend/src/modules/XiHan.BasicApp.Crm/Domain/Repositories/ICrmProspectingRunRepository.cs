@@ -9,6 +9,9 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>Find one Run by its tenant-scoped idempotency key. The inherited tenant filter remains active.</summary>
     Task<SysCrmProspectingRun?> GetByRequestKeyAsync(string requestKey, CancellationToken cancellationToken = default);
 
+    /// <summary>Atomically claim a queued or expired-lease Run using PostgreSQL database time; returns the exact token/version granted by UPDATE RETURNING.</summary>
+    Task<SysCrmProspectingRun?> TryClaimLeaseAsync(long runId, string leaseOwner, TimeSpan leaseDuration, CancellationToken cancellationToken = default);
+
     /// <summary>Atomically claim a queued run. A duplicate delivery or competing worker receives null.</summary>
     Task<SysCrmProspectingRun?> ClaimQueuedAsync(long runId, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
 
