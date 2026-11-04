@@ -262,8 +262,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         existingCandidate.BasicId,
                         envelope,
                         DateTimeOffset.UtcNow);
-                    if (expectedEvidence.Count == 0) continue;
-
+                    // A record may legitimately have no eligible Evidence (for example, an
+                    // unsafe or missing source URL). Still continue to the Score check below so
+                    // legacy Candidates can receive their missing first Score snapshot.
                     var persistedEvidence = await evidenceRepository.GetByCandidateAsync(
                         existingCandidate.BasicId,
                         cancellationToken);
