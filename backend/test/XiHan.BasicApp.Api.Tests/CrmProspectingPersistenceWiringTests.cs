@@ -48,9 +48,13 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("CREATE TABLE IF NOT EXISTS crm_prospecting_strategy", migration, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE IF NOT EXISTS crm_prospecting_run", migration, StringComparison.Ordinal);
         Assert.Contains("ux_crm_prospecting_strategy_te_ca_ve_isde", migration, StringComparison.Ordinal);
-        Assert.Contains("ux_crm_prospecting_run_te_rq_isde", migration, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_prospecting_run_te_rq", migration, StringComparison.Ordinal);
         Assert.Contains("(tenant_id, campaign_id, version, is_deleted)", migration, StringComparison.Ordinal);
-        Assert.Contains("(tenant_id, request_key, is_deleted)", migration, StringComparison.Ordinal);
+        Assert.Contains("(tenant_id, request_key)", migration, StringComparison.Ordinal);
+        Assert.Contains("Runs are permanent execution/idempotency records", migration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prospecting_campaign_teid_crti", migration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prospecting_strategy_teid_isde", migration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prospecting_run_crid", migration, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
