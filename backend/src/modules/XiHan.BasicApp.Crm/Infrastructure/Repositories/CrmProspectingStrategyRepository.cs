@@ -1,4 +1,5 @@
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Saas.Infrastructure.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
@@ -19,6 +20,28 @@ public sealed class CrmProspectingStrategyRepository(ISqlSugarClientResolver cli
                 ApprovedAt = decidedAt
             },
             strategy => strategy.BasicId == strategyId && strategy.ApprovalStatus == expectedStatus,
+            cancellationToken);
+    }
+
+    public async Task<bool> ClearOtherActiveVersionsAsync(long campaignId, long keepStrategyId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await UpdateAsync(
+            strategy => new SysCrmProspectingStrategy { ActivatedAt = null },
+            strategy => strategy.CampaignId == campaignId &&
+                strategy.BasicId != keepStrategyId &&
+                strategy.ActivatedAt != null,
+            cancellationToken);
+    }
+
+    public async Task<bool> TryMarkActivatedAsync(long campaignId, long strategyId, DateTimeOffset activatedAt, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await UpdateAsync(
+            strategy => new SysCrmProspectingStrategy { ActivatedAt = activatedAt },
+            strategy => strategy.BasicId == strategyId &&
+                strategy.CampaignId == campaignId &&
+                strategy.ApprovalStatus == CrmProspectingStrategyApprovalStatus.Approved,
             cancellationToken);
     }
 
