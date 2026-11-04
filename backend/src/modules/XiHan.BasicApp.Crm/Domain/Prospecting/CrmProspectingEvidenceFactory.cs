@@ -36,7 +36,7 @@ public static class CrmProspectingEvidenceFactory
             "inferred" => "inferred",
             _ => "provider_asserted"
         };
-        var payloadHash = IsSha256(record.RawPayloadHash) ? record.RawPayloadHash!.ToUpperInvariant() : string.Empty;
+        var payloadHash = CrmProspectingRecordIdentity.GetPayloadHash(record);
         var sourceUrlHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl)));
         // Hash the same trimmed/bounded values that the Candidate normalizer persists.
         // Otherwise an oversized provider field could produce provenance for a value that
@@ -58,9 +58,7 @@ public static class CrmProspectingEvidenceFactory
             {
                 CandidateId = candidateId,
                 ProviderCode = providerCode,
-                ProviderRecordId = string.IsNullOrWhiteSpace(record.ExternalId)
-                    ? string.Empty
-                    : record.ExternalId[..Math.Min(record.ExternalId.Length, 240)],
+                ProviderRecordId = CrmProspectingRecordIdentity.NormalizeExternalId(record),
                 FieldName = field.Name,
                 FieldValueHash = field.HashValue
                     ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(field.Value!)))
@@ -106,6 +104,4 @@ public static class CrmProspectingEvidenceFactory
         return normalized.Length > maxLength ? normalized[..maxLength] : normalized;
     }
 
-    private static bool IsSha256(string? value) =>
-        value is { Length: 64 } && value.All(Uri.IsHexDigit);
 }
