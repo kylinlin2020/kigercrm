@@ -90,10 +90,20 @@ public sealed class CrmUsaSpendingProspectingProvider : ICrmProspectingProvider,
             throw new HttpRequestException("USAspending response came from an unapproved endpoint.");
         }
 
-        if (!response.IsSuccessStatusCode)
+        if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.ServiceUnavailable)
         {
-            throw new HttpRequestException($"USAspending returned HTTP {(int)response.StatusCode}.");
+            var retryAt = response.Headers.RetryAfter?.Date
+                ?? (response.Headers.RetryAfter?.Delta is { } retryDelay
+                    ? DateTimeOffset.UtcNow + retryDelay
+                    : DateTimeOffset.UtcNow.AddMinutes(5));
+            throw new CrmProspectingProviderRateLimitException(
+                "USAspending provider throttled the request; retry after the supplied cooldown.",
+                (int)response.StatusCode,
+                retryAt);
         }
+
+        if (!response.IsSuccessStatusCode)
+            throw new HttpRequestException("USAspending returned an HTTP error.", null, response.StatusCode);
 
         var payload = await ReadBoundedAsync(response, 6 * 1024 * 1024, cancellationToken);
         using var document = JsonDocument.Parse(payload);
