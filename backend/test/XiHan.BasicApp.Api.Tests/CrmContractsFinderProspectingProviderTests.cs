@@ -109,6 +109,23 @@ public sealed class CrmContractsFinderProspectingProviderTests
     }
 
     [Fact]
+    public async Task SearchAsync_StopsOnForbiddenRateLimitResponse()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Forbidden)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get,
+                "https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search")
+        });
+        var provider = new CrmContractsFinderProspectingProvider(new HttpClient(handler));
+
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            provider.SearchAsync(new CrmProspectingProviderRequest(
+                22, "generator", "generator", "", "", "{}", [])));
+
+        Assert.Contains("five minutes", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task SearchAsync_RejectsPaginationLinkToUnapprovedHost()
     {
         var handler = new StubHandler(request => new HttpResponseMessage(HttpStatusCode.OK)
