@@ -207,4 +207,9 @@ A shared domain sanitizer now protects both request-ledger failure summaries and
 
 ### Request-ledger database invariants
 
-The 5.9.31 upgrade script constrains HTTP status to 100–599, request/response fingerprints to 64 hexadecimal characters, Started rows to have no completion timestamp, terminal rows to have one, and RateLimited rows to carry a retry-after timestamp. These constraints make malformed state transitions fail at the database boundary for upgraded tenant databases, in addition to repository validation. Fresh CodeFirst database creation currently relies on entity metadata and repository validation; matching CodeFirst CHECK-constraint generation remains a schema-parity task.
+The 5.9.31 upgrade script constrains HTTP status to 100–599, request/response fingerprints to 64 hexadecimal characters, Started rows to have no completion timestamp, terminal rows to have one, and RateLimited rows to carry a retry-after timestamp. The repository now exposes an idempotent PostgreSQL schema initializer that adds the same CHECK constraints after CodeFirst table creation; the Worker invokes it in tenant startup recovery and before claiming each Run. CodeFirst-created constraints use `NOT VALID`: PostgreSQL enforces them for all new/updated rows while avoiding an implicit scan of pre-existing rows. The upgrade script creates fully validated constraints for newly upgraded ledger tables.
+
+
+### CodeFirst and upgrade schema parity
+
+`EnsureSchemaConstraintsAsync` applies the same named PostgreSQL CHECK constraints to a CodeFirst-created ledger table. It is idempotent, tenant-connection scoped, and runs before startup recovery and before a Run is claimed. Constraints are added `NOT VALID` so legacy rows are not scanned or blocked during startup; PostgreSQL still enforces them for new/updated rows. Existing-table upgrade path 5.9.31 creates validated constraints at table creation. A later maintenance migration may validate CodeFirst constraints after an explicit data audit.
