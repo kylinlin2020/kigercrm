@@ -363,3 +363,11 @@ A worker control-flow review found that the post-provider Run-state read was ins
 The worker now catches exceptions only around `provider.SearchAsync`. A provider request failure is counted and isolated, then the loop continues to the next configured provider. Result accounting, raw-record retention and the post-provider Run-state read are outside that provider catch. A failure reading persisted Run state therefore reaches the outer Run failure handler instead of being silently treated as a provider failure. The post-provider cancellation check still stops subsequent providers when CancelRequested is observed.
 
 Added a source-wiring guard that verifies the provider call/catch/continue sequence precedes the post-provider state read. This is a structural regression guard only; it does not simulate database faults or prove runtime exception behavior. No build or test execution was performed.
+
+## 38. Bound provider-supplied warning aggregation (2026-11-04)
+
+Provider result warnings are untrusted input. Previously the worker appended every non-empty warning to an in-memory list, joined the entire list, and only then truncated the final persisted summary to 2,000 characters. A provider could therefore return a very large warning collection or oversized strings and cause avoidable memory allocation even though almost all text would later be discarded.
+
+The worker now accepts at most 100 provider warnings in the aggregate list and truncates each accepted warning to 500 characters before storing it in memory. The existing final Run failure-summary limit remains 2,000 characters. A source-wiring assertion guards these bounds.
+
+This is a bounded diagnostic-output safeguard, not a full provider-response memory limit: the provider still constructs its result before returning, and the 2,000-record cap / 5 MB serialized raw-result cap remain separate controls. No build or runtime test was performed.
