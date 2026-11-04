@@ -179,3 +179,8 @@ Still pending: stale Started recovery after process death, durable rate-limit co
 ### Implemented slice: repository and Worker lifecycle
 
 The request ledger repository is now registered in CRM DI and called by `CrmProspectingRunHostedService`. Each configured provider attempt receives a canonical request fingerprint and a durable `Started` row before network I/O. Provider success, partial result, malformed envelope, exception and Run cancellation are finalized with conditional `Started`-only updates. Provider exception diagnostics deliberately persist only a stable classification and exception type, not arbitrary exception messages. The repository retries bounded attempt-number collisions only when a concurrent insert is observed, and sanitizes URL query strings, bearer credentials and common API-key/token assignments from diagnostics. SQLite integration tests cover sequential attempts, tenant isolation, exactly-once finalization and diagnostic redaction; PostgreSQL concurrent allocation and crash-left Started recovery remain unverified.
+
+
+### Implemented slice: interrupted-attempt recovery
+
+Startup recovery now runs after Run lease recovery and before queue reconstruction. It marks a Started attempt as Failed with the stable code `worker_interrupted` only when it is older than the 15-minute grace period and its Run is missing, terminal/queued, or has an expired lease. It deliberately does not touch a recent Started attempt or an attempt whose Run still has a live Running/CancelRequested lease. Recovery uses PostgreSQL database time and tenant-scoped SQL. The recovery path is not yet verified against a live PostgreSQL database.
