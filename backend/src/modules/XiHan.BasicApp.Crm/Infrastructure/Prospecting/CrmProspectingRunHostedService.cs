@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Domain.Repositories;
