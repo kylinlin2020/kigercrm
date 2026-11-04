@@ -79,6 +79,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 .GroupBy(provider => provider.ProviderCode, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
             var plan = ParseStringArray(strategy.ProviderPlanJson, "provider plan");
+            if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
             var excludedDomains = ParseStringArray(strategy.ExcludedDomainsJson, "excluded domains", allowNull: true);
             var raw = new List<object>();
             var failures = 0;
@@ -112,8 +113,15 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     var result = await provider.SearchAsync(request, cancellationToken);
                     failures += Math.Max(0, result.FailureCount);
                     warnings.AddRange(result.Warnings.Where(value => !string.IsNullOrWhiteSpace(value)));
-                    foreach (var record in result.Records)
+                    const int maxRawRecordsPerRun = 2000;
+                    var remaining = Math.Max(0, maxRawRecordsPerRun - raw.Count);
+                    foreach (var record in result.Records.Take(remaining))
                         raw.Add(new { Provider = provider.ProviderCode, Record = record });
+                    if (result.Records.Count > remaining)
+                    {
+                        failures++;
+                        warnings.Add($"Raw result cap reached; {result.Records.Count - remaining} provider records were not retained.");
+                    }
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
