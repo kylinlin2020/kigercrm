@@ -120,3 +120,18 @@ The first persistence slice has now been added to `kiger-dev`:
 - Added source-wiring regression test source for entity bases, tenant scope, repository inheritance, metadata registration, migration/index alignment and permanent run keys.
 
 **Not implemented yet:** campaign/strategy/run application services and API contracts, create/edit/approve/activate commands, permission catalog entries, frontend screens, worker/queue execution, provider adapters and raw candidate storage. The migration and test source have not been executed. The entity and SQL mapping still requires actual CodeFirst comparison and PostgreSQL migration validation before treating the schema as accepted.
+
+
+## 11. Run lifecycle API slice (2026-11-04)
+
+Implemented on `kiger-dev`:
+
+- Added Run start, detail lookup and cancellation API contracts and application-service operations.
+- Run start is accepted only for an Active campaign whose current strategy version is activated, approved, and has a non-empty JSON provider plan.
+- The Run snapshots Campaign ID, Strategy ID and Strategy Version. A tenant-scoped permanent RequestKey is used for idempotency.
+- Added a SHA-256 `PayloadHash` column (migration 5.9.12). Reusing a RequestKey for the same campaign/strategy snapshot returns the existing Run; reuse after the active strategy snapshot changes is rejected.
+- Queued runs can be cancelled immediately; running runs transition to CancelRequested; terminal runs cannot be cancelled.
+- API access checks campaign owner data scope and uses existing CRM Execute/Read permission codes.
+- Added source-level regression guards for approved/active strategy gating, non-empty provider plan and migration/entity fingerprint mapping.
+
+**Important execution boundary:** this slice persists a `Queued` run only. It does not yet dispatch a worker, perform provider requests, update progress counters, or transition a run to Succeeded/Failed. A queued task is not a completed prospecting job. The 5.9.12 migration, .NET build/tests, PostgreSQL behavior and Windows acceptance have not been executed. Historical Run rows receive an empty fingerprint during migration and are deliberately not considered safe idempotent replays.
