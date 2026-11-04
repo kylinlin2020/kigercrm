@@ -434,38 +434,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (candidateWasInserted && identityResolver is not null && gleifLookups < maxGleifLookupsPerRun)
                 {
                     gleifLookups++;
+                    CrmProspectingLegalEntityMatch? identity = null;
                     try
                     {
-                        var identity = await identityResolver.ResolveExactAsync(insertedCandidate.CompanyName, cancellationToken);
-                        if (identity is not null)
-                        {
-                            var sourceUrl = identity.SourceUrl;
-                            if (CrmProspectingEvidenceFactory.TryGetCanonicalSourceUrl(sourceUrl, out var canonicalSourceUrl))
-                            {
-                                var identityEvidence = new SysCrmProspectingEvidence
-                                {
-                                    CandidateId = insertedCandidate.BasicId,
-                                    ProviderCode = "gleif_lei",
-                                    ProviderRecordId = identity.Lei,
-                                    FieldName = "legal_entity_identifier",
-                                    FieldValueHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity.Lei))),
-                                    SourceUrl = canonicalSourceUrl,
-                                    SourceUrlHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonicalSourceUrl))),
-                                    EvidenceType = "registry",
-                                    VerificationStatus = "unverified",
-                                    EvidenceSummary = $"GLEIF exact legal-name match: {identity.LegalName}; entity status: {identity.EntityStatus ?? "unknown"}; LEI registration status: {identity.RegistrationStatus ?? "unknown"}; country: {identity.CountryCode ?? "unknown"}; registered identifier: {identity.RegisteredAs ?? "not supplied"}. Human verification remains required.",
-                                    RetrievedAtUtc = identity.RetrievedAtUtc.ToUniversalTime(),
-                                    RawPayloadHash = identity.RawPayloadHash
-                                };
-                                using var identityUnitOfWork = scope.ServiceProvider
-                                    .GetRequiredService<IUnitOfWorkManager>()
-                                    .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
-                                if (!await runs.TryLockLeaseForWriteAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
-                                    throw new InvalidOperationException("The Run lease expired or was superseded before registry evidence persistence.");
-                                await evidenceRepository.AddRangeAsync([identityEvidence], cancellationToken);
-                                await identityUnitOfWork.CompleteAsync(cancellationToken);
-                            }
-                        }
+                        identity = await identityResolver.ResolveExactAsync(insertedCandidate.CompanyName, cancellationToken);
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
@@ -473,8 +445,37 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     }
                     catch (Exception identityException)
                     {
+                        // Registry lookup failures are non-fatal; persistence/fencing failures below
+                        // are deliberately outside this catch and must fail the Run.
                         AddBoundedWarning(warnings, $"GLEIF identity lookup for candidate {insertedCandidate.BasicId} failed: {identityException.GetType().Name}.");
                         Logger.LogWarning(identityException, "GLEIF identity lookup failed for Candidate {CandidateId}", insertedCandidate.BasicId);
+                    }
+
+                    if (identity is not null &&
+                        CrmProspectingEvidenceFactory.TryGetCanonicalSourceUrl(identity.SourceUrl, out var canonicalSourceUrl))
+                    {
+                        var identityEvidence = new SysCrmProspectingEvidence
+                        {
+                            CandidateId = insertedCandidate.BasicId,
+                            ProviderCode = "gleif_lei",
+                            ProviderRecordId = identity.Lei,
+                            FieldName = "legal_entity_identifier",
+                            FieldValueHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity.Lei))),
+                            SourceUrl = canonicalSourceUrl,
+                            SourceUrlHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonicalSourceUrl))),
+                            EvidenceType = "registry",
+                            VerificationStatus = "unverified",
+                            EvidenceSummary = $"GLEIF exact legal-name match: {identity.LegalName}; entity status: {identity.EntityStatus ?? "unknown"}; LEI registration status: {identity.RegistrationStatus ?? "unknown"}; country: {identity.CountryCode ?? "unknown"}; registered identifier: {identity.RegisteredAs ?? "not supplied"}. Human verification remains required.",
+                            RetrievedAtUtc = identity.RetrievedAtUtc.ToUniversalTime(),
+                            RawPayloadHash = identity.RawPayloadHash
+                        };
+                        using var identityUnitOfWork = scope.ServiceProvider
+                            .GetRequiredService<IUnitOfWorkManager>()
+                            .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+                        if (!await runs.TryLockLeaseForWriteAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
+                            throw new InvalidOperationException("The Run lease expired or was superseded before registry evidence persistence.");
+                        await evidenceRepository.AddRangeAsync([identityEvidence], cancellationToken);
+                        await identityUnitOfWork.CompleteAsync(cancellationToken);
                     }
                 }
 
