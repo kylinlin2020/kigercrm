@@ -85,6 +85,20 @@ public sealed class CrmProspectingEvidenceFactoryTests
         Assert.Empty(evidence);
     }
 
+    [Fact]
+    public void Create_ShouldRejectNullProviderCodeAndNullRecordSafely()
+    {
+        var record = new CrmProspectingRawRecord("1", "source", "title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/tender/null-guard"
+        };
+
+        Assert.Empty(CrmProspectingEvidenceFactory.Create(
+            1, new CrmProspectingRawEnvelope(null!, record), Retrieved));
+        Assert.Throws<ArgumentNullException>(() => CrmProspectingEvidenceFactory.Create(
+            1, new CrmProspectingRawEnvelope("provider", null!), Retrieved));
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
