@@ -22,6 +22,13 @@ public sealed class CrmProspectingApplicationWiringTests
     }
 
     [Fact]
+    public void ProspectingDomainService_ShouldBeExplicitlyRegistered()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        Assert.Contains("AddScoped<ICrmProspectingDomainService, CrmProspectingDomainService>()", registration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingDomain_ShouldRequireApprovalBeforeActivationAndValidateProviderJson()
     {
         var domain = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "DomainServices", "Implementations", "CrmProspectingDomainService.cs");
@@ -29,6 +36,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Only a pending strategy can receive an approval decision.", domain, StringComparison.Ordinal);
         Assert.Contains("JsonDocument.Parse", domain, StringComparison.Ordinal);
         Assert.Contains("GetListAsync", domain, StringComparison.Ordinal);
+        Assert.Contains("Only a draft strategy can be submitted for approval.", domain, StringComparison.Ordinal);
+        Assert.Contains("strategy.Version", domain, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingStrategyApprovalStatus.Approved", domain, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
