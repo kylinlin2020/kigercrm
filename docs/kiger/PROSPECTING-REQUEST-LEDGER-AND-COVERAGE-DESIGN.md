@@ -203,3 +203,8 @@ The USAspending adapter also emits the structured 429/503 signal. GLEIF identity
 ### Shared diagnostic sanitization
 
 A shared domain sanitizer now protects both request-ledger failure summaries and Run-level failure/warning summaries. It strips URL query/fragment suffixes, redacts Bearer/Basic values and common API-key/token/secret/password assignments, removes control characters, and enforces the caller's output bound. This prevents the broader Run failure path from bypassing the ledger's credential-redaction policy. Unit-test source covers URL, authorization, API key, password and length limits.
+
+
+### Request-ledger database invariants
+
+Migration 5.9.31 now constrains HTTP status to 100–599, request/response fingerprints to 64 hexadecimal characters, Started rows to have no completion timestamp, terminal rows to have one, and RateLimited rows to carry a retry-after timestamp. These constraints make malformed state transitions fail at the database boundary as well as in repository validation.
