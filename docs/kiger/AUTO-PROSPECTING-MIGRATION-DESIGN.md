@@ -1,0 +1,105 @@
+# 自动获客模块迁移盘点与实施设计
+
+> 状态：源码盘点与目标架构设计；不是已完成的功能迁移。  
+> 目标分支：`kiger-dev`。不修改 `main`。PR #1 保持 Draft。
+
+## 1. 迁移目标
+
+将参考项目 `hongshuoguo2-cloud/haituo-crm` 的自动获客能力迁移到 KIGER CRM，复用 KIGER 已有的 Lead、Customer、Contact、权限、租户隔离和跟进流程。
+
+迁移目标不是复制 Node.js/TypeScript 运行时，也不是另建 CRM。应迁移业务能力、领域规则、数据源适配契约和验收标准，并按 KIGER 的 .NET、SqlSugar、PostgreSQL、Dynamic API 与 SaaS tenant 结构重新实现。
+
+## 2. 已确认的源项目能力
+
+从源项目 `agent-skills/prospecting/SKILL.md`、`agent-knowledge/30-prospecting.json`、`backend/src/lead-finder-launch.ts`、`prospect-strategies.ts` 和 `prospect-candidate-pipeline.ts` 确认：
+
+1. **任务启动与编排**：普通搜客 / 深度超级搜索；任务、策略、可选定时计划；启动幂等；返回任务 ID 和分阶段耗时。
+2. **搜索策略**：按市场、产品、客户类型、排除域名、来源计划和时间范围组织搜索条件；策略需要审批后激活。
+3. **数据源执行**：按已启用 provider plan 执行来源；记录来源级成功、失败和真实错误；不允许无来源计划启动。
+4. **原始命中留存**：原始来源记录与 run、team/owner、provider 关联，供后续复核、重放和审计。
+5. **候选处理流水线**：规范化、去重、候选合并、处理状态幂等；区分新增、更新、重复抑制和失败。
+6. **企业身份与覆盖判断**：官方身份/强标识解析、证据记录、覆盖状态，避免将同一企业重复推入待处理队列。
+7. **人工可联系门槛**：只有符合人工可联系条件的候选才允许转为 Lead；转 Customer 必须先有对应 Lead。
+8. **长任务完成语义**：任务启动不等于完成；必须持续跟踪至终态，报告原始数量、清洗数量、候选数量和失败来源。
+
+源项目另有 provider credentials、dispatch、queue/worker、run/schedule、campaign、candidate action、contact enrichment 等模块，后续实施前需逐项读取其契约与测试，不能仅凭文件名直接照搬。
+
+## 3. KIGER 目标系统映射
+
+| 源项目能力 | KIGER 目标实现 | 迁移原则 |
+|---|---|---|
+| Campaign / campaign version | 新增 Prospecting Campaign 聚合 | 租户隔离、版本快照、状态审计 |
+| Strategy / provider plan | 新增 Prospecting Strategy | 草稿、审批、激活；不可执行空来源计划 |
+| Provider configuration | 新增数据源配置与凭据服务 | 凭据加密；密钥不进入日志/DTO |
+| Run / schedule / queue | 新增搜客任务、调度与执行记录 | 可恢复、可取消、可观察；任务幂等 |
+| Raw source hit | 新增原始采集记录 | 保留来源、抓取时间、证据与安全边界 |
+| Candidate pipeline | 新增候选池与处理状态 | 规范化、去重、合并、失败可重试 |
+| Identity / coverage | 新增企业身份证据与覆盖记忆 | 强标识优先；弱匹配不自动合并真实 CRM 客户 |
+| Candidate review / conversion | 调用现有 Lead 创建流程 | 人工确认后创建 Lead；不直接绕过 CRM |
+| Lead → Customer | 复用现有 Lead 转化工作流 | 不再实现第二套 Customer/Contact |
+
+## 4. 推荐领域边界
+
+建议新建独立模块（暂定 `XiHan.BasicApp.Prospecting`），避免把采集任务、外部凭据和候选流水线塞进 CRM 核心实体。
+
+- **Prospecting**：Campaign、CampaignVersion、Strategy、StrategyApproval、Run、Schedule。
+- **Sources**：Provider、ProviderConfiguration、ProviderRequest、ProviderResult、SourceRawRecord。
+- **Candidates**：Candidate、CandidateEvidence、CandidateProcessingState、CandidateReview、CandidateConversion。
+- **Identity**：OrganizationIdentity、IdentityClaim、IdentityResolution、CoverageMemory。
+- **Execution**：任务调度、worker、重试、取消、心跳、限流和成本预算。
+
+上述为建议边界，不代表实体或 API 已创建。最终命名应先核对仓库模块注册、权限种子、数据库连接与后台任务基础设施。
+
+## 5. 安全与数据规则
+
+- 每个 campaign、run、raw record、candidate、identity 和 review 都必须带租户范围；查询必须走严格租户过滤仓储。
+- 所有写操作按现有 CRM 权限模型校验；候选查看、审批、转 Lead、配置数据源应使用独立权限码。
+- 数据源密钥必须加密存储，读取时按最小权限解密；禁止回传明文凭据或写入日志。
+- 外部网页内容视为不可信输入；防 SSRF、内网地址探测、重定向绕过、恶意 HTML 和超大响应。
+- 尊重来源网站条款、robots/访问限制、速率限制及适用隐私法规；不绕过登录、付费墙或访问控制。
+- 不得伪造公司、邮箱、电话、WhatsApp、地址或来源证据；未知字段保持为空或标记待核验。
+- 公司名称相似或仅域名相似不足以自动合并 CRM 客户；强标识冲突必须进入人工复核。
+- 只有候选通过人工可联系审核后才允许创建 Lead；Lead 转 Customer 必须走现有 Convert 工作流。
+- 启动、来源请求、原始命中处理、候选合并和转 Lead 都需要幂等键及可审计状态。
+
+## 6. 分阶段实施顺序
+
+### Phase A — 基础任务模型
+Campaign、版本快照、Strategy、审批、Run、状态查询、取消与幂等启动。先实现可观察的任务生命周期，不先接真实外部来源。
+
+### Phase B — 数据源框架
+Provider 契约、配置/凭据安全、来源计划验证、请求记录、限流、错误分类与可替换 fake provider。先以 fake provider 完成端到端测试。
+
+### Phase C — 原始记录与候选流水线
+原始记录持久化、规范化、候选池、证据、去重、重复抑制、失败重试和处理状态幂等。明确保留原始证据，不让模型输出覆盖来源事实。
+
+### Phase D — 企业身份与人工复核
+强身份标识、身份冲突、覆盖记忆、候选审核队列；弱匹配仅提示，不自动合并 CRM 主数据。
+
+### Phase E — CRM 集成
+人工批准后调用现有 Lead 创建服务；复用现有 Lead → Customer/Contact 转化、Owner 数据范围、字段权限和跟进记录能力。
+
+### Phase F — 调度、运行监控与真实来源
+完成 worker 恢复、定时执行、成本预算、来源健康度、任务终态报告后，再逐个接入合法且可维护的数据源。
+
+## 7. 必须补齐的测试
+
+- 租户隔离：跨租户不能查看 campaign、run、raw record 或 candidate。
+- 权限：无权用户不能查看、审批、配置来源或转化候选。
+- 幂等：重复启动、重复 provider 回调、重复处理 raw hit、重复转 Lead 不产生重复记录。
+- 恢复：worker 中断后可恢复；单来源失败不阻塞其他来源；取消后不再启动新请求。
+- 去重：强标识一致、强标识冲突、仅公司名相似、域名变更等边界。
+- 安全：凭据不泄漏、SSRF 拦截、恶意页面内容不执行、响应大小受限。
+- CRM：人工审批门槛、Lead Owner 授权、字段权限、Lead 转 Customer 的现有事务约束。
+- PostgreSQL：迁移、唯一索引、并发任务领取、事务回滚和多 worker 竞争。
+- Windows 实机：拉取 `kiger-dev`、还原依赖、编译、迁移、启动、执行端到端搜客与 CRM 验收。
+
+## 8. 当前状态与不做事项
+
+- 已完成：源项目主要自动获客流程和候选处理入口的第一轮源码盘点；目标 CRM Lead API 已确认可作为转化入口。
+- 未完成：模块实体、API、Provider、Worker、UI、迁移脚本和自动获客端到端测试均尚未实现或验证。
+- 不迁移源项目的 Node.js/TypeScript 存储实现作为 KIGER 后端运行时。
+- 不重复创建 CRM Lead、Customer、Contact，不新增 Go CRM REST Connector。
+- 不自动发送开发信或对外联系；未来若增加外联，必须有独立授权和人工审批。
+- 不把搜索任务“已启动”报告为“获客完成”。
+
