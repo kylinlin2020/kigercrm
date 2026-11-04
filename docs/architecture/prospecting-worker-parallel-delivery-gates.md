@@ -92,3 +92,8 @@ The child-write guard was tightened after review: lease expiry is now evaluated 
 ## Legacy transition isolation (2026-11-04)
 
 The legacy `ClaimQueuedAsync`, `RecoverInterruptedAsync`, `CompleteAsync`, and `FailAsync` paths now require both `LeaseToken IS NULL` and `LeaseExpiresAt IS NULL` in their conditional updates. This prevents legacy worker code from claiming, recovering, completing, or failing a row once lease metadata is present. Legacy lease-less Runs remain supported while the HostedService migration is incomplete. This is a compatibility guard, not activation of the lease protocol; the HostedService still uses legacy methods and remains single-active-instance only. A source-level contract test checks the legacy predicates; runtime verification remains pending.
+
+
+## Reject partial lease metadata in legacy paths (2026-11-04)
+
+The legacy claim, recovery, completion, and failure predicates now require all four lease fields to be NULL: `lease_owner`, `lease_token`, `lease_heartbeat_at`, and `lease_expires_at`. Checking only token and expiry could allow a malformed/partially migrated row carrying owner or heartbeat metadata to be mutated by the legacy worker. The source contract test now asserts all four fields across the legacy transitions. This remains a compatibility hardening step; HostedService lease claim/heartbeat/write fencing is not yet integrated.
