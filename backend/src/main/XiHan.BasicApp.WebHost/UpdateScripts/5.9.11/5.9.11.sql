@@ -31,6 +31,12 @@ BEGIN
             active_strategy_version integer NULL,
             CONSTRAINT pk_crm_prospecting_campaign PRIMARY KEY (basic_id)
         );
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_campaign_teid_crti
+            ON crm_prospecting_campaign (tenant_id, created_time DESC);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_campaign_crid
+            ON crm_prospecting_campaign (created_id);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_campaign_teid_isde
+            ON crm_prospecting_campaign (tenant_id, is_deleted);
         CREATE INDEX IF NOT EXISTS ix_crm_prospecting_campaign_teid_st_cr
             ON crm_prospecting_campaign (tenant_id, status, created_time DESC);
         CREATE INDEX IF NOT EXISTS ix_crm_prospecting_campaign_teid_ow
@@ -63,6 +69,12 @@ BEGIN
             activated_at timestamp with time zone NULL,
             CONSTRAINT pk_crm_prospecting_strategy PRIMARY KEY (basic_id)
         );
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_strategy_teid_crti
+            ON crm_prospecting_strategy (tenant_id, created_time DESC);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_strategy_crid
+            ON crm_prospecting_strategy (created_id);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_strategy_teid_isde
+            ON crm_prospecting_strategy (tenant_id, is_deleted);
         CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_strategy_te_ca_ve_isde
             ON crm_prospecting_strategy (tenant_id, campaign_id, version, is_deleted);
         CREATE INDEX IF NOT EXISTS ix_crm_prospecting_strategy_te_ca_st
@@ -96,6 +108,12 @@ BEGIN
             failure_summary varchar(2000) NULL,
             CONSTRAINT pk_crm_prospecting_run PRIMARY KEY (basic_id)
         );
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_run_teid_crti
+            ON crm_prospecting_run (tenant_id, created_time DESC);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_run_crid
+            ON crm_prospecting_run (created_id);
+        CREATE INDEX IF NOT EXISTS ix_crm_prospecting_run_teid_isde
+            ON crm_prospecting_run (tenant_id, is_deleted);
         CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_run_te_rq_isde
             ON crm_prospecting_run (tenant_id, request_key, is_deleted);
         CREATE INDEX IF NOT EXISTS ix_crm_prospecting_run_te_ca_st_cr
