@@ -8,7 +8,14 @@ public sealed record CrmProspectingProviderRequest(
     string TargetMarkets,
     string IdealCustomerProfile,
     string ProviderOptionsJson,
-    IReadOnlyList<string> ExcludedDomains);
+    IReadOnlyList<string> ExcludedDomains)
+{
+    /// <summary>
+    /// Optional incremental lower bound supplied from a previous complete scan, with an overlap.
+    /// It is deliberately excluded from the canonical search-scope fingerprint.
+    /// </summary>
+    public DateTimeOffset? CoverageSinceUtc { get; init; }
+}
 
 /// <summary>One raw result returned by a provider; it is not yet a CRM lead.</summary>
 public sealed record CrmProspectingRawRecord(
