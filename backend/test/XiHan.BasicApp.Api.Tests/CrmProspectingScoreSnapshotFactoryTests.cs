@@ -23,6 +23,21 @@ public sealed class CrmProspectingScoreSnapshotFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldPreserveOptionalIdempotencyKeyForWorkerSnapshots()
+    {
+        var score = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, null, false, false), Now);
+
+        var snapshot = CrmProspectingScoreSnapshotFactory.Create(123, score, idempotencyKey: "initial:123:v1");
+        var historical = CrmProspectingScoreSnapshotFactory.Create(123, score);
+
+        Assert.Equal("initial:123:v1", snapshot.IdempotencyKey);
+        Assert.Null(historical.IdempotencyKey);
+        Assert.Throws<ArgumentException>(() => CrmProspectingScoreSnapshotFactory.Create(123, score, idempotencyKey: new string('x', 161)));
+        Assert.Throws<ArgumentException>(() => CrmProspectingScoreSnapshotFactory.Create(123, score, idempotencyKey: " "));
+    }
+
+    [Fact]
     public void Create_ShouldPersistDeterministicReferencesToTheExactEvidenceSnapshot()
     {
         var score = CrmProspectingScorecard.Evaluate(
