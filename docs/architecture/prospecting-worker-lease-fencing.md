@@ -2,7 +2,9 @@
 
 ## Status
 
-Design gate for the prospecting worker. Until the implementation and PostgreSQL integration tests in this document are complete, the worker is **single-active-instance only**. Do not enable multi-instance deployment or run startup recovery concurrently with live workers.
+**Source implementation is integrated; runtime acceptance is still outstanding.** The current HostedService uses PostgreSQL lease claim/token/fencing version, an independent two-minute heartbeat, work-boundary renewals, transactional Candidate/Evidence/Score write fencing, fenced terminal transitions, and expired-lease recovery. The worker remains **single-active-instance only** until PostgreSQL dual-connection race, takeover, stale-write, cancellation and crash-recovery tests pass. Do not enable multi-instance deployment before those tests.
+
+The implementation and integration status is summarized in the later sections "Schema and worker lifecycle integration landed" and "Fenced repository primitives landed". Earlier notes in this document that say the HostedService does not yet use leases or heartbeat are historical snapshots and are superseded by those sections.
 
 ## Why the current claim is insufficient
 
