@@ -158,6 +158,32 @@ public sealed class CrmProspectingEvidenceFactoryTests
             CrmProspectingRecordIdentity.GetPayloadHash(equivalent));
     }
 
+    [Fact]
+    public void Create_ShouldKeepFallbackIdentityAndPayloadFingerprintStableAcrossRetrievalTimes()
+    {
+        var first = new CrmProspectingRawRecord(string.Empty, "source", "title", "buyer", null, null, null, "summary")
+        {
+            SourceUrl = "https://buyer.example/tender/retry",
+            RetrievedAtUtc = Retrieved,
+            RawPayloadHash = "invalid"
+        };
+        var retried = first with { RetrievedAtUtc = Retrieved.AddHours(2) };
+
+        Assert.Equal(
+            CrmProspectingRecordIdentity.NormalizeExternalId(first),
+            CrmProspectingRecordIdentity.NormalizeExternalId(retried));
+        Assert.Equal(
+            CrmProspectingRecordIdentity.GetPayloadHash(first),
+            CrmProspectingRecordIdentity.GetPayloadHash(retried));
+
+        var firstEvidence = CrmProspectingEvidenceFactory.Create(
+            15, new CrmProspectingRawEnvelope("provider", first), Retrieved);
+        var retriedEvidence = CrmProspectingEvidenceFactory.Create(
+            15, new CrmProspectingRawEnvelope("provider", retried), Retrieved.AddHours(2));
+        Assert.Equal(firstEvidence[0].RawPayloadHash, retriedEvidence[0].RawPayloadHash);
+        Assert.Equal(firstEvidence[0].ProviderRecordId, retriedEvidence[0].ProviderRecordId);
+    }
+
     [Theory]
     [InlineData("http://buyer.example/tender/1")]
     [InlineData("file:///etc/passwd")]
