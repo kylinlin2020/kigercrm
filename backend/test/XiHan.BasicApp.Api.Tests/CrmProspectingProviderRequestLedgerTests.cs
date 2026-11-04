@@ -24,6 +24,7 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.31", "5.9.31.sql");
         Assert.Contains("IF to_regclass('crm_prospecting_run') IS NOT NULL", migration, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE IF NOT EXISTS crm_prospecting_provider_request", migration, StringComparison.Ordinal);
+        Assert.Contains("row_version bigint NOT NULL DEFAULT 0", migration, StringComparison.Ordinal);
         Assert.Contains("(tenant_id, run_id, provider_code, attempt_no)", migration, StringComparison.Ordinal);
         Assert.Contains("attempt_no > 0", migration, StringComparison.Ordinal);
         Assert.Contains("state IN ('Started','Succeeded','Failed','RateLimited','Cancelled')", migration, StringComparison.Ordinal);
