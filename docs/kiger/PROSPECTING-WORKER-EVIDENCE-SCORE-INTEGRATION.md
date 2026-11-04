@@ -126,3 +126,22 @@ Do not wire the three writes by simply resolving three repositories and assuming
 The current per-Run Candidate unique identity is useful protection against duplicate Candidate rows, but it also makes the existing-key retry branch especially important: once child persistence is enabled, that branch must invoke a reconciliation path rather than skip the envelope. Reconciliation must distinguish an already-complete envelope from a partially persisted one using database state and stable source identity.
 
 No source-level review in this audit is represented as a successful compile, unit test, PostgreSQL integration test, or Windows runtime acceptance.
+
+## 2026-11-04 run-state concurrency audit
+
+A separate audit of `CrmProspectingRunRepository` and its contract confirms:
+
+- `ClaimQueuedAsync` uses a conditional Queued -> Running update, so duplicate queue deliveries cannot both claim the same currently queued row.
+- `CompleteAsync` and `FailAsync` only perform their normal terminal transition while the row is Running; if cancellation has changed it to CancelRequested, they transition it to Cancelled instead.
+- `RecoverInterruptedAsync` updates every Running row in the current tenant scope back to Queued, and every CancelRequested row to Cancelled. It does not identify which process owns a Run, nor check an expiry/heartbeat.
+- The repository contract explicitly limits this recovery operation to single-active-worker startup and says it must not run concurrently with live workers.
+
+### Deployment constraint and required next step
+
+The queue claim is a useful duplicate-delivery guard, but it is not a distributed worker lease. If a second application instance starts and executes startup recovery while the first instance is still processing, the second can requeue a live Run. A subsequent worker may claim it and repeat provider calls / normalization while the first process continues. The conditional candidate unique index may reject duplicate inserts, but it does not prevent duplicate external provider calls or protect Run completion from a stale worker.
+
+Until a database-authoritative lease with owner identity, expiry, heartbeat, and monotonically increasing fencing generation is implemented and tested, deploy exactly one active prospecting Worker instance and do not run startup recovery concurrently with a live worker. The Redis queue remains a delivery hint, not the source of ownership truth.
+
+Required PostgreSQL acceptance cases: two independent worker processes racing to claim; startup recovery during a live claim; expired lease takeover; stale owner attempting Candidate insert and Run completion after takeover; cancellation racing with completion; and restart after partial normalization. These tests must use independent database connections and verify persisted state, not only in-memory locks or SQLite behavior.
+
+This audit is source inspection only. It is not evidence of a passing multi-process test, PostgreSQL test, build, or Windows runtime check.
