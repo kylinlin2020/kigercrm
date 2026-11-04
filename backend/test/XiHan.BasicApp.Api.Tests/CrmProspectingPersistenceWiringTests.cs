@@ -661,6 +661,22 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void GleifIdentityResolver_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var resolver = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmGleifIdentityResolver.cs");
+
+        Assert.Contains("EnableGleifIdentityResolver", registration, StringComparison.Ordinal);
+        Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
+        Assert.Contains("GetService<ICrmProspectingIdentityResolver>()", worker, StringComparison.Ordinal);
+        Assert.Contains("maxGleifLookupsPerRun = 20", worker, StringComparison.Ordinal);
+        Assert.Contains("api.gleif.org/api/v1/lei-records", resolver, StringComparison.Ordinal);
+        Assert.Contains("matches.Count == 1", resolver, StringComparison.Ordinal);
+        Assert.Contains("NormalizeName(legalName)", resolver, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FindTenderProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
     {
         var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
