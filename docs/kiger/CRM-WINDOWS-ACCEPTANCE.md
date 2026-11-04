@@ -80,7 +80,7 @@ Source-wiring tests are useful regression guards but are not substitutes for rep
 1. Take and verify a restorable backup of the test database before starting.
 2. Confirm the database's recorded migration version and whether the CRM tables exist.
 3. Run the application using the normal upgrade mechanism against the test database.
-4. Inspect the migration ledger and confirm each applicable migration from 5.9.2 through 5.9.9 is recorded as successful.
+4. Inspect the migration ledger and confirm each applicable migration from 5.9.2 through 5.9.10 is recorded as successful.
 5. Inspect the resulting columns, constraints, and indexes, especially:
    - Lead normalized email, phone-digit, and website-host keys and tenant-prefixed lookup indexes.
    - Contact primary-customer slot and uniqueness behavior.
