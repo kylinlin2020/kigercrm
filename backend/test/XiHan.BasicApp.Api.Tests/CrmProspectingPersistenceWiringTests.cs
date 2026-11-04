@@ -516,6 +516,12 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.True(fencedWrite >= 0 && candidateInsert > fencedWrite,
             "Candidate/Evidence/Score writes must be fenced inside their transaction.");
         Assert.Contains("TryLockLeaseForWriteAsync(runId, leaseToken, fencingVersion, cancellationToken)", worker, StringComparison.Ordinal);
+
+        var gleifLookup = worker.IndexOf("identity = await identityResolver.ResolveExactAsync", StringComparison.Ordinal);
+        var gleifCatchEnd = worker.IndexOf("if (identity is not null", gleifLookup, StringComparison.Ordinal);
+        var gleifFence = worker.IndexOf("TryLockLeaseForWriteAsync(run.BasicId", gleifCatchEnd, StringComparison.Ordinal);
+        Assert.True(gleifLookup >= 0 && gleifCatchEnd > gleifLookup && gleifFence > gleifCatchEnd,
+            "A GLEIF network lookup may be non-fatal, but registry Evidence persistence must remain outside the provider-error catch and be fenced.");
     }
 
     [Fact]
