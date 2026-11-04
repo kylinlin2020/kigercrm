@@ -41,7 +41,11 @@ public sealed record CrmProspectingRawRecord(
 public sealed record CrmProspectingProviderResult(
     IReadOnlyList<CrmProspectingRawRecord> Records,
     int FailureCount,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings)
+{
+    /// <summary>False when the adapter stopped before exhausting the provider's available result pages.</summary>
+    public bool IsComplete { get; init; } = true;
+}
 
 /// <summary>
 /// Search-provider boundary. Implementations must honor cancellation, treat provider output as untrusted
