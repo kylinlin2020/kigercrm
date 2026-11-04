@@ -5,7 +5,7 @@ BEGIN
         ALTER TABLE crm_customer
             ADD COLUMN IF NOT EXISTS converted_lead_id bigint NULL;
 
-        CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_customer_tenant_converted_lead
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_customer_teid_convlead
             ON crm_customer (tenant_id, converted_lead_id);
     END IF;
 END
