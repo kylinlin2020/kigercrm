@@ -116,6 +116,12 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         failures++;
                         warnings.Add($"Raw result cap reached; {result.Records.Count - remaining} provider records were not retained.");
                     }
+
+                    // Persisted cancellation cannot interrupt an arbitrary provider call, but
+                    // observe it immediately when that call returns and avoid starting later providers.
+                    var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+                    if (afterProvider?.Status == CrmProspectingRunStatus.CancelRequested)
+                        break;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
