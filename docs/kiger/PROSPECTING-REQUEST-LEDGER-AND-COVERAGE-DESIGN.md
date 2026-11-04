@@ -1,6 +1,6 @@
 # Prospecting Provider Request Ledger and Coverage Design
 
-> Status: implementation specification; this document does not claim that the ledger, cache, or coverage cursor is implemented.
+ > Status: request-ledger schema foundation implemented on `kiger-dev`; repository/worker lifecycle integration, coverage cursor, cache and persisted cooldown remain pending.
 > Target branch: `kiger-dev`. Keep PR #1 Draft and do not modify `main`.
 
 ## 1. Goals
@@ -156,3 +156,8 @@ Not yet implemented by this design document: durable provider request ledger, co
 ### Implemented prerequisite: canonical request fingerprint
 
 The domain utility `CrmProspectingRequestFingerprint.Create(providerCode, request)` now produces a SHA-256 fingerprint that excludes RunId, normalizes whitespace/provider-code casing, sorts and normalizes excluded domains, and canonicalizes JSON object property order. It rejects malformed provider-options JSON. Regression tests cover RunId independence, JSON property ordering, excluded-domain ordering, scope sensitivity, and malformed JSON. This is a deterministic fingerprint primitive only; it does not persist a request ledger or authorize cache reuse. ProviderOptionsJson must remain free of credentials and secrets.
+
+
+### Implemented slice: provider request ledger schema (5.9.31)
+
+The tenant-scoped append-only entity `SysCrmProspectingProviderRequest` and additive PostgreSQL migration `5.9.31/5.9.31.sql` now define one row per provider invocation attempt. The schema includes tenant/run/provider identity, positive attempt number, 64-character canonical request fingerprint, constrained lifecycle state, timestamps/duration, HTTP status, result count, bounded failure classification/summary, retry-after, response hash and cache-hit marker. A unique tenant + Run + provider + attempt index prevents duplicate attempt identities. The migration runs only where `crm_prospecting_run` exists, and the entity is registered with CRM field-security metadata. Source-level contract tests were added. **Not yet implemented:** attempt allocation/writes, conditional terminal-state transition repository methods, stale Started recovery, and Worker/provider call bracketing. Do not treat schema presence as active runtime telemetry.
