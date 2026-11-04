@@ -256,6 +256,23 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingScoreEvidenceReferences_ShouldBePersistedAndMigrated()
+    {
+        var score = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingScore.cs");
+        var factory = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingScoreSnapshotFactory.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.23", "5.9.23.sql");
+
+        Assert.Contains("Evidence_References_Json", score, StringComparison.Ordinal);
+        Assert.Contains("EvidenceReferencesJson = evidenceReferencesJson", factory, StringComparison.Ordinal);
+        Assert.Contains("OrderBy(row => row.ProviderCode, StringComparer.Ordinal)", factory, StringComparison.Ordinal);
+        Assert.Contains("at most 100 evidence rows", factory, StringComparison.Ordinal);
+        Assert.Contains("32 KB score snapshot limit", factory, StringComparison.Ordinal);
+        Assert.Contains("scoreResult, evidenceRows", worker, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS evidence_references_json text NOT NULL DEFAULT '[]'", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingScoreMigration_ShouldGuardExistingRowsAndEnforceComponentArithmetic()
     {
         var createMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.19", "5.9.19.sql");
