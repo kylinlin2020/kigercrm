@@ -69,6 +69,8 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("tenant_id", migration, StringComparison.Ordinal);
         Assert.Contains("candidate_id", migration, StringComparison.Ordinal);
         Assert.Contains("provider_record_id SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("source_url_hash IS NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN source_url_hash SET NOT NULL", migration, StringComparison.Ordinal);
         Assert.Contains("field_name", migration, StringComparison.Ordinal);
         Assert.Contains("source_url", migration, StringComparison.Ordinal);
         Assert.Contains("raw_payload_hash SET NOT NULL", migration, StringComparison.Ordinal);
@@ -144,6 +146,30 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("fresh-tenant CodeFirst", operations, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CodeFirst", upgradeReadme, StringComparison.Ordinal);
         Assert.Contains("pgcrypto", upgradeReadme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EvidenceIdentityColumns_ShouldBeNonNullableAndFitPostgresBtreeIndexTupleBudget()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
+
+        Assert.Contains("ColumnName = \"Provider_Record_Id\", Length = 240, IsNullable = false", entity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Source_Url_Hash\", Length = 64, IsNullable = false", entity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Raw_Payload_Hash\", Length = 64, IsNullable = false", entity, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN provider_record_id SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN raw_payload_hash SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN source_url_hash SET NOT NULL", migration, StringComparison.Ordinal);
+
+        // Worst-case UTF-8 payload bytes for indexed varchar columns, plus both bigint keys
+        // and a conservative tuple-overhead allowance, must stay below PostgreSQL's 8KB-page
+        // B-tree maximum index tuple size (approximately 2704 bytes).
+        const int indexedVarcharCharacters = 80 + 240 + 100 + 64 + 64;
+        const int tenantAndCandidateBytes = sizeof(long) * 2;
+        const int conservativeTupleOverheadBytes = 64;
+        var worstCaseTupleBytes = indexedVarcharCharacters * 4 + tenantAndCandidateBytes + conservativeTupleOverheadBytes;
+        Assert.True(worstCaseTupleBytes < 2704,
+            $"Evidence identity index could exceed PostgreSQL's B-tree tuple limit: {worstCaseTupleBytes} bytes.");
     }
 
     private static string Read(params string[] segments) =>
