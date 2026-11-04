@@ -9,6 +9,11 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientResolver)
     : SaasRepository<SysCrmProspectingRun>(clientResolver), ICrmProspectingRunRepository
 {
+    private const int MaxFailureSummaryLength = 2000;
+
+    private static string? BoundFailureSummary(string? summary)
+        => summary is { Length: > MaxFailureSummaryLength } ? summary[..MaxFailureSummaryLength] : summary;
+
     public async Task<SysCrmProspectingRun?> ClaimQueuedAsync(
         long runId,
         DateTimeOffset startedAt,
@@ -102,6 +107,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         CancellationToken cancellationToken = default,
         int candidateCount = 0)
     {
+        failureSummary = BoundFailureSummary(failureSummary);
         var status = failureCount == 0
             ? CrmProspectingRunStatus.Succeeded
             : rawRecordCount > 0
@@ -145,6 +151,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         DateTimeOffset completedAt,
         CancellationToken cancellationToken = default)
     {
+        failureSummary = BoundFailureSummary(failureSummary) ?? string.Empty;
         var failed = await UpdateAsync(
             run => new SysCrmProspectingRun
             {
