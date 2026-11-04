@@ -72,4 +72,4 @@
 
 - CRM 自动获客候选状态迁移 5.9.16：引入内部 Converting 状态后，旧版本 Converted 数值 4 必须迁移为 5；升级脚本仅在候选表存在时执行，避免平台库引用 CRM 表。升级前应停止旧版本应用，避免新旧枚举代码并行写入。
 
-- CRM 自动获客 Evidence 幂等身份从 5.9.21 起由 `5.9.21/5.9.21.sql` 为既有租户库规范化 `provider_record_id`、`raw_payload_hash` 的 NULL 值，并增加 `source_url_hash`（MD5 URL 指纹），建立租户 + Candidate + Provider + Provider Record + 字段 + URL 指纹 + Payload Hash 普通复合唯一索引。Evidence 实体同步声明等价 CodeFirst 唯一索引，因此新租户与升级租户走同一身份结构；完整 URL 仍保留在 `source_url` 用于审阅，索引不再直接包含最长 2000 字符的 URL。MD5 指纹仅用于缩短索引键，不用于安全校验；虽然碰撞概率低，但不等同于 SHA-256。迁移先检查历史重复身份，发现冲突即中止，不自动删除证据。
+- CRM 自动获客 Evidence 幂等身份从 5.9.21 起由 `5.9.21/5.9.21.sql` 为既有租户库规范化 `provider_record_id`、`raw_payload_hash` 的 NULL 值，并增加 `source_url_hash`（SHA-256 URL 指纹），建立租户 + Candidate + Provider + Provider Record + 字段 + URL 指纹 + Payload Hash 普通复合唯一索引。Evidence 实体同步声明等价 CodeFirst 唯一索引，因此新租户与升级租户走同一身份结构；完整 URL 仍保留在 `source_url` 用于审阅，索引不再直接包含最长 2000 字符的 URL。迁移使用 PostgreSQL `pgcrypto` 扩展计算 SHA-256；数据库账号需具备该扩展的安装权限，或由管理员预先安装。迁移先检查历史重复身份，发现冲突即中止，不自动删除证据。
