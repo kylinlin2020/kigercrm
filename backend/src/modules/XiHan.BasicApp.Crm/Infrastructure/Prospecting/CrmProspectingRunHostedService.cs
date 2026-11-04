@@ -422,7 +422,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
     private static void AddBoundedWarning(List<string> warnings, string? warning)
     {
         if (warnings.Count >= MaxAggregatedWarnings || string.IsNullOrWhiteSpace(warning)) return;
-        var value = warning.Trim();
+        // Provider output and exception messages are untrusted; strip control characters
+        // before persisting them into the Run summary or exposing them in review screens.
+        var value = string.Concat(warning.Select(character => char.IsControl(character) ? ' ' : character)).Trim();
+        if (value.Length == 0) return;
         warnings.Add(value.Length > MaxAggregatedWarningLength
             ? value[..MaxAggregatedWarningLength]
             : value);
