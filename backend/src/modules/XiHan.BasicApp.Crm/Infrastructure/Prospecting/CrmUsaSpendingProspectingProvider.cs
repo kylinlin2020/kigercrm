@@ -44,7 +44,10 @@ public sealed class CrmUsaSpendingProspectingProvider : ICrmProspectingProvider,
             return new CrmProspectingProviderResult(
                 [],
                 0,
-                ["USAspending requires at least one meaningful product or industry keyword."]);
+                ["USAspending requires at least one meaningful product or industry keyword."])
+            {
+                IsComplete = false
+            };
         }
 
         var today = DateTime.UtcNow.Date;
