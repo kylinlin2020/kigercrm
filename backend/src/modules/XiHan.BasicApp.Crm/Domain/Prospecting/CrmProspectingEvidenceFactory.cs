@@ -34,7 +34,8 @@ public static class CrmProspectingEvidenceFactory
             "inferred" => "inferred",
             _ => "provider_asserted"
         };
-        var payloadHash = IsSha256(record.RawPayloadHash) ? record.RawPayloadHash : null;
+        var payloadHash = IsSha256(record.RawPayloadHash) ? record.RawPayloadHash!.ToUpperInvariant() : string.Empty;
+        var sourceUrlHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl)));
         var fields = new (string Name, string? Value, bool HashValue)[]
         {
             ("company_name", record.CompanyName, true),
@@ -53,13 +54,14 @@ public static class CrmProspectingEvidenceFactory
                 CandidateId = candidateId,
                 ProviderCode = providerCode,
                 ProviderRecordId = string.IsNullOrWhiteSpace(record.ExternalId)
-                    ? null
+                    ? string.Empty
                     : record.ExternalId[..Math.Min(record.ExternalId.Length, 240)],
                 FieldName = field.Name,
                 FieldValueHash = field.HashValue
                     ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(field.Value!.Trim())))
                     : null,
                 SourceUrl = sourceUrl,
+                SourceUrlHash = sourceUrlHash,
                 EvidenceType = evidenceType,
                 VerificationStatus = "unverified",
                 EvidenceSummary = $"Provider supplied {field.Name}; requires human verification.",
