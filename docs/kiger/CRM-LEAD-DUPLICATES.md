@@ -26,6 +26,12 @@ Phone and website candidate preselection now use persisted normalized keys inste
 - This is a data correction for databases that already applied `5.9.2`; it does not add uniqueness constraints or change the original phone field.
 - PostgreSQL execution is still required before treating the migration as production-verified.
 
+## Historical email-key cleanup (5.9.25)
+
+- Migration `5.9.25` clears normalized email keys for blank values, whitespace-containing values, values without exactly one `@`, and domains with leading/trailing or repeated dots.
+- Original email values remain unchanged. The migration is intentionally conservative and does not claim full equivalence with .NET Unicode normalization; the application matcher remains authoritative for scoring.
+- PostgreSQL execution and locale/Unicode behavior still require provider-specific validation.
+
 ## Remaining limits
 
 - Candidate retrieval remains bounded to 100 rows per signal. Large collision groups can be truncated; an empty result is not proof that no duplicate exists.
