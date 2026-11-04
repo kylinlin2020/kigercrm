@@ -13,6 +13,7 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 [SugarIndex("UX_{table}_TeId_Na_IsDe", nameof(TenantId), OrderByType.Asc, nameof(Name), OrderByType.Asc, nameof(IsDeleted), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 [SugarIndex("IX_{table}_TeId_OwId", nameof(TenantId), OrderByType.Asc, nameof(OwnerUserId), OrderByType.Asc)]
+[SugarIndex("UX_{table}_TeId_ConvLead", nameof(TenantId), OrderByType.Asc, nameof(ConvertedLeadId), OrderByType.Asc, true)]
 public sealed class SysCrmCustomer : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
 {
     [SugarColumn(ColumnName = "Name", ColumnDescription = "Customer name", Length = 200, IsNullable = false)]
@@ -38,6 +39,10 @@ public sealed class SysCrmCustomer : BasicAppFullAuditedEntity, IStrictMultiTena
 
     [SugarColumn(ColumnName = "Notes", ColumnDescription = "Internal notes", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
     public string? Notes { get; set; }
+
+    /// <summary>Lead that created this customer through the conversion workflow.</summary>
+    [SugarColumn(ColumnName = "Converted_Lead_Id", ColumnDescription = "Source Lead converted into this customer", IsNullable = true)]
+    public long? ConvertedLeadId { get; set; }
 
     [SugarColumn(ColumnName = "External_System", ColumnDescription = "Source system", Length = 80, IsNullable = true)]
     public string? ExternalSystem { get; set; }
