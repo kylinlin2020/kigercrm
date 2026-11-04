@@ -175,10 +175,17 @@ Consequences:
 
 1. A unique-key exception raised by `runs.AddAsync` occurs inside the application method's transactional UoW boundary.
 2. Catching that exception inside the domain method and immediately calling `GetByRequestKeyAsync` is not a safe PostgreSQL recovery strategy: the read may still enlist in the failed/aborted transaction.
-3. The current source confirms the attribute and call order, but does not establish the XiHan.Framework 4.8.0 interceptor's nested-UoW semantics, rollback/disposal timing, or availability of a true independent UoW. Those framework behaviors must be verified from the actual runtime/package source or with an integration test before choosing an implementation.
+3. At the time of this initial audit, the framework semantics had not yet been verified. The following exact-version audit resolves that uncertainty; see the next section.
 4. Do not move queue publication before commit, and do not remove the `OnCompleted` callback as a shortcut.
 
-Implementation decision for this iteration: keep the current fail-closed behavior. Do not add a broad `SqlSugarException` catch or an in-transaction re-read. The next safe implementation must put the retry/read boundary outside the failed transactional interceptor (or use a provider-specific atomic insert contract), then compare the winner's exact `PayloadHash`. The concurrent PostgreSQL tests listed above remain a release gate.
+The initial fail-closed decision was superseded by the exact-version audit and the bounded recovery implementation below. Broad `SqlSugarException` catches and reads inside an aborted transaction remain prohibited.
+
+
+Additional HTTP-boundary verification:
+
+- In XiHan.Framework `v4.8.0`, `XiHanUnitOfWorkFilter` starts an action UoW only when the resolved action method has a `UnitOfWorkAttribute`. The updated public `StartRunAsync` deliberately has no such attribute; therefore the HTTP action filter does not create an outer transaction for this endpoint.
+- The public method invokes a private helper that manually owns a root transactional UoW. Its `using` scope completes or disposes before the public catch filter handles the exact unique violation. The retry therefore begins after the failed UoW has released/rolled back its transaction, rather than becoming a child UoW.
+- This matters because a normal nested `Begin(options)` would return a `ChildUnitOfWork` and reuse the failed parent; it is not suitable for this recovery path.
 
 ## 2026-11-04 Run RequestKey recovery implementation
 
