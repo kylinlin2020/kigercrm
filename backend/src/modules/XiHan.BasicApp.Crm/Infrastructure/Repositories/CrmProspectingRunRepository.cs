@@ -52,7 +52,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             throw new NotSupportedException("Prospecting lease claims require PostgreSQL.");
 
         // Match the framework's platform-tenant convention while never issuing an unscoped write.
-        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
+        var tenantId = currentTenant.TenantId;
         var leaseToken = Guid.NewGuid();
         var durationMilliseconds = checked((long)Math.Ceiling(leaseDuration.TotalMilliseconds));
 
@@ -120,7 +122,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         if (client.Ado.Transaction is null)
             throw new InvalidOperationException("Prospecting write fencing must run inside an active transactional UnitOfWork.");
 
-        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
+        var tenantId = currentTenant.TenantId;
         const string sql = """
             SELECT run.basic_id AS "BasicId"
             FROM crm_prospecting_run AS run
@@ -199,7 +203,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
             throw new NotSupportedException("Prospecting lease renewal requires PostgreSQL.");
 
-        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
+        var tenantId = currentTenant.TenantId;
         var durationMilliseconds = checked((long)Math.Ceiling(leaseDuration.TotalMilliseconds));
         const string sql = """
             WITH lease_clock AS MATERIALIZED (
@@ -291,7 +297,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         var client = DbClient;
         if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
             throw new NotSupportedException("Prospecting lease completion requires PostgreSQL.");
-        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
+        var tenantId = currentTenant.TenantId;
         const string sql = """
             WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
             UPDATE crm_prospecting_run AS run
@@ -349,7 +357,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         var client = DbClient;
         if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
             throw new NotSupportedException("Prospecting lease cancellation requires PostgreSQL.");
-        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
+        var tenantId = currentTenant.TenantId;
         const string sql = """
             WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
             UPDATE crm_prospecting_run AS run
@@ -399,7 +409,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
         var client = DbClient;
         if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
             throw new NotSupportedException("Prospecting lease failure transition requires PostgreSQL.");
-        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
+        var tenantId = currentTenant.TenantId;
         const string sql = """
             WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
             UPDATE crm_prospecting_run AS run
