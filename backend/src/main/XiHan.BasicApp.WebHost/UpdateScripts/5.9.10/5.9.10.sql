@@ -11,7 +11,7 @@ BEGIN
             tenant_id bigint NOT NULL,
             created_time timestamp with time zone NOT NULL,
             created_id bigint NULL,
-            created_by varchar(100) NULL,
+            created_by text NULL,
             document_type varchar(32) NOT NULL,
             request_key varchar(100) NOT NULL,
             payload_hash varchar(64) NOT NULL,
