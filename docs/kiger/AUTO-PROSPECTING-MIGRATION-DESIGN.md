@@ -254,3 +254,8 @@ The existing persisted enum had Converted = 4. The new in-flight Converting stat
 ## 24. Atomic candidate claim repository test source (2026-11-04)
 
 Added a SQLite integration-test source that initializes the real candidate entity/repository and verifies: an Approved candidate can be claimed once, a repeated claim returns false after the status becomes Converting, and the conditional claim respects strict tenant filtering. This is stronger than a source-text assertion because it exercises the actual SqlSugar repository against SQLite when the test is run. It is still sequential rather than a simultaneous two-connection race, and SQLite does not validate PostgreSQL locking, transaction rollback, or migration behavior. The test has been committed but not executed.
+
+
+## 25. Prospecting Run repository SQLite integration test source (2026-11-04)
+
+Added repository-level SQLite integration test source covering four state/tenant boundaries: a Queued Run can be claimed once (duplicate claim returns null); a persisted CancelRequested state wins over a later CompleteAsync success attempt and becomes Cancelled; interrupted recovery returns Running to Queued while finalizing CancelRequested as Cancelled; and strict tenant filtering prevents another tenant from reading or claiming the Run. These tests exercise the actual SqlSugar repository and CodeFirst entity mapping when executed. They have not been run. They do not prove simultaneous PostgreSQL claims, PostgreSQL transaction rollback/isolation, or safe multi-instance startup recovery. The worker must remain single-instance until durable lease/heartbeat/fencing is implemented and tested.
