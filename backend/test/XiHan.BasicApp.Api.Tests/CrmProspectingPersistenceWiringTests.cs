@@ -506,7 +506,8 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("run.tenant_id = @tenantId", repository, StringComparison.Ordinal);
         Assert.Contains("run.lease_token = @leaseToken", repository, StringComparison.Ordinal);
         Assert.Contains("run.fencing_version = @fencingVersion", repository, StringComparison.Ordinal);
-        Assert.Contains("run.lease_expires_at > clock_timestamp()", repository, StringComparison.Ordinal);
+        Assert.Contains("WITH locked_run AS MATERIALIZED", repository, StringComparison.Ordinal);
+        Assert.Contains("locked_run.lease_expires_at > clock_timestamp()", repository, StringComparison.Ordinal);
 
         // The guard is a repository primitive only; do not imply child-write safety
         // until the worker passes its lease identity into every child-write UoW.
