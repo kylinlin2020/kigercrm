@@ -35,6 +35,12 @@ public static class CrmProspectingScoreSnapshotFactory
             throw new ArgumentException("Score components must sum to the total.", nameof(result));
         if (result.ReviewGates is null || result.ReviewGates.Any(string.IsNullOrWhiteSpace))
             throw new ArgumentException("Review gates must not contain null or blank values.", nameof(result));
+        if (result.ReviewGates.Count > 50 || result.ReviewGates.Any(gate => gate.Length > 120))
+            throw new ArgumentException("Review gates are limited to 50 entries of at most 120 characters each.", nameof(result));
+
+        var reviewGatesJson = JsonSerializer.Serialize(result.ReviewGates);
+        if (System.Text.Encoding.UTF8.GetByteCount(reviewGatesJson) > 10_000)
+            throw new ArgumentException("Serialized review gates exceed the 10 KB snapshot limit.", nameof(result));
 
         return new SysCrmProspectingScore
         {
@@ -49,7 +55,7 @@ public static class CrmProspectingScoreSnapshotFactory
             RecencyPoints = result.RecencyPoints,
             EvidencePoints = result.EvidencePoints,
             ContactPoints = result.ContactPoints,
-            ReviewGatesJson = JsonSerializer.Serialize(result.ReviewGates),
+            ReviewGatesJson = reviewGatesJson,
             EvaluatedAtUtc = result.EvaluatedAtUtc
         };
     }
