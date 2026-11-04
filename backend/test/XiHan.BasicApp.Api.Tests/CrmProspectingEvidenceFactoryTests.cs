@@ -37,6 +37,36 @@ public sealed class CrmProspectingEvidenceFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldHashTheSameBoundValuesStoredOnCandidate()
+    {
+        var longTitle = new string('T', 350);
+        var longSummary = new string('S', 5100);
+        var record = new CrmProspectingRawRecord(
+            "record-oversized", "source", longTitle, null,
+            " https://buyer.example " + new string('w', 510), new string('C', 220),
+            "buyer@example.com", longSummary)
+        {
+            SourceUrl = "https://buyer.example/tender/bounded"
+        };
+
+        var evidence = CrmProspectingEvidenceFactory.Create(
+            8, new CrmProspectingRawEnvelope("provider", record), Retrieved);
+
+        static string Hash(string value) => Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value)));
+
+        Assert.Contains(evidence, item =>
+            item.FieldName == "company_name" && item.FieldValueHash == Hash(longTitle[..200]));
+        Assert.Contains(evidence, item =>
+            item.FieldName == "title" && item.FieldValueHash == Hash(longTitle[..300]));
+        Assert.Contains(evidence, item =>
+            item.FieldName == "summary" && item.FieldValueHash == Hash(longSummary[..5000]));
+        Assert.Contains(evidence, item => item.FieldName == "website" && item.FieldValueHash?.Length == 64);
+        Assert.Contains(evidence, item => item.FieldName == "contact_name" && item.FieldValueHash is null);
+        Assert.Contains(evidence, item => item.FieldName == "business_email" && item.FieldValueHash is null);
+    }
+
+    [Fact]
     public void Create_ShouldNormalizeNullableIdentityFieldsForUniqueIndex()
     {
         var record = new CrmProspectingRawRecord(string.Empty, "source", "title", "buyer", null, null, null, null)
