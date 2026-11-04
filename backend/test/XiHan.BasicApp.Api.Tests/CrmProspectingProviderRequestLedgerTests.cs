@@ -199,6 +199,7 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("WITH finalized_request AS", repository, StringComparison.Ordinal);
         Assert.Contains("coverage_upsert AS", repository, StringComparison.Ordinal);
         Assert.Contains("ON CONFLICT (tenant_id, campaign_id, provider_code, coverage_scope_hash)", repository, StringComparison.Ordinal);
+        Assert.Contains("request.request_key = @coverageScopeHash", repository, StringComparison.Ordinal);
         Assert.Contains("result.FailureCount == 0", worker, StringComparison.Ordinal);
         Assert.Contains("result.Records.Count <= remainingRawRecords", worker, StringComparison.Ordinal);
         Assert.Contains("TryFinalizeSuccessWithCoverageAsync", worker, StringComparison.Ordinal);
