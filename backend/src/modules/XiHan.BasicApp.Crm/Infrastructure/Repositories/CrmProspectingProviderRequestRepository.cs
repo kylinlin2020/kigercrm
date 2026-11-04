@@ -276,4 +276,5 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
     {
         var sanitized = CrmProspectingDiagnosticSanitizer.Sanitize(value, 1000);
         return sanitized.Length == 0 ? null : sanitized;
-    }}
+    }
+}
