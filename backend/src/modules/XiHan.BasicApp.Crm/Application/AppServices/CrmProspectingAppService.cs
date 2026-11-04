@@ -58,6 +58,19 @@ public sealed class CrmProspectingAppService(
     }
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<IReadOnlyList<CrmProspectingCampaignDto>> GetCampaignsAsync(CancellationToken cancellationToken = default)
+    {
+        var scope = await dataScope.ResolveAccessibleUsersAsync(DateTimeOffset.UtcNow, cancellationToken);
+        var items = await campaigns.GetListAsync(_ => true, cancellationToken);
+        return items
+            .Where(item => scope.Unrestricted || (item.OwnerUserId.HasValue && scope.UserIds.Contains(item.OwnerUserId.Value)))
+            .OrderByDescending(item => item.CreatedTime)
+            .Take(500)
+            .Select(ToDto)
+            .ToArray();
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
     public async Task<CrmProspectingCampaignDto?> GetCampaignAsync(long id, CancellationToken cancellationToken = default)
     {
         if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
