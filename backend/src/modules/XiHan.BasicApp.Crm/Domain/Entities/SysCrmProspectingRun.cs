@@ -25,6 +25,9 @@ public sealed class SysCrmProspectingRun : BasicAppCreationEntity, IStrictMultiT
     [SugarColumn(ColumnName = "Request_Key", Length = 100, IsNullable = false)]
     public string RequestKey { get; set; } = string.Empty;
 
+    [SugarColumn(ColumnName = "Payload_Hash", Length = 64, IsNullable = false)]
+    public string PayloadHash { get; set; } = string.Empty;
+
     [SugarColumn(ColumnName = "Status", IsNullable = false, DefaultValue = "0")]
     public CrmProspectingRunStatus Status { get; set; }
 
