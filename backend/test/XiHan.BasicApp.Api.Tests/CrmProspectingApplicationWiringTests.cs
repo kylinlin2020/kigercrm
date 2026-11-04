@@ -131,6 +131,8 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("ConvertApprovedCandidateToLeadAsync", app, StringComparison.Ordinal);
         Assert.Contains("seenCandidateEmails", worker, StringComparison.Ordinal);
         Assert.Contains("Run cancelled before candidate normalization", worker, StringComparison.Ordinal);
+        Assert.Contains("RawResultsJson = rawResultsJson", repository, StringComparison.Ordinal);
+        Assert.Contains("CandidateCount = candidateCount", repository, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = candidateCount", repository, StringComparison.Ordinal);
     }
 
