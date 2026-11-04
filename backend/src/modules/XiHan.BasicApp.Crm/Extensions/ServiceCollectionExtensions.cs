@@ -74,13 +74,15 @@ public static class ServiceCollectionExtensions
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUsaSpendingProvider"], out var enableUsaSpendingProvider)
             && enableUsaSpendingProvider)
         {
-            services.AddHttpClient<CrmUsaSpendingProspectingProvider>(client =>
-                client.Timeout = TimeSpan.FromSeconds(25))
-                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            services.AddSingleton(provider => new CrmUsaSpendingProspectingProvider(
+                new HttpClient(new SocketsHttpHandler
                 {
                     AllowAutoRedirect = false,
                     PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-                });
+                })
+                {
+                    Timeout = TimeSpan.FromSeconds(25)
+                }));
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmUsaSpendingProspectingProvider>());
         }
