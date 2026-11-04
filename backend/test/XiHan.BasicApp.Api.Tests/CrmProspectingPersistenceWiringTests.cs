@@ -726,6 +726,21 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void TedProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmTedProspectingProvider.cs");
+
+        Assert.Contains("EnableTedProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmTedProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
+        Assert.Contains("api.ted.europa.eu/v3/notices/search", provider, StringComparison.Ordinal);
+        Assert.Contains("MaxResponseBytes", provider, StringComparison.Ordinal);
+        Assert.Contains("official_procurement", provider, StringComparison.Ordinal);
+        Assert.Contains("RawPayloadHash", provider, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FindTenderProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
     {
         var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
