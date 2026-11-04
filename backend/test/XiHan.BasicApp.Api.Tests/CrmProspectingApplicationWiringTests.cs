@@ -196,6 +196,20 @@ public sealed class CrmProspectingApplicationWiringTests
     }
 
     [Fact]
+    public void StrategyApproval_ShouldUseAtomicConditionalStateTransitions()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingStrategyRepository.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingStrategyRepository.cs");
+        var domain = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "DomainServices", "Implementations", "CrmProspectingDomainService.cs");
+        Assert.Contains("TryTransitionApprovalAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("strategy.ApprovalStatus == expectedStatus", repository, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingStrategyApprovalStatus.Draft", domain, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingStrategyApprovalStatus.PendingApproval", domain, StringComparison.Ordinal);
+        Assert.Contains("authenticated approver ID is required", domain, StringComparison.Ordinal);
+        Assert.Contains("The strategy approval state changed", domain, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CandidateReview_ShouldUseAtomicConditionalStateTransition()
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingCandidateRepository.cs");
