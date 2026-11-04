@@ -232,11 +232,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 var record = envelope.Record;
                 var providerCode = envelope.ProviderCode.Trim();
                 if (string.IsNullOrWhiteSpace(providerCode)) throw new InvalidOperationException("Provider code cannot be empty.");
-                var externalId = string.IsNullOrWhiteSpace(record.ExternalId)
-                    ? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(record))))
-                    : record.ExternalId.Trim();
+                var externalId = CrmProspectingRecordIdentity.NormalizeExternalId(record);
                 if (providerCode.Length > 80) throw new InvalidOperationException("Provider code exceeds 80 characters.");
-                if (externalId.Length > 200) externalId = "sha256:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(externalId)));
                 var key = (providerCode, externalId);
                 if (existingKeys.Contains(key))
                 {
