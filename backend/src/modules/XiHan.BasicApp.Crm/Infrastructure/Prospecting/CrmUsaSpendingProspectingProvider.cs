@@ -160,14 +160,19 @@ public sealed class CrmUsaSpendingProspectingProvider : ICrmProspectingProvider,
             });
         }
 
+        var isComplete = true;
         if (document.RootElement.TryGetProperty("page_metadata", out var metadata) &&
             metadata.TryGetProperty("hasNext", out var hasNext) &&
             hasNext.ValueKind == JsonValueKind.True)
         {
+            isComplete = false;
             warnings.Add("USAspending has additional pages; this adapter currently reads the first page only.");
         }
 
-        return new CrmProspectingProviderResult(records, 0, warnings);
+        return new CrmProspectingProviderResult(records, 0, warnings)
+        {
+            IsComplete = isComplete
+        };
     }
 
     private static List<string> ExtractKeywords(CrmProspectingProviderRequest request)
