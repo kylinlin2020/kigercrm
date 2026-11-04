@@ -208,6 +208,37 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void ProviderAdapters_ShouldExposePageCapAsIncompleteCoverage()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingProviderContracts.cs");
+        Assert.Contains("public bool IsComplete { get; init; } = true", contract, StringComparison.Ordinal);
+
+        var providerFiles = new[]
+        {
+            "CrmContractsFinderProspectingProvider.cs",
+            "CrmFindTenderProspectingProvider.cs",
+            "CrmTedProspectingProvider.cs",
+            "CrmUsaSpendingProspectingProvider.cs"
+        };
+        foreach (var file in providerFiles)
+        {
+            var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", file);
+            Assert.Contains("IsComplete = ", provider, StringComparison.Ordinal);
+        }
+
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("result.IsComplete && result.FailureCount == 0", worker, StringComparison.Ordinal);
+        Assert.Contains("provider_scan_incomplete", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CoverageEntity_ShouldBeRegisteredForCodeFirstAndFieldSecurity()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        Assert.Contains(".Add<SysCrmProspectingProviderCoverage>()", registration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DiagnosticSanitizer_ShouldRedactUrlCredentialsAndBoundOutput()
     {
         var input = "failed https://example.test/path?token=secret#fragment Authorization: Bearer supersecret api_key=abcdef password=hunter2";
