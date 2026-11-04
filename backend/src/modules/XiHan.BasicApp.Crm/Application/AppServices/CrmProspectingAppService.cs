@@ -64,9 +64,10 @@ public sealed class CrmProspectingAppService(
     public async Task<IReadOnlyList<CrmProspectingCampaignDto>> GetCampaignsAsync(CancellationToken cancellationToken = default)
     {
         var scope = await dataScope.ResolveAccessibleUsersAsync(DateTimeOffset.UtcNow, cancellationToken);
-        var items = await campaigns.GetListAsync(_ => true, cancellationToken);
+        var items = scope.Unrestricted
+            ? await campaigns.GetListAsync(_ => true, cancellationToken)
+            : await campaigns.GetListAsync(item => item.OwnerUserId.HasValue && scope.UserIds.Contains(item.OwnerUserId.Value), cancellationToken);
         return items
-            .Where(item => scope.Unrestricted || (item.OwnerUserId.HasValue && scope.UserIds.Contains(item.OwnerUserId.Value)))
             .OrderByDescending(item => item.CreatedTime)
             .Take(500)
             .Select(ToDto)
