@@ -8,6 +8,7 @@ This is a correctness constraint, not a throughput recommendation:
 
 - `CrmProspectingRunHostedService.ExecuteAsync` invokes startup recovery before polling Redis.
 - `RecoverInterruptedAsync` changes every tenant-scoped `Running` Run to `Queued`; it has no lease expiry, owner identity, heartbeat, or fencing token.
+- The repository now contains `TryClaimLeaseAsync`, a PostgreSQL-only atomic claim primitive using database time and `UPDATE ... RETURNING`. The HostedService does not call it yet, and no PostgreSQL integration test has validated it.
 - A second application instance can therefore requeue a Run that the first instance is actively processing.
 - The conditional `Queued -> Running` claim prevents two workers from claiming the same queued state, but it does not protect a live Run from another instance's startup recovery.
 - Candidate persistence is currently performed row by row. The Run's terminal-state update does not fence candidate writes from an obsolete worker.
@@ -69,8 +70,8 @@ Persisted cancellation is checked between provider calls and periodically during
 
 Multi-instance operation must remain disabled until all of the following are implemented and verified:
 
-1. Database-authoritative lease owner, expiry/heartbeat, and monotonically increasing fencing token.
-2. Atomic claim and lease renewal with server-side time semantics and conditional predicates.
+1. Database-authoritative lease owner, expiry/heartbeat, UUID token, and monotonically increasing fencing_version. The additive schema and atomic claim primitive exist, but are not yet active.
+2. Atomic claim is implemented as an unused repository primitive; prove it with independent PostgreSQL connections, then implement lease renewal with server-side time semantics and conditional predicates.
 3. Every Run state transition and every candidate write validates the current owner and fencing token in the same database transaction as the write.
 4. Startup recovery only reclaims expired leases; it never blindly requeues every `Running` Run.
 5. Redis messages remain hints and cannot grant ownership.
