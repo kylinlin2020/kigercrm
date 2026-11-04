@@ -259,3 +259,8 @@ Added a SQLite integration-test source that initializes the real candidate entit
 ## 25. Prospecting Run repository SQLite integration test source (2026-11-04)
 
 Added repository-level SQLite integration test source covering four state/tenant boundaries: a Queued Run can be claimed once (duplicate claim returns null); a persisted CancelRequested state wins over a later CompleteAsync success attempt and becomes Cancelled; interrupted recovery returns Running to Queued while finalizing CancelRequested as Cancelled; and strict tenant filtering prevents another tenant from reading or claiming the Run. These tests exercise the actual SqlSugar repository and CodeFirst entity mapping when executed. They have not been run. They do not prove simultaneous PostgreSQL claims, PostgreSQL transaction rollback/isolation, or safe multi-instance startup recovery. The worker must remain single-instance until durable lease/heartbeat/fencing is implemented and tested.
+
+
+## 26. Recovery result contract correction (2026-11-04)
+
+Code review found that RecoverInterruptedAsync returned an int computed from two boolean UpdateAsync results. That value represented the number of transition categories that changed (0–2), not the number of Runs recovered, despite the int return type being easy to misread as a row count. The repository contract now returns bool: true means at least one recovery transition occurred, false means neither transition changed any row. SQLite repository test source now asserts true on the first recovery pass and false on the immediate second pass. This does not change the single-active-worker restriction and has not been compiled or executed.
