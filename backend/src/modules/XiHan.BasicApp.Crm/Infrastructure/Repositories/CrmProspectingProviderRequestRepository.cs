@@ -152,7 +152,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             "$1[REDACTED]");
         sanitized = System.Text.RegularExpressions.Regex.Replace(
             sanitized,
-            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|secret)\s*[:=]\s*[\""']?[^&\s,\""']+",
+            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|secret)\s*[:=]\s*[^\s&;,]+",
             "$1=[REDACTED]");
         // Never retain URL query/fragment values in operational diagnostics.
         return System.Text.RegularExpressions.Regex.Replace(
