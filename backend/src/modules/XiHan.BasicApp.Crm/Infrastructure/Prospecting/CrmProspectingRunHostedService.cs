@@ -223,7 +223,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 const int maxRawRecordsPerRun = 2000;
                 var remainingRawRecords = Math.Max(0, maxRawRecordsPerRun - raw.Count);
-                var providerCanAdvanceCoverage = result.FailureCount == 0 &&
+                var providerCanAdvanceCoverage = result.IsComplete && result.FailureCount == 0 &&
                     result.Records.Count <= remainingRawRecords;
                 var projectedRawBytes = estimatedRawJsonBytes;
                 if (providerCanAdvanceCoverage)
@@ -253,15 +253,17 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
                 else
                 {
-                    var incompleteReason = result.FailureCount > 0
-                        ? "Provider reported one or more record-level failures."
-                        : result.Records.Count > remainingRawRecords
-                            ? "Provider result exceeded the remaining per-Run retention limit."
-                            : "Provider returned one or more invalid or oversized records.";
+                    var incompleteReason = !result.IsComplete
+                        ? "Provider indicated that additional result pages remain unread."
+                        : result.FailureCount > 0
+                            ? "Provider reported one or more record-level failures."
+                            : result.Records.Count > remainingRawRecords
+                                ? "Provider result exceeded the remaining per-Run retention limit."
+                                : "Provider returned one or more invalid or oversized records.";
                     if (!await requestLedger.TryFinalizeAsync(
                         attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
                         resultCount: result.Records.Count,
-                        failureCode: result.FailureCount > 0 ? "provider_partial_result" : "provider_result_truncated",
+                        failureCode: !result.IsComplete ? "provider_scan_incomplete" : result.FailureCount > 0 ? "provider_partial_result" : "provider_result_truncated",
                         failureSummary: incompleteReason,
                         responseHash: responseHash,
                         cancellationToken: CancellationToken.None))
