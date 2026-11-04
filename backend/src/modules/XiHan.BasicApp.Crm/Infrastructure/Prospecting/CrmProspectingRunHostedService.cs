@@ -142,15 +142,18 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 throw new InvalidOperationException("Serialized provider output exceeds the 5 MB Run storage limit.");
 
             var beforeCandidates = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+            var candidates = scope.ServiceProvider.GetRequiredService<ICrmProspectingCandidateRepository>();
+            var existingCandidates = await candidates.GetListAsync(candidate => candidate.RunId == run.BasicId, cancellationToken);
             if (beforeCandidates?.Status == CrmProspectingRunStatus.CancelRequested)
             {
-                await runs.CompleteAsync(run.BasicId, serialized, raw.Count, failures, "Run cancelled before candidate normalization.", DateTimeOffset.UtcNow, cancellationToken);
+                await runs.CompleteAsync(
+                    run.BasicId, serialized, raw.Count, failures,
+                    "Run cancelled before candidate normalization.", DateTimeOffset.UtcNow,
+                    cancellationToken, existingCandidates.Count);
                 return;
             }
 
-            var candidates = scope.ServiceProvider.GetRequiredService<ICrmProspectingCandidateRepository>();
             var leadRepository = scope.ServiceProvider.GetRequiredService<ICrmLeadRepository>();
-            var existingCandidates = await candidates.GetListAsync(candidate => candidate.RunId == run.BasicId, cancellationToken);
             var existingKeys = existingCandidates
                 .Select(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}")
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
