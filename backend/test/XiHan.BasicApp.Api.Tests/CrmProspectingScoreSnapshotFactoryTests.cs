@@ -32,6 +32,30 @@ public sealed class CrmProspectingScoreSnapshotFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldRejectUndefinedPriorityAndBlankReviewGates()
+    {
+        var score = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, null, false, false), Now);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CrmProspectingScoreSnapshotFactory.Create(1, score with { Priority = (CrmProspectingPriority)99 }));
+
+        Assert.Throws<ArgumentException>(() =>
+            CrmProspectingScoreSnapshotFactory.Create(1, score with { ReviewGates = [" ", "missing_evidence"] }));
+    }
+
+    [Fact]
+    public void Create_ShouldRejectInvalidCandidateIdAndOverlongScorecardVersion()
+    {
+        var score = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, null, false, false), Now);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => CrmProspectingScoreSnapshotFactory.Create(0, score));
+        Assert.Throws<ArgumentException>(() =>
+            CrmProspectingScoreSnapshotFactory.Create(1, score with { ScorecardVersion = new string('v', 81) }));
+    }
+
+    [Fact]
     public void Create_ShouldRejectNonUtcTimestamp()
     {
         var score = CrmProspectingScorecard.Evaluate(
