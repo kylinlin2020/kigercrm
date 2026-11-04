@@ -967,6 +967,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 // rows carrying lease metadata are touched by this operation.
                 await runs.RecoverExpiredLeasesAsync(cancellationToken);
                 await runs.RecoverInterruptedAsync(DateTimeOffset.UtcNow, cancellationToken);
+                var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
+                var interruptedRequests = await requestLedger.RecoverStaleStartedAsync(
+                    TimeSpan.FromMinutes(15), cancellationToken);
+                if (interruptedRequests > 0)
+                    Logger.LogInformation("Recovered {Count} interrupted prospecting provider requests", interruptedRequests);
                 var ids = await runs.GetQueuedIdsAsync(cancellationToken);
                 foreach (var id in ids)
                 {
