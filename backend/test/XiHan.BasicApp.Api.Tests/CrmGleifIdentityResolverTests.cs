@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Net.Http.Headers;
 using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 using Xunit;
 
@@ -75,6 +76,28 @@ public sealed class CrmGleifIdentityResolverTests
 
         Assert.Null(await resolver.ResolveExactAsync("ABC"));
         Assert.Equal(0, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task ResolveExactAsync_EmitsStructuredRateLimitWithRetryAfter()
+    {
+        var handler = new StubHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+            {
+                RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://api.gleif.org/api/v1/lei-records")
+            };
+            response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(2));
+            return response;
+        });
+        var resolver = new CrmGleifIdentityResolver(new HttpClient(handler));
+
+        var exception = await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() =>
+            resolver.ResolveExactAsync("Example Generator Holdings Ltd"));
+
+        Assert.Equal(429, exception.HttpStatus);
+        Assert.NotNull(exception.RetryAfterAt);
+        Assert.InRange(exception.RetryAfterAt.Value, DateTimeOffset.UtcNow.AddMinutes(1), DateTimeOffset.UtcNow.AddMinutes(3));
     }
 
     private sealed class StubHandler : HttpMessageHandler
