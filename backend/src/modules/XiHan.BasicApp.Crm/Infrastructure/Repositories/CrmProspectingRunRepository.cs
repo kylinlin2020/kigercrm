@@ -261,6 +261,178 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             cancellationToken);
     }
 
+    /// <summary>
+    /// Completes a Run only while the exact lease is live according to PostgreSQL's clock.
+    /// </summary>
+    public async Task<bool> CompleteFencedWithDatabaseClockAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        string rawResultsJson,
+        int rawRecordCount,
+        int failureCount,
+        string? failureSummary,
+        CancellationToken cancellationToken = default,
+        int candidateCount = 0)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        ArgumentNullException.ThrowIfNull(rawResultsJson);
+        if (rawRecordCount < 0 || candidateCount < 0 || failureCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(rawRecordCount));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var status = failureCount == 0
+            ? CrmProspectingRunStatus.Succeeded
+            : rawRecordCount > 0
+                ? CrmProspectingRunStatus.PartiallySucceeded
+                : CrmProspectingRunStatus.Failed;
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting lease completion requires PostgreSQL.");
+        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        const string sql = """
+            WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+            UPDATE crm_prospecting_run AS run
+            SET status = @status,
+                raw_results_json = @rawResultsJson,
+                raw_record_count = @rawRecordCount,
+                candidate_count = @candidateCount,
+                failure_count = @failureCount,
+                failure_summary = @failureSummary,
+                completed_at = lease_clock.now,
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at = NULL,
+                lease_heartbeat_at = NULL
+            FROM lease_clock
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @runningStatus
+              AND run.lease_token = @leaseToken
+              AND run.fencing_version = @fencingVersion
+              AND run.lease_expires_at IS NOT NULL
+              AND run.lease_expires_at > lease_clock.now
+            RETURNING run.basic_id AS "BasicId";
+            """;
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@status", (int)status),
+            new SugarParameter("@rawResultsJson", rawResultsJson),
+            new SugarParameter("@rawRecordCount", rawRecordCount),
+            new SugarParameter("@candidateCount", candidateCount),
+            new SugarParameter("@failureCount", failureCount),
+            new SugarParameter("@failureSummary", BoundFailureSummary(failureSummary)),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+        return rows.Count == 1;
+    }
+
+    /// <summary>
+    /// Finalizes cancellation only while the exact lease is live according to PostgreSQL's clock.
+    /// </summary>
+    public async Task<bool> CancelFencedWithDatabaseClockAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting lease cancellation requires PostgreSQL.");
+        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        const string sql = """
+            WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+            UPDATE crm_prospecting_run AS run
+            SET status = @cancelledStatus,
+                completed_at = lease_clock.now,
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at = NULL,
+                lease_heartbeat_at = NULL
+            FROM lease_clock
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @cancelRequestedStatus
+              AND run.lease_token = @leaseToken
+              AND run.fencing_version = @fencingVersion
+              AND run.lease_expires_at IS NOT NULL
+              AND run.lease_expires_at > lease_clock.now
+            RETURNING run.basic_id AS "BasicId";
+            """;
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled),
+            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+        return rows.Count == 1;
+    }
+
+    /// <summary>
+    /// Fails a Run only while the exact lease is live according to PostgreSQL's clock.
+    /// </summary>
+    public async Task<bool> FailFencedWithDatabaseClockAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        string failureSummary,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureSummary);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting lease failure transition requires PostgreSQL.");
+        var tenantId = AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0L;
+        const string sql = """
+            WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+            UPDATE crm_prospecting_run AS run
+            SET status = @failedStatus,
+                failure_count = 1,
+                failure_summary = @failureSummary,
+                completed_at = lease_clock.now,
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at = NULL,
+                lease_heartbeat_at = NULL
+            FROM lease_clock
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @runningStatus
+              AND run.lease_token = @leaseToken
+              AND run.fencing_version = @fencingVersion
+              AND run.lease_expires_at IS NOT NULL
+              AND run.lease_expires_at > lease_clock.now
+            RETURNING run.basic_id AS "BasicId";
+            """;
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@failedStatus", (int)CrmProspectingRunStatus.Failed),
+            new SugarParameter("@failureSummary", BoundFailureSummary(failureSummary)),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+        return rows.Count == 1;
+    }
+
     public async Task<bool> CompleteFencedAsync(
         long runId,
         Guid leaseToken,
