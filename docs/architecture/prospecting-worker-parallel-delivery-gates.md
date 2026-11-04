@@ -87,3 +87,8 @@ Use `-SkipTests` only when performing a build-only pass. The script deliberately
 
 
 The child-write guard was tightened after review: lease expiry is now evaluated by an outer query after a materialized `FOR UPDATE` CTE has acquired the Run row. This avoids relying on a clock predicate evaluated before a potentially blocking row-lock wait. A source-level assertion checks the materialized CTE and post-lock expiry predicate; a real two-connection PostgreSQL test is still required.
+
+
+## Legacy transition isolation (2026-11-04)
+
+The legacy `ClaimQueuedAsync`, `RecoverInterruptedAsync`, `CompleteAsync`, and `FailAsync` paths now require both `LeaseToken IS NULL` and `LeaseExpiresAt IS NULL` in their conditional updates. This prevents legacy worker code from claiming, recovering, completing, or failing a row once lease metadata is present. Legacy lease-less Runs remain supported while the HostedService migration is incomplete. This is a compatibility guard, not activation of the lease protocol; the HostedService still uses legacy methods and remains single-active-instance only. A source-level contract test checks the legacy predicates; runtime verification remains pending.
