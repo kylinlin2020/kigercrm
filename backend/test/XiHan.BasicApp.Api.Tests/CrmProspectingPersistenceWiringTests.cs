@@ -185,7 +185,10 @@ public sealed class CrmProspectingPersistenceWiringTests
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingScoreRepository.cs");
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
 
+        Assert.Contains("TableName = \"Crm_Prospecting_Score\"", entity, StringComparison.Ordinal);
         Assert.Contains("nameof(IdempotencyKey), OrderByType.Asc, true", entity, StringComparison.Ordinal);
+        Assert.Contains("CreateQueryable()", repository, StringComparison.Ordinal);
+        Assert.Contains(".Take(2)", repository, StringComparison.Ordinal);
         Assert.Contains("ColumnName = \"Idempotency_Key\", Length = 160, IsNullable = true", entity, StringComparison.Ordinal);
         Assert.Contains("IF to_regclass('crm_prospecting_score') IS NOT NULL", migration, StringComparison.Ordinal);
         Assert.Contains("ALTER TABLE crm_prospecting_score", migration, StringComparison.Ordinal);
