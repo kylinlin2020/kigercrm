@@ -19,7 +19,8 @@ This checklist separates the workstreams so implementation can proceed independe
 
 - [ ] Add a stable per-process worker identity (bounded to the 160-character column).
 - [ ] Generate a cryptographically random token per claim attempt.
-- [ ] Renew only an unexpired Running lease with matching tenant, Run ID, token, and version.
+- [x] Add a repository heartbeat primitive that renews only an unexpired Running lease with matching tenant, Run ID, token, and version using PostgreSQL database time.
+- [ ] Wire the database-clock heartbeat into the HostedService and stop provider/persistence work immediately when renewal fails.
 - [ ] Reclaim only expired leases; never blanket-requeue every Running row once leases are active.
 - [ ] Ensure CancelRequested remains cancellation intent and cannot be silently requeued.
 - [ ] Clear active lease metadata on terminal transitions while retaining FencingVersion.
@@ -33,6 +34,7 @@ The existing Candidate/Evidence/Score write path is not yet protected by the lea
 - [x] Add a repository guard that verifies/locks the Run row using the active tenant-scoped client and exact token/version; it fails closed without an active ADO transaction.
 - [ ] Call the guard before every Candidate/Evidence/Score insert or repair, using the same UnitOfWork and lease identity.
 - [x] Guard checks that the lease is still live using PostgreSQL database time.
+- [ ] Integrate the guard into every child persistence transaction; the HostedService currently does not call it.
 - [ ] Verify takeover and child-write serialization with two independent PostgreSQL connections.
 - [ ] Insert/repair Candidate, Evidence, and initial Score in that same transaction.
 - [ ] Roll back all child writes if the Run lease check fails or any child persistence fails.
