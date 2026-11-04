@@ -85,6 +85,60 @@ public sealed class CrmProspectingEvidenceFactoryTests
         Assert.Empty(evidence);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_ShouldRejectBlankProviderCode(string providerCode)
+    {
+        var record = new CrmProspectingRawRecord("1", "source", "title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/tender/provider"
+        };
+
+        var evidence = CrmProspectingEvidenceFactory.Create(
+            1, new CrmProspectingRawEnvelope(providerCode, record), Retrieved);
+
+        Assert.Empty(evidence);
+    }
+
+    [Fact]
+    public void Create_ShouldRejectProviderCodeAndCanonicalUrlBeyondColumnLimits()
+    {
+        var record = new CrmProspectingRawRecord("1", "source", "title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/" + new string('a', 2000)
+        };
+
+        var longUrlEvidence = CrmProspectingEvidenceFactory.Create(
+            1, new CrmProspectingRawEnvelope("provider", record), Retrieved);
+        var longProviderEvidence = CrmProspectingEvidenceFactory.Create(
+            1, new CrmProspectingRawEnvelope(new string('p', 81), record with
+            {
+                SourceUrl = "https://buyer.example/tender/valid"
+            }), Retrieved);
+
+        Assert.Empty(longUrlEvidence);
+        Assert.Empty(longProviderEvidence);
+    }
+
+    [Fact]
+    public void Create_ShouldNormalizeProviderRetrievalTimestampToUtc()
+    {
+        var localOffset = new DateTimeOffset(2026, 11, 4, 15, 0, 0, TimeSpan.FromHours(3));
+        var record = new CrmProspectingRawRecord("1", "source", "title", "buyer", null, null, null, null)
+        {
+            SourceUrl = "https://buyer.example/tender/time",
+            RetrievedAtUtc = localOffset
+        };
+
+        var evidence = CrmProspectingEvidenceFactory.Create(
+            1, new CrmProspectingRawEnvelope("provider", record), Retrieved);
+
+        Assert.NotEmpty(evidence);
+        Assert.All(evidence, item => Assert.Equal(TimeSpan.Zero, item.RetrievedAtUtc.Offset));
+        Assert.All(evidence, item => Assert.Equal(localOffset.UtcDateTime, item.RetrievedAtUtc.UtcDateTime));
+    }
+
     [Fact]
     public void Create_ShouldRejectNonUtcFallbackTime()
     {
