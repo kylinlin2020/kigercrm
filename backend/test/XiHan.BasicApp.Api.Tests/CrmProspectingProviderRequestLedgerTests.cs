@@ -70,6 +70,21 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("TimeSpan.FromMinutes(15)", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProviderRequestLedger_ShouldRecoverOnlyStaleAttemptsWhoseRunIsNoLongerLive()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingProviderRequestRepository.cs");
+        Assert.Contains("RecoverStaleStartedAsync", repository, StringComparison.Ordinal);
+        Assert.Contains("request.tenant_id = @tenantId", repository, StringComparison.Ordinal);
+        Assert.Contains("request.state = 'Started'", repository, StringComparison.Ordinal);
+        Assert.Contains("run.lease_expires_at <= recovery_clock.now", repository, StringComparison.Ordinal);
+        Assert.Contains("worker_interrupted", repository, StringComparison.Ordinal);
+
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("RecoverStaleStartedAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("TimeSpan.FromMinutes(15)", worker, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] parts)
     {
         var root = FindRepositoryRoot();
