@@ -82,4 +82,4 @@
 
 - Provider 请求台账运行时会将 TED、Find a Tender、Contracts Finder、USAspending 的限流状态写入 `RateLimited`，并保存 HTTP 状态码与 `RetryAfterAt`；其他 HTTP 错误也记录状态码。该记录尚未连接持久化延迟队列，不能保证自动延后下一次 Run。
 - CRM 自动获客的 Run 级失败摘要、聚合警告与 Provider 请求台账共用诊断脱敏器：清理 URL 查询串/片段、Bearer/Basic、常见 API Key/Token/Secret/Password 赋值和控制字符，并按字段长度截断。GLEIF 身份补充的 429/503 也转为结构化限流信号，但暂不进入 Provider 请求台账的冷却门控。
-- 注意：5.9.31 SQL 升级脚本为已有租户数据库增加台账 CHECK 约束；全新数据库目前通过实体 CodeFirst 元数据创建表，并由仓储执行相同的字段/状态校验，CHECK 约束的 CodeFirst 等价生成仍需补齐，避免两条建库路径出现约束差异。
+- 5.9.31 SQL 升级脚本为既有 CRM 租户库创建台账表及已验证 CHECK 约束。全新库由实体 CodeFirst 建表后，`EnsureSchemaConstraintsAsync` 在 Worker 启动租户恢复和每次 Run 认领前幂等补齐同名 PostgreSQL CHECK 约束（`NOT VALID`，保护新写入而不在启动时扫描历史行）；两条路径对新写入执行相同约束。
