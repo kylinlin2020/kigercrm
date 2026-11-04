@@ -109,6 +109,26 @@ public sealed class CrmContractsFinderProspectingProviderTests
     }
 
     [Fact]
+    public async Task SearchAsync_PageCapMustNotClaimCompleteCoverage()
+    {
+        var handler = new StubHandler(request => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            RequestMessage = new HttpRequestMessage(HttpMethod.Get, request.RequestUri),
+            Content = new StringContent(
+                """{"releases":[],"links":{"next":"https://www.contractsfinder.service.gov.uk/Published/Notices/OCDS/Search?cursor=next-page"}}""",
+                Encoding.UTF8, "application/json")
+        });
+        var provider = new CrmContractsFinderProspectingProvider(new HttpClient(handler));
+
+        var result = await provider.SearchAsync(new CrmProspectingProviderRequest(
+            22, "water pump", "water pump", "", "", "{}", []));
+
+        Assert.Equal(3, handler.CallCount);
+        Assert.False(result.IsComplete);
+        Assert.Contains(result.Warnings, warning => warning.Contains("additional pages", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task SearchAsync_StopsOnForbiddenRateLimitResponse()
     {
         var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.Forbidden)
