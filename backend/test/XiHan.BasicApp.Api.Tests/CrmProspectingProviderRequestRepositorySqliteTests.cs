@@ -131,6 +131,35 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
     }
 
     [Fact]
+    public async Task GleifIdentityCooldown_ShouldSuppressLookupsAcrossDifferentRuns()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var retryAt = now.AddMinutes(6);
+        using (_tenant.Change(TenantId))
+        {
+            var rateLimitedLookup = await _repository.CreateStartedAsync(
+                3001, "gleif_identity", new string('7', 64), now);
+            Assert.True(await _repository.TryFinalizeAsync(
+                rateLimitedLookup.BasicId, "RateLimited", now.AddMilliseconds(500), 50,
+                httpStatus: 503, failureCode: "provider_rate_limited",
+                retryAfterAt: retryAt));
+
+            // A different Run must see the same tenant/provider cooldown.
+            Assert.Equal(retryAt, await _repository.GetActiveCooldownUntilAsync(
+                " GLEIF_IDENTITY ", now.AddMinutes(1)));
+
+            var anotherRunLookup = await _repository.CreateStartedAsync(
+                3002, "gleif_identity", new string('8', 64), now.AddMinutes(2));
+            Assert.Equal(1, anotherRunLookup.AttemptNo);
+            Assert.Equal(retryAt, await _repository.GetActiveCooldownUntilAsync(
+                "gleif_identity", now.AddMinutes(2)));
+
+            Assert.Null(await _repository.GetActiveCooldownUntilAsync(
+                "gleif_identity", retryAt.AddTicks(1)));
+        }
+    }
+
+    [Fact]
     public async Task FailureDiagnostics_ShouldRedactUrlQueryAndFragmentSecrets()
     {
         using (_tenant.Change(TenantId))
