@@ -76,9 +76,13 @@ public sealed class CrmFindTenderProspectingProvider : ICrmProspectingProvider, 
             if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
                 response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
             {
-                var retryAfter = response.Headers.RetryAfter?.Delta?.TotalSeconds;
-                throw new HttpRequestException(
-                    $"Find a Tender temporarily throttled the request (HTTP {(int)response.StatusCode}, Retry-After: {(retryAfter is null ? "unspecified" : Math.Ceiling(retryAfter.Value).ToString(CultureInfo.InvariantCulture) + "s")}).");
+                var retryAt = response.Headers.RetryAfter?.Date
+                    ?? (response.Headers.RetryAfter?.Delta is { } retryDelay
+                        ? DateTimeOffset.UtcNow + retryDelay
+                        : DateTimeOffset.UtcNow.AddMinutes(5));
+                throw new CrmProspectingProviderRateLimitException(
+                    $"Find a Tender throttled the request (HTTP {(int)response.StatusCode}); retry after the supplied cooldown.",
+                    (int)response.StatusCode, retryAt);
             }
 
             if (!response.IsSuccessStatusCode)
