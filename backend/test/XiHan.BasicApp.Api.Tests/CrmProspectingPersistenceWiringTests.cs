@@ -209,7 +209,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.True(expectedEvidenceIndex >= 0 && persistedEvidenceIndex > expectedEvidenceIndex);
         Assert.True(scoreLookupIndex > persistedEvidenceIndex && scoreRepairIndex > scoreLookupIndex);
         Assert.DoesNotContain("if (expectedEvidence.Count == 0) continue;", worker, StringComparison.Ordinal);
-        Assert.Contains("if (missingEvidence.Length > 0 || needsScoreRepair)", worker, StringComparison.Ordinal);
+        Assert.Contains("if (missingEvidence.Length == 0 && !needsScoreRepair) return;", worker, StringComparison.Ordinal);
         Assert.Contains("await scoreRepository.AddAsync(scoreSnapshot, cancellationToken)", worker, StringComparison.Ordinal);
     }
 
