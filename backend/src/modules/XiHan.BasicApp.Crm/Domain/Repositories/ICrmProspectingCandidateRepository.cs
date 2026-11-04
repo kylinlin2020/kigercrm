@@ -10,6 +10,17 @@ public interface ICrmProspectingCandidateRepository : ISaasRepository<SysCrmPros
     /// <summary>Find one Candidate by the exact tenant-scoped Run/provider/external identity tuple.</summary>
     Task<SysCrmProspectingCandidate?> GetByIdentityAsync(long runId, string providerCode, string externalId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Find non-rejected Candidates from earlier Runs that match exact provider identities,
+    /// normalized emails or website hosts. Used to suppress repeat prospecting across Runs.
+    /// </summary>
+    Task<IReadOnlyList<SysCrmProspectingCandidate>> GetCrossRunDuplicateMatchesAsync(
+        long runId,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> externalIdsByProvider,
+        IReadOnlyList<string> normalizedEmails,
+        IReadOnlyList<string> websiteHosts,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Atomically transition an approved candidate to Converting; false means another actor already claimed it.</summary>
     Task<bool> TryClaimForConversionAsync(long candidateId, CancellationToken cancellationToken = default);
 
