@@ -107,3 +107,29 @@ Expired-lease recovery now handles both active states without losing cancellatio
 ## Worker tenant identity must fail closed (2026-11-04)
 
 The queue consumer rejects messages with non-positive Run IDs or Tenant IDs before creating a tenant scope or touching repositories. Startup recovery now throws when the tenant-scope runner does not provide an explicit tenant ID; it must never substitute tenant 0. This is a tenant-isolation guard, not a lease activation step. The source contract test asserts both boundaries.
+
+
+## Worker activation tripwire (2026-11-04)
+
+A source-level activation tripwire now asserts that the HostedService remains single-active (UpdateMaxConcurrentTasks(1)) and continues using only the legacy lease-less claim/recovery/terminal path until the complete lifecycle is integrated. It explicitly rejects a partial switch to atomic claim without child-write fencing, heartbeat, and fenced terminal transitions. This is a temporary safety test and must be deliberately replaced—not simply deleted—when the complete Worker integration lands.
+
+### Existing Worker transaction inventory
+
+The current processing flow has two distinct child-persistence entry points:
+
+1. New Candidate path: requiresNew: true transactional UnitOfWork inserts Candidate, then Evidence, then the initial Score snapshot, and commits all three together. Candidate identity collision is handled after the failed UnitOfWork is disposed, followed by a tenant-scoped winner lookup and provenance repair.
+2. Existing Candidate / collision repair path: RepairCandidateProvenanceAsync reads existing Evidence and Score, then opens a separate requiresNew: true transaction to add missing Evidence and (when absent) the initial Score. It deliberately does not modify review, approval, or conversion state.
+
+Both transaction entry points must call TryLockLeaseForWriteAsync as the first database operation inside their own transaction, using the exact lease token and fencing version returned by the claim. The lock must remain held until the child transaction commits. A pre-transaction Run read or a guard executed in a different scope/transaction does not fence the child writes.
+
+### Required lease-aware Worker sequence
+
+1. Validate queue envelope and enter the message tenant scope.
+2. Atomically claim with a stable worker identity; retain (RunId, TenantId, LeaseToken, FencingVersion) as immutable in-memory lease identity.
+3. Start a linked per-run cancellation source and a heartbeat loop in an independent DI scope. Renew before the safety margin; a false renewal or heartbeat exception cancels the run token and permanently marks this execution as lease-lost.
+4. Pass the linked token to provider calls and every database operation. After lease-lost, do not attempt legacy Fail/Complete or any further persistence.
+5. For each new Candidate transaction and each provenance-repair transaction, call TryLockLeaseForWriteAsync before child reads/writes that depend on ownership; hold the row lock through commit.
+6. On normal completion call the fenced Complete method. If persisted state is CancelRequested, call the fenced Cancel method instead. Do not interpret a false terminal result as success.
+7. On provider/processing failure, call fenced Fail only if the lease is still live and cancellation has not taken precedence. If status is CancelRequested, use fenced Cancel. If ownership was lost, do not write a terminal state; let expiry recovery decide.
+8. Stop and await heartbeat before disposing the tenant scope and worker scope.
+9. Startup recovery must use expired-lease recovery for lease-backed rows and must not blanket-requeue lease-less rows once lease mode is activated. Keep the single-active restriction until PostgreSQL two-connection tests cover takeover racing with child writes and terminal transitions.

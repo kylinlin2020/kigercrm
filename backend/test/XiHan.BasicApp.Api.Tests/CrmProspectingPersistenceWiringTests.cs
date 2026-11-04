@@ -564,6 +564,26 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingWorkerMustRemainSingleActiveUntilLeaseLifecycleIsFullyWired()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        var configStart = worker.IndexOf("private static IDynamicServiceConfig BuildConfig(", StringComparison.Ordinal);
+        var recoveryStart = worker.IndexOf("private async Task RecoverPendingAsync(", StringComparison.Ordinal);
+        Assert.True(configStart >= 0 && recoveryStart > configStart);
+        var config = worker[configStart..recoveryStart];
+
+        Assert.Contains("config.UpdateMaxConcurrentTasks(1)", config, StringComparison.Ordinal);
+        Assert.Contains("runs.ClaimQueuedAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("runs.RecoverInterruptedAsync(", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("runs.TryClaimLeaseAsync(", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("runs.TryLockLeaseForWriteAsync(", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("runs.RenewLeaseWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("runs.CompleteFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("runs.CancelFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("runs.FailFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+    }
+    [Fact]
     public void ProspectingWorkerTenantIsolation_ShouldFailClosedWithoutTenantIdentity()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
