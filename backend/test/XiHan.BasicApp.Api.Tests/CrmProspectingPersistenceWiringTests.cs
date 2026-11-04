@@ -237,6 +237,45 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_evidence_evidenceidentity", alignmentMigration, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingScoreMigration_ShouldGuardExistingRowsAndEnforceComponentArithmetic()
+    {
+        var createMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.19", "5.9.19.sql");
+        var integrityMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.20", "5.9.20.sql");
+        var scoreEntity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingScore.cs");
+        var factory = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingScoreSnapshotFactory.cs");
+
+        foreach (var range in new[]
+        {
+            "total BETWEEN 0 AND 100",
+            "priority BETWEEN 0 AND 3",
+            "identity_points BETWEEN 0 AND 15",
+            "procurement_points BETWEEN 0 AND 30",
+            "product_fit_points BETWEEN 0 AND 20",
+            "market_fit_points BETWEEN 0 AND 10",
+            "recency_points BETWEEN 0 AND 10",
+            "evidence_points BETWEEN 0 AND 10",
+            "contact_points BETWEEN 0 AND 5"
+        })
+        {
+            Assert.Contains(range, createMigration, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("IF to_regclass('crm_prospecting_score') IS NOT NULL", integrityMigration, StringComparison.Ordinal);
+        Assert.Contains("WHERE total <> identity_points + procurement_points + product_fit_points", integrityMigration, StringComparison.Ordinal);
+        Assert.Contains("RAISE EXCEPTION", integrityMigration, StringComparison.Ordinal);
+        Assert.Contains("ck_crm_prospecting_score_component_total", integrityMigration, StringComparison.Ordinal);
+        Assert.Contains("total = identity_points + procurement_points + product_fit_points", integrityMigration, StringComparison.Ordinal);
+        Assert.Contains("ADD CONSTRAINT ck_crm_prospecting_score_component_total", integrityMigration, StringComparison.Ordinal);
+
+        Assert.Contains("result.Total is < 0 or > 100", factory, StringComparison.Ordinal);
+        Assert.Contains("componentTotal != result.Total", factory, StringComparison.Ordinal);
+        Assert.Contains("result.IdentityPoints is < 0 or > 15", factory, StringComparison.Ordinal);
+        Assert.Contains("result.ProcurementPoints is < 0 or > 30", factory, StringComparison.Ordinal);
+        Assert.Contains("result.ContactPoints is < 0 or > 5", factory, StringComparison.Ordinal);
+        Assert.Contains("IsNullable = false", scoreEntity, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
