@@ -115,12 +115,14 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
             var row = await _repository.CreateStartedAsync(1006, "fake", new string('2', 64), DateTimeOffset.UtcNow);
             Assert.True(await _repository.TryFinalizeAsync(
                 row.BasicId, "Failed", DateTimeOffset.UtcNow, 3,
-                failureSummary: "Provider error at https://example.test/path?token=secret#private"));
+                failureSummary: "Provider error at https://example.test/path?token=secret#private Authorization: Bearer supersecret api_key=abcdef"));
             var persisted = await _repository.GetAttemptAsync(1006, "fake", 1);
             Assert.NotNull(persisted);
             Assert.Contains("https://example.test/path", persisted.FailureSummary, StringComparison.Ordinal);
             Assert.DoesNotContain("secret", persisted.FailureSummary, StringComparison.Ordinal);
             Assert.DoesNotContain("private", persisted.FailureSummary, StringComparison.Ordinal);
+            Assert.DoesNotContain("supersecret", persisted.FailureSummary, StringComparison.Ordinal);
+            Assert.DoesNotContain("abcdef", persisted.FailureSummary, StringComparison.Ordinal);
         }
     }
 
