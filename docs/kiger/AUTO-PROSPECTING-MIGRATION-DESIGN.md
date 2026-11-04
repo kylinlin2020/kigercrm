@@ -186,3 +186,14 @@ The execution path now includes:
 - Candidate_Count intentionally remains zero: normalization, deduplication and human-review candidate creation are not implemented by this worker. Raw provider records are capped at 2,000 per Run and serialized output at 5 MB; excess records cause a partial-success warning rather than unbounded storage growth.
 
 The synthetic `fake` adapter is the only registered provider. This is an end-to-end local execution smoke path, not real-world lead acquisition. External provider configuration, rate limits, credentials, candidate pipeline, human review and Lead conversion remain future phases. No build/test, Redis runtime, PostgreSQL migration or Windows validation has been executed.
+
+
+## 16. Candidate normalization and existing-Lead duplicate screening (2026-11-04)
+
+- Added a tenant-scoped `Crm_Prospecting_Candidate` table, separate from `Crm_Lead`, with provider identity, source/evidence fields, normalized email/domain keys, review status and optional matched Lead reference.
+- The worker normalizes provider records into candidates after provider execution. Company name falls back to provider title; incomplete rows without either are counted as failures and skipped. Scalar fields are bounded before persistence.
+- Reuses the existing CRM duplicate normalizers for email and website host, then screens against indexed Lead normalized-email and website-host fields. Matches are marked Duplicate with an explanation; non-matches enter PendingReview. This is a conservative exact-key screen, not fuzzy company-name matching.
+- Candidate persistence is replay-aware: existing candidate keys for a Run are skipped after a worker restart, with the unique tenant/run/provider/external-id key as the final database guard.
+- Run CandidateCount is populated from persisted candidates, including candidates already saved by an interrupted attempt. Candidate rows remain separate and do not create CRM Leads.
+- Migration 5.9.14 adds the candidate table only when the CRM Lead and prospecting Run tables exist. Candidate list/detail API, manual approve/reject and approved conversion to Lead remain future work.
+- No .NET build/test, PostgreSQL migration execution, duplicate-screening integration test or Windows validation has been performed.
