@@ -136,6 +136,9 @@ public sealed class CrmProspectingPersistenceWiringTests
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
 
         Assert.Contains("existingCandidateByKey.TryGetValue(key, out var existingCandidate)", worker, StringComparison.Ordinal);
+        Assert.Contains(".ToHashSet(StringComparer.Ordinal)", worker, StringComparison.Ordinal);
+        Assert.Contains(".ToDictionary(candidate =>", worker, StringComparison.Ordinal);
+        Assert.Contains("StringComparer.Ordinal);", worker, StringComparison.Ordinal);
         Assert.Contains("evidenceRepository.GetByCandidateAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("var missingEvidence = expectedEvidence", worker, StringComparison.Ordinal);
         Assert.Contains("await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken)", worker, StringComparison.Ordinal);
