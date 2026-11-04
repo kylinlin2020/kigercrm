@@ -73,15 +73,17 @@ public sealed class CrmContractsFinderProspectingProvider : ICrmProspectingProvi
                 throw new HttpRequestException("Contracts Finder response came from an unapproved endpoint.");
             }
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                throw new HttpRequestException("Contracts Finder rate limit returned HTTP 403; stop requests for at least five minutes before retrying.");
-
-            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
+            if (response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
+                response.StatusCode == System.Net.HttpStatusCode.TooManyRequests ||
                 response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
             {
-                var retryAfter = response.Headers.RetryAfter?.Delta?.TotalSeconds;
-                throw new HttpRequestException(
-                    $"Contracts Finder temporarily throttled the request (HTTP {(int)response.StatusCode}, Retry-After: {(retryAfter is null ? "unspecified" : Math.Ceiling(retryAfter.Value).ToString(CultureInfo.InvariantCulture) + "s")}).");
+                var retryAt = response.Headers.RetryAfter?.Date
+                    ?? (response.Headers.RetryAfter?.Delta is { } retryDelay
+                        ? DateTimeOffset.UtcNow + retryDelay
+                        : DateTimeOffset.UtcNow.AddMinutes(5));
+                throw new CrmProspectingProviderRateLimitException(
+                    $"Contracts Finder throttled the request (HTTP {(int)response.StatusCode}); retry after the supplied cooldown.",
+                    (int)response.StatusCode, retryAt);
             }
 
             if (!response.IsSuccessStatusCode)
