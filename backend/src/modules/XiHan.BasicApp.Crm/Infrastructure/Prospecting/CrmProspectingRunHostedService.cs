@@ -275,8 +275,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 failures += Math.Max(0, result.FailureCount);
                 AddBoundedProviderWarnings(warnings, result.Warnings);
-                const int maxRawRecordsPerRun = 2000;
-                var remaining = Math.Max(0, maxRawRecordsPerRun - raw.Count);
+                var remaining = remainingRawRecords;
                 foreach (var record in result.Records.Take(remaining))
                 {
                     if (record is null)
@@ -298,12 +297,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     raw.Add(new CrmProspectingRawEnvelope(provider.ProviderCode.Trim(), record));
                     estimatedRawJsonBytes += estimatedRecordBytes + 1;
                 }
-                if (result.Records.Count > remaining)
-                {
-                    failures++;
-                    AddBoundedWarning(warnings, $"Raw result cap reached; {result.Records.Count - remaining} provider records were not retained.");
-                }
-
                 // Persisted cancellation cannot interrupt an arbitrary provider call, but
                 // observe it immediately when that call returns and avoid starting later providers.
                 // Keep this database read outside the provider exception handler: a read failure
