@@ -159,7 +159,10 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("ADD CONSTRAINT ck_crm_prospecting_provider_request_request_key", repository, StringComparison.Ordinal);
         Assert.Contains("ADD CONSTRAINT ck_crm_prospecting_provider_request_lifecycle", repository, StringComparison.Ordinal);
         Assert.Contains("ADD CONSTRAINT ck_crm_prospecting_provider_request_rate_limit", repository, StringComparison.Ordinal);
+        Assert.Contains("pg_advisory_xact_lock", repository, StringComparison.Ordinal);
         Assert.Contains("await requestLedger.EnsureSchemaConstraintsAsync(cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.True(worker.IndexOf("EnsureSchemaConstraintsAsync(cancellationToken)", StringComparison.Ordinal)
+            < worker.IndexOf("TryClaimLeaseAsync(", StringComparison.Ordinal));
     }
 
     [Fact]
