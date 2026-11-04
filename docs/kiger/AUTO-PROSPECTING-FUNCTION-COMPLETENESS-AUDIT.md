@@ -129,3 +129,16 @@
 - 新增 provider 单元测试源和 wiring 回归断言，覆盖结果映射、空关键词不发请求、HTTP 429 错误处理、opt-in 注册和网络边界。
 
 **验证状态：** 以上代码和测试已提交，但当前执行环境没有 .NET SDK；这些测试尚未编译或执行。USAspending 真实网络请求、数据条款审查和 Windows/PostgreSQL 端到端验收也尚未执行。适配器目前只读取第一页，若存在更多结果会明确产生 warning，不宣称分页已完成。
+
+
+## 9. 第二个真实采购来源增量（2026-11-04）
+
+- 新增 `CrmFindTenderProspectingProvider`，消费英国 Find a Tender 官方 OCDS release package API。
+- 查询滚动 30 天更新窗口的 tender/award 阶段，最多读取 3 个 cursor 页、每页 100 条；本地按产品范围、搜索目标和 ICP 关键词筛选。
+- 严格按 OCDS party `buyer` 角色提取采购方；不会将 supplier 角色误作采购客户。只有公开发布且格式有效的 buyer 官网、联系人和邮箱才会写入原始证据。
+- 保留官方 Notice URL、发布时间、原始 release SHA-256 和 `official_procurement` 分类。
+- 固定 HTTPS host/path、禁止重定向、30 秒超时、6 MiB 响应限制，并校验分页链接的目标 host/path。
+- 显式启用配置：`XiHan:CRM:Prospecting:EnableFindTenderProvider=true`。
+- 新增适配器测试，覆盖 buyer 映射、无关键词不发请求、supplier 不作为 buyer 的保护；新增 DI 网络边界回归断言。
+
+**验证边界：** 代码和测试已提交，尚未在 .NET 10 环境编译/执行；也未进行实时 Find a Tender API 联调。适配器只读取 30 天窗口和最多 3 页，不应被描述为完整历史抓取。
