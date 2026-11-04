@@ -257,11 +257,25 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 var responseHash = CrmProspectingResponseFingerprint.Create(result.Records);
                 if (providerCanAdvanceCoverage)
                 {
-                    if (!await requestLedger.TryFinalizeSuccessWithCoverageAsync(
+                    var finalizedWithCoverage = await requestLedger.TryFinalizeSuccessWithCoverageAsync(
                         attempt.BasicId, run.BasicId, run.CampaignId, leaseToken, activeFencingVersion,
                         requestKey, DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
-                        result.Records.Count, responseHash, CancellationToken.None))
-                        throw new InvalidOperationException("The complete provider request could not atomically finalize and advance coverage.");
+                        result.Records.Count, responseHash, CancellationToken.None);
+                    if (!finalizedWithCoverage)
+                    {
+                        var latestRun = await runs.GetByIdAsync(run.BasicId, CancellationToken.None);
+                        if (latestRun?.Status == CrmProspectingRunStatus.CancelRequested)
+                        {
+                            if (!await requestLedger.TryFinalizeAsync(
+                                attempt.BasicId, "Cancelled", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                                failureCode: "run_cancel_requested",
+                                failureSummary: "The Run was cancelled before provider coverage could be committed.",
+                                cancellationToken: CancellationToken.None))
+                                throw new InvalidOperationException("The cancelled provider request ledger attempt could not be finalized.");
+                            break;
+                        }
+                        throw new InvalidOperationException("The complete provider request could not atomically finalize and advance coverage; the Run lease or request scope may have changed.");
+                    }
                 }
                 else
                 {
