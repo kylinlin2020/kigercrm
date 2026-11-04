@@ -1,6 +1,6 @@
 # Prospecting Provider Request Ledger and Coverage Design
 
-> Status: request-ledger schema, repository lifecycle, Worker integration and stale Started recovery implemented on `kiger-dev`; PostgreSQL concurrency acceptance, coverage cursor, cache, deferred retry scheduling and circuit breaker remain pending.
+> Status: request-ledger schema/lifecycle, Worker integration, stale Started recovery, and durable complete-scan coverage checkpoints implemented on `kiger-dev`; coverage checkpoints are not yet used to alter provider query windows. PostgreSQL concurrency acceptance, response cache, deferred retry scheduling and circuit breaker remain pending.
 > Target branch: `kiger-dev`. Keep PR #1 Draft and do not modify `main`.
 
 ## 1. Goals
@@ -151,7 +151,7 @@ Do not combine the entire rollout into one migration or enable cache/cursor adva
 
 Already present on `kiger-dev`: bounded provider result retention, per-provider exception isolation, source evidence hashes, cross-Run candidate deduplication, lease/fencing lifecycle, independent heartbeat, and human review before CRM Lead conversion.
 
-Not yet implemented: coverage cursor, response cache, deferred retry scheduling/exponential backoff/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. Tenant-scoped provider cooldown enforcement is implemented by querying persisted RateLimited request attempts before dispatch; it skips the provider while RetryAfterAt is active, but does not automatically defer/requeue the skipped provider. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
+Not yet implemented: using coverage checkpoints to pass provider-specific since/cursor values into upstream API requests, response cache, deferred retry scheduling/exponential backoff/circuit breaker, provider operational dashboard, PostgreSQL dual-connection concurrency tests, and Windows machine build/runtime acceptance. Tenant-scoped provider cooldown enforcement is implemented by querying persisted RateLimited request attempts before dispatch; it skips the provider while RetryAfterAt is active, but does not automatically defer/requeue the skipped provider. The SQLite repository tests and source-level contract tests are committed but have not been executed in this environment.
 
 ### Implemented prerequisite: canonical request fingerprint
 
@@ -218,3 +218,13 @@ The 5.9.31 upgrade script constrains HTTP status to 100–599, request/response 
 ### GLEIF identity lookups included in the shared ledger
 
 The auxiliary GLEIF exact-name resolver now uses the same request-attempt ledger with provider code `gleif_identity`. Each lookup writes Started before HTTP I/O, records a terminal result, and shares the persisted tenant/provider cooldown gate. The per-Run cap remains 20 lookups; cooldown skips do not issue network requests. This does not change the rule that registry evidence remains unverified and cannot automatically create a Lead.
+
+### Implemented: durable complete-scan coverage checkpoints (5.9.32)
+
+`SysCrmProspectingProviderCoverage` stores one checkpoint per tenant + Campaign + Provider + canonical request-scope SHA-256. It records the latest successful scan timestamp, Run ID, result count, response digest and optimistic version; it stores no raw provider response. The composite primary key scopes checkpoints across campaigns and search scopes.
+
+A complete scan advances the checkpoint in the same PostgreSQL statement that transitions its request-ledger row from Started to Succeeded. The statement first conditionally finalizes the tenant-scoped request only when its Run belongs to the supplied Campaign, then upserts coverage from that finalized row. If either half fails, the statement rolls back; if the request is already terminal or does not match the Campaign, no checkpoint is written. Concurrent complete scans use a monotonic timestamp and increment the checkpoint version.
+
+The Worker refuses to advance coverage when the provider reports record-level failures, reports additional pages, exceeds the remaining per-Run retention cap, or returns null/oversized records. The UK OCDS adapters expose a remaining pagination cursor; TED marks its fixed page-cap response incomplete when another page remains; USAspending requires explicit metadata proving there is no next page. Unknown USAspending pagination metadata is conservatively incomplete. The request ledger records these outcomes as Failed rather than falsely claiming complete coverage.
+
+Important limitation: this is currently a durable complete-scan checkpoint, not yet an upstream incremental-query cursor. The checkpoint is not fed back as a `since`/cursor parameter to the adapters; existing rolling-window and fixed-window provider query behavior is unchanged. Provider-specific incremental query semantics must be implemented separately before describing the feature as incremental data retrieval.
