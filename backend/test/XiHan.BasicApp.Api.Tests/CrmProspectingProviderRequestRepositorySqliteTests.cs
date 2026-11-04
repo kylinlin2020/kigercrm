@@ -42,7 +42,7 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
                 }
             };
         });
-        _db.CodeFirst.InitTables(typeof(SysCrmProspectingProviderRequest));
+        _db.CodeFirst.InitTables(typeof(SysCrmProspectingProviderRequest), typeof(SysCrmProspectingProviderCoverage));
         var resolver = new Mock<ISqlSugarClientResolver>();
         resolver.Setup(value => value.GetClientForEntity(It.IsAny<Type>())).Returns(_db);
         _repository = new CrmProspectingProviderRequestRepository(resolver.Object);
@@ -165,6 +165,37 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
             Assert.Null(await _repository.GetActiveCooldownUntilAsync(
                 "gleif_identity", retryAt.AddTicks(1)));
         }
+    }
+
+    [Fact]
+    public async Task CoverageCheckpointReads_ShouldBeScopedByTenantCampaignProviderAndSearchFingerprint()
+    {
+        var scannedAt = DateTimeOffset.UtcNow.AddMinutes(-10);
+        var scopeHash = new string('C', 64);
+        using (_tenant.Change(TenantId))
+        {
+            await _db.Insertable(new SysCrmProspectingProviderCoverage
+            {
+                TenantId = TenantId,
+                CampaignId = 7002,
+                ProviderCode = "uk_find_tender",
+                CoverageScopeHash = scopeHash,
+                LastSuccessfulScanAt = scannedAt,
+                LastRunId = 3002,
+                LastResultCount = 14,
+                LastResponseHash = new string('D', 64),
+                Version = 1
+            }).ExecuteCommandAsync();
+
+            var checkpoint = await _repository.GetCoverageCheckpointAsync(
+                7002, " UK_FIND_TENDER ", scopeHash.ToLowerInvariant());
+            Assert.NotNull(checkpoint);
+            Assert.Equal(scannedAt, checkpoint.LastSuccessfulScanAt);
+            Assert.Equal(14, checkpoint.LastResultCount);
+        }
+
+        using (_tenant.Change(TenantId + 1))
+            Assert.Null(await _repository.GetCoverageCheckpointAsync(7002, "uk_find_tender", scopeHash));
     }
 
     [Fact]
