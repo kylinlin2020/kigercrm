@@ -215,6 +215,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         EmailMatch = normalizedEmail != null && lead.DuplicateEmailNormalized == normalizedEmail,
                         WebsiteMatch = websiteHost != null && lead.WebsiteHost == websiteHost
                     })
+                    .Where(match => match.EmailMatch || match.WebsiteMatch)
                     .OrderByDescending(match => match.EmailMatch)
                     .ThenByDescending(match => match.WebsiteMatch)
                     .FirstOrDefault();
