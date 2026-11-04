@@ -62,6 +62,7 @@ public sealed class CrmLeadDomainService(
         var customer = await customers.AddAsync(new SysCrmCustomer
         {
             Name = lead.CompanyName,
+            ConvertedLeadId = lead.BasicId,
             Website = lead.Website,
             CountryRegion = lead.CountryRegion,
             Source = lead.Source,
