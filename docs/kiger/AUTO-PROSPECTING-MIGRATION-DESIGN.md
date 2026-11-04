@@ -355,3 +355,11 @@ A repository-level API audit was performed before attempting to replace candidat
 **Decision:** no speculative bulk API was added. Candidate persistence remains one `AddAsync` per candidate. Before batching, resolve the exact 4.8.0 framework package/source and inspect the actual `SqlSugarRepositoryBase` and `IRepositoryBase` implementations, then verify the chosen API against PostgreSQL with (1) a mixed tenant/audit-field batch, (2) a duplicate unique-key inside and across batches, (3) a failure midway through a batch with transaction rollback, and (4) retry after a partially completed worker attempt. The existing per-Run unique key and replay skip must remain the final idempotency guards.
 
 This audit confirms the reason batching is deferred; it does not establish that the framework lacks a batch API. No source-code behavior changed in this audit. No build, tests, PostgreSQL integration or Windows execution was performed.
+
+## 37. Provider exception boundary and persisted-state failure handling (2026-11-04)
+
+A worker control-flow review found that the post-provider Run-state read was inside the same broad `catch (Exception)` used to isolate provider failures. If that database read failed, the worker could misclassify the state-store failure as a provider outage, record a warning and continue launching later providers. This weakened the cancellation and execution-state boundary.
+
+The worker now catches exceptions only around `provider.SearchAsync`. A provider request failure is counted and isolated, then the loop continues to the next configured provider. Result accounting, raw-record retention and the post-provider Run-state read are outside that provider catch. A failure reading persisted Run state therefore reaches the outer Run failure handler instead of being silently treated as a provider failure. The post-provider cancellation check still stops subsequent providers when CancelRequested is observed.
+
+Added a source-wiring guard that verifies the provider call/catch/continue sequence precedes the post-provider state read. This is a structural regression guard only; it does not simulate database faults or prove runtime exception behavior. No build or test execution was performed.
