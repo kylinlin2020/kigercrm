@@ -95,6 +95,78 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
     }
 
     [Fact]
+    public async Task RenewLease_ShouldRequireExactTokenVersionAndUnexpiredOwnership()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var token = Guid.NewGuid();
+            var run = await CreateLeasedRunAsync("lease-renew-guard", token, 4, now.AddMinutes(1));
+
+            Assert.False(await _repository.RenewLeaseAsync(run.BasicId, Guid.NewGuid(), 4, now, TimeSpan.FromMinutes(2)));
+            Assert.False(await _repository.RenewLeaseAsync(run.BasicId, token, 3, now, TimeSpan.FromMinutes(2)));
+            Assert.True(await _repository.RenewLeaseAsync(run.BasicId, token, 4, now, TimeSpan.FromMinutes(2)));
+
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(now, persisted.LeaseHeartbeatAt);
+            Assert.Equal(now.AddMinutes(2), persisted.LeaseExpiresAt);
+            Assert.Equal(token, persisted.LeaseToken);
+            Assert.Equal(4, persisted.FencingVersion);
+
+            Assert.False(await _repository.RenewLeaseAsync(run.BasicId, token, 4, now.AddMinutes(3), TimeSpan.FromMinutes(2)));
+        }
+    }
+
+    [Fact]
+    public async Task FencedTerminalTransitions_ShouldRejectStaleOwnerAndClearLeaseOnSuccess()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var token = Guid.NewGuid();
+            var run = await CreateLeasedRunAsync("fenced-terminal", token, 9, now.AddMinutes(1));
+
+            Assert.False(await _repository.CompleteFencedAsync(
+                run.BasicId, Guid.NewGuid(), 9, now, "[]", 0, 0, null, now));
+            Assert.False(await _repository.FailFencedAsync(
+                run.BasicId, token, 8, now, "stale worker", now));
+            Assert.True(await _repository.CompleteFencedAsync(
+                run.BasicId, token, 9, now, "[]", 0, 0, null, now));
+
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(CrmProspectingRunStatus.Succeeded, persisted.Status);
+            Assert.Null(persisted.LeaseOwner);
+            Assert.Null(persisted.LeaseToken);
+            Assert.Null(persisted.LeaseExpiresAt);
+            Assert.Null(persisted.LeaseHeartbeatAt);
+            Assert.Equal(9, persisted.FencingVersion);
+            Assert.False(await _repository.FailFencedAsync(
+                run.BasicId, token, 9, now, "late failure", now));
+        }
+    }
+
+    [Fact]
+    public async Task FencedTerminalTransitions_ShouldRejectExpiredLease()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var token = Guid.NewGuid();
+            var run = await CreateLeasedRunAsync("expired-fenced-terminal", token, 2, now.AddSeconds(-1));
+
+            Assert.False(await _repository.CompleteFencedAsync(
+                run.BasicId, token, 2, now, "[]", 0, 0, null, now));
+            Assert.False(await _repository.FailFencedAsync(
+                run.BasicId, token, 2, now, "expired", now));
+            var persisted = await _repository.GetByIdAsync(run.BasicId);
+            Assert.NotNull(persisted);
+            Assert.Equal(CrmProspectingRunStatus.Running, persisted.Status);
+        }
+    }
+
+    [Fact]
     public async Task GetByRequestKey_ShouldReturnOnlyTheCurrentTenantsRun()
     {
         long firstTenantRunId;
@@ -314,6 +386,28 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
             Assert.Equal(initialStatus, persisted.Status);
         }
     }
+
+    private Task<SysCrmProspectingRun> CreateLeasedRunAsync(
+        string requestKey,
+        Guid leaseToken,
+        long fencingVersion,
+        DateTimeOffset leaseExpiresAt)
+        => _repository.AddAsync(new SysCrmProspectingRun
+        {
+            CampaignId = 101,
+            StrategyId = 201,
+            StrategyVersion = 1,
+            RequestKey = requestKey,
+            PayloadHash = new string('C', 64),
+            SnapshotSearchObjective = "Lease fencing test",
+            SnapshotProviderPlanJson = "[\"fake\"]",
+            Status = CrmProspectingRunStatus.Running,
+            LeaseOwner = "worker-test-instance",
+            LeaseToken = leaseToken,
+            LeaseExpiresAt = leaseExpiresAt,
+            LeaseHeartbeatAt = DateTimeOffset.UtcNow,
+            FencingVersion = fencingVersion
+        });
 
     private Task<SysCrmProspectingRun> CreateRunAsync(string requestKey)
         => _repository.AddAsync(new SysCrmProspectingRun
