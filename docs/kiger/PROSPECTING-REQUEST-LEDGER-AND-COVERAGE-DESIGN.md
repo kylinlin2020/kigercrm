@@ -198,3 +198,8 @@ On a structurally valid provider result, the Worker now computes a SHA-256 diges
 ### Additional provider throttling coverage
 
 The USAspending adapter also emits the structured 429/503 signal. GLEIF identity resolution now emits the same typed 429/503 signal with the provider Retry-After date/delta or a five-minute fallback. GLEIF lookups are auxiliary identity enrichment rather than a search-provider invocation, so their throttling is isolated as enrichment failure and is not yet written to the provider request ledger or shared cooldown gate.
+
+
+### Shared diagnostic sanitization
+
+A shared domain sanitizer now protects both request-ledger failure summaries and Run-level failure/warning summaries. It strips URL query/fragment suffixes, redacts Bearer/Basic values and common API-key/token/secret/password assignments, removes control characters, and enforces the caller's output bound. This prevents the broader Run failure path from bypassing the ledger's credential-redaction policy. Unit-test source covers URL, authorization, API key, password and length limits.
