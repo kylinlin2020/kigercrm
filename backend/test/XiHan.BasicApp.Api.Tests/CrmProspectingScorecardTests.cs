@@ -75,6 +75,29 @@ public sealed class CrmProspectingScorecardTests
     }
 
     [Fact]
+    public void NonUtcPublicationTimestamp_ShouldReceiveNoRecencyPoints()
+    {
+        var publishedAt = new DateTimeOffset(2026, 11, 3, 12, 0, 0, TimeSpan.FromHours(2));
+        var result = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, publishedAt, false, false), Now);
+
+        Assert.Equal(0, result.RecencyPoints);
+    }
+
+    [Fact]
+    public void UnknownSignals_ShouldNotEarnPointsOrEscapeReviewHold()
+    {
+        var result = CrmProspectingScorecard.Evaluate(
+            new CrmProspectingScoreInput(false, false, false, false, null, false, false), Now);
+
+        Assert.Equal(0, result.Total);
+        Assert.Equal(CrmProspectingPriority.Hold, result.Priority);
+        Assert.Contains("missing_verifiable_organization", result.ReviewGates);
+        Assert.Contains("missing_traceable_primary_evidence", result.ReviewGates);
+        Assert.Contains("missing_direct_procurement_signal", result.ReviewGates);
+    }
+
+    [Fact]
     public void NonUtcEvaluationTime_ShouldBeRejected()
     {
         Assert.Throws<ArgumentException>(() => CrmProspectingScorecard.Evaluate(
