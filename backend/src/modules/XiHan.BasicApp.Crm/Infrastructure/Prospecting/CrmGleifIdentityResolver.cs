@@ -49,11 +49,15 @@ public sealed class CrmGleifIdentityResolver : ICrmProspectingIdentityResolver, 
             throw new HttpRequestException("GLEIF response came from an unapproved endpoint.");
         }
 
-        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.ServiceUnavailable)
         {
-            var retryAfter = response.Headers.RetryAfter?.Delta?.TotalSeconds;
-            throw new HttpRequestException(
-                $"GLEIF rate limit reached (HTTP 429, Retry-After: {(retryAfter is null ? "unspecified" : Math.Ceiling(retryAfter.Value).ToString(System.Globalization.CultureInfo.InvariantCulture) + "s")}).");
+            var retryAt = response.Headers.RetryAfter?.Date
+                ?? (response.Headers.RetryAfter?.Delta is { } retryDelay
+                    ? DateTimeOffset.UtcNow + retryDelay
+                    : DateTimeOffset.UtcNow.AddMinutes(5));
+            throw new CrmProspectingProviderRateLimitException(
+                $"GLEIF throttled the identity lookup (HTTP {(int)response.StatusCode}); retry after the supplied cooldown.",
+                (int)response.StatusCode, retryAt);
         }
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException($"GLEIF returned HTTP {(int)response.StatusCode}.");
