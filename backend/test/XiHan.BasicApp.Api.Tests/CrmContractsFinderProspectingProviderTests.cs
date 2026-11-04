@@ -105,6 +105,7 @@ public sealed class CrmContractsFinderProspectingProviderTests
 
         Assert.Equal(2, handler.CallCount);
         Assert.Single(result.Records);
+        Assert.True(result.IsComplete);
         Assert.Contains("cursor=next-page", handler.Requests[1], StringComparison.Ordinal);
     }
 
