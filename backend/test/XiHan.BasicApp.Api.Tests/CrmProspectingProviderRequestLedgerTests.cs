@@ -208,6 +208,27 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void IncrementalCoverage_ShouldUseStableScopeFingerprintAndOverlapForSupportedProviders()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var fingerprint = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingRequestFingerprint.cs");
+        Assert.Contains("GetCoverageCheckpointAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("LastSuccessfulScanAt.AddHours(-48)", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("CoverageSinceUtc", fingerprint, StringComparison.Ordinal);
+
+        foreach (var file in new[]
+        {
+            "CrmContractsFinderProspectingProvider.cs",
+            "CrmFindTenderProspectingProvider.cs",
+            "CrmTedProspectingProvider.cs"
+        })
+        {
+            var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", file);
+            Assert.Contains("request.CoverageSinceUtc", provider, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void ProviderAdapters_ShouldExposePageCapAsIncompleteCoverage()
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingProviderContracts.cs");
