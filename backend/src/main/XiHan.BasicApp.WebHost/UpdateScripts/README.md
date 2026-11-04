@@ -77,3 +77,4 @@
 
 - CRM 自动获客 Provider 请求尝试台账从 5.9.31 起由 `5.9.31/5.9.31.sql` 创建 `crm_prospecting_provider_request`，仅在存在 `crm_prospecting_run` 的租户 CRM 数据库执行。台账记录每次 Provider 调用的租户、Run、Provider、尝试序号、请求 SHA-256 指纹、状态、时间、结果数量与受限诊断；不存储原始响应、HTTP 认证头或凭据。尝试身份按租户 + Run + Provider + Attempt_No 唯一，状态与计数由数据库约束保护。仓储已注册并接入 Worker：调用前持久化 Started，调用后条件更新终态；并发尝试编号冲突会重新读取最大编号并有限重试。失败诊断需清理 URL 查询参数、Bearer/API key 等凭据。仍待完成 PostgreSQL 并发验收、崩溃后 Started 恢复及完整运行验收。
 - CRM 自动获客 Provider 请求台账运行时写入从 5.9.31 开始接入：`ICrmProspectingProviderRequestRepository` 在 Worker 发起网络请求前写入 `Started`，结束后条件更新为 `Succeeded`、`Failed`、`RateLimited` 或 `Cancelled`；尝试编号按租户 + Run + Provider 递增，唯一索引作为并发竞争最终仲裁。写入/终态更新失败会阻止 Worker 继续把该 Provider 调用当作正常结果处理。进程崩溃遗留 `Started` 的恢复、PostgreSQL 双连接并发验收与运维查询仍待完成。
+- Provider 请求台账的崩溃遗留恢复也纳入 Worker 启动流程：Run 过期租约恢复后，超过 15 分钟且所属 Run 已不再持有有效 Running/CancelRequested 租约的 Started 尝试会被标记为 `Failed/worker_interrupted`；活跃租约下的请求不会被恢复逻辑抢先终结。恢复 SQL 使用 PostgreSQL 数据库时钟并严格限定租户。需在 PostgreSQL 实机环境验证该恢复 SQL 与双连接竞争行为。
