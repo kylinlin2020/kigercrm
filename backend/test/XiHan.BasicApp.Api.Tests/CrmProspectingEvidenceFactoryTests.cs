@@ -27,6 +27,9 @@ public sealed class CrmProspectingEvidenceFactoryTests
         Assert.All(evidence, item => Assert.Equal("unverified", item.VerificationStatus));
         Assert.All(evidence, item => Assert.Equal("registry", item.EvidenceType));
         Assert.All(evidence, item => Assert.Equal("https://ted.example/tender/123", item.SourceUrl));
+        Assert.All(evidence, item => Assert.Equal(32, item.SourceUrlHash.Length));
+        Assert.All(evidence, item => Assert.False(string.IsNullOrWhiteSpace(item.ProviderRecordId)));
+        Assert.All(evidence, item => Assert.Equal(64, item.RawPayloadHash.Length));
         Assert.Contains(evidence, item => item.FieldName == "business_email" && item.FieldValueHash is null);
         Assert.Contains(evidence, item => item.FieldName == "contact_name" && item.FieldValueHash is null);
         Assert.Contains(evidence, item => item.FieldName == "company_name" && item.FieldValueHash?.Length == 64);
