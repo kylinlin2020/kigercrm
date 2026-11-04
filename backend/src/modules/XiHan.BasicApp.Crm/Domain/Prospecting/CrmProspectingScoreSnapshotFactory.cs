@@ -17,6 +17,18 @@ public static class CrmProspectingScoreSnapshotFactory
         if (result.EvaluatedAtUtc.Offset != TimeSpan.Zero)
             throw new ArgumentException("Score evaluation time must be UTC.", nameof(result));
 
+        if (!Enum.IsDefined(result.Priority))
+            throw new ArgumentOutOfRangeException(nameof(result), "Priority value is not defined.");
+
+        if (result.IdentityPoints is < 0 or > 15 ||
+            result.ProcurementPoints is < 0 or > 30 ||
+            result.ProductFitPoints is < 0 or > 20 ||
+            result.MarketFitPoints is < 0 or > 10 ||
+            result.RecencyPoints is < 0 or > 10 ||
+            result.EvidencePoints is < 0 or > 10 ||
+            result.ContactPoints is < 0 or > 5)
+            throw new ArgumentOutOfRangeException(nameof(result), "One or more score components are outside the scorecard limits.");
+
         var componentTotal = result.IdentityPoints + result.ProcurementPoints + result.ProductFitPoints +
             result.MarketFitPoints + result.RecencyPoints + result.EvidencePoints + result.ContactPoints;
         if (componentTotal != result.Total)
