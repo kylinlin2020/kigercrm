@@ -381,6 +381,28 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("MaxAggregatedWarnings = 100", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProviderPlanValidation_ShouldApplyBeforeStrategyPersistenceAndAgainBeforeRunCreation()
+    {
+        var domain = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain",
+            "DomainServices", "Implementations", "CrmProspectingDomainService.cs");
+        Assert.Contains("ValidateProviderPlan(strategy.ProviderPlanJson)", domain, StringComparison.Ordinal);
+        Assert.Contains("private static void ValidateProviderPlan(string json)", domain, StringComparison.Ordinal);
+        Assert.Contains("MaxProviderPlanEntries = 32", domain, StringComparison.Ordinal);
+        Assert.Contains("MaxProviderCodeLength = 80", domain, StringComparison.Ordinal);
+        Assert.Contains("StringComparer.OrdinalIgnoreCase", domain, StringComparison.Ordinal);
+        Assert.Contains("providerCode.Any(char.IsControl)", domain, StringComparison.Ordinal);
+
+        var strategyCreation = domain.IndexOf("public async Task<SysCrmProspectingStrategy> CreateStrategyVersionAsync", StringComparison.Ordinal);
+        var runCreation = domain.IndexOf("public async Task<SysCrmProspectingRun> CreateRunAsync", StringComparison.Ordinal);
+        Assert.True(strategyCreation >= 0 && runCreation > strategyCreation);
+        Assert.True(domain.IndexOf("ValidateStrategy(strategy)", strategyCreation, StringComparison.Ordinal) <
+                    domain.IndexOf("campaigns.GetByIdAsync(strategy.CampaignId", strategyCreation, StringComparison.Ordinal),
+            "Invalid provider plans must be rejected before campaign reads or version allocation.");
+        Assert.True(domain.IndexOf("ValidateProviderPlan(strategy.ProviderPlanJson)", runCreation, StringComparison.Ordinal) > runCreation,
+            "Run creation must revalidate persisted plans before snapshotting them.");
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
