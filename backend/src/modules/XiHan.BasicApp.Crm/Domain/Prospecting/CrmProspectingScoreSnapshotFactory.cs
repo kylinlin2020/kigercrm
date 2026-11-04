@@ -6,7 +6,7 @@ namespace XiHan.BasicApp.Crm.Domain.Prospecting;
 /// <summary>Maps deterministic score output to immutable persistence without changing the score.</summary>
 public static class CrmProspectingScoreSnapshotFactory
 {
-    public static SysCrmProspectingScore Create(long candidateId, CrmProspectingScoreResult result)
+    public static SysCrmProspectingScore Create(long candidateId, CrmProspectingScoreResult result, IReadOnlyList<SysCrmProspectingEvidence>? evidence = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         if (candidateId <= 0) throw new ArgumentOutOfRangeException(nameof(candidateId));
@@ -38,6 +38,28 @@ public static class CrmProspectingScoreSnapshotFactory
         if (result.ReviewGates.Count > 50 || result.ReviewGates.Any(gate => gate.Length > 120))
             throw new ArgumentException("Review gates are limited to 50 entries of at most 120 characters each.", nameof(result));
 
+        var evidenceRows = evidence ?? Array.Empty<SysCrmProspectingEvidence>();
+        if (evidenceRows.Count > 100)
+            throw new ArgumentException("A score snapshot can reference at most 100 evidence rows.", nameof(evidence));
+        var evidenceReferencesJson = JsonSerializer.Serialize(evidenceRows
+            .OrderBy(row => row.ProviderCode, StringComparer.Ordinal)
+            .ThenBy(row => row.ProviderRecordId, StringComparer.Ordinal)
+            .ThenBy(row => row.FieldName, StringComparer.Ordinal)
+            .ThenBy(row => row.SourceUrlHash, StringComparer.Ordinal)
+            .ThenBy(row => row.RawPayloadHash, StringComparer.Ordinal)
+            .Select(row => new
+            {
+                row.ProviderCode,
+                row.ProviderRecordId,
+                row.FieldName,
+                row.SourceUrlHash,
+                row.RawPayloadHash,
+                row.EvidenceType,
+                row.VerificationStatus
+            }));
+        if (System.Text.Encoding.UTF8.GetByteCount(evidenceReferencesJson) > 32_000)
+            throw new ArgumentException("Serialized evidence references exceed the 32 KB score snapshot limit.", nameof(evidence));
+
         var reviewGatesJson = JsonSerializer.Serialize(result.ReviewGates);
         if (System.Text.Encoding.UTF8.GetByteCount(reviewGatesJson) > 10_000)
             throw new ArgumentException("Serialized review gates exceed the 10 KB snapshot limit.", nameof(result));
@@ -56,7 +78,8 @@ public static class CrmProspectingScoreSnapshotFactory
             EvidencePoints = result.EvidencePoints,
             ContactPoints = result.ContactPoints,
             ReviewGatesJson = reviewGatesJson,
-            EvaluatedAtUtc = result.EvaluatedAtUtc
+            EvaluatedAtUtc = result.EvaluatedAtUtc,
+            EvidenceReferencesJson = evidenceReferencesJson
         };
     }
 }
