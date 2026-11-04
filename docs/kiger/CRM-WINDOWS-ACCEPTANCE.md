@@ -185,6 +185,7 @@ Release gates:
 - [ ] Quote/order/shipment transaction and concurrency tests pass.
 - [ ] All ten CRM routes pass runtime smoke tests.
 - [ ] Prospecting provider, evidence, human-review, Lead-conversion, and single-worker recovery checks pass; do not claim multi-instance safety without PostgreSQL race-test evidence.
+- [ ] A complete provider scan does not advance its Coverage checkpoint until all accepted source records have durable Candidate/Evidence/Score outcomes. Inject a worker stop between provider response and candidate persistence; after recovery, verify the old checkpoint remains and the source records are rediscovered. Inject a stop after candidate persistence but before checkpoint finalization; verify retry is idempotent and no Candidate/Evidence/Score rows are duplicated.
 - [ ] No unresolved blocker or data-integrity defect remains.
 
 Only after every gate has evidence should PR #1 be considered ready for review and merge. Until then, keep it Draft and leave `main` unchanged.
