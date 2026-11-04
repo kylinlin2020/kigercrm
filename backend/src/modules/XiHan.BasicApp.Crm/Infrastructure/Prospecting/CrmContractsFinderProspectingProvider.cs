@@ -43,7 +43,7 @@ public sealed class CrmContractsFinderProspectingProvider : ICrmProspectingProvi
         }
 
         var now = DateTimeOffset.UtcNow;
-        var from = now.AddDays(-30).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
+        var from = (request.CoverageSinceUtc ?? now.AddDays(-30)).UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
         var to = now.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture);
         string? cursor = null;
         var records = new List<CrmProspectingRawRecord>();
