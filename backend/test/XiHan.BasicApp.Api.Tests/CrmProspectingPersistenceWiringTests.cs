@@ -185,6 +185,35 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("to_regclass('crm_prospecting_candidate')", migration, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingEvidenceAndScoreIndexes_ShouldMatchCodeFirstNamesAfterUpgrade()
+    {
+        var evidence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
+        var score = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingScore.cs");
+        var initialEvidenceMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
+        var initialScoreMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.19", "5.9.19.sql");
+        var alignmentMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.22", "5.9.22.sql");
+
+        Assert.Contains("IX_{table}_Te_Ca_Fi", evidence, StringComparison.Ordinal);
+        Assert.Contains("IX_{table}_Te_Pr_Ri", evidence, StringComparison.Ordinal);
+        Assert.Contains("UX_{table}_EvidenceIdentity", evidence, StringComparison.Ordinal);
+        Assert.Contains("IX_{table}_Te_Ca_Ev", score, StringComparison.Ordinal);
+        Assert.Contains("IX_{table}_Te_Sv_Pr", score, StringComparison.Ordinal);
+
+        Assert.Contains("ix_crm_prosp_evidence_tenant_candidate_field", initialEvidenceMigration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prosp_score_tenant_candidate_evaluated", initialScoreMigration, StringComparison.Ordinal);
+        Assert.Contains("DROP INDEX IF EXISTS ix_crm_prosp_evidence_tenant_candidate_field", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("DROP INDEX IF EXISTS ix_crm_prosp_score_tenant_candidate_evaluated", alignmentMigration, StringComparison.Ordinal);
+
+        Assert.Contains("ix_crm_prospecting_evidence_te_ca_fi", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prospecting_evidence_te_pr_ri", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_prospecting_evidence_evidenceidentity", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prospecting_score_te_ca_ev", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prospecting_score_te_sv_pr", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ON crm_prospecting_evidence (tenant_id, candidate_id, field_name)", alignmentMigration, StringComparison.Ordinal);
+        Assert.Contains("ON crm_prospecting_score (tenant_id, candidate_id, evaluated_at_utc DESC)", alignmentMigration, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
