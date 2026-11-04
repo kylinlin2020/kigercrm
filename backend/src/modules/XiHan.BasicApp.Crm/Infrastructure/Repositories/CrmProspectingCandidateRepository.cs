@@ -21,6 +21,20 @@ public sealed class CrmProspectingCandidateRepository(ISqlSugarClientResolver cl
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<bool> TryReviewAsync(long candidateId, bool approve, bool overrideDuplicate, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await UpdateAsync(
+            candidate => new SysCrmProspectingCandidate
+            {
+                Status = approve ? CrmProspectingCandidateStatus.Approved : CrmProspectingCandidateStatus.Rejected
+            },
+            candidate => candidate.BasicId == candidateId &&
+                (candidate.Status == CrmProspectingCandidateStatus.PendingReview ||
+                 ((!approve || overrideDuplicate) && candidate.Status == CrmProspectingCandidateStatus.Duplicate)),
+            cancellationToken);
+    }
+
     public async Task<bool> TryClaimForConversionAsync(long candidateId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
