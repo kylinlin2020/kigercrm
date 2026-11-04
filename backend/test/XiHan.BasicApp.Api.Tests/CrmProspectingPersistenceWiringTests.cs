@@ -94,6 +94,18 @@ public sealed class CrmProspectingPersistenceWiringTests
 
 
     [Fact]
+    public void ProspectingCandidateIdentity_ShouldBeUniquePerTenantRunProviderAndExternalId()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.14", "5.9.14.sql");
+
+        Assert.Contains("CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_candidate_te_ru_pr_ex_is", migration, StringComparison.Ordinal);
+        Assert.Contains("ON crm_prospecting_candidate (tenant_id, run_id, provider_code, external_id, is_deleted)", migration, StringComparison.Ordinal);
+        Assert.Contains("provider_code varchar(80) NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("external_id varchar(200) NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("is_deleted boolean NOT NULL DEFAULT false", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingCandidateStatusMigration_ShouldPreservePreviouslyConvertedRows()
     {
         var status = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs");
