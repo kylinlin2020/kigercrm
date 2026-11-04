@@ -144,7 +144,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
 
             var serialized = JsonSerializer.Serialize(raw);
-            if (serialized.Length > 5_000_000)
+            if (System.Text.Encoding.UTF8.GetByteCount(serialized) > 5_000_000)
                 throw new InvalidOperationException("Serialized provider output exceeds the 5 MB Run storage limit.");
 
             var beforeCandidates = await runs.GetByIdAsync(run.BasicId, cancellationToken);
