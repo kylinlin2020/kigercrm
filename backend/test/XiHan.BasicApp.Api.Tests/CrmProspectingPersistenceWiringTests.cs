@@ -47,6 +47,9 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("UX_{table}_Te_Rq", entity, StringComparison.Ordinal);
         Assert.DoesNotContain("IsDeleted", entity, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRunStatus", entity, StringComparison.Ordinal);
+        Assert.Contains("Snapshot_Search_Objective", entity, StringComparison.Ordinal);
+        Assert.Contains("Snapshot_Provider_Plan_Json", entity, StringComparison.Ordinal);
+        Assert.Contains("Snapshot_Excluded_Domains_Json", entity, StringComparison.Ordinal);
     }
 
     [Fact]
