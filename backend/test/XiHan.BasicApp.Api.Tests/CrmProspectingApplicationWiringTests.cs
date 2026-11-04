@@ -69,7 +69,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("must not create or update CRM leads directly", contract, StringComparison.Ordinal);
         Assert.Contains("ProviderCode => \"fake\"", fake, StringComparison.Ordinal);
         Assert.Contains("example.com", fake, StringComparison.Ordinal);
-        Assert.Contains("does not perform network requests", fake, StringComparison.Ordinal);
+        Assert.Contains("performs no network requests", fake, StringComparison.Ordinal);
         Assert.Contains("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>()", registration, StringComparison.Ordinal);
     }
 
