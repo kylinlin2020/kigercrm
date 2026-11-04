@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text.Json;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Domain.Entities;
@@ -68,6 +70,10 @@ public sealed class CrmSalesOrderAppService(
         }
 
         var calculated = input.Lines.Select(CalculateLine).ToArray();
+        var customerPurchaseOrderNumber = NormalizeOptional(input.CustomerPurchaseOrderNumber, 100, nameof(input.CustomerPurchaseOrderNumber));
+        var paymentTerms = NormalizeOptional(input.PaymentTerms, 500, nameof(input.PaymentTerms));
+        var deliveryTerms = NormalizeOptional(input.DeliveryTerms, 500, nameof(input.DeliveryTerms));
+        string? creationRequestFingerprint = null;
         if (!string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey))
         {
             var allocation = await numberGenerator.GenerateAsync(
@@ -78,10 +84,23 @@ public sealed class CrmSalesOrderAppService(
                     "CRM_SALES_ORDER"),
                 cancellationToken);
             number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
+            creationRequestFingerprint = CreateRequestFingerprint(
+                input, currency, customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+
+            var existingOrder = await repository.GetByOrderNumberAsync(number, cancellationToken);
+            if (existingOrder is not null)
+            {
+                await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existingOrder.OwnerUserId, cancellationToken);
+                if (existingOrder.CreationRequestFingerprint is null ||
+                    !string.Equals(existingOrder.CreationRequestFingerprint, creationRequestFingerprint, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The sales-order idempotency key was already used with a different or unverifiable create request.");
+                return ToListItem(existingOrder);
+            }
         }
         var order = new SysCrmSalesOrder
         {
             OrderNumber = number,
+            CreationRequestFingerprint = creationRequestFingerprint,
             CustomerId = customer.BasicId,
             ContactId = input.ContactId,
             OpportunityId = input.OpportunityId,
@@ -94,9 +113,9 @@ public sealed class CrmSalesOrderAppService(
             TaxTotal = calculated.Sum(x => x.LineTax),
             GrandTotal = calculated.Sum(x => x.LineTotal),
             OwnerUserId = owner,
-            CustomerPurchaseOrderNumber = NormalizeOptional(input.CustomerPurchaseOrderNumber, 100, nameof(input.CustomerPurchaseOrderNumber)),
-            PaymentTerms = NormalizeOptional(input.PaymentTerms, 500, nameof(input.PaymentTerms)),
-            DeliveryTerms = NormalizeOptional(input.DeliveryTerms, 500, nameof(input.DeliveryTerms)),
+            CustomerPurchaseOrderNumber = customerPurchaseOrderNumber,
+            PaymentTerms = paymentTerms,
+            DeliveryTerms = deliveryTerms,
             Notes = input.Notes
         };
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmSalesOrder), input, cancellationToken);
@@ -266,6 +285,45 @@ public sealed class CrmSalesOrderAppService(
         order.Notes = input.Notes;
         var saved = await repository.UpdateAsync(order, cancellationToken);
         return ToListItem(saved);
+    }
+
+    private static string CreateRequestFingerprint(
+        CrmSalesOrderCreateDto input,
+        string currency,
+        string? customerPurchaseOrderNumber,
+        string? paymentTerms,
+        string? deliveryTerms,
+        IReadOnlyList<SysCrmSalesOrderLine> lines)
+    {
+        var canonicalRequest = new
+        {
+            input.CustomerId,
+            input.ContactId,
+            input.OpportunityId,
+            input.OrderDate,
+            Currency = currency,
+            input.OwnerUserId,
+            CustomerPurchaseOrderNumber = customerPurchaseOrderNumber,
+            PaymentTerms = paymentTerms,
+            DeliveryTerms = deliveryTerms,
+            input.Notes,
+            Lines = lines.Select(line => new
+            {
+                line.ProductCode,
+                line.Description,
+                line.Quantity,
+                line.Unit,
+                line.UnitPrice,
+                line.DiscountRate,
+                line.TaxRate,
+                line.LineSubtotal,
+                line.LineDiscount,
+                line.LineTax,
+                line.LineTotal,
+                line.SortOrder
+            }).ToArray()
+        };
+        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonicalRequest)));
     }
 
     private static SysCrmSalesOrderLine CalculateLine(CrmSalesOrderLineCreateDto input)
