@@ -46,6 +46,19 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("ReviewGatesJson", entity, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ScoreIntegrityMigration_ShouldRejectComponentTotalsThatDoNotMatch()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.20", "5.9.20.sql");
+
+        Assert.Contains("ck_crm_prospecting_score_component_total", migration, StringComparison.Ordinal);
+        Assert.Contains("total <> identity_points + procurement_points + product_fit_points", migration, StringComparison.Ordinal);
+        Assert.Contains("RAISE EXCEPTION", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD CONSTRAINT", migration, StringComparison.Ordinal);
+        Assert.Contains("CHECK (", migration, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
