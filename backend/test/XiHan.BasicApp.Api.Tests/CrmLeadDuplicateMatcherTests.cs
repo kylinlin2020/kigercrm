@@ -72,6 +72,42 @@ public sealed class CrmLeadDuplicateMatcherTests
         Assert.Equal(CrmLeadDuplicateConfidence.High, results[0].Confidence);
     }
 
+    [Theory]
+    [InlineData("not-an-email")]
+    [InlineData("@example.com")]
+    [InlineData("person@@example.com")]
+    [InlineData("person@example.com.")]
+    [InlineData("person name@example.com")]
+    public void NormalizeEmail_ShouldRejectMalformedAddresses(string value)
+    {
+        Assert.Null(CrmLeadDuplicateMatcher.NormalizeEmail(value));
+    }
+
+    [Fact]
+    public void Score_ShouldNotTreatEqualMalformedEmailsOrWebsitesAsDuplicateSignals()
+    {
+        var source = new SysCrmLead
+        {
+            BasicId = 1,
+            CompanyName = "Source Company",
+            Email = "not-an-email",
+            Website = "http://[invalid"
+        };
+        var candidate = new SysCrmLead
+        {
+            BasicId = 2,
+            CompanyName = "Different Company",
+            Email = "not-an-email",
+            Website = "http://[invalid"
+        };
+
+        var result = CrmLeadDuplicateMatcher.Score(source, candidate);
+
+        Assert.Equal(0, result.Score);
+        Assert.Empty(result.MatchedSignals);
+        Assert.Null(CrmLeadDuplicateMatcher.NormalizeDomain("http://[invalid"));
+    }
+
     [Fact]
     public void NormalizePhone_ShouldReturnNullWhenNoDigitsExist()
     {
