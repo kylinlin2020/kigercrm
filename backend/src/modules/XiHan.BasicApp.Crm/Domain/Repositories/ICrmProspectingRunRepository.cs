@@ -14,4 +14,10 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
 
     /// <summary>Single-active-worker startup recovery only: Running returns to Queued; CancelRequested becomes Cancelled. Do not run concurrently with live workers; multi-instance recovery requires leases/fencing.</summary>
     Task<int> RecoverInterruptedAsync(DateTimeOffset recoveredAt, CancellationToken cancellationToken = default);
+
+    /// <summary>Persist provider output and transition a claimed run to its terminal state.</summary>
+    Task<bool> CompleteAsync(long runId, string rawResultsJson, int rawRecordCount, int failureCount, string? failureSummary, DateTimeOffset completedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>Mark a claimed or cancellation-requested run as failed/cancelled without overwriting another terminal state.</summary>
+    Task<bool> FailAsync(long runId, string failureSummary, DateTimeOffset completedAt, CancellationToken cancellationToken = default);
 }
