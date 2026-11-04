@@ -70,6 +70,7 @@ export default {
       "noCandidates": "Keine Kandidaten für diesen Lauf",
       "pendingReview": "Prüfung ausstehend",
       "duplicate": "Duplikat",
+      "convertedStatus": "Konvertiert",
       "converted": "Kandidat in CRM-Lead umgewandelt",
       "company": "Unternehmen",
       "contact": "Kontakt",
