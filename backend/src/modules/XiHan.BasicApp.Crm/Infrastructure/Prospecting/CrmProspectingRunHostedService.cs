@@ -79,9 +79,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var providers = scope.ServiceProvider.GetServices<ICrmProspectingProvider>()
                 .GroupBy(provider => provider.ProviderCode, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
-            var plan = ParseStringArray(strategy.ProviderPlanJson, "provider plan");
+            var plan = ParseStringArray(run.SnapshotProviderPlanJson, "provider plan");
             if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
-            var excludedDomains = ParseStringArray(strategy.ExcludedDomainsJson, "excluded domains", allowNull: true);
+            var excludedDomains = ParseStringArray(run.SnapshotExcludedDomainsJson, "excluded domains", allowNull: true);
             var raw = new List<CrmProspectingRawEnvelope>();
             var failures = 0;
             var warnings = new List<string>();
@@ -105,10 +105,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 {
                     var request = new CrmProspectingProviderRequest(
                         run.BasicId,
-                        strategy.SearchObjective,
-                        campaign.ProductScope ?? string.Empty,
-                        campaign.TargetMarkets ?? string.Empty,
-                        campaign.IdealCustomerProfile ?? string.Empty,
+                        run.SnapshotSearchObjective,
+                        run.SnapshotProductScope ?? string.Empty,
+                        run.SnapshotTargetMarkets ?? string.Empty,
+                        run.SnapshotIdealCustomerProfile ?? string.Empty,
                         "{}",
                         excludedDomains);
                     var result = await provider.SearchAsync(request, cancellationToken);
