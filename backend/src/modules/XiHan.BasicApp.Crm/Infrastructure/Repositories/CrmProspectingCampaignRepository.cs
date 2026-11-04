@@ -8,4 +8,20 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 public sealed class CrmProspectingCampaignRepository(ISqlSugarClientResolver clientResolver)
     : SaasRepository<SysCrmProspectingCampaign>(clientResolver), ICrmProspectingCampaignRepository
 {
+    public async Task<IReadOnlyList<SysCrmProspectingCampaign>> GetLatestAccessibleAsync(bool unrestricted, IReadOnlyCollection<long> accessibleUserIds, int limit, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var take = Math.Clamp(limit, 1, 500);
+        var query = CreateQueryable();
+        if (!unrestricted)
+        {
+            var userIds = accessibleUserIds.Distinct().ToArray();
+            if (userIds.Length == 0) return [];
+            query = query.Where(item => item.OwnerUserId.HasValue && userIds.Contains(item.OwnerUserId.Value));
+        }
+        return await query
+            .OrderByDescending(item => item.CreatedTime)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
 }
