@@ -84,6 +84,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             using var scope = _scopeFactory.CreateScope();
             using var tenantScope = scope.ServiceProvider.GetRequiredService<ICurrentTenant>().Change(message.TenantId);
 
+            var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
+            await requestLedger.EnsureSchemaConstraintsAsync(cancellationToken);
             var runs = scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>();
             var run = await runs.TryClaimLeaseAsync(message.RunId, LeaseOwner, RunLeaseDuration, cancellationToken);
             if (run is null) return;
@@ -988,12 +990,16 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
             await runner.RunAsync(async tenantId =>
             {
+                // Entity CodeFirst does not emit PostgreSQL CHECK constraints. Apply the same
+                // invariants as migration 5.9.31 before recovery or any worker writes.
+                var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
+                await requestLedger.EnsureSchemaConstraintsAsync(cancellationToken);
+
                 // Recover lease-backed work first using PostgreSQL's clock. This is safe to run
                 // at startup even while the legacy single-worker path remains active: only expired
                 // rows carrying lease metadata are touched by this operation.
                 await runs.RecoverExpiredLeasesAsync(cancellationToken);
                 await runs.RecoverInterruptedAsync(DateTimeOffset.UtcNow, cancellationToken);
-                var requestLedger = scope.ServiceProvider.GetRequiredService<ICrmProspectingProviderRequestRepository>();
                 var interruptedRequests = await requestLedger.RecoverStaleStartedAsync(
                     RunLeaseDuration, cancellationToken);
                 if (interruptedRequests > 0)
