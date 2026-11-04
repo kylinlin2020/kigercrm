@@ -7,11 +7,11 @@
 This is a correctness constraint, not a throughput recommendation:
 
 - `CrmProspectingRunHostedService.ExecuteAsync` invokes startup recovery before polling Redis.
-- `RecoverInterruptedAsync` changes every tenant-scoped `Running` Run to `Queued`; it has no lease expiry, owner identity, heartbeat, or fencing token.
-- The repository now contains `TryClaimLeaseAsync`, a PostgreSQL-only atomic claim primitive using database time and `UPDATE ... RETURNING`. The HostedService does not call it yet, and no PostgreSQL integration test has validated it.
-- A second application instance can therefore requeue a Run that the first instance is actively processing.
+- Startup recovery first calls `RecoverExpiredLeasesAsync` using PostgreSQL time, then runs the legacy recovery only for lease-less rows. Lease-backed `Running` rows are requeued only after expiry; expired `CancelRequested` rows become `Cancelled`.
+- The HostedService now claims Runs through `TryClaimLeaseAsync`, which returns the database-issued lease token and fencing version from `UPDATE ... RETURNING`. No PostgreSQL integration test has validated the complete lifecycle yet.
+- Startup recovery no longer requeues a live lease-backed Run, but multi-instance operation remains unapproved until PostgreSQL concurrency tests validate claim, renewal, fencing and recovery under real competing connections.
 - The conditional `Queued -> Running` claim prevents two workers from claiming the same queued state, but it does not protect a live Run from another instance's startup recovery.
-- Candidate persistence is currently performed row by row. The Run's terminal-state update does not fence candidate writes from an obsolete worker.
+- Candidate, Evidence and Score writes now share short transactions guarded by `TryLockLeaseForWriteAsync`; provenance repair and GLEIF evidence writes use the same fence. Terminal success/cancel/failure transitions require the exact live token and fencing version.
 
 Do not infer multi-instance safety from Redis queue behavior, the conditional claim, or the SQLite repository tests.
 
@@ -61,19 +61,19 @@ Persisted cancellation is checked between provider calls and periodically during
 
 ## Recovery and data consistency notes
 
-- A duplicate Redis message is expected to be harmless when the Run is no longer `Queued`; `ClaimQueuedAsync` then returns no Run.
-- Startup recovery is intentionally broad and is safe only after the previous worker process is confirmed stopped.
-- Candidate records are persisted individually. If a process stops partway through normalization, retrying the same Run uses the existing provider/external-ID keys to avoid inserting those same candidate identities again. This is not a substitute for a transactional, fenced candidate-write protocol.
+- A duplicate Redis message is harmless because `TryClaimLeaseAsync` is the database ownership boundary; a non-claiming worker receives no Run.
+- Startup recovery is tenant-scoped: expired lease rows are reclaimed by database time, while legacy lease-less rows use the single-worker compatibility path.
+- Candidate, Evidence and Score are committed together under a Run-row lock. If a process stops between candidate transactions, retrying the same Run uses provider/external-ID identity keys to avoid inserting those same candidate identities again.
 - Do not manually change Run statuses in production as a routine recovery mechanism. Preserve the Run snapshot and audit trail; use a controlled worker restart first.
 
 ## Gate before enabling multiple workers
 
 Multi-instance operation must remain disabled until all of the following are implemented and verified:
 
-1. Database-authoritative lease owner, expiry/heartbeat, UUID token, and monotonically increasing fencing_version. The additive schema and atomic claim primitive exist, but are not yet active.
-2. Atomic claim is implemented as an unused repository primitive; prove it with independent PostgreSQL connections, then implement lease renewal with server-side time semantics and conditional predicates.
-3. Every Run state transition and every candidate write validates the current owner and fencing token in the same database transaction as the write.
-4. Startup recovery only reclaims expired leases; it never blindly requeues every `Running` Run.
+1. Database-authoritative lease owner, expiry/heartbeat, UUID token and monotonically increasing fencing_version. The HostedService now consumes the lease token and generation.
+2. Prove atomic claim and renewal with independent PostgreSQL connections, including expiry/takeover and renewal-versus-expiry races. Renewal currently occurs between provider calls and every 25 candidate records; an independent heartbeat loop is not yet implemented.
+3. Candidate/Evidence/Score transactions lock and validate the live Run lease; terminal Run transitions are conditional on the exact lease token/version and PostgreSQL time. Add PostgreSQL race tests proving these boundaries.
+4. Startup recovery only reclaims expired lease-backed Runs and separately recovers lease-less legacy rows.
 5. Redis messages remain hints and cannot grant ownership.
 6. PostgreSQL tests using independent connections/processes cover competing claims, live-lease exclusion, expired-lease takeover with a higher token, stale-owner rejection for renew/complete/fail/candidate writes, renewal-versus-expiry, cancellation-versus-reclaim, process-death recovery, and tenant isolation.
 7. Deployment tests prove rolling updates and worker restarts cannot create overlapping owners.
