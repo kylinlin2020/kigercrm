@@ -124,6 +124,10 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("CrmLeadDuplicateMatcher.NormalizeEmail", worker, StringComparison.Ordinal);
         Assert.Contains("lead.WebsiteHost == websiteHost", worker, StringComparison.Ordinal);
         Assert.Contains("GetDuplicateMatchesAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("const int cancellationPollInterval = 25", worker, StringComparison.Ordinal);
+        Assert.Contains("recordIndex % cancellationPollInterval == 0", worker, StringComparison.Ordinal);
+        Assert.Contains("for (var recordIndex = 0; recordIndex < raw.Count; recordIndex++)", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("foreach (var envelope in raw)", worker, StringComparison.Ordinal);
         Assert.DoesNotContain("leadRepository.GetListAsync", worker, StringComparison.Ordinal);
         var leadRepository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmLeadRepository.cs");
         Assert.Contains("const int batchSize = 300", leadRepository, StringComparison.Ordinal);
