@@ -12,12 +12,14 @@ public sealed class CrmProspectingEvidenceWiringTests
         Assert.Contains("FieldValueHash", entity, StringComparison.Ordinal);
         Assert.DoesNotContain("BasicAppFullAuditedEntity", entity, StringComparison.Ordinal);
         Assert.DoesNotContain("BusinessEmail", entity, StringComparison.Ordinal);
+        Assert.Contains(".Add<SysCrmProspectingEvidence>()", registration, StringComparison.Ordinal);
     }
 
     [Fact]
     public void EvidenceMigration_ShouldBeTenantScopedAndRequireCandidateParent()
     {
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.18", "5.9.18.sql");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
         Assert.Contains("IF to_regclass('crm_prospecting_candidate') IS NOT NULL", migration, StringComparison.Ordinal);
         Assert.Contains("tenant_id bigint NOT NULL", migration, StringComparison.Ordinal);
         Assert.Contains("FOREIGN KEY (tenant_id, candidate_id)", migration, StringComparison.Ordinal);
