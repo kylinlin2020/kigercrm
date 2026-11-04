@@ -382,7 +382,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         HasTargetMarketFit: false,
                         PublishedAtUtc: record.PublishedAtUtc?.ToUniversalTime(),
                         HasTraceablePrimaryEvidence: evidenceRows.Any(evidence =>
-                            evidence.EvidenceType is "direct" or "registry" &&
+                            (evidence.EvidenceType is "direct" or "registry") &&
                             evidence.VerificationStatus == "unverified" &&
                             !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
                         HasPublicBusinessContact: !string.IsNullOrWhiteSpace(email),
