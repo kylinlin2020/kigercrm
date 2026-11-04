@@ -495,6 +495,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 : await runs.CompleteFencedWithDatabaseClockAsync(
                     run.BasicId, leaseToken, activeFencingVersion, serialized, raw.Count, failures,
                     summary, cancellationToken, candidateCount);
+            // Cancellation may race the final read and Complete UPDATE. If Complete loses
+            // because the status became CancelRequested, resolve it through the same live fence.
+            if (!finalized)
+                finalized = await runs.CancelFencedWithDatabaseClockAsync(
+                    run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
             if (!finalized)
                 throw new InvalidOperationException("The Run lease was lost before its terminal transition.");
         }
