@@ -35,8 +35,8 @@ public interface ICrmProspectingProviderRequestRepository : ISaasRepository<SysC
     /// Partial, truncated or failed results must use TryFinalizeAsync instead.
     /// </summary>
     Task<bool> TryFinalizeSuccessWithCoverageAsync(
-        long requestId, long campaignId, string coverageScopeHash,
-        DateTimeOffset completedAt, long durationMs, int resultCount, string responseHash,
+        long requestId, long runId, long campaignId, Guid leaseToken, long fencingVersion,
+        string coverageScopeHash, DateTimeOffset completedAt, long durationMs, int resultCount, string responseHash,
         CancellationToken cancellationToken = default);
 
     /// <summary>Apply PostgreSQL CHECK constraints after entity CodeFirst initialization, idempotently.</summary>
