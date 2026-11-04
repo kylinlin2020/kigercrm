@@ -11,7 +11,7 @@ BEGIN
         UPDATE crm_prospecting_evidence
            SET provider_record_id = COALESCE(provider_record_id, ''),
                raw_payload_hash = COALESCE(raw_payload_hash, ''),
-               source_url_hash = md5(source_url)
+               source_url_hash = upper(md5(source_url))
          WHERE provider_record_id IS NULL
             OR raw_payload_hash IS NULL
             OR source_url_hash = '';
