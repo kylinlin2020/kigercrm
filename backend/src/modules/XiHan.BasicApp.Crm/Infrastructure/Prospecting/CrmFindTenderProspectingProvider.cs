@@ -39,7 +39,10 @@ public sealed class CrmFindTenderProspectingProvider : ICrmProspectingProvider, 
             return new CrmProspectingProviderResult(
                 [],
                 0,
-                ["Find a Tender requires product or industry keywords to avoid collecting unrelated notices."]);
+                ["Find a Tender requires product or industry keywords to avoid collecting unrelated notices."])
+            {
+                IsComplete = false
+            };
         }
 
         var now = DateTimeOffset.UtcNow;
