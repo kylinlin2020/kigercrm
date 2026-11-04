@@ -19,6 +19,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Update)]", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Read)]", service, StringComparison.Ordinal);
         Assert.Contains("GetLatestByCampaignAsync(campaignId, 500", service, StringComparison.Ordinal);
+        Assert.Contains("GetLatestAccessibleAsync(scope.Unrestricted, scope.UserIds, 500", service, StringComparison.Ordinal);
         Assert.Contains("ResolveAccessibleUsersAsync", service, StringComparison.Ordinal);
         Assert.Contains("entity.OwnerUserId ??= CurrentUser?.Id", service, StringComparison.Ordinal);
         Assert.Contains("GetLatestByCampaignAsync(campaignId, 500", service, StringComparison.Ordinal);
