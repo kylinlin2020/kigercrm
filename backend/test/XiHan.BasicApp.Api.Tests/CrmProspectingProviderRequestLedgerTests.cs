@@ -39,6 +39,18 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains(".Add<SysCrmProspectingProviderRequest>()", registration, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProviderRequestLedger_ShouldBeRegisteredAndBracketWorkerProviderCalls()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("ICrmProspectingProviderRequestRepository, CrmProspectingProviderRequestRepository", registration, StringComparison.Ordinal);
+        Assert.Contains("CreateStartedAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("provider.SearchAsync(request, cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("TryFinalizeAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRequestFingerprint.Create(providerCode, request)", worker, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] parts)
     {
         var root = FindRepositoryRoot();
