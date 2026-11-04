@@ -210,6 +210,29 @@ public sealed class CrmProspectingApplicationWiringTests
     }
 
     [Fact]
+    public void StrategyLifecycle_ShouldSerializeVersionAllocationAndActivation()
+    {
+        var campaignContract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingCampaignRepository.cs");
+        var campaignRepository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingCampaignRepository.cs");
+        var strategyContract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingStrategyRepository.cs");
+        var strategyRepository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingStrategyRepository.cs");
+        var domain = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "DomainServices", "Implementations", "CrmProspectingDomainService.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.17", "5.9.17.sql");
+
+        Assert.Contains("TryAdvanceStrategyVersionAsync", campaignContract, StringComparison.Ordinal);
+        Assert.Contains("campaign.StrategyVersionSequence == expectedSequence", campaignRepository, StringComparison.Ordinal);
+        Assert.Contains("TrySetActiveStrategyVersionAsync", campaignContract, StringComparison.Ordinal);
+        Assert.Contains("campaign.ActiveStrategyVersion == expectedVersion", campaignRepository, StringComparison.Ordinal);
+        Assert.Contains("TryMarkActivatedAsync", strategyContract, StringComparison.Ordinal);
+        Assert.Contains("ClearOtherActiveVersionsAsync", strategyRepository, StringComparison.Ordinal);
+        Assert.Contains("TryAdvanceStrategyVersionAsync(campaign.BasicId", domain, StringComparison.Ordinal);
+        Assert.Contains("TrySetActiveStrategyVersionAsync(campaign.BasicId", domain, StringComparison.Ordinal);
+        Assert.Contains("ClearOtherActiveVersionsAsync(campaign.BasicId", domain, StringComparison.Ordinal);
+        Assert.Contains("strategy_version_sequence", migration, StringComparison.Ordinal);
+        Assert.Contains("CREATE UNIQUE INDEX", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CandidateReview_ShouldUseAtomicConditionalStateTransition()
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingCandidateRepository.cs");
