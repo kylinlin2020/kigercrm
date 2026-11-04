@@ -271,6 +271,28 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Gate before enabling multiple workers", runbook, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void CandidateReviewDetail_ShouldExposeAuthorizedEvidenceAndScoreHistory()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Contracts", "ICrmProspectingAppService.cs");
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
+        var dtos = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmProspectingDtos.cs");
+        var evidenceRepo = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingEvidenceRepository.cs");
+        var scoreRepo = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingScoreRepository.cs");
+
+        Assert.Contains("GetCandidateReviewDetailAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Read)]", app, StringComparison.Ordinal);
+        Assert.Contains("EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId", app, StringComparison.Ordinal);
+        Assert.Contains("evidence.GetByCandidateAsync(candidate.BasicId", app, StringComparison.Ordinal);
+        Assert.Contains("scores.GetLatestByCandidateAsync(candidate.BasicId, 20", app, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingCandidateReviewDetailDto", dtos, StringComparison.Ordinal);
+        Assert.Contains("VerificationStatus", dtos, StringComparison.Ordinal);
+        Assert.Contains("ScorecardVersion", dtos, StringComparison.Ordinal);
+        Assert.Contains("CreateQueryable()", evidenceRepo, StringComparison.Ordinal);
+        Assert.Contains("CreateQueryable()", scoreRepo, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
