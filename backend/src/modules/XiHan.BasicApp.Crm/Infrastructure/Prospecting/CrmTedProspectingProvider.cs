@@ -39,7 +39,10 @@ public sealed class CrmTedProspectingProvider : ICrmProspectingProvider, IDispos
             return new CrmProspectingProviderResult(
                 [],
                 0,
-                ["TED requires product or industry keywords to avoid collecting unrelated notices."]);
+                ["TED requires product or industry keywords to avoid collecting unrelated notices."])
+            {
+                IsComplete = false
+            };
         }
 
         var now = DateTimeOffset.UtcNow;
