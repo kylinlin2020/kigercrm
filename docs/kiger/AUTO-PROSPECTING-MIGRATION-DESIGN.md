@@ -197,3 +197,13 @@ The synthetic `fake` adapter is the only registered provider. This is an end-to-
 - Run CandidateCount is populated from persisted candidates, including candidates already saved by an interrupted attempt. Candidate rows remain separate and do not create CRM Leads.
 - Migration 5.9.14 adds the candidate table only when the CRM Lead and prospecting Run tables exist. Candidate list/detail API, manual approve/reject and approved conversion to Lead remain future work.
 - No .NET build/test, PostgreSQL migration execution, duplicate-screening integration test or Windows validation has been performed.
+
+
+## 17. Human-review and controlled Lead conversion API (2026-11-04)
+
+- Added a tenant/data-scope protected candidate list per Run, optionally filtered by status and capped to the newest 500 rows.
+- Added explicit review decisions: PendingReview → Approved or Rejected. Duplicate candidates cannot be approved unless the caller sets the explicit duplicate-override flag.
+- Added a separate approved-candidate-to-Lead command. It creates the Lead through the existing `ICrmLeadDomainService`, applies Lead field-creation security, assigns the campaign owner, and updates candidate status/Lead ID in the same UnitOfWork.
+- Repeated conversion is rejected by candidate state; transaction rollback should prevent a Lead without a Converted candidate marker, but this still needs a PostgreSQL integration test.
+- The workflow remains human-gated. Candidate discovery never writes directly to `Crm_Lead`.
+- API wiring is source-reviewed only; compilation, authorization integration, transaction rollback, PostgreSQL and Windows tests remain outstanding.
