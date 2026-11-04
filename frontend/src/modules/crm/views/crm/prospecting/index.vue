@@ -49,7 +49,7 @@ function runStatus(value: number) {
   return [t('crm.prospecting.queued'), t('crm.prospecting.running'), t('crm.prospecting.succeeded'), t('crm.prospecting.partiallySucceeded'), t('crm.prospecting.failed'), t('crm.prospecting.cancelRequested'), t('crm.prospecting.cancelled')][value] ?? String(value)
 }
 function candidateStatus(value: number) {
-  return [t('crm.prospecting.pendingReview'), t('crm.prospecting.duplicate'), t('crm.prospecting.approved'), t('crm.prospecting.rejected'), t('crm.prospecting.converted')][value] ?? String(value)
+  return [t('crm.prospecting.pendingReview'), t('crm.prospecting.duplicate'), t('crm.prospecting.approved'), t('crm.prospecting.rejected'), t('crm.prospecting.convertedStatus')][value] ?? String(value)
 }
 
 async function loadCampaigns() {
@@ -243,10 +243,7 @@ async function convertCandidate(candidate: CrmProspectingCandidateDto) {
   catch (error) { toast.danger((error as Error)?.message || t('crm.prospecting.actionError')) }
 }
 
-onMounted(async () => {
-  await loadCampaigns()
-  await loadWorkspace()
-})
+onMounted(loadCampaigns)
 </script>
 
 <template>
