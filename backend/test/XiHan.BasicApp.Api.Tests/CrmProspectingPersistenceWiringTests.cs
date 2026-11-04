@@ -661,6 +661,21 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void FindTenderProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmFindTenderProspectingProvider.cs");
+
+        Assert.Contains("EnableFindTenderProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("new HttpClient(new SocketsHttpHandler", registration, StringComparison.Ordinal);
+        Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
+        Assert.Contains("find-tender.service.gov.uk/api/1.0/ocdsReleasePackages", provider, StringComparison.Ordinal);
+        Assert.Contains("MaxResponseBytes", provider, StringComparison.Ordinal);
+        Assert.Contains("official_procurement", provider, StringComparison.Ordinal);
+        Assert.Contains("RawPayloadHash", provider, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void UsaSpendingProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
     {
         var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
