@@ -219,38 +219,6 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
 
     private static string? SanitizeSummary(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        var builder = new StringBuilder(Math.Min(value.Length, 1000));
-        foreach (var character in value)
-        {
-            if (!char.IsControl(character) || character is '\r' or '\n' or '\t')
-                builder.Append(char.IsControl(character) ? ' ' : character);
-            if (builder.Length >= 1000) break;
-        }
-
-        // Never retain URL query/fragment values in operational diagnostics.
-        var sanitized = builder.ToString();
-        sanitized = System.Text.RegularExpressions.Regex.Replace(
-            sanitized,
-            @"(?i)\b(authorization\s*[:=]\s*(?:bearer|basic)\s+)[^\s,;]+",
-            "$1[REDACTED]");
-        sanitized = System.Text.RegularExpressions.Regex.Replace(
-            sanitized,
-            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|secret)\s*[:=]\s*[^\s&;,]+",
-            "$1=[REDACTED]");
-        // Never retain URL query/fragment values in operational diagnostics.
-        sanitized = System.Text.RegularExpressions.Regex.Replace(
-            sanitized,
-            @"(?i)(https?://[^\s?#]+)[^\s]*",
-            "$1");
-        sanitized = System.Text.RegularExpressions.Regex.Replace(
-            sanitized,
-            @"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+",
-            "$1 [REDACTED]");
-        sanitized = System.Text.RegularExpressions.Regex.Replace(
-            sanitized,
-            @"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|client_secret)\s*[:=]\s*[""']?[^\s&,""']+",
-            "$1=[REDACTED]");
-        return sanitized;
-    }
-}
+        var sanitized = CrmProspectingDiagnosticSanitizer.Sanitize(value, 1000);
+        return sanitized.Length == 0 ? null : sanitized;
+    }}
