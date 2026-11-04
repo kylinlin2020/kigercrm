@@ -1,6 +1,6 @@
 # Prospecting Provider Request Ledger and Coverage Design
 
- > Status: request-ledger schema foundation implemented on `kiger-dev`; repository/worker lifecycle integration, coverage cursor, cache and persisted cooldown remain pending.
+> Status: request-ledger schema foundation implemented on `kiger-dev`; repository/worker lifecycle integration, coverage cursor, cache and persisted cooldown remain pending.
 > Target branch: `kiger-dev`. Keep PR #1 Draft and do not modify `main`.
 
 ## 1. Goals
