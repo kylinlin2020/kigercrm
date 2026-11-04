@@ -72,7 +72,6 @@ public sealed class CrmUsaSpendingProspectingProviderTests
         Assert.NotNull(error.RetryAfterAt);
         Assert.True(error.RetryAfterAt > DateTimeOffset.UtcNow);
         Assert.DoesNotContain("sensitive-provider-response", error.Message, StringComparison.Ordinal);
-        Assert.DoesNotContain("sensitive-provider-response", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
