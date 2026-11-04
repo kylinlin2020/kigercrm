@@ -35,7 +35,7 @@ public static class CrmProspectingEvidenceFactory
             _ => "provider_asserted"
         };
         var payloadHash = IsSha256(record.RawPayloadHash) ? record.RawPayloadHash!.ToUpperInvariant() : string.Empty;
-        var sourceUrlHash = Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(sourceUrl)));
+        var sourceUrlHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sourceUrl)));
         var fields = new (string Name, string? Value, bool HashValue)[]
         {
             ("company_name", record.CompanyName, true),
