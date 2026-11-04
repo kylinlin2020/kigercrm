@@ -156,6 +156,23 @@ public sealed class CrmProspectingPersistenceWiringTests
     }
 
     [Fact]
+    public void ProspectingWorker_ShouldRepairMissingScoreSnapshotsWithEvidenceAtomically()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        Assert.Contains("GetLatestByCandidateAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("var needsScoreRepair = existingScores.Count == 0", worker, StringComparison.Ordinal);
+        Assert.Contains("var completeEvidence = persistedEvidence.Concat(missingEvidence).ToArray()", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc)", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingScoreSnapshotFactory.Create(", worker, StringComparison.Ordinal);
+        Assert.Contains("await scoreRepository.AddAsync(scoreSnapshot, cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("await repairUnitOfWork.CompleteAsync(cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("HasDirectProcurementSignal: false", worker, StringComparison.Ordinal);
+        Assert.Contains("HasDirectProductFit: false", worker, StringComparison.Ordinal);
+        Assert.Contains("HasTargetMarketFit: false", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingWorker_ShouldPersistCandidateAndEvidenceInOneExplicitUnitOfWork()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
