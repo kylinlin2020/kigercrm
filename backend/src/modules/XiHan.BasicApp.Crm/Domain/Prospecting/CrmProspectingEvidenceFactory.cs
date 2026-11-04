@@ -14,17 +14,19 @@ public static class CrmProspectingEvidenceFactory
         DateTimeOffset fallbackRetrievedAtUtc)
     {
         ArgumentNullException.ThrowIfNull(envelope);
+        ArgumentNullException.ThrowIfNull(envelope.Record);
         if (candidateId <= 0) throw new ArgumentOutOfRangeException(nameof(candidateId));
         if (fallbackRetrievedAtUtc.Offset != TimeSpan.Zero)
             throw new ArgumentException("Fallback retrieval time must be UTC.", nameof(fallbackRetrievedAtUtc));
 
-        if (!TryGetCanonicalSourceUrl(envelope.Record.SourceUrl, out var sourceUrl))
+        if (string.IsNullOrWhiteSpace(envelope.ProviderCode))
             return Array.Empty<SysCrmProspectingEvidence>();
-
         var providerCode = envelope.ProviderCode.Trim();
-        if (providerCode.Length is 0 or > 80) return Array.Empty<SysCrmProspectingEvidence>();
+        if (providerCode.Length > 80) return Array.Empty<SysCrmProspectingEvidence>();
 
         var record = envelope.Record;
+        if (!TryGetCanonicalSourceUrl(record.SourceUrl, out var sourceUrl))
+            return Array.Empty<SysCrmProspectingEvidence>();
         var retrievedAt = record.RetrievedAtUtc?.ToUniversalTime() ?? fallbackRetrievedAtUtc;
         var evidenceType = record.EvidenceType?.Trim().ToLowerInvariant() switch
         {
