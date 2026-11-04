@@ -123,7 +123,8 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
                 entity => entity.BasicId == cancelling.BasicId && entity.Status == CrmProspectingRunStatus.Running);
             Assert.True(cancellationRequested);
 
-            await _repository.RecoverInterruptedAsync(DateTimeOffset.UtcNow);
+            Assert.True(await _repository.RecoverInterruptedAsync(DateTimeOffset.UtcNow));
+            Assert.False(await _repository.RecoverInterruptedAsync(DateTimeOffset.UtcNow));
 
             var recoveredRun = await _repository.GetByIdAsync(interrupted.BasicId);
             var cancelledRun = await _repository.GetByIdAsync(cancelling.BasicId);
