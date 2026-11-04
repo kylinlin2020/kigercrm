@@ -237,6 +237,17 @@ async function openCandidateReview(candidate: CrmProspectingCandidateDto) {
   }
 }
 
+function safeEvidenceUrl(value: string) {
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:' || url.username || url.password) return null
+    return url.href
+  }
+  catch {
+    return null
+  }
+}
+
 function scorePriority(value: number) {
   return [t('crm.prospecting.priorityHold'), 'C', 'B', 'A'][value] ?? String(value)
 }
@@ -389,7 +400,7 @@ onMounted(loadCampaigns)
             <thead><tr><th>{{ t('crm.prospecting.field') }}</th><th>{{ t('crm.prospecting.provider') }}</th><th>{{ t('crm.prospecting.verification') }}</th><th>{{ t('crm.prospecting.evidenceType') }}</th><th>{{ t('crm.prospecting.sourceUrl') }}</th><th>{{ t('crm.prospecting.retrievedAt') }}</th></tr></thead>
             <tbody><tr v-for="item in reviewDetail.evidence" :key="item.basicId">
               <td><strong>{{ item.fieldName }}</strong><small>{{ item.evidenceSummary || item.fieldValueHash || '' }}</small></td><td>{{ item.providerCode }}<small>{{ item.providerRecordId || '' }}</small></td><td>{{ item.verificationStatus }}</td><td>{{ item.evidenceType }}</td>
-              <td><a :href="item.sourceUrl" target="_blank" rel="noopener noreferrer">{{ item.sourceUrl }}</a></td><td>{{ new Date(item.retrievedAtUtc).toLocaleString() }}</td>
+              <td><a v-if="safeEvidenceUrl(item.sourceUrl)" :href="safeEvidenceUrl(item.sourceUrl)!" target="_blank" rel="noopener noreferrer">{{ item.sourceUrl }}</a><span v-else>{{ item.sourceUrl }}</span></td><td>{{ new Date(item.retrievedAtUtc).toLocaleString() }}</td>
             </tr></tbody>
           </table>
         </template>
