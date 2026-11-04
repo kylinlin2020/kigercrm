@@ -38,6 +38,59 @@ public sealed class CrmProspectingCandidateRepository(ISqlSugarClientResolver cl
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<SysCrmProspectingCandidate>> GetCrossRunDuplicateMatchesAsync(
+        long runId,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> externalIdsByProvider,
+        IReadOnlyList<string> normalizedEmails,
+        IReadOnlyList<string> websiteHosts,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        ArgumentNullException.ThrowIfNull(externalIdsByProvider);
+        ArgumentNullException.ThrowIfNull(normalizedEmails);
+        ArgumentNullException.ThrowIfNull(websiteHosts);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var matches = new List<SysCrmProspectingCandidate>();
+        var seenIds = new HashSet<long>();
+
+        // Match provider identity as a pair; do not use independent IN lists which could
+        // create false cross-product matches between provider codes and external IDs.
+        foreach (var pair in externalIdsByProvider)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var ids = pair.Value.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct().ToArray();
+            if (string.IsNullOrWhiteSpace(pair.Key) || ids.Length == 0) continue;
+
+            var identityRows = await CreateQueryable()
+                .Where(candidate => candidate.RunId != runId &&
+                    candidate.Status != CrmProspectingCandidateStatus.Rejected &&
+                    candidate.ProviderCode == pair.Key &&
+                    ids.Contains(candidate.ExternalId))
+                .Take(5000)
+                .ToListAsync(cancellationToken);
+
+            foreach (var row in identityRows)
+                if (seenIds.Add(row.BasicId)) matches.Add(row);
+        }
+
+        if (normalizedEmails.Count > 0 || websiteHosts.Count > 0)
+        {
+            var emailRows = await CreateQueryable()
+                .Where(candidate => candidate.RunId != runId &&
+                    candidate.Status != CrmProspectingCandidateStatus.Rejected &&
+                    ((normalizedEmails.Count > 0 && normalizedEmails.Contains(candidate.NormalizedEmail!)) ||
+                     (websiteHosts.Count > 0 && websiteHosts.Contains(candidate.WebsiteHost!))))
+                .Take(5000)
+                .ToListAsync(cancellationToken);
+
+            foreach (var row in emailRows)
+                if (seenIds.Add(row.BasicId)) matches.Add(row);
+        }
+
+        return matches;
+    }
+
     public async Task<bool> TryReviewAsync(long candidateId, bool approve, bool overrideDuplicate, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
