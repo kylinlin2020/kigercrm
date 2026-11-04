@@ -1,4 +1,3 @@
-using SqlSugar;
 using System.Text;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Repositories;
@@ -112,6 +111,23 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             cancellationToken);
     }
 
+
+    public async Task<DateTimeOffset?> GetActiveCooldownUntilAsync(
+        string providerCode, DateTimeOffset now, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var rows = await CreateQueryable()
+            .Where(row => row.ProviderCode == providerCode &&
+                row.State == "RateLimited" &&
+                row.RetryAfterAt != null &&
+                row.RetryAfterAt > now)
+            .OrderByDescending(row => row.RetryAfterAt)
+            .Take(1)
+            .ToListAsync(cancellationToken);
+        return rows.FirstOrDefault()?.RetryAfterAt;
+    }
 
     public async Task<int> RecoverStaleStartedAsync(TimeSpan minimumAge, CancellationToken cancellationToken = default)
     {
