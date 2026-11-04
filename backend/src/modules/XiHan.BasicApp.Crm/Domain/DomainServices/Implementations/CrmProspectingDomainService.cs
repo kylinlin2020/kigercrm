@@ -3,13 +3,15 @@ using XiHan.BasicApp.Crm.Domain.DomainServices;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Crm.Domain.Repositories;
 
 namespace XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
 
 /// <summary>Enforces immutable strategy versions and explicit approval before activation.</summary>
 public sealed class CrmProspectingDomainService(
     ICrmProspectingCampaignRepository campaigns,
-    ICrmProspectingStrategyRepository strategies) : ICrmProspectingDomainService
+    ICrmProspectingStrategyRepository strategies,
+    ICrmProspectingRunRepository runs) : ICrmProspectingDomainService
 {
     public async Task<SysCrmProspectingCampaign> CreateCampaignAsync(SysCrmProspectingCampaign campaign, CancellationToken cancellationToken = default)
     {
@@ -92,6 +94,85 @@ public sealed class CrmProspectingDomainService(
         campaign.ActiveStrategyVersion = strategy.Version;
         campaign.Status = CrmProspectingCampaignStatus.Active;
         return await campaigns.UpdateAsync(campaign, cancellationToken);
+    }
+
+    public async Task<SysCrmProspectingRun> CreateRunAsync(long campaignId, string requestKey, CancellationToken cancellationToken = default)
+    {
+        if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestKey);
+        requestKey = requestKey.Trim();
+        if (requestKey.Length > 100) throw new ArgumentOutOfRangeException(nameof(requestKey));
+
+        var campaign = await campaigns.GetByIdAsync(campaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        if (campaign.Status != CrmProspectingCampaignStatus.Active || campaign.ActiveStrategyVersion is null)
+            throw new InvalidOperationException("Only an active campaign with an active strategy can be executed.");
+
+        var activeStrategies = await strategies.GetListAsync(
+            x => x.CampaignId == campaignId && x.Version == campaign.ActiveStrategyVersion.Value && x.ActivatedAt != null,
+            cancellationToken);
+        var strategy = activeStrategies.SingleOrDefault()
+            ?? throw new InvalidOperationException("The campaign active strategy version is missing or ambiguous.");
+        if (strategy.ApprovalStatus != CrmProspectingStrategyApprovalStatus.Approved)
+            throw new InvalidOperationException("The active strategy is not approved.");
+        ValidateJsonArray(strategy.ProviderPlanJson, nameof(strategy.ProviderPlanJson));
+        using (var providerPlan = JsonDocument.Parse(strategy.ProviderPlanJson))
+        {
+            if (providerPlan.RootElement.GetArrayLength() == 0)
+                throw new InvalidOperationException("An empty provider plan cannot be executed.");
+        }
+
+        var payloadHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes($"{campaign.BasicId}|{strategy.BasicId}|{strategy.Version}")));
+        var existing = (await runs.GetListAsync(x => x.RequestKey == requestKey, cancellationToken)).SingleOrDefault();
+        if (existing is not null)
+        {
+            if (!string.Equals(existing.PayloadHash, payloadHash, StringComparison.Ordinal))
+                throw new InvalidOperationException("The request key was already used with a different prospecting execution payload.");
+            return existing;
+        }
+
+        var run = new SysCrmProspectingRun
+        {
+            CampaignId = campaign.BasicId,
+            StrategyId = strategy.BasicId,
+            StrategyVersion = strategy.Version,
+            RequestKey = requestKey,
+            PayloadHash = payloadHash,
+            Status = CrmProspectingRunStatus.Queued
+        };
+        return await runs.AddAsync(run, cancellationToken);
+    }
+
+    public async Task<SysCrmProspectingRun?> GetRunAsync(long runId, CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        return await runs.GetByIdAsync(runId, cancellationToken);
+    }
+
+    public async Task<SysCrmProspectingRun> CancelRunAsync(long runId, CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        var run = await runs.GetByIdAsync(runId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        if (run.Status == CrmProspectingRunStatus.Queued)
+        {
+            run.Status = CrmProspectingRunStatus.Cancelled;
+            run.CompletedAt = DateTimeOffset.UtcNow;
+        }
+        else if (run.Status == CrmProspectingRunStatus.Running)
+        {
+            run.Status = CrmProspectingRunStatus.CancelRequested;
+        }
+        else if (run.Status == CrmProspectingRunStatus.CancelRequested || run.Status == CrmProspectingRunStatus.Cancelled)
+        {
+            return run;
+        }
+        else
+        {
+            throw new InvalidOperationException("A completed prospecting run cannot be cancelled.");
+        }
+        return await runs.UpdateAsync(run, cancellationToken);
     }
 
     private async Task<SysCrmProspectingStrategy> GetStrategyAsync(long id, CancellationToken cancellationToken)
