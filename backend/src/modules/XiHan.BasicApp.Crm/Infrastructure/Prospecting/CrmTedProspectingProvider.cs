@@ -49,6 +49,7 @@ public sealed class CrmTedProspectingProvider : ICrmProspectingProvider, IDispos
         var expertQuery = $"FT=({terms}) AND PD=({from} <> {to})";
         var records = new List<CrmProspectingRawRecord>();
         var warnings = new List<string>();
+        var isComplete = true;
 
         for (var page = 1; page <= MaxPages; page++)
         {
@@ -150,10 +151,16 @@ public sealed class CrmTedProspectingProvider : ICrmProspectingProvider, IDispos
             if (results.Value.GetArrayLength() < PageSize || (total.HasValue && page * PageSize >= total.Value))
                 break;
             if (page == MaxPages)
+            {
+                isComplete = false;
                 warnings.Add($"TED has additional matching notices; this adapter stopped after {MaxPages} pages ({MaxPages * PageSize} maximum notices).");
+            }
         }
 
-        return new CrmProspectingProviderResult(records, 0, warnings);
+        return new CrmProspectingProviderResult(records, 0, warnings)
+        {
+            IsComplete = isComplete
+        };
     }
 
     private static List<string> ExtractKeywords(CrmProspectingProviderRequest request)
