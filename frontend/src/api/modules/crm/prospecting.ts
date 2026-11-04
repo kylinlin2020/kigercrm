@@ -5,6 +5,7 @@ import type {
   CrmProspectingCampaignInputDto,
   CrmProspectingCandidateDto,
   CrmProspectingCandidateReviewDto,
+  CrmProspectingCandidateReviewDetailDto,
   CrmProspectingRunDto,
   CrmProspectingRunStartDto,
   CrmProspectingStrategyDecisionDto,
@@ -57,6 +58,9 @@ export const crmProspectingApi = {
   },
   candidates(runId: ApiId, status?: number) {
     return api.get<CrmProspectingCandidateDto[]>('GetRunCandidates', { runId, status })
+  },
+  candidateReviewDetail(candidateId: ApiId) {
+    return api.get<CrmProspectingCandidateReviewDetailDto>('GetCandidateReviewDetail', { candidateId })
   },
   reviewCandidate(input: CrmProspectingCandidateReviewDto) {
     return api.post<CrmProspectingCandidateDto, CrmProspectingCandidateReviewDto>('ReviewCandidate', input)
