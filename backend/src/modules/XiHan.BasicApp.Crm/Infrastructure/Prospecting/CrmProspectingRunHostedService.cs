@@ -141,6 +141,13 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             if (serialized.Length > 5_000_000)
                 throw new InvalidOperationException("Serialized provider output exceeds the 5 MB Run storage limit.");
 
+            var beforeCandidates = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+            if (beforeCandidates?.Status == CrmProspectingRunStatus.CancelRequested)
+            {
+                await runs.CompleteAsync(run.BasicId, serialized, raw.Count, failures, "Run cancelled before candidate normalization.", DateTimeOffset.UtcNow, cancellationToken);
+                return;
+            }
+
             var candidates = scope.ServiceProvider.GetRequiredService<ICrmProspectingCandidateRepository>();
             var leadRepository = scope.ServiceProvider.GetRequiredService<ICrmLeadRepository>();
             var existingCandidates = await candidates.GetListAsync(candidate => candidate.RunId == run.BasicId, cancellationToken);
@@ -148,10 +155,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 .Select(candidate => $"{candidate.ProviderCode}::{candidate.ExternalId}")
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var candidateCount = existingCandidates.Count;
+            var seenCandidateEmails = existingCandidates
+                .Where(candidate => !string.IsNullOrWhiteSpace(candidate.NormalizedEmail))
+                .Select(candidate => candidate.NormalizedEmail!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var seenCandidateWebsites = existingCandidates
+                .Where(candidate => !string.IsNullOrWhiteSpace(candidate.WebsiteHost))
+                .Select(candidate => candidate.WebsiteHost!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             foreach (var envelope in raw)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                var runState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+                if (runState?.Status == CrmProspectingRunStatus.CancelRequested) break;
                 var record = envelope.Record;
                 var providerCode = envelope.ProviderCode.Trim();
                 if (string.IsNullOrWhiteSpace(providerCode)) throw new InvalidOperationException("Provider code cannot be empty.");
@@ -182,6 +199,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 var matches = await leadRepository.GetListAsync(lead =>
                     (normalizedEmail != null && lead.DuplicateEmailNormalized == normalizedEmail)
                     || (websiteHost != null && lead.WebsiteHost == websiteHost), cancellationToken);
+                var candidateEmailDuplicate = normalizedEmail is not null && seenCandidateEmails.Contains(normalizedEmail);
+                var candidateWebsiteDuplicate = websiteHost is not null && seenCandidateWebsites.Contains(websiteHost);
                 var duplicate = matches
                     .Select(lead => new
                     {
@@ -211,17 +230,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     Website = website,
                     WebsiteHost = websiteHost,
                     Summary = string.IsNullOrWhiteSpace(summary) ? null : summary[..Math.Min(summary.Length, 5000)],
-                    Status = duplicate is null
+                    Status = duplicate is null && !candidateEmailDuplicate && !candidateWebsiteDuplicate
                         ? CrmProspectingCandidateStatus.PendingReview
                         : CrmProspectingCandidateStatus.Duplicate,
                     DuplicateLeadId = duplicate?.Lead.BasicId,
-                    DuplicateReason = duplicate is null
-                        ? null
-                        : duplicate.EmailMatch && duplicate.WebsiteMatch ? "Email and website match an existing lead"
+                    DuplicateReason = duplicate is not null
+                        ? duplicate.EmailMatch && duplicate.WebsiteMatch ? "Email and website match an existing lead"
                         : duplicate.EmailMatch ? "Email matches an existing lead" : "Website domain matches an existing lead"
+                        : candidateEmailDuplicate ? "Email matches another candidate in this run"
+                        : candidateWebsiteDuplicate ? "Website domain matches another candidate in this run" : null
                 };
                 await candidates.AddAsync(candidate, cancellationToken);
                 existingKeys.Add(key);
+                if (normalizedEmail is not null) seenCandidateEmails.Add(normalizedEmail);
+                if (websiteHost is not null) seenCandidateWebsites.Add(websiteHost);
                 candidateCount++;
             }
 
