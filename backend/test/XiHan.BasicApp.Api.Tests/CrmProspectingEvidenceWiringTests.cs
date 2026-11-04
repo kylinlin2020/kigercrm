@@ -20,7 +20,8 @@ public sealed class CrmProspectingEvidenceWiringTests
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.18", "5.9.18.sql");
         Assert.Contains("IF to_regclass('crm_prospecting_candidate') IS NOT NULL", migration, StringComparison.Ordinal);
         Assert.Contains("tenant_id bigint NOT NULL", migration, StringComparison.Ordinal);
-        Assert.Contains("FOREIGN KEY (candidate_id)", migration, StringComparison.Ordinal);
+        Assert.Contains("FOREIGN KEY (tenant_id, candidate_id)", migration, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_prosp_candidate_tenant_basic", migration, StringComparison.Ordinal);
         Assert.Contains("(tenant_id, candidate_id, field_name)", migration, StringComparison.Ordinal);
         Assert.Contains("(tenant_id, provider_code, retrieved_at_utc DESC)", migration, StringComparison.Ordinal);
     }
