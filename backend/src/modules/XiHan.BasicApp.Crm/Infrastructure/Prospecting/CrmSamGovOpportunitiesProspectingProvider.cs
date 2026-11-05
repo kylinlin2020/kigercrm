@@ -72,7 +72,7 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                 ["postedFrom"] = postedFrom.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
                 ["postedTo"] = postedTo.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
                 ["limit"] = PageSize.ToString(CultureInfo.InvariantCulture),
-                ["offset"] = (page * PageSize).ToString(CultureInfo.InvariantCulture),
+                ["offset"] = page.ToString(CultureInfo.InvariantCulture),
                 ["title"] = string.Join(' ', keywords.Take(3))
             };
             var builder = new UriBuilder(Endpoint)
@@ -146,11 +146,11 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                 });
             }
 
-            if (opportunities.GetArrayLength() < PageSize || processed >= totalRecords)
+            if (opportunities.GetArrayLength() < PageSize || (totalRecords > 0 && processed >= totalRecords))
                 break;
         }
 
-        var complete = processed >= totalRecords || processed < MaxPages * PageSize;
+        var complete = (totalRecords > 0 && processed >= totalRecords) || processed < MaxPages * PageSize;
         if (!complete)
             warnings.Add($"SAM.gov pagination stopped after {MaxPages} pages ({processed} records of {totalRecords}); coverage is incomplete.");
         if (records.Count == 0)
