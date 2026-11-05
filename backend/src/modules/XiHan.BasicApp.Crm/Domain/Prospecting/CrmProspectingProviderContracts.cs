@@ -54,6 +54,12 @@ public sealed record CrmProspectingProviderResult(
     public bool IsComplete { get; init; } = false;
 }
 
+/// <summary>Bounded normalized response stored in a durable provider execution checkpoint.</summary>
+public sealed record CrmProspectingProviderResultCheckpoint(
+    IReadOnlyList<CrmProspectingRawRecord> Records,
+    bool IsComplete,
+    int FailureCount);
+
 /// <summary>
 /// Search-provider boundary. Implementations must honor cancellation, treat provider output as untrusted
 /// data, and must not create or update CRM leads directly.
