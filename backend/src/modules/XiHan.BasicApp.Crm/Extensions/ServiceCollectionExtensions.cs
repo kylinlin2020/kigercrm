@@ -216,6 +216,19 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmHunterDiscoverProspectingProvider>());
         }
+        // FMCSA QCMobile is an official US carrier registry; its WebKey is tenant-encrypted.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFmcsaQcmobileProvider"], out var enableFmcsa)
+            && enableFmcsa)
+        {
+            services.AddScoped<CrmFmcsaQcmobileProspectingProvider>(provider => new CrmFmcsaQcmobileProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("mobile.fmcsa.dot.gov"))
+                {
+                    Timeout = TimeSpan.FromSeconds(25)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmFmcsaQcmobileProspectingProvider>());
+        }
         // NPPES is a public US healthcare registry. Restrict discovery to organization Type 2 records.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableNppesProvider"], out var enableNppes)
             && enableNppes)
