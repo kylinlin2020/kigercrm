@@ -14,7 +14,7 @@ public interface ICrmProspectingRunProviderExecutionRepository : ISaasRepository
     /// <summary>Starts one queued provider step only while the exact Run lease is live.</summary>
     Task<bool> TryStartAsync(long executionId, long runId, Guid leaseToken, long fencingVersion, CancellationToken cancellationToken = default);
 
-    /// <summary>Persists a bounded response checkpoint and transitions Started to Checkpointed in the caller's transaction.</summary>
+    /// <summary>Persists a bounded response checkpoint and transitions Started to Checkpointed in an owned transaction.</summary>
     Task<bool> TrySaveCheckpointAsync(long executionId, long runId, Guid leaseToken, long fencingVersion,
         string checkpointJson, int rawRecordCount, CancellationToken cancellationToken = default);
 
