@@ -228,6 +228,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         throw new InvalidOperationException(
                             $"Provider '{providerCode}' requires the asynchronous extraction worker, which is not yet wired to Run orchestration.");
 
+                    await MarkProviderStepSkippedAsync(scope.ServiceProvider, providerExecutions,
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                        "provider_not_registered", "Provider adapter is not registered.", cancellationToken);
                     failures++;
                     AddBoundedWarning(warnings, $"Provider is not registered: {providerCode}");
                     continue;
@@ -237,6 +240,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     providerCode, DateTimeOffset.UtcNow, cancellationToken);
                 if (cooldownUntil is DateTimeOffset activeCooldown)
                 {
+                    await MarkProviderStepSkippedAsync(scope.ServiceProvider, providerExecutions,
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                        "provider_cooldown", "Provider cooldown was active; this Run did not issue a request.", cancellationToken);
                     failures++;
                     AddBoundedWarning(warnings,
                         $"{providerCode}: provider cooldown is active until {activeCooldown:O}; request was skipped.");
@@ -1284,6 +1290,31 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         return true;
     }
 
+
+
+    private static async Task MarkProviderStepSkippedAsync(
+        IServiceProvider serviceProvider,
+        ICrmProspectingRunProviderExecutionRepository repository,
+        long executionId,
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        string failureCode,
+        string safeFailureSummary,
+        CancellationToken cancellationToken)
+    {
+        using var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWorkManager>()
+            .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+        if (!await repository.TryTransitionAsync(
+            executionId, runId, leaseToken, fencingVersion,
+            "Queued", "Skipped",
+            failureCount: 1,
+            failureCode: failureCode,
+            safeFailureSummary: safeFailureSummary,
+            cancellationToken: cancellationToken))
+            throw new InvalidOperationException("The skipped provider execution step could not be finalized under the live Run lease.");
+        await unitOfWork.CompleteAsync(cancellationToken);
+    }
 
 
     private static async Task MarkProviderStepFailedAsync(
