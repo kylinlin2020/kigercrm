@@ -38,6 +38,21 @@ public sealed class CrmProspectingExtractionStateMachineTests
         => Assert.Equal(expected, CrmProspectingExtractionStateMachine.CanCompleteResults(
             CrmProspectingExtractionStatus.FetchingResults, isLastPage, isComplete, failureCount));
 
+    [Theory]
+    [InlineData(CrmProspectingExtractionStatus.Submitting, false)]
+    [InlineData(CrmProspectingExtractionStatus.NeedsReview, false)]
+    [InlineData(CrmProspectingExtractionStatus.Pending, true)]
+    [InlineData(CrmProspectingExtractionStatus.Running, true)]
+    [InlineData(CrmProspectingExtractionStatus.Succeeded, true)]
+    [InlineData(CrmProspectingExtractionStatus.FetchingResults, true)]
+    [InlineData(CrmProspectingExtractionStatus.Completed, true)]
+    [InlineData(CrmProspectingExtractionStatus.Failed, false)]
+    [InlineData(CrmProspectingExtractionStatus.Expired, false)]
+    [InlineData(CrmProspectingExtractionStatus.Cancelled, false)]
+    public void RequiresProviderExtractionId_ShouldMatchRemoteLifecycleStates(
+        CrmProspectingExtractionStatus status, bool expected)
+        => Assert.Equal(expected, CrmProspectingExtractionStateMachine.RequiresProviderExtractionId(status));
+
     [Fact]
     public void CanCompleteResults_ShouldRejectCompletionBeforeResultFetching()
         => Assert.False(CrmProspectingExtractionStateMachine.CanCompleteResults(
