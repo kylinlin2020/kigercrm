@@ -616,3 +616,16 @@ Added a narrow recovery guard to the synchronous Run worker:
 - Contract tests now assert the recovery API, state allow-list, worker guard, and no-reinvocation behavior.
 
 This is deliberately conservative and is not the finished checkpoint protocol. A normally completed provider invocation still does not yet atomically checkpoint its response, project Candidate/Evidence/Score, and mark the step Succeeded. The full response-replay and projection transaction remain outstanding; do not interpret NeedsReview reconciliation as successful recovery or as proof that every provider execution row reaches a terminal success state. Build/tests and PostgreSQL concurrency acceptance remain unrun.
+
+
+## 11.39 Bounded provider response checkpoint and replay path (2026-11-05)
+
+The synchronous Run worker now uses the provider-execution checkpoint table in its live response path:
+
+1. After a synchronous provider returns, the worker creates a normalized checkpoint DTO containing records, completion flag, and provider failure count. It does not persist arbitrary raw HTTP bodies or provider warning text.
+2. The checkpoint is bounded to 1 MiB UTF-8. Records are filtered against the existing per-record and per-Run retention limits before persistence; omitted records are counted as failures. An oversized serialized checkpoint is not silently discarded: the request ledger is finalized as failed and the execution step moves to NeedsReview.
+3. TrySaveCheckpointAsync now owns its transaction. The update locks and validates the exact live tenant-scoped Run lease, stores the JSON, byte count and server-computed SHA-256, and changes Started -> Checkpointed atomically.
+4. On redelivery, Checkpointed and Projecting rows are replayed from persisted JSON only after verifying the stored byte count, SHA-256 and record count. The worker does not call the provider again for those states. Replayed records are rechecked against per-record and per-Run limits.
+5. Candidate/Evidence/Score projection uses the existing idempotent candidate identity and provenance-repair path. After projection, the worker advances Checkpointed -> Projecting -> Succeeded, or to Failed for incomplete/partial provider output. The state transition is fenced and transactional; a crash before that transition leaves the checkpoint available for another idempotent projection pass.
+
+**Remaining atomicity boundary:** candidate/evidence/score writes are currently committed by their existing persistence units before the provider-step terminal transition. They are idempotent and replayable, but are not yet committed in the same database transaction as Projecting -> Succeeded. The next hardening step is to make the projection batch and terminal step transition share a single transaction (or a durable per-record outbox protocol). Provider request-ledger coverage also remains a separate post-projection operation. These code changes have not yet been compiled or run against PostgreSQL; the acceptance suite and Windows real-machine build remain pending.
