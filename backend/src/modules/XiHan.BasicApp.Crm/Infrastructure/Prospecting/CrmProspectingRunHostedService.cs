@@ -102,12 +102,12 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             leaseHeartbeatTask = RunLeaseHeartbeatAsync(
                 message.TenantId, run.BasicId, leaseToken, activeFencingVersion, leaseHeartbeatCts);
 
-            // Provider implementations are extension points; ignore malformed registrations
-            // rather than letting a null/blank/oversized key crash the entire Run before dispatch.
-            var providers = scope.ServiceProvider.GetServices<ICrmProspectingProvider>()
-                .Where(provider => !string.IsNullOrWhiteSpace(provider.ProviderCode) && provider.ProviderCode.Trim().Length <= 80)
-                .GroupBy(provider => provider.ProviderCode.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            // Provider codes are global identities across capability contracts. Never silently
+            // choose the first registration: a sync/async collision could route a Run to the wrong adapter.
+            var providerRegistry = CrmProspectingProviderRegistry.Create(
+                scope.ServiceProvider.GetServices<ICrmProspectingProvider>(),
+                scope.ServiceProvider.GetServices<ICrmProspectingAsyncExtractionProvider>());
+            var providers = providerRegistry.Synchronous;
             var plan = ParseStringArray(run.SnapshotProviderPlanJson, "provider plan");
             if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
             var excludedDomains = ParseStringArray(run.SnapshotExcludedDomainsJson, "excluded domains", allowNull: true);
