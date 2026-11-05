@@ -117,3 +117,71 @@ Unknown provider status is not success: retain a safe Unknown/NeedsReview state,
 6. Keep Comext disabled by default until PostgreSQL, restart recovery, tenant isolation, and official API smoke tests pass.
 
 This document is an architecture baseline, not evidence that the async extraction implementation or Comext adapter has been completed.
+
+
+## 11. Current implementation checkpoint (2026-11-05)
+
+The following foundation is present on `kiger-dev`:
+
+- Backward-compatible `ICrmProspectingAsyncExtractionProvider` contract and separate remote/local status enums.
+- Local extraction state machine and status mapper; unknown numeric remote states map to `NeedsReview`.
+- Tenant-scoped extraction job entity, repository, DI/entity registration, and PostgreSQL migration `5.9.33`.
+- Due-job claim uses `FOR UPDATE SKIP LOCKED`, database-clock leases, UUID lease tokens, and monotonically increasing fencing versions.
+- Status transitions and cursor advancement require the exact lease token/version and a still-live database-clock lease.
+- Page validator bounds record count, cursor length, record field sizes, serialized page size, duplicate external IDs, source URLs, and final-page completeness.
+- Unit/contract test sources cover state transitions, status mapping, page validation, and persistence contracts; they have not yet been executed in a .NET build/test environment.
+
+The following end-to-end pieces are **not implemented**:
+
+- No production async provider currently exercises the capability interface.
+- The existing `CrmProspectingRunHostedService` still dispatches only `ICrmProspectingProvider.SearchAsync`; it does not submit, poll, or fetch async extraction jobs.
+- No due-extraction scheduler/consumer is registered to claim and process extraction jobs.
+- No extraction-page adapter persists page records into Candidate/Evidence/Score.
+- No atomic transaction currently combines Candidate/Evidence/Score writes with extraction cursor advancement.
+- No extraction completion path atomically links full durable result persistence to provider request-ledger finalization and Coverage.
+- Comext adapter remains pending.
+
+### 11.1 Required correction before worker integration: durable submission intent
+
+The current job repository's `CreateAsync` accepts a non-empty remote `ProviderExtractionId`. Calling it only after the remote Submit response leaves a crash/timeout ambiguity: the provider may have accepted the request while the local database has no job row. A blind retry can create duplicate remote work.
+
+Do not wire Submit directly to the current `CreateAsync` method. Before enabling async providers, evolve the local lifecycle to include a durable pre-submit intent:
+
+1. Create a tenant/run/provider/fingerprint row in a local `Submitting` state before network I/O. The remote extraction ID must be nullable while submission is unresolved.
+2. Give each intent a stable submission idempotency token derived from the persisted local job identity (not from secrets or mutable timestamps).
+3. Extend the provider Submit contract to accept that token. Providers that support idempotency must send it using the provider's documented idempotency mechanism.
+4. Persist the remote ID and accepted timestamps with a conditional transition tied to the local job lease/token/version.
+5. If a timeout occurs and the provider does not support idempotent submission or lookup by client token, transition to `NeedsReview` rather than automatically submitting again. Exactly-once remote submission cannot be guaranteed by local SQL alone.
+6. Add unique-key race tests and crash-window tests for: before Submit, after provider acceptance but before local acknowledgement, and after acknowledgement persistence.
+
+The migration must permit a null remote ID only for pre-acknowledgement states and enforce a non-empty remote ID for poll/fetch states. Status constraints, repository methods, and entity metadata must be changed together.
+
+### 11.2 Worker integration boundary
+
+Do not add a second global poller that has no tenant enumeration mechanism. The current Run worker already establishes tenant context and owns the Run lease. The first safe integration should be Run-scoped:
+
+- The Run worker detects async-capable providers explicitly; it must not cast or infer async behavior from provider names.
+- The async coordinator receives the already-established tenant scope, Run ID, Run lease token/version, request fingerprint, and immutable request snapshot.
+- Remote polling must never hold a database transaction open.
+- Each page persistence transaction must lock/validate the live Run lease and extraction-job lease, insert/reconcile Candidate/Evidence/Score, and compare-and-swap the cursor before commit.
+- Page replay after a crash must be idempotent by Candidate identity and Evidence identity.
+- Provider request-ledger attempts must distinguish one logical extraction submission from poll/page transport attempts; polling must not create a new coverage success.
+- The Run cannot transition to Succeeded while any required async extraction remains Pending, Running, Succeeded-but-not-fetched, or FetchingResults.
+- Cancellation and expiry must leave Coverage unchanged. The final Coverage update must occur only after all async extraction pages and existing synchronous provider results have been durably reconciled.
+
+A later multi-tenant background extraction scheduler may be introduced only after a safe tenant enumeration/dispatch mechanism is identified and tested. Until then, do not run tenant-scoped repository calls from an unscoped global hosted service.
+
+### 11.3 Acceptance gate
+
+The async runtime remains disabled by default until all of the following are demonstrated:
+
+- A registered async provider completes Submit → Poll → Fetch across multiple pages.
+- Local submission intent prevents duplicate remote submissions or safely parks ambiguous submissions in NeedsReview.
+- Run and extraction leases both fence stale workers, including after lease expiry but before another worker claims the row.
+- Candidate/Evidence/Score persistence and cursor advancement are one transaction.
+- A crash at every page boundary replays safely without lost records or duplicate evidence.
+- Coverage and Run completion remain blocked for incomplete, failed, expired, cancelled, truncated, or NeedsReview jobs.
+- Tenant-isolation, PostgreSQL concurrency, restart-recovery, migration, and provider live-smoke acceptance tests pass.
+- A real .NET build/test and PostgreSQL integration run have been recorded; static code review alone is not acceptance.
+
+Until these gates pass, the async capability and persistence foundation must be described as **partial implementation**, not completed runtime parity.
