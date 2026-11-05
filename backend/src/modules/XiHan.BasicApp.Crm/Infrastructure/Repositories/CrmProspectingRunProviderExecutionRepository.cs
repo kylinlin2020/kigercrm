@@ -33,6 +33,124 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<SysCrmProspectingRunProviderExecution>> EnsurePlanMaterializedAsync(
+        long runId, Guid leaseToken, long fencingVersion, CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Run lease token is required.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        cancellationToken.ThrowIfCancellationRequested();
+        var (client, tenantId) = GetPostgresTenant();
+        if (client.Ado.Transaction is not null)
+            throw new InvalidOperationException("Plan materialization owns its transaction and cannot run inside another transaction.");
+
+        const string lockRunSql = """
+            SELECT run.*
+            FROM crm_prospecting_run AS run
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @runningStatus
+              AND run.lease_token = @leaseToken
+              AND run.fencing_version = @fencingVersion
+              AND run.lease_expires_at > clock_timestamp()
+            FOR UPDATE;
+            """;
+
+        client.Ado.BeginTran();
+        try
+        {
+            var runs = await client.Ado.SqlQueryAsync<SysCrmProspectingRun>(lockRunSql,
+                new SugarParameter("@tenantId", tenantId),
+                new SugarParameter("@runId", runId),
+                new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
+                new SugarParameter("@leaseToken", leaseToken),
+                new SugarParameter("@fencingVersion", fencingVersion));
+            var run = runs.SingleOrDefault()
+                ?? throw new InvalidOperationException("The exact live Run lease is required to materialize its provider plan.");
+            if (run.StrategyVersion <= 0 || string.IsNullOrWhiteSpace(run.PayloadHash)
+                || run.PayloadHash.Length != 64 || !run.PayloadHash.All(Uri.IsHexDigit))
+                throw new InvalidOperationException("The Run snapshot does not contain a valid immutable strategy version and payload hash.");
+
+            using var document = JsonDocument.Parse(run.SnapshotProviderPlanJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+                throw new InvalidOperationException("The immutable provider plan snapshot must be a JSON array.");
+            var providers = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in document.RootElement.EnumerateArray())
+            {
+                if (entry.ValueKind != JsonValueKind.String)
+                    throw new InvalidOperationException("Every immutable provider plan entry must be a string.");
+                var code = entry.GetString()?.Trim();
+                if (string.IsNullOrWhiteSpace(code) || code.Length > 80 || code.Any(char.IsControl))
+                    throw new InvalidOperationException("The immutable provider plan contains an invalid provider code.");
+                if (!seen.Add(code))
+                    throw new InvalidOperationException("The immutable provider plan contains duplicate provider codes.");
+                providers.Add(code.ToLowerInvariant());
+                if (providers.Count > 32)
+                    throw new InvalidOperationException("The immutable provider plan exceeds the 32-provider execution limit.");
+            }
+            if (providers.Count == 0)
+                throw new InvalidOperationException("The immutable provider plan cannot be empty.");
+
+            var existing = await CreateQueryable()
+                .Where(row => row.TenantId == tenantId && row.RunId == runId && row.PlanVersion == run.StrategyVersion)
+                .OrderBy(row => row.PlanOrdinal)
+                .ToListAsync(cancellationToken);
+            if (existing.Count > 0)
+            {
+                if (existing.Count != providers.Count)
+                    throw new InvalidOperationException("A partially materialized provider plan was found; refusing to mutate an immutable plan.");
+                for (var ordinal = 0; ordinal < providers.Count; ordinal++)
+                {
+                    var expectedFingerprint = CreatePlanFingerprint(run.PayloadHash, run.StrategyVersion, providers[ordinal]);
+                    var row = existing[ordinal];
+                    if (row.PlanOrdinal != ordinal || !string.Equals(row.ProviderCode, providers[ordinal], StringComparison.Ordinal)
+                        || !string.Equals(row.RequestFingerprint, expectedFingerprint, StringComparison.Ordinal))
+                        throw new InvalidOperationException("Persisted provider execution rows do not match the immutable Run snapshot.");
+                }
+                client.Ado.CommitTran();
+                return existing;
+            }
+
+            var materialized = new List<SysCrmProspectingRunProviderExecution>(providers.Count);
+            for (var ordinal = 0; ordinal < providers.Count; ordinal++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var code = providers[ordinal];
+                var row = new SysCrmProspectingRunProviderExecution
+                {
+                    TenantId = tenantId,
+                    RunId = runId,
+                    PlanVersion = run.StrategyVersion,
+                    PlanOrdinal = ordinal,
+                    ProviderCode = code,
+                    RequestFingerprint = CreatePlanFingerprint(run.PayloadHash, run.StrategyVersion, code),
+                    State = "Queued",
+                    AttemptCount = 0,
+                    CheckpointBytes = 0,
+                    RawRecordCount = 0,
+                    ProjectedRecordCount = 0,
+                    FailureCount = 0
+                };
+                await AddAsync(row, cancellationToken);
+                materialized.Add(row);
+            }
+            client.Ado.CommitTran();
+            return materialized;
+        }
+        catch
+        {
+            client.Ado.RollbackTran();
+            throw;
+        }
+    }
+
+    private static string CreatePlanFingerprint(string payloadHash, int planVersion, string providerCode)
+    {
+        var canonical = $"kiger-provider-plan-v1\\n{payloadHash.ToUpperInvariant()}\\n{planVersion}\\n{providerCode}";
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
     public async Task<bool> TryStartAsync(
         long executionId, long runId, Guid leaseToken, long fencingVersion,
         CancellationToken cancellationToken = default)
