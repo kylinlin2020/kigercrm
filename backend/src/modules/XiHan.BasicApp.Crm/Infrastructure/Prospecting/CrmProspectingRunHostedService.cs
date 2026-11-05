@@ -516,53 +516,20 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     isDuplicate,
                     duplicate?.Lead.BasicId,
                     duplicateReason);
-                // The background worker is not an HTTP request and must not rely on MVC/AOP
-                // UnitOfWork interception. Use an explicit short transaction for the candidate
-                // and its provenance rows; provider network calls stay outside this transaction.
+                // Candidate/Evidence/Score persistence is shared with the future async page reconciler.
                 SysCrmProspectingCandidate insertedCandidate;
                 var candidateWasInserted = true;
                 try
                 {
-                    using (var unitOfWork = scope.ServiceProvider
-                        .GetRequiredService<IUnitOfWorkManager>()
-                        .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true))
-                    {
-                        if (!await runs.TryLockLeaseForWriteAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
-                            throw new InvalidOperationException("The Run lease expired or was superseded before Candidate/Evidence/Score persistence.");
-                        insertedCandidate = await candidates.AddAsync(candidate, cancellationToken);
-                        var evidenceRows = CrmProspectingEvidenceFactory.Create(
-                            insertedCandidate.BasicId,
+                    insertedCandidate = await scope.ServiceProvider
+                        .GetRequiredService<CrmProspectingCandidatePersistenceService>()
+                        .PersistNewAsync(
+                            candidate,
                             envelope,
-                            DateTimeOffset.UtcNow);
-                        if (evidenceRows.Count > 0)
-                        {
-                            await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken);
-                        }
-
-                        // Persist a conservative, explainable score snapshot in the same transaction
-                        // as Candidate and Evidence. Unknown procurement/product/market facts remain
-                        // false; the scorecard therefore keeps unverified prospects on Hold.
-                        var evaluatedAtUtc = DateTimeOffset.UtcNow;
-                        var scoreInput = new CrmProspectingScoreInput(
-                            HasVerifiableOrganization: false,
-                            HasDirectProcurementSignal: false,
-                            HasDirectProductFit: false,
-                            HasTargetMarketFit: false,
-                            PublishedAtUtc: record.PublishedAtUtc?.ToUniversalTime(),
-                            HasTraceablePrimaryEvidence: evidenceRows.Any(evidence =>
-                                (evidence.EvidenceType is "direct" or "registry") &&
-                                evidence.VerificationStatus == "unverified" &&
-                                !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
-                            HasPublicBusinessContact: !string.IsNullOrWhiteSpace(email),
-                            IsKnownDuplicate: candidate.Status == CrmProspectingCandidateStatus.Duplicate,
-                            IsRestrictedOrUnsafeSource: false);
-                        var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
-                        var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult, evidenceRows, BuildInitialScoreIdempotencyKey(insertedCandidate.BasicId, scoreResult.ScorecardVersion));
-                        await scope.ServiceProvider.GetRequiredService<ICrmProspectingScoreRepository>()
-                            .AddAsync(scoreSnapshot, cancellationToken);
-
-                        await unitOfWork.CompleteAsync(cancellationToken);
-                    }
+                            leaseToken,
+                            activeFencingVersion,
+                            DateTimeOffset.UtcNow,
+                            cancellationToken);
                 }
                 catch (Exception ex) when (IsCandidateIdentityUniqueViolation(ex))
                 {
