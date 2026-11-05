@@ -444,3 +444,13 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - `fmcsa_qcmobile`：美国 FMCSA QCMobile 承运商查询，固定 host `mobile.fmcsa.dot.gov`、固定 carrier-name path，WebKey 放在 query 参数，返回 USDOT、法定名称、运营状态、地址和电话/邮箱；源端按单次查询结果截断，无 cursor 分页。目标端需确保 WebKey query 永不进入日志/异常摘要。
 
 目标端目前仍未迁移这两个适配器。先前的“在 lead-providers.ts 未发现 DENUE/FMCSA”只代表单文件搜索无匹配，不能作为源端不存在的证据；该结论现由本节纠正。两个 Provider 仍需分别完成固定端点安全、Key 输入与租户加密、分页/coverage 语义、429/503 cooldown、脱敏测试、独立 adapter tests、DI opt-in 与默认关闭配置。
+
+
+### 5.9 FMCSA QCMobile 目标端首版适配（2026-11-05）
+
+- 新增 `CrmFmcsaQcmobileProspectingProvider`，固定官方 host `mobile.fmcsa.dot.gov` 和 carrier-name API path；使用 `CrmProspectingHttpHandlerFactory` 固定 Host、禁自动重定向。
+- 从当前租户加密配置 `CRM.Prospecting.Provider.fmcsa_qcmobile.WebKey` 读取 WebKey；保留前端 WebKey 输入入口，不在配置读取结果中回显密钥。
+- 只在目标市场明确包含美国时查询；结果最多处理 100 条，超过上限标记 `IsComplete=false`，不把截断结果误报为完整 coverage。
+- 4 MB 响应上限；429/503 走限流 cooldown；异常摘要不拼接请求 URI；诊断脱敏器新增 `webKey` 名称识别。
+- DI 显式 opt-in，appsettings 默认关闭；新增源码接线/安全回归检查和 WebKey 脱敏测试。
+- **尚未完成：**该 Provider 尚未执行编译、单测或真实 FMCSA API 冒烟；Key 有效性、FMCSA 套餐/权限、字段质量、服务端分页边界仍需账号级验收。首版不是完整承运商数据库同步，不允许据此推断全美承运商覆盖。
