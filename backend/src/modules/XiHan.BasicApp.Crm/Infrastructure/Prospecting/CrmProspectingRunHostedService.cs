@@ -110,6 +110,22 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var providers = providerRegistry.Synchronous;
             var plan = ParseStringArray(run.SnapshotProviderPlanJson, "provider plan");
             if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
+
+            // Preflight the complete immutable provider plan before any adapter can perform
+            // network I/O or create request-ledger attempts. Async-only adapters are deliberately
+            // unsupported by this Run worker until durable Run continuation and an extraction
+            // consumer are wired; detecting them inside the execution loop could leave earlier
+            // synchronous providers externally called while their in-memory results are discarded.
+            var unsupportedAsyncProviders = plan
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(providerCode =>
+                    !providers.ContainsKey(providerCode) &&
+                    providerRegistry.Asynchronous.ContainsKey(providerCode))
+                .ToArray();
+            if (unsupportedAsyncProviders.Length > 0)
+                throw new InvalidOperationException(
+                    $"The Run plan contains asynchronous providers that are not yet supported by durable Run orchestration: {string.Join(", ", unsupportedAsyncProviders)}.");
+
             var excludedDomains = ParseStringArray(run.SnapshotExcludedDomainsJson, "excluded domains", allowNull: true);
             var raw = new List<CrmProspectingRawEnvelope>();
             // Do not advance incremental coverage while provider records are only in memory.
