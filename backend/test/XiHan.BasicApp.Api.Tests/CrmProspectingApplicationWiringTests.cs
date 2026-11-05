@@ -500,4 +500,22 @@ public sealed class CrmProspectingApplicationWiringTests
 
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
+
+    [Fact]
+    public void OpenFda510kProvider_ShouldBeTenantScopedOptInAndMedicalOnly()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmOpenFda510kProspectingProvider.cs");
+        var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
+
+        Assert.Contains("EnableOpenFda510kProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmOpenFda510kProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("api.fda.gov", registration, StringComparison.Ordinal);
+        Assert.Contains("ISaasConfigurationService", registration, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.open_fda_510k.ApiKey", provider, StringComparison.Ordinal);
+        Assert.Contains("medical_device_regulatory_record", provider, StringComparison.Ordinal);
+        Assert.Contains("IsMedicalDeviceCampaign", provider, StringComparison.Ordinal);
+        Assert.Contains("open_fda_510k", frontend, StringComparison.Ordinal);
+        Assert.Contains("isEncrypted: true", frontend, StringComparison.Ordinal);
+    }
 }
