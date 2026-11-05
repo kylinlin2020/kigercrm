@@ -86,9 +86,9 @@
 
 | 源项目来源 | 类别 / 认证 | 目标状态 | 后续工作 |
 |---|---|---|---|
-| Apollo.io | 商业企业/联系人数据；需 Key/付费 | 未迁移 | 默认关闭；租户自带 Key；成本、额度、隐私和字段来源 |
-| People Data Labs（PDL） | 商业企业/人员数据；需 Key/付费 | 未迁移 | 默认关闭；匹配置信度、成本和个人数据合规 |
-| Hunter.io | 域名邮箱发现/验证；需 Key/额度 | 未迁移 | 只作为补全证据；不得自动发送邮件；验证状态需单独保存 |
+| Apollo.io | 商业企业/联系人数据；需 Key/付费 | 暂缓接入（API 内部使用许可门槛） | API Terms 当前可见版本（2024-08-13）仅授予 internal business purposes，禁止第三方访问、转授权/分发或未获授权集成；Apollo 2026 ToS 允许订阅期内把 Business Contact Information 纳入自有 CRM/工作流，但仍限内部业务使用且禁止向第三方提供数据/API。只有确认该部署仅供本企业授权员工/承包商内部使用、无外部客户访问/转售/数据共享，并核对当前订单/主服务协议与 API 条款一致后，才可开发并启用；否则须先取得书面许可。默认关闭，Key 必须租户加密保存，严格额度/成本预算。
+| People Data Labs（PDL） | 商业企业/人员数据；需 Key/付费 | 暂缓接入（数据再提供/终端用户访问许可门槛） | PDL Subscription Agreement 禁止转售、再许可或使第三方获得 Data；禁止构建可让 End Users 程序化访问实质性 PDL 数据集/功能的竞争产品，并对 Solution Provider 规定下游条款传递义务。仅在确认本部署为本企业内部 CRM、无外部终端用户访问/数据再分发，并取得适用订阅计划及 Acceptable Data Use Policy 的书面确认后评估；否则须签订明确授权的 Solution Provider/数据许可协议。默认关闭。
+| Hunter.io | 域名邮箱发现/验证；需 Key/额度 | 已完成条款初审，待适配器 | 2026-08 Content Policy 明确允许合法 B2B prospecting、专业身份联系及 CRM enrichment；禁止垃圾邮件、无相关性的自动群发、B2C 联系和未经书面授权的数据转售/第三方披露。可优先实现 Domain Search/Email Finder/Verifier 的受控补全；必须保留 public/inferred email 类型、来源 URL、crawl/verification 时间与置信信息，支持退订/抑制名单、数据最小化和删除；不自动发送邮件。API Key 租户加密、按套餐 credits/rate limit 设预算。上线前仍需核对用户实际套餐条款及适用地区法律。
 
 ### F. AI 辅助搜索与人工辅助入口
 
@@ -297,3 +297,28 @@
 - 当前源码与测试待运行验收；尚未执行 .NET build/test 或真实 NPPES API 冒烟。
 
 Google Places 的接口和数据政策边界也已再次核验：官方政策明确 Place ID 可长期保存，但其他 Places 内容受缓存/存储限制。当前 CRM Provider 会持久化搜索结果，因此先不接入该来源，避免把名称、地址等受限内容写入 CRM。若未来实现 Place ID-only 存储 + 按需实时展示（并提供要求的 Google attribution/Terms/Privacy），再评估启用。
+
+
+## 6. 商业数据源许可决策记录（2026-11-05）
+
+本项目的 CRM 具备多租户能力，但这不代表可以默认把供应商数据作为可供任意租户/外部客户访问的数据服务。商业数据源统一按“谁持有订阅、谁能访问数据、数据是否对第三方可见、是否允许写入 CRM、是否允许长期保留/导出”五项核验。
+
+### Apollo.io
+- API Terms 页面当前标注版本日期 2024-08-13，API License 限于 internal business purposes；禁止第三方访问、转授权/分发和未授权集成。
+- Apollo 2026 Terms of Service 对订阅期间导入自有 CRM/系统/工作流的 Business Contact Information 给予 internal business purposes 范围内的持续使用许可；但仍禁止向第三方提供 Contributor Database 或服务数据。
+- 实施门槛：只有单一企业内部部署、授权员工/承包商访问、无外部客户/租户使用、无数据再销售或共享，并且 API Terms、当前订单/主服务协议均覆盖该用途，才可考虑适配器；否则先取得 Apollo 书面许可。不可把“前端有 Key 输入框”当作已获许可。
+
+### People Data Labs
+- PDL Subscription Agreement/Acceptable Data Use Policy 对 Data 再销售、再许可、向 End Users 暴露实质性数据集/功能有严格限制；Solution Provider 可能需要向下游合同传递同等限制。
+- 实施门槛：先确认仅限本企业内部 CRM 的使用范围和订阅权限；任何多租户外部客户访问、数据导出/转供均需 PDL 明确书面许可及相应合同。未确认前不开发、不调用。
+
+### Hunter.io
+- Hunter 2026-08 Content Policy 明确允许正当 B2B prospecting、专业身份联系和 CRM enrichment；同时明确禁止垃圾邮件、无相关性的自动群发、B2C 联系及未经书面授权的第三方转售/披露。
+- 可作为下一批优先 Provider，但只实现专业域名发现/邮箱补全/验证，不自动外联；需保留来源、email 类型（public/inferred）、验证时间和抑制名单状态；数据最小化，按实际套餐的 credits/rate limit 限制调用。
+
+### 共同安全与产品约束
+- 所有商业来源默认关闭；API Key 只从当前租户加密配置读取，不回显、不写日志。
+- 每次调用前校验来源开关、当前租户凭证、地区/用途条件和预算；不能把缺少凭证当作静默成功。
+- 不将供应商个人联系人数据用于 AI 模型训练；不得把供应商数据向未授权租户或外部客户开放。
+- 外发邮件和网站发布继续要求人工审批；供应商邮箱验证成功不等于获得发送许可。
+- 许可未通过时，保留来源台账和前端凭证入口可以，但 Provider 必须不存在或保持不可执行状态。
