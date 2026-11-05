@@ -74,8 +74,8 @@
 
 | 源项目来源 | 类别 / 覆盖 | 目标状态 | 后续工作 |
 |---|---|---|---|
-| UN Comtrade | 官方国际商品贸易统计 | 未迁移 | API 配额、Reporter/Partner/HS/Flow/Period、聚合数据限制 |
-| US Census International Trade | 美国官方进出口统计 | 未迁移 | API Key/额度、HS 分类与地区维度 |
+| UN Comtrade | 官方国际商品贸易统计 | 已实现待验收 | 已新增公开预览（无 Key，最多 500 行）与订阅 Key 数据 API 两种模式；按目标市场 Reporter 取数，结果标记为聚合贸易信号，不视为具体进口商；需验证配额、分类与月份覆盖 |
+| US Census International Trade | 美国官方进出口统计 | 已实现待验收 | 已新增 HS2 出口贸易统计适配器，Key 必填，默认关闭；当前从受保护部署配置读取 Key，租户凭证面板到后台 Worker 的动态读取链路尚未接通；需验收变量/分类/时间覆盖 |
 | Eurostat Comext | 欧盟官方商品贸易统计 | 未迁移 | 数据集版本、Reporter/Partner/商品编码和修订 |
 | China Customs Statistics | 中国海关统计入口 | 需拆分确认 | 核验接口可用性、许可、数据粒度及是否聚合统计 |
 | ImportYeti | 美国提单/进口商发现 | 需拆分确认 | 确认是否有正式 API、许可和自动化访问边界；禁止绕过访问控制 |
@@ -108,6 +108,8 @@
 - `uk_contracts_finder`
 - `eu_ted`
 - `gleif`（身份解析/补充，不应错误计作通用搜客来源）\n- `world_bank_procurement`（新增；公开采购公告适配器，单页 bounded fetch，存在后续页时标记不完整）\n- `brazil_pncp`（新增；巴西官方采购 API，最多 5 页 bounded fetch）\n- `singapore_gebiz`（新增；新加坡政府授标开放数据集，最多 5 页 bounded fetch）
+- `un_comtrade`（新增；公开预览无 Key，或使用订阅 Key 的官方贸易统计 API）
+- `us_census_trade`（新增；需要 Census API Key，当前只从受保护部署配置读取）
 
 它们均为**已实现待验收**，不是“运行已通过”。Fake Provider 不计入真实来源数量。
 
@@ -142,6 +144,14 @@
 - 修改时留空表示不覆盖；提供显式清除动作。
 - 新建凭证配置默认 Disabled；保存凭证不等于启用 Provider，不会自动触发外部调用。
 - 该面板完成的是安全录入与密文存储入口。各 Provider 从租户/系统配置动态取密钥、凭证轮换后热更新以及租户隔离读取，仍需逐项接入并测试；在此之前不能把“前端已可录入”计作“数据源已可运行”。
+
+
+
+### 本轮新增贸易数据源接入说明
+
+- UN Comtrade：`EnableUnComtradeProvider` 显式开启；无 Key 时调用官方 public preview（500 行上限），提供订阅 Key 时切换到 `/data/v1/get`。目标市场只支持适配器内明确映射的 M49 Reporter 国家；不支持的国家返回清晰 warning，不猜测代码。
+- US Census：`EnableUsCensusTradeProvider` 与 API Key 同时满足才注册；默认关闭。Key 从部署配置 `XiHan:CRM:Prospecting:Providers:UsCensus:ApiKey` 读取，必须通过环境变量/密钥管理系统注入，不能提交真实 Key。
+- **租户凭证链路尚未完成：**前端已将 Key 保存为租户级加密配置，但当前后台 Worker 的 Provider 构造尚未按 Run 的 Tenant Scope 读取该配置。本轮没有假称这两个 Provider 已可从前端 Key 直接运行。后续 P0 任务是将加密凭证解析接入 Worker 的 tenant-scope 执行边界，并在不把 Key 写入日志、请求账本或原始结果的前提下做运行时解析。
 
 ## 5. 业务与安全边界
 
