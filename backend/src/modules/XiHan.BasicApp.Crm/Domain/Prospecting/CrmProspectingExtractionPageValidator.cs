@@ -128,7 +128,7 @@ public static class CrmProspectingExtractionPageValidator
     {
         if (!TryValidate(page, out _)) return false;
         if (page.IsLastPage)
-            return page.IsComplete && page.FailureCount == 0;
+            return page.IsComplete;
         return !string.IsNullOrWhiteSpace(page.NextCursor)
             && !string.Equals(currentCursor, page.NextCursor, StringComparison.Ordinal);
     }
