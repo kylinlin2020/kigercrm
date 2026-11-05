@@ -718,4 +718,27 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("web[_-]?key", sanitizer, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void MexicoDenueProvider_ShouldBeOptInTenantKeyedAndPathSecretSafe()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmMexicoDenueProspectingProvider.cs");
+        var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
+        var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
+        var sanitizer = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingDiagnosticSanitizer.cs");
+        Assert.Contains("EnableMexicoDenueProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableMexicoDenueProvider\": false", settings, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.mexico_denue.ApiKey", provider, StringComparison.Ordinal);
+        Assert.Contains("GetRequiredService<ISaasConfigurationService>()", registration, StringComparison.Ordinal);
+        Assert.Contains("www.inegi.org.mx", registration, StringComparison.Ordinal);
+        Assert.Contains("Create(\"www.inegi.org.mx\")", registration, StringComparison.Ordinal);
+        Assert.Contains("mexico_denue", frontend, StringComparison.Ordinal);
+        Assert.Contains("ConfigType.Tenant", frontend, StringComparison.Ordinal);
+        Assert.Contains("isEncrypted: true", frontend, StringComparison.Ordinal);
+        Assert.Contains("DenuePathSecret", sanitizer, StringComparison.Ordinal);
+        Assert.Contains("MaxPosition = 1000", provider, StringComparison.Ordinal);
+        Assert.Contains("PageSize = 20", provider, StringComparison.Ordinal);
+        Assert.Contains("IsComplete = complete", provider, StringComparison.Ordinal);
+    }
 }
