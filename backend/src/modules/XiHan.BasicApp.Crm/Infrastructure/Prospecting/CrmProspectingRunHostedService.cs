@@ -198,7 +198,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         throw new InvalidOperationException("The rate-limited provider request ledger attempt could not be finalized.", ex);
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: provider rate limit (HTTP {ex.HttpStatus}); retry after {ex.RetryAfterAt?.ToString("O") ?? "provider cooldown"}.");
-                    Logger.LogWarning(ex, "Prospecting provider rate limited for Run {RunId}, provider {Provider}", run.BasicId, providerCode);
+                    Logger.LogWarning("Prospecting provider rate limited for Run {RunId}, provider {Provider}, HTTP {StatusCode}", run.BasicId, providerCode, ex.HttpStatus);
                     continue;
                 }
                 catch (Exception ex)
@@ -218,7 +218,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     // Exception messages can echo request URLs, query credentials or remote payloads.
                     // Keep persisted Run warnings to a stable classification, not untrusted text.
                     AddBoundedWarning(warnings, $"{providerCode}: {ex.GetType().Name}: provider invocation failed.");
-                    Logger.LogWarning(ex, "Prospecting provider failed for Run {RunId}, provider {Provider}", run.BasicId, providerCode);
+                    Logger.LogWarning("Prospecting provider failed for Run {RunId}, provider {Provider}, failure type {FailureType}", run.BasicId, providerCode, ex.GetType().Name);
                     continue;
                 }
 
