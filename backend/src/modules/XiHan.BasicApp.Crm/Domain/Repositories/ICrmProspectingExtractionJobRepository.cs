@@ -60,6 +60,18 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
     Task<int> ExpireDueAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Conditionally changes lifecycle state under the exact tenant/job/lease identity.</summary>
+    /// <summary>Commits a complete final page but marks the extraction Failed when any page had record failures.</summary>
+    Task<bool> TryFailIncompleteResultsAsync(
+        long jobId,
+        Guid leaseToken,
+        long fencingVersion,
+        bool isLastPage,
+        bool isComplete,
+        int pageFailureCount,
+        int persistedRecordCount,
+        string? expectedCursor,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Completes result retrieval only for a validated, complete final page with zero record failures.</summary>
     Task<bool> TryCompleteResultsAsync(
         long jobId,
