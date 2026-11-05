@@ -23,14 +23,18 @@ public sealed class SysCrmProspectingExtractionJob : BasicAppCreationEntity, ISt
     [SugarColumn(ColumnName = "Request_Fingerprint", Length = 64, IsNullable = false)]
     public string RequestFingerprint { get; set; } = string.Empty;
 
-    [SugarColumn(ColumnName = "Provider_Extraction_Id", Length = 512, IsNullable = false)]
-    public string ProviderExtractionId { get; set; } = string.Empty;
+    /// <summary>Stable local idempotency key passed to providers that support idempotent submission.</summary>
+    [SugarColumn(ColumnName = "Submission_Idempotency_Key", IsNullable = false)]
+    public Guid SubmissionIdempotencyKey { get; set; }
+
+    [SugarColumn(ColumnName = "Provider_Extraction_Id", Length = 512, IsNullable = true)]
+    public string? ProviderExtractionId { get; set; }
 
     [SugarColumn(ColumnName = "Status", Length = 24, IsNullable = false)]
     public string Status { get; set; } = "Pending";
 
-    [SugarColumn(ColumnName = "Submitted_At_Utc", IsNullable = false)]
-    public DateTimeOffset SubmittedAtUtc { get; set; }
+    [SugarColumn(ColumnName = "Submitted_At_Utc", IsNullable = true)]
+    public DateTimeOffset? SubmittedAtUtc { get; set; }
 
     [SugarColumn(ColumnName = "Last_Polled_At_Utc", IsNullable = true)]
     public DateTimeOffset? LastPolledAtUtc { get; set; }
