@@ -298,11 +298,6 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             throw new ArgumentOutOfRangeException(nameof(rawRecordCount));
         cancellationToken.ThrowIfCancellationRequested();
 
-        var status = failureCount == 0
-            ? CrmProspectingRunStatus.Succeeded
-            : rawRecordCount > 0
-                ? CrmProspectingRunStatus.PartiallySucceeded
-                : CrmProspectingRunStatus.Failed;
         var client = DbClient;
         if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
             throw new NotSupportedException("Prospecting lease completion requires PostgreSQL.");
@@ -310,20 +305,41 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
         var tenantId = currentTenant.TenantId;
         const string sql = """
-            WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+            WITH lease_clock AS MATERIALIZED (
+                SELECT clock_timestamp() AS now
+            ),
+            extraction_summary AS MATERIALIZED (
+                SELECT COUNT(*) FILTER (
+                    WHERE job.status IN (@failedExtractionStatus, @expiredExtractionStatus, @cancelledExtractionStatus)
+                )::integer AS terminal_failure_count
+                FROM crm_prospecting_extraction_job AS job
+                WHERE job.tenant_id = @tenantId
+                  AND job.run_id = @runId
+            )
             UPDATE crm_prospecting_run AS run
-            SET status = @status,
+            SET status = CASE
+                    WHEN @failureCount + extraction_summary.terminal_failure_count = 0
+                        THEN @succeededStatus
+                    WHEN @rawRecordCount > 0
+                        THEN @partiallySucceededStatus
+                    ELSE @failedStatus
+                END,
                 raw_results_json = @rawResultsJson,
                 raw_record_count = @rawRecordCount,
                 candidate_count = @candidateCount,
-                failure_count = @failureCount,
-                failure_summary = @failureSummary,
+                failure_count = @failureCount + extraction_summary.terminal_failure_count,
+                failure_summary = CASE
+                    WHEN extraction_summary.terminal_failure_count > 0
+                        THEN LEFT(CONCAT_WS(' | ', NULLIF(@failureSummary, ''),
+                            'One or more asynchronous provider extractions did not complete successfully.'), 2000)
+                    ELSE @failureSummary
+                END,
                 completed_at = lease_clock.now,
                 lease_owner = NULL,
                 lease_token = NULL,
                 lease_expires_at = NULL,
                 lease_heartbeat_at = NULL
-            FROM lease_clock
+            FROM lease_clock, extraction_summary
             WHERE run.tenant_id = @tenantId
               AND run.basic_id = @runId
               AND run.status = @runningStatus
@@ -331,18 +347,39 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
               AND run.fencing_version = @fencingVersion
               AND run.lease_expires_at IS NOT NULL
               AND run.lease_expires_at > lease_clock.now
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM crm_prospecting_extraction_job AS pending_job
+                  WHERE pending_job.tenant_id = @tenantId
+                    AND pending_job.run_id = @runId
+                    AND pending_job.status IN (
+                        @submittingExtractionStatus, @pendingExtractionStatus, @runningExtractionStatus,
+                        @succeededExtractionStatus, @fetchingExtractionStatus, @needsReviewExtractionStatus
+                    )
+              )
             RETURNING run.basic_id AS "BasicId";
             """;
         var rows = await client.Ado.SqlQueryAsync<long>(
             sql,
             new SugarParameter("@tenantId", tenantId),
             new SugarParameter("@runId", runId),
-            new SugarParameter("@status", (int)status),
             new SugarParameter("@rawResultsJson", rawResultsJson),
             new SugarParameter("@rawRecordCount", rawRecordCount),
             new SugarParameter("@candidateCount", candidateCount),
             new SugarParameter("@failureCount", failureCount),
             new SugarParameter("@failureSummary", BoundFailureSummary(failureSummary)),
+            new SugarParameter("@succeededStatus", (int)CrmProspectingRunStatus.Succeeded),
+            new SugarParameter("@partiallySucceededStatus", (int)CrmProspectingRunStatus.PartiallySucceeded),
+            new SugarParameter("@failedStatus", (int)CrmProspectingRunStatus.Failed),
+            new SugarParameter("@failedExtractionStatus", CrmProspectingExtractionStatus.Failed.ToString()),
+            new SugarParameter("@expiredExtractionStatus", CrmProspectingExtractionStatus.Expired.ToString()),
+            new SugarParameter("@cancelledExtractionStatus", CrmProspectingExtractionStatus.Cancelled.ToString()),
+            new SugarParameter("@submittingExtractionStatus", CrmProspectingExtractionStatus.Submitting.ToString()),
+            new SugarParameter("@pendingExtractionStatus", CrmProspectingExtractionStatus.Pending.ToString()),
+            new SugarParameter("@runningExtractionStatus", CrmProspectingExtractionStatus.Running.ToString()),
+            new SugarParameter("@succeededExtractionStatus", CrmProspectingExtractionStatus.Succeeded.ToString()),
+            new SugarParameter("@fetchingExtractionStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
+            new SugarParameter("@needsReviewExtractionStatus", CrmProspectingExtractionStatus.NeedsReview.ToString()),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion));
