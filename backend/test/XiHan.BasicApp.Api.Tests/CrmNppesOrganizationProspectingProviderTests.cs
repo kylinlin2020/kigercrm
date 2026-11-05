@@ -56,17 +56,18 @@ public sealed class CrmNppesOrganizationProspectingProviderTests
     [Fact]
     public async Task SearchAsync_UsesOnlyBoundedTwoPagesAndMarksFullSecondPageIncomplete()
     {
-        var entries = string.Join(",", Enumerable.Range(1, 200)
-            .Select(i => $$"""{"enumeration_type":"NPI-2","number":"{{(1000000000 + i).ToString()}}","basic":{"organization_name":"Medical Center {{i}}","status":"A"}}"""));
-        var handler = new StubHandler((request, call) => Ok(request,
-            call == 1
-                ? """{"result_count":400,"results":[]}"""
-                : $$"""{"result_count":200,"results":[{{entries}}]}"""));
+        var handler = new StubHandler((request, call) =>
+        {
+            var entries = string.Join(",", Enumerable.Range(1, 200)
+                .Select(i => $$"""{"enumeration_type":"NPI-2","number":"{{(1000000000 + call * 200 + i).ToString()}}","basic":{"organization_name":"Medical Center {{call}}-{{i}}","status":"A"}}"""));
+            return Ok(request, $$"""{"result_count":200,"results":[{{entries}}]}""");
+        });
         using var provider = new CrmNppesOrganizationProspectingProvider(new HttpClient(handler));
 
         var result = await provider.SearchAsync(Request(product: "medical equipment", profile: "medical equipment clinics"));
 
-        Assert.InRange(handler.CallCount, 1, 4);
+        Assert.Equal(4, handler.CallCount);
+        Assert.Equal(800, result.Records.Count);
         Assert.False(result.IsComplete);
         Assert.Contains(result.Warnings, warning => warning.Contains("bounded 2-page window", StringComparison.Ordinal));
     }
