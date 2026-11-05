@@ -36,6 +36,7 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
         Assert.Contains(nameof(ICrmProspectingRunProviderExecutionRepository.TryStartAsync), methods);
         Assert.Contains(nameof(ICrmProspectingRunProviderExecutionRepository.TrySaveCheckpointAsync), methods);
         Assert.Contains(nameof(ICrmProspectingRunProviderExecutionRepository.TryTransitionAsync), methods);
+        Assert.Contains(nameof(ICrmProspectingRunProviderExecutionRepository.TryMarkInterruptedNeedsReviewAsync), methods);
     }
 
     [Fact]
@@ -75,6 +76,8 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
         Assert.Contains("EXISTS (SELECT 1 FROM locked_run)", source, StringComparison.Ordinal);
         Assert.Contains("step.state = 'Queued'", source, StringComparison.Ordinal);
         Assert.Contains("step.state = 'Started'", source, StringComparison.Ordinal);
+        Assert.Contains("SET state = 'NeedsReview'", source, StringComparison.Ordinal);
+        Assert.Contains("expectedState is not (\\"Started\\" or \\"Checkpointed\\")", source, StringComparison.Ordinal);
     }
 
     [Fact]
