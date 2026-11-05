@@ -395,3 +395,10 @@ The service is registered scoped alongside the CRM repositories. A source-wiring
 - This prevents newline/control-character injection into persisted cursor state and downstream diagnostics while preserving provider-specific printable cursor formats.
 - A regression test covers an embedded newline and confirms the invalid page cannot advance the cursor.
 - This is a boundary-hardening change only. It does not implement the async worker or the atomic Candidate/Evidence/Score + cursor transaction, and no test has been executed in this environment.
+
+## 11.25 Repeated provider identity reconciliation inside page transactions (2026-11-05)
+
+- The page persistence service now checks the tenant/Run/provider/normalized-external-ID identity before inserting a Candidate. Existing identities are reused rather than causing a duplicate insert on repeated records or a replay from an earlier synchronous path.
+- For an existing Candidate, the service adds only missing Evidence identities and creates the initial Score snapshot only when no score exists. It does not rewrite Candidate review, duplicate, conversion, or ownership state.
+- Evidence reconciliation, score repair, new Candidate creation, and the page cursor/status CAS remain inside the same page transaction. The extraction lease is the page-level fence; a stale cursor/lease still aborts the whole transaction.
+- This improves idempotent reconciliation for repeated identities but does not replace end-to-end concurrency tests or worker orchestration. Unique-identity races across independently scheduled writers still require PostgreSQL integration coverage before production enablement.
