@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
+using XiHan.BasicApp.Saas.Application.Services;
 
 namespace XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 
@@ -18,12 +19,23 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
     private const int MaxRecords = 500;
     private const int MaxResponseBytes = 6 * 1024 * 1024;
     private readonly HttpClient _httpClient;
-    private readonly string? _subscriptionKey;
+    private readonly Func<CancellationToken, Task<string?>> _subscriptionKeyFactory;
 
     public CrmUnComtradeProspectingProvider(HttpClient httpClient, string? subscriptionKey = null)
+        : this(httpClient, _ => Task.FromResult(string.IsNullOrWhiteSpace(subscriptionKey) ? null : subscriptionKey.Trim())) { }
+
+    public CrmUnComtradeProspectingProvider(HttpClient httpClient, ISaasConfigurationService configuration)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _subscriptionKey = string.IsNullOrWhiteSpace(subscriptionKey) ? null : subscriptionKey.Trim();
+        ArgumentNullException.ThrowIfNull(configuration);
+        _subscriptionKeyFactory = cancellationToken => configuration.GetStringAsync(
+            "CRM.Prospecting.Provider.un_comtrade.ApiKey", cancellationToken: cancellationToken);
+    }
+
+    private CrmUnComtradeProspectingProvider(HttpClient httpClient, Func<CancellationToken, Task<string?>> keyFactory)
+    {
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _subscriptionKeyFactory = keyFactory;
     }
 
     public string ProviderCode => "un_comtrade";
@@ -41,7 +53,9 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
         if (keywords.Count == 0)
             return new CrmProspectingProviderResult([], 0, ["UN Comtrade requires product or industry keywords."]) { IsComplete = false };
 
-        var endpoint = _subscriptionKey is null ? PublicEndpoint : KeyedEndpoint;
+        var subscriptionKey = await _subscriptionKeyFactory(cancellationToken);
+        subscriptionKey = string.IsNullOrWhiteSpace(subscriptionKey) ? null : subscriptionKey.Trim();
+        var endpoint = subscriptionKey is null ? PublicEndpoint : KeyedEndpoint;
         var query = new Dictionary<string, string>
         {
             ["reporterCode"] = reporter,
@@ -51,8 +65,8 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
             ["cmdCode"] = "TOTAL",
             ["maxRecords"] = MaxRecords.ToString(CultureInfo.InvariantCulture)
         };
-        if (_subscriptionKey is not null)
-            query["subscription-key"] = _subscriptionKey;
+        if (subscriptionKey is not null)
+            query["subscription-key"] = subscriptionKey;
         var builder = new UriBuilder(endpoint)
         {
             Query = string.Join("&", query.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"))
@@ -115,7 +129,7 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
             });
         }
 
-        var isPublicPreview = _subscriptionKey is null;
+        var isPublicPreview = subscriptionKey is null;
         if (isPublicPreview)
             warnings.Add("UN Comtrade public preview is keyless and limited to 500 rows per call; use a subscription key for the registered data API and higher quotas.");
         var complete = data.GetArrayLength() < MaxRecords;
