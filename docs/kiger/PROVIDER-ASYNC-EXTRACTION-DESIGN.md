@@ -257,3 +257,16 @@ The next implementation slice must be delivered in this order:
 7. Add crash/replay, tenant-isolation, stale-lease, duplicate-delivery, multi-page, cancellation, and coverage-invariant tests before enabling any async provider.
 
 No async adapter should be enabled until these orchestration and PostgreSQL transaction tests exist. This checkpoint is a code-review finding, not a claim that async execution is complete.
+
+
+### 11.8 Mandatory idempotent-submission registration gate
+
+The async provider contract now exposes `SupportsIdempotentSubmission`. Every adapter must explicitly return `true` only when it uses a provider-documented idempotency key on submission or can authoritatively recover the original remote job by the same stable client key. The capability registry rejects async registrations that do not make this declaration.
+
+This is a fail-closed registration guard, not proof that an adapter's implementation is correct. Each future adapter still needs provider-specific tests demonstrating that:
+- the exact persisted `SubmissionIdempotencyKey` is sent unchanged on every retry;
+- retry after a simulated timeout following remote acceptance returns or recovers the same remote extraction identity;
+- credentials and idempotency tokens never enter logs, warnings, or persisted failure summaries;
+- providers without a documented idempotency/recovery mechanism remain disabled and require manual review after an uncertain submission outcome.
+
+No async provider adapter is enabled by this contract change. The capability declaration must be backed by provider documentation and adapter tests before rollout.
