@@ -69,7 +69,7 @@ public static class CrmProspectingHttpHandlerFactory
     }
 
     /// <summary>
-    /// Conservative public-unicast filter. Unknown/special-use ranges fail closed.
+    /// Conservative public-unicast filter. Known non-public/special-use ranges are rejected; IPv6 must be global unicast.
     /// IPv4-mapped IPv6 answers are normalized and checked as IPv4.
     /// </summary>
     public static bool IsPublicAddress(IPAddress address)
@@ -89,7 +89,10 @@ public static class CrmProspectingHttpHandlerFactory
                 || InPrefix(bytes, 12, 172, 16)
                 || InPrefix(bytes, 24, 192, 0, 0)
                 || InPrefix(bytes, 24, 192, 0, 2)
+                || InPrefix(bytes, 24, 192, 31, 196)
+                || InPrefix(bytes, 24, 192, 52, 193)
                 || InPrefix(bytes, 24, 192, 88, 99)
+                || InPrefix(bytes, 24, 192, 175, 48)
                 || InPrefix(bytes, 16, 192, 168)
                 || InPrefix(bytes, 15, 198, 18)
                 || InPrefix(bytes, 24, 198, 51, 100)
