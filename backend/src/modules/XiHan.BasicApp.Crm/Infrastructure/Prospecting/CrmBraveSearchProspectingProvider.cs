@@ -101,10 +101,13 @@ public sealed class CrmBraveSearchProspectingProvider : ICrmProspectingProvider,
                 || !web.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
                 throw new InvalidDataException("Brave Search response did not contain web.results.");
 
-            moreResults = root.TryGetProperty("query", out var queryMetadata)
+            var hasMoreFlag = root.TryGetProperty("query", out var queryMetadata)
                 && queryMetadata.ValueKind == JsonValueKind.Object
                 && queryMetadata.TryGetProperty("more_results_available", out var more)
-                && more.ValueKind == JsonValueKind.True;
+                && more.ValueKind is JsonValueKind.True or JsonValueKind.False;
+            moreResults = hasMoreFlag ? more.GetBoolean() : results.GetArrayLength() >= PageSize;
+            if (!hasMoreFlag && results.GetArrayLength() >= PageSize)
+                warnings.Add("Brave Search omitted more_results_available while returning a full page; coverage is treated as potentially incomplete.");
 
             foreach (var item in results.EnumerateArray())
             {
@@ -149,7 +152,7 @@ public sealed class CrmBraveSearchProspectingProvider : ICrmProspectingProvider,
 
     private static string? ResolveCountry(string targetMarkets)
     {
-        var first = targetMarkets.Split([',', ';', '，', '；', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var first = targetMarkets.Split(new[] { ',', ';', '，', '；', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .FirstOrDefault();
         if (string.IsNullOrWhiteSpace(first)) return null;
         return first.Trim().ToUpperInvariant() switch
