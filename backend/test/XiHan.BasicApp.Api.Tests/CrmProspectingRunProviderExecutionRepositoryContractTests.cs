@@ -100,6 +100,16 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
     }
 
     [Fact]
+    public void ProviderCheckpointDto_ShouldPreserveReplayCompletionAndFailureMetadata()
+    {
+        var properties = typeof(XiHan.BasicApp.Crm.Domain.Prospecting.CrmProspectingProviderResultCheckpoint)
+            .GetProperties().Select(property => property.Name).ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("Records", properties);
+        Assert.Contains("IsComplete", properties);
+        Assert.Contains("FailureCount", properties);
+    }
+
+    [Fact]
     public void RunWorker_ShouldPersistVerifyAndReplayBoundedProviderCheckpoints()
     {
         var worker = ReadWorker();
@@ -110,6 +120,9 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
         Assert.Contains("executionStep.State is \"Checkpointed\" or \"Projecting\"", worker, StringComparison.Ordinal);
         Assert.Contains("\"Projecting\", \"Succeeded\"", worker, StringComparison.Ordinal);
         Assert.Contains("maxProviderCheckpointBytes = 1_048_576", worker, StringComparison.Ordinal);
+        Assert.Contains("TryTransitionAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("providerProjectionFailures", worker, StringComparison.Ordinal);
+        Assert.Contains("estimatedRawJsonBytes + replayRecordBytes + 1 > maxRawJsonBytes", worker, StringComparison.Ordinal);
     }
 
     private static string ReadWorker()
