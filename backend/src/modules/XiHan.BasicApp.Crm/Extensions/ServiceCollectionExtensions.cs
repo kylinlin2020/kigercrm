@@ -161,6 +161,19 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmTedProspectingProvider>());
         }
+        // SAM.gov public opportunities require a tenant-specific API key and remain explicitly opt-in.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableSamGovProvider"], out var enableSamGov)
+            && enableSamGov)
+        {
+            services.AddScoped<CrmSamGovOpportunitiesProspectingProvider>(provider => new CrmSamGovOpportunitiesProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.sam.gov"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmSamGovOpportunitiesProspectingProvider>());
+        }
         // Providers resolve API keys from encrypted tenant configuration at execution time.
         // They are Scoped because the prospecting worker establishes the Run tenant before resolving providers.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUnComtradeProvider"], out var enableUnComtrade)
