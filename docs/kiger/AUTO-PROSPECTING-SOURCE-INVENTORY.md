@@ -33,9 +33,9 @@
 
 | 源项目来源 | 类别 / 认证 | 目标状态 | 后续工作 |
 |---|---|---|---|
-| Serper（Google） | 搜索 API；需用户 Key；按量/套餐 | 未迁移 | 搜索查询映射、游标、额度、成本与搜索结果证据 |
+| Serper（Google） | 搜索 API；需租户 Key；按 credits 计费 | 已实现待验收 | 已新增 Google organic search Provider；租户加密 Key、X-API-KEY Header、最多 20 条/次；满页标记覆盖不完整 |
 | Brave Search | 搜索 API；需 Token/付费计划 | 已实现待验收 | 已新增 Web Search API Provider；租户加密 Token、国家定向、最多 2 页×20 条、尊重 more_results_available；结果仅作为网页发现证据 |
-| SerpApi（Google） | 搜索 API；需 Key；付费/有限免费额度 | 未迁移 | 默认关闭，Key 与成本控制，分页和失败分类 |
+| SerpApi（Google） | 搜索 API；需租户 Key；免费/付费额度 | 已实现待验收 | 已新增 Google Search Provider；租户加密 Key、受限两页分页；API 要求 key 在 query string，诊断必须脱敏 |
 | Google Places | 地图企业 API；需 Key/计费；受 Google 数据条款约束 | 未迁移 | FieldMask、分页、电话/网站字段来源、缓存与保留条款 |
 
 ### B. 官方企业身份、注册和行业名录
@@ -190,6 +190,20 @@
 - 仅在目标市场明确包含 NL、NLD、Netherlands、Holland 或 Nederland 时调用；最多 3 个关键词、每词最多 2 页；若官方总数显示仍有未读取结果，则 `IsComplete=false`。
 - 输出 KVK 编号、登记名称、活跃状态、登记类型、分支号及地址摘要；不输出联系人、不推断采购意向，也不把登记信息自动写入正式 Lead。
 - 官方资料说明 Zoeken API 的搜索结果默认排除非活跃登记，最多 100 条/页；KVK API 订阅有固定月费和按次查询费用，费用与申请资格须由用户在 KVK Developer Portal 确认。来源：KVK Quickstart、Zoeken API 与订阅说明。
+
+## 4.5 Serper Google Search Provider（本轮新增）
+
+- 使用 `POST https://google.serper.dev/search`，租户 Key 通过 `X-API-KEY` Header 发送；请求 JSON 包含 `q`、`num=20`，可识别的目标市场映射到 `gl`。Key 从租户加密 SaaS 配置 `CRM.Prospecting.Provider.serper.ApiKey` 读取。
+- `EnableSerperProvider` 默认关闭；单次请求最多 20 条，不进行未经官方合同确认的深分页。返回满 20 条时保守标记 `IsComplete=false`，避免误报搜索覆盖完整。
+- 仅接受 HTTPS organic link，排除 ExcludedDomains，按规范化 URL 去重；`EvidenceType=web_search_result`，不把搜索结果直接视为已验证公司或采购意向。
+- 参考 API 合同：Serper Google Search 使用 `POST /search`、`X-API-KEY`、JSON `q`/`num` 与 `organic[].title/link/snippet`。可参考公开 API 说明与非官方实测参考，真实额度和计费以 Serper 控制台为准。
+
+## 4.6 SerpApi Google Search Provider（本轮新增）
+
+- 使用 `GET https://serpapi.com/search`，参数包含 `engine=google`、`q`、`num=10`、`start`、可选 `gl`/`hl`。SerpApi 官方合同要求 API Key 通过 `api_key` query parameter 传递，因此本 Provider 不将 URL 写入 evidence，不输出请求 URL；所有 HTTP 诊断必须删除完整 query string。
+- Key 从租户加密 SaaS 配置 `CRM.Prospecting.Provider.serpapi.ApiKey` 读取；`EnableSerpApiProvider` 默认关闭。最多 2 页，每页 10 条；只在 `serpapi_pagination.next` 存在时请求下一页，超过上限标记 `IsComplete=false`。
+- 只接受 HTTPS `organic_results`，过滤 ExcludedDomains，按规范化 URL 去重；`EvidenceType=web_search_result`。API Key 进入 URL 是上游合同限制，建议优先使用 Serper/Brave 等 Header 认证来源，并在实机环境检查 HttpClient/代理/异常日志的 URL 脱敏。
+- 官方参数与分页说明：SerpApi Search API、Pagination 文档。
 
 ## 4.4 Brave Search 网页发现 Provider（本轮新增）
 
