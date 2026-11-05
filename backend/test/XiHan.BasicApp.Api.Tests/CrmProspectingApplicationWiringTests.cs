@@ -749,6 +749,8 @@ public sealed class CrmProspectingApplicationWiringTests
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingExtractionJobRepository.cs");
 
         Assert.Contains("PersistPageAndAdvanceAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("using var unitOfWork = _unitOfWorkManager.Begin(", persistence, StringComparison.Ordinal);
+        Assert.Contains("await unitOfWork.CompleteAsync(cancellationToken)", persistence, StringComparison.Ordinal);
         Assert.Contains("_extractionJobs.GetByIdAsync(extractionJobId", persistence, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingExtractionStatus.FetchingResults", persistence, StringComparison.Ordinal);
         Assert.Contains("extraction.LeaseToken != extractionLeaseToken", persistence, StringComparison.Ordinal);
