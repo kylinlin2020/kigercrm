@@ -81,19 +81,19 @@ public static class CrmProspectingHttpHandlerFactory
         var bytes = address.GetAddressBytes();
         if (address.AddressFamily == AddressFamily.InterNetwork)
         {
-            return !(InV4(bytes, 0, 8)
-                || InV4(bytes, 10, 8)
-                || InV4(bytes, 100, 64, 10)
-                || InV4(bytes, 127, 8)
-                || InV4(bytes, 169, 254, 16)
-                || InV4(bytes, 172, 16, 12)
-                || InV4(bytes, 192, 0, 0, 24)
-                || InV4(bytes, 192, 0, 2, 24)
-                || InV4(bytes, 192, 88, 99, 24)
-                || InV4(bytes, 192, 168, 16)
-                || InV4(bytes, 198, 18, 15)
-                || InV4(bytes, 198, 51, 100, 24)
-                || InV4(bytes, 203, 0, 113, 24)
+            return !(InPrefix(bytes, 8, 0)
+                || InPrefix(bytes, 8, 10)
+                || InPrefix(bytes, 10, 100, 64)
+                || InPrefix(bytes, 8, 127)
+                || InPrefix(bytes, 16, 169, 254)
+                || InPrefix(bytes, 12, 172, 16)
+                || InPrefix(bytes, 24, 192, 0, 0)
+                || InPrefix(bytes, 24, 192, 0, 2)
+                || InPrefix(bytes, 24, 192, 88, 99)
+                || InPrefix(bytes, 16, 192, 168)
+                || InPrefix(bytes, 15, 198, 18)
+                || InPrefix(bytes, 24, 198, 51, 100)
+                || InPrefix(bytes, 24, 203, 0, 113)
                 || bytes[0] >= 224);
         }
 
@@ -103,27 +103,21 @@ public static class CrmProspectingHttpHandlerFactory
         // Only global-unicast 2000::/3 is accepted. Exclude documentation,
         // benchmarking/transition and other special-purpose assignments.
         return (bytes[0] & 0xE0) == 0x20
-            && !InV6(bytes, 0x20, 0x01, 0x0D, 0xB8, 32)
-            && !InV6(bytes, 0x20, 0x01, 0x00, 0x00, 23)
-            && !InV6(bytes, 0x20, 0x02, 0, 0, 16)
-            && !InV6(bytes, 0x3F, 0xFF, 0, 0, 20);
+            && !InPrefix(bytes, 32, 0x20, 0x01, 0x0D, 0xB8)
+            && !InPrefix(bytes, 23, 0x20, 0x01, 0x00, 0x00)
+            && !InPrefix(bytes, 16, 0x20, 0x02)
+            && !InPrefix(bytes, 20, 0x3F, 0xFF);
     }
 
-    private static bool InV4(byte[] bytes, params int[] prefix)
+    private static bool InPrefix(byte[] address, int prefixLength, params int[] prefix)
     {
-        var prefixLength = prefix[^1];
-        var octets = prefix.Length - 1;
-        for (var i = 0; i < octets; i++)
-            if (bytes[i] != prefix[i]) return false;
-        var remaining = prefixLength - octets * 8;
-        return remaining <= 0 || (bytes[octets] >> (8 - remaining)) == (prefix[octets] >> (8 - remaining));
-    }
-
-    private static bool InV6(byte[] bytes, byte a, byte b, byte c, byte d, int prefixLength)
-    {
-        var prefix = new byte[] { a, b, c, d };
-        for (var i = 0; i < prefixLength / 8; i++)
-            if (bytes[i] != prefix[i]) return false;
-        return true;
+        var wholeBytes = prefixLength / 8;
+        var remainingBits = prefixLength % 8;
+        for (var i = 0; i < wholeBytes; i++)
+            if (i >= prefix.Length || address[i] != prefix[i]) return false;
+        if (remainingBits == 0) return true;
+        if (wholeBytes >= prefix.Length) return false;
+        var mask = 0xFF << (8 - remainingBits);
+        return (address[wholeBytes] & mask) == (prefix[wholeBytes] & mask);
     }
 }
