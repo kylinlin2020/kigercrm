@@ -246,7 +246,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
               AND basic_id = @jobId
               AND status = @expectedStatus
               AND lease_token = @leaseToken
-              AND fencing_version = @fencingVersion;
+              AND fencing_version = @fencingVersion
+              AND lease_expires_at_utc > clock_timestamp();
             """;
         var affected = await client.Ado.ExecuteCommandAsync(
             sql,
@@ -298,7 +299,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
               AND status = @fetchingStatus
               AND lease_token = @leaseToken
               AND fencing_version = @fencingVersion
-              AND result_cursor IS NOT DISTINCT FROM @expectedCursor;
+              AND result_cursor IS NOT DISTINCT FROM @expectedCursor
+              AND lease_expires_at_utc > clock_timestamp();
             """;
         var affected = await client.Ado.ExecuteCommandAsync(
             sql,
