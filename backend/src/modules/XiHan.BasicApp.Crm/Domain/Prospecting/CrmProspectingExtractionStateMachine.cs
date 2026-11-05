@@ -20,9 +20,11 @@ public static class CrmProspectingExtractionStateMachine
 
         return current switch
         {
+            // Acknowledgement is a persistence operation, not a generic state transition:
+            // only TryAcknowledgeSubmissionAsync may move Submitting to Pending after validating
+            // and storing the provider's opaque extraction identity under the live lease.
             CrmProspectingExtractionStatus.Submitting =>
-                next is CrmProspectingExtractionStatus.Pending
-                    or CrmProspectingExtractionStatus.NeedsReview
+                next is CrmProspectingExtractionStatus.NeedsReview
                     or CrmProspectingExtractionStatus.Failed,
 
             CrmProspectingExtractionStatus.Pending =>
