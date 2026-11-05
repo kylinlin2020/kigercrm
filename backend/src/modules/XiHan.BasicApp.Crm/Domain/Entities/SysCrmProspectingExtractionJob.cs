@@ -63,6 +63,10 @@ public sealed class SysCrmProspectingExtractionJob : BasicAppCreationEntity, ISt
     [SugarColumn(ColumnName = "Result_Record_Count", IsNullable = false, DefaultValue = "0")]
     public int ResultRecordCount { get; set; }
 
+    /// <summary>Accumulated provider record failures across every fetched page; any positive value blocks successful completion.</summary>
+    [SugarColumn(ColumnName = "Result_Failure_Count", IsNullable = false, DefaultValue = "0")]
+    public int ResultFailureCount { get; set; }
+
     [SugarColumn(ColumnName = "Lease_Owner", Length = 160, IsNullable = true)]
     public string? LeaseOwner { get; set; }
 
