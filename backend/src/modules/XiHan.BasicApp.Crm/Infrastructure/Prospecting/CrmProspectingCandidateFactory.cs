@@ -76,6 +76,11 @@ public static class CrmProspectingCandidateFactory
 }
 
 
+/// <summary>One already-normalized candidate and its provider evidence envelope from an extraction page.</summary>
+public sealed record CrmProspectingCandidatePageItem(
+    SysCrmProspectingCandidate Candidate,
+    CrmProspectingRawEnvelope Envelope);
+
 /// <summary>
 /// Shared fenced persistence boundary for Candidate, Evidence and initial Score.
 /// Duplicate lookup and unique-key race recovery remain with the caller.
@@ -87,19 +92,22 @@ public sealed class CrmProspectingCandidatePersistenceService
     private readonly XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingCandidateRepository _candidates;
     private readonly XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingEvidenceRepository _evidence;
     private readonly XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingScoreRepository _scores;
+    private readonly XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingExtractionJobRepository _extractionJobs;
 
     public CrmProspectingCandidatePersistenceService(
         XiHan.Framework.Uow.IUnitOfWorkManager unitOfWorkManager,
         XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingRunRepository runs,
         XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingCandidateRepository candidates,
         XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingEvidenceRepository evidence,
-        XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingScoreRepository scores)
+        XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingScoreRepository scores,
+        XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingExtractionJobRepository extractionJobs)
     {
         _unitOfWorkManager = unitOfWorkManager;
         _runs = runs;
         _candidates = candidates;
         _evidence = evidence;
         _scores = scores;
+        _extractionJobs = extractionJobs;
     }
 
     public async Task<SysCrmProspectingCandidate> PersistNewAsync(
