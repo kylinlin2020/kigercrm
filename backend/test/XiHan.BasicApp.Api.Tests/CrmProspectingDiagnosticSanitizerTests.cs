@@ -44,4 +44,15 @@ public sealed class CrmProspectingDiagnosticSanitizerTests
         Assert.DoesNotContain("abc.def.ghi", result, StringComparison.Ordinal);
         Assert.DoesNotContain("private-value", result, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Sanitize_RemovesOpenFdaApiKeyFromQueryString()
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize(
+            "openFDA request failed: https://api.fda.gov/device/510k.json?search=device_name%3Apump&api_key=private-fda-key",
+            500);
+
+        Assert.Equal("openFDA request failed: https://api.fda.gov/device/510k.json", result);
+        Assert.DoesNotContain("private-fda-key", result, StringComparison.Ordinal);
+    }
 }
