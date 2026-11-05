@@ -248,6 +248,8 @@ public sealed class CrmProspectingCandidatePersistenceService
             var normalizedIdentity = CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record);
             if (!string.Equals(item.Candidate.ExternalId, normalizedIdentity, StringComparison.Ordinal))
                 throw new ArgumentException("Every candidate external identity must match its normalized checkpoint record.", nameof(items));
+            if (!checkpointIdentities.Contains(normalizedIdentity))
+                throw new ArgumentException("Every projection item must originate from the persisted provider checkpoint.", nameof(items));
             if (!batchIdentities.Add(normalizedIdentity))
                 throw new ArgumentException("A provider batch cannot contain duplicate normalized record identities.", nameof(items));
 
