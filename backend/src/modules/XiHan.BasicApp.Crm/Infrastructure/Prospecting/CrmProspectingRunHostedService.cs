@@ -334,9 +334,22 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
-                var checkpointRecords = result.Records.Where(record => record is not null).ToArray();
+                var remainingRawRecords = Math.Max(0, maxRawRecordsPerRun - raw.Count);
+                var checkpointRecords = new List<CrmProspectingRawRecord>();
+                var checkpointProjectedBytes = estimatedRawJsonBytes;
+                foreach (var checkpointRecord in result.Records)
+                {
+                    if (checkpointRecord is null ||
+                        !IsWithinRawRecordLimits(checkpointRecord, out var checkpointRecordBytes) ||
+                        checkpointRecordBytes > maxRawRecordJsonBytes ||
+                        checkpointRecords.Count >= remainingRawRecords ||
+                        checkpointProjectedBytes + checkpointRecordBytes + 1 > maxRawJsonBytes)
+                        continue;
+                    checkpointRecords.Add(checkpointRecord);
+                    checkpointProjectedBytes += checkpointRecordBytes + 1;
+                }
                 var checkpointFailureCount = Math.Max(0, result.FailureCount) +
-                    Math.Max(0, result.Records.Count - checkpointRecords.Length);
+                    Math.Max(0, result.Records.Count - checkpointRecords.Count);
                 var checkpointPayload = new CrmProspectingProviderResultCheckpoint(
                     checkpointRecords, result.IsComplete, checkpointFailureCount);
                 var checkpointJson = JsonSerializer.Serialize(checkpointPayload);
@@ -369,7 +382,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 checkpointedSteps.Add((executionStep.BasicId, "Checkpointed",
                     checkpointFailureCount, result.IsComplete, checkpointRecords.Length));
 
-                var remainingRawRecords = Math.Max(0, maxRawRecordsPerRun - raw.Count);
                 var providerCanAdvanceCoverage = result.IsComplete && result.FailureCount == 0 &&
                     result.Records.Count <= remainingRawRecords;
                 var projectedRawBytes = estimatedRawJsonBytes;
