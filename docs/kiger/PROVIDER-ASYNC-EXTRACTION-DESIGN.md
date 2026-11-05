@@ -277,3 +277,16 @@ No async provider adapter is enabled by this contract change. The capability dec
 A repository review found that the generic lease-fenced `TryTransitionAsync` could previously be asked to move `FetchingResults` directly to `Completed`, bypassing the page-completion predicate. The repository now rejects `Completed` through the generic transition API.
 
 The only completion path is `TryCompleteResultsAsync`, which requires `isLastPage=true`, `isComplete=true`, and `failureCount=0` through `CanCompleteResults`, then performs a tenant-, lease-token-, fencing-version-, and database-clock-guarded update from `FetchingResults` to `Completed`. This closes the generic transition bypass; the future page worker must call it only after the final page's Candidate/Evidence/Score and cursor transaction has committed.
+
+### 11.10 Validate provider submission acknowledgements before persistence
+
+Added `CrmProspectingExtractionSubmissionValidator` as an adapter-neutral validation boundary for remote Submit acknowledgements. It rejects:
+- a missing acknowledgement or provider identity that does not match the selected adapter;
+- blank, overlong, or control-character-bearing opaque extraction IDs;
+- expiry timestamps that are not later than the provider's accepted timestamp;
+- negative or unbounded poll-after hints;
+- malformed, non-object, or oversized safe metadata JSON.
+
+The validator does not treat an extraction ID as a URL, does not make a network request, and does not prove that the remote job exists. The future submission coordinator must invoke it before `TryAcknowledgeSubmissionAsync`; invalid acknowledgements must be recorded as sanitized failures/NeedsReview and must not be persisted as a pollable remote job. Contract tests cover provider mismatch, identifier bounds/control characters, expiry, retry hints, and metadata shape/size.
+
+This is a validation primitive plus unexecuted test source. The async coordinator is still not wired, so no runtime path currently consumes the validator and no build/test result is claimed.
