@@ -78,4 +78,13 @@ public sealed class CrmProspectingDiagnosticSanitizerTests
         Assert.DoesNotContain("private-fmcsa-key", result, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void Sanitize_RedactsDenuePathToken()
+    {
+        const string token = "private-denue-token-123";
+        var value = "Request failed for https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/generators/00/1/20/" + token;
+        var sanitized = CrmProspectingDiagnosticSanitizer.Sanitize(value, 1000);
+        Assert.DoesNotContain(token, sanitized, StringComparison.Ordinal);
+    }
 }
