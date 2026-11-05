@@ -21,6 +21,21 @@ public sealed class CrmProspectingProviderEndpointGuardTests
         Assert.Contains("private static readonly Uri Endpoint = new(\"https://", source, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void OfficialProviderRegistrations_ShouldUsePinnedPublicIpHandlers()
+    {
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Extensions", "ServiceCollectionExtensions.cs")));
+
+        Assert.Contains("CrmProspectingHttpHandlerFactory.Create(\"api.usaspending.gov\")", source, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingHttpHandlerFactory.Create(\"www.find-tender.service.gov.uk\")", source, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingHttpHandlerFactory.Create(\"www.contractsfinder.service.gov.uk\")", source, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingHttpHandlerFactory.Create(\"api.ted.europa.eu\")", source, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingHttpHandlerFactory.Create(\"api.gleif.org\")", source, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
