@@ -692,3 +692,16 @@ The atomic batch primitive now validates normalized record identities as a batch
 This keeps `ProjectedRecordCount` meaningful as the number of distinct accepted provider records and avoids silently treating a malformed duplicate-containing batch as a clean provider projection. The guard is intentionally fail-closed: a caller must normalize/deduplicate and account for rejected rows in `failureCount` before retrying.
 
 Worker integration, durable post-commit coverage reconciliation, PostgreSQL fault-injection tests, and runtime validation remain outstanding. The current synchronous worker still uses the legacy per-candidate persistence path.
+
+## 11.44 Verify checkpoint integrity inside the atomic persistence boundary (2026-11-05)
+
+The atomic provider-batch method no longer relies solely on its caller to verify the checkpoint:
+
+- It checks the persisted JSON is present and its UTF-8 byte count matches the stored byte count.
+- It recomputes SHA-256 from the persisted JSON and compares it with the stored execution hash.
+- It deserializes the persisted checkpoint and checks its record count against `RawRecordCount`.
+- Every candidate item must map to an identity actually present in the verified checkpoint; duplicate checkpoint rows remain allowed, while duplicate projected identities within one batch are rejected.
+
+This closes a boundary gap for future worker callers: a correct database hash cannot be paired with an arbitrary, unrelated candidate payload. Added a source-contract regression test for byte count, digest, record count, and membership validation.
+
+The synchronous Run worker is still not integrated with the atomic method. Coverage recovery, same-connection PostgreSQL transaction proof, fault-injection tests, and runtime compilation/testing remain outstanding.
