@@ -34,6 +34,16 @@ public sealed class CrmProspectingExtractionPageValidatorTests
     }
 
     [Fact]
+    public void TryValidate_RejectsFailureCountGreaterThanPageRecordCount()
+    {
+        var page = new CrmProspectingExtractionPage(
+            [Record()], null, true, true, 2, []);
+
+        Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
+        Assert.Equal("page_limit_exceeded", failure);
+    }
+
+    [Fact]
     public void TryValidate_RejectsLastPageWithoutCompleteMarker()
     {
         var page = new CrmProspectingExtractionPage(
