@@ -116,6 +116,7 @@
 - `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
 - `open_fda_510k`（新增；openFDA 510(k) 医疗器械监管记录，租户 API Key 可选；仅美国医疗器械行业活动可调用，最多 3 页×100 条）
 - `nppes`（新增；CMS NPPES v2.1 Type 2 组织名录；仅美国医疗行业活动可调用，最多 2 关键词×2 页×200 条；不采集个人 Type 1）
+- `hunter`（新增；Hunter Discover B2B 企业发现，租户 Key，单页最多 100 家；仅记录公司域名/名称和邮箱数量，不拉取联系人邮箱）
 - `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
 - `kvk`（新增；荷兰 KVK 官方 Handelsregister Zoeken API，租户 API Key 通过 `apikey` 请求头发送，最多 3 个关键词×每词 2 页 bounded fetch）
 - `brave`（新增；Brave Web Search API，租户订阅 Token 通过 `X-Subscription-Token` 请求头发送，最多 2 页×20 条，按 `more_results_available` 标记覆盖状态）
