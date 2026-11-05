@@ -149,7 +149,7 @@
 - 为每个来源标注适用行业、国家覆盖和权威等级；身份冲突不得静默覆盖。
 
 ### P0-D：通用发现与商业补全
-- 补齐 Serper、Brave、SerpApi、Google Places。
+- 已新增 Serper、Brave Search、SerpApi Provider；Google Places 仍待迁移。
 - Apollo、PDL、Hunter 作为可选商业补全源，必须租户显式启用、提供凭证并确认配额/成本；默认关闭。
 - AI 搜索、网站发现和深度挖掘作为编排能力单独验收。
 
@@ -191,6 +191,14 @@
 - 输出 KVK 编号、登记名称、活跃状态、登记类型、分支号及地址摘要；不输出联系人、不推断采购意向，也不把登记信息自动写入正式 Lead。
 - 官方资料说明 Zoeken API 的搜索结果默认排除非活跃登记，最多 100 条/页；KVK API 订阅有固定月费和按次查询费用，费用与申请资格须由用户在 KVK Developer Portal 确认。来源：KVK Quickstart、Zoeken API 与订阅说明。
 
+## 4.4 Brave Search 网页发现 Provider（本轮新增）
+
+- 使用官方 Web Search API：`GET https://api.search.brave.com/res/v1/web/search`；API Token 通过 `X-Subscription-Token` 请求头发送，不进入 URL。Key 从当前租户加密 SaaS 配置读取：`CRM.Prospecting.Provider.brave.ApiKey`。
+- `EnableBraveSearchProvider` 默认关闭；显式启用后最多执行 2 页，每页最多 20 条，offset 从 0 开始递增；优先遵循响应 `query.more_results_available`，缺失该字段但返回满页时保守处理为可能不完整。
+- 根据已识别的目标市场映射 Brave `country` 参数；无法识别时会给出提示，不伪造国家映射。查询词由产品范围、理想客户画像、搜索目标与目标市场组合，限制在 API 的 600 字符范围内。
+- 只接受 HTTPS 搜索结果链接，应用 ExcludedDomains 排除域名，并按规范化 URL 去重。输出标题、摘要、来源 URL 与网站主机；`EvidenceType=web_search_result`，不把网页标题推断为已验证公司名称，也不提取/验证联系人。
+- Brave 官方文档规定 Token 通过 `X-Subscription-Token` 头传递，单页最多 20 条、offset 最大 9，并建议使用 `more_results_available` 判断是否继续分页。Search API 按请求计费，当前官方 Search 计划标价为每 1,000 次请求 5 美元并包含每月 5 美元免费额度；实际套餐与条款以账户页面为准。
+
 ## 4.5 Serper Google Search Provider（本轮新增）
 
 - 使用 `POST https://google.serper.dev/search`，租户 Key 通过 `X-API-KEY` Header 发送；请求 JSON 包含 `q`、`num=20`，可识别的目标市场映射到 `gl`。Key 从租户加密 SaaS 配置 `CRM.Prospecting.Provider.serper.ApiKey` 读取。
@@ -205,13 +213,12 @@
 - 只接受 HTTPS `organic_results`，过滤 ExcludedDomains，按规范化 URL 去重；`EvidenceType=web_search_result`。API Key 进入 URL 是上游合同限制，建议优先使用 Serper/Brave 等 Header 认证来源，并在实机环境检查 HttpClient/代理/异常日志的 URL 脱敏。
 - 官方参数与分页说明：SerpApi Search API、Pagination 文档。
 
-## 4.4 Brave Search 网页发现 Provider（本轮新增）
+## 4.6 SerpApi Google Search Provider（本轮新增）
 
-- 使用官方 Web Search API：`GET https://api.search.brave.com/res/v1/web/search`；API Token 通过 `X-Subscription-Token` 请求头发送，不进入 URL。Key 从当前租户加密 SaaS 配置读取：`CRM.Prospecting.Provider.brave.ApiKey`。
-- `EnableBraveSearchProvider` 默认关闭；显式启用后最多执行 2 页，每页最多 20 条，offset 从 0 开始递增；优先遵循响应 `query.more_results_available`，缺失该字段但返回满页时保守处理为可能不完整。
-- 根据已识别的目标市场映射 Brave `country` 参数；无法识别时会给出提示，不伪造国家映射。查询词由产品范围、理想客户画像、搜索目标与目标市场组合，限制在 API 的 600 字符范围内。
-- 只接受 HTTPS 搜索结果链接，应用 ExcludedDomains 排除域名，并按规范化 URL 去重。输出标题、摘要、来源 URL 与网站主机；`EvidenceType=web_search_result`，不把网页标题推断为已验证公司名称，也不提取/验证联系人。
-- Brave 官方文档规定 Token 通过 `X-Subscription-Token` 头传递，单页最多 20 条、offset 最大 9，并建议使用 `more_results_available` 判断是否继续分页。Search API 按请求计费，当前官方 Search 计划标价为每 1,000 次请求 5 美元并包含每月 5 美元免费额度；实际套餐与条款以账户页面为准。
+- 使用 `GET https://serpapi.com/search`，参数包含 `engine=google`、`q`、`num=10`、`start`、可选 `gl`/`hl`。SerpApi 官方合同要求 API Key 通过 `api_key` query parameter 传递，因此本 Provider 不将 URL 写入 evidence，不输出请求 URL；所有 HTTP 诊断必须删除完整 query string。
+- Key 从租户加密 SaaS 配置 `CRM.Prospecting.Provider.serpapi.ApiKey` 读取；`EnableSerpApiProvider` 默认关闭。最多 2 页，每页 10 条；只在 `serpapi_pagination.next` 存在时请求下一页，超过上限标记 `IsComplete=false`。
+- 只接受 HTTPS `organic_results`，过滤 ExcludedDomains，按规范化 URL 去重；`EvidenceType=web_search_result`。API Key 进入 URL 是上游合同限制，建议优先使用 Serper/Brave 等 Header 认证来源，并在实机环境检查 HttpClient/代理/异常日志的 URL 脱敏。
+- 官方参数与分页说明：SerpApi Search API、Pagination 文档。
 
 ## 5. 业务与安全边界
 
