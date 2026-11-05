@@ -641,3 +641,24 @@ The synchronous Run worker now also closes the provider execution ledger for ord
 - These transitions are tenant-scoped and fenced by the same Run lease token, fencing version, and database-clock expiry. Source-contract tests guard the failure/skip helper paths.
 
 This closes several previously stranded Queued/Started states. It does not change the remaining atomicity boundary: successful Candidate/Evidence/Score projection and provider-step Succeeded still use separate transactions, with idempotent checkpoint replay as the recovery mechanism.
+
+## 11.41 Projection transaction boundary and next implementation gate (2026-11-05)
+
+A follow-up review of the live synchronous worker confirms the exact remaining consistency boundary:
+
+- The provider response is durably checkpointed before candidate projection.
+- Candidate identity insertion and its evidence/score provenance are handled by the existing persistence service and repair path. Duplicate-key recovery re-reads the winning Candidate and repairs missing provenance without rewriting review state.
+- The worker currently iterates the Run-wide raw-record list, rather than projecting one provider checkpoint as an isolated transaction batch. Provider projection failures are accumulated by provider code and applied when the execution rows are finalized.
+- Each provider execution terminal transition is fenced and transactional, but it is committed separately from the Candidate/Evidence/Score persistence units. The checkpoint makes replay possible; it does not make these writes atomic.
+- Request-ledger coverage is also finalized after projection and remains a separate commit boundary.
+
+**Required next implementation (do not claim complete until all items are met):**
+
+1. Refactor projection input into deterministic provider-scoped batches, preserving plan ordinal and checkpoint record order. Each batch must carry its execution-row ID, checkpoint hash, completion flag, original failure count, and normalized records.
+2. Introduce a single persistence boundary that uses the same tenant database connection and ambient transaction for Candidate, Evidence, Score, provenance repair, and the fenced `Projecting -> Succeeded/Failed` transition. Verify the UnitOfWork and SqlSugar transaction actually enlist every repository; matching method scopes alone are not proof of a shared transaction.
+3. Ensure candidate identity conflict handling is safe inside the batch transaction. A uniqueness conflict must not leave a partially committed evidence/score set; use database-native conflict handling or a savepoint/transaction strategy supported by the actual provider.
+4. Persist provider-level projected/failure counters in the same commit as the terminal execution state. A replay of an already terminal batch must be a no-op after verifying its checkpoint identity.
+5. Advance request-ledger coverage only after the provider batch transaction commits and only for a complete, zero-failure provider result. A crash between the batch commit and coverage update must be recoverable without repeating external provider I/O.
+6. Add PostgreSQL integration tests with forced failures at Candidate insert, Evidence insert, Score insert, terminal transition, and post-commit coverage update. Assert all-or-nothing behavior for the batch, exact counters, stable replay, and no duplicate provider invocation.
+
+Until this gate is implemented and exercised against PostgreSQL, the current checkpoint/replay path is a meaningful recovery improvement but remains a multi-transaction projection protocol. No build, test-suite, or PostgreSQL execution is claimed by this source review. The Windows pull/build checkpoint remains pending.
