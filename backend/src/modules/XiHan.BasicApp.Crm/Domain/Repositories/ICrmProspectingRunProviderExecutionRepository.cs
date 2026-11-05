@@ -8,6 +8,9 @@ public interface ICrmProspectingRunProviderExecutionRepository : ISaasRepository
 {
     Task<IReadOnlyList<SysCrmProspectingRunProviderExecution>> GetByRunAsync(long runId, CancellationToken cancellationToken = default);
 
+    /// <summary>Idempotently materializes the immutable provider plan snapshot under the live Run lease.</summary>
+    Task<IReadOnlyList<SysCrmProspectingRunProviderExecution>> EnsurePlanMaterializedAsync(long runId, Guid leaseToken, long fencingVersion, CancellationToken cancellationToken = default);
+
     /// <summary>Starts one queued provider step only while the exact Run lease is live.</summary>
     Task<bool> TryStartAsync(long executionId, long runId, Guid leaseToken, long fencingVersion, CancellationToken cancellationToken = default);
 
