@@ -52,7 +52,8 @@ public sealed class CrmCompaniesHouseProspectingProviderTests
         Assert.Contains("London", record.Summary!, StringComparison.Ordinal);
         Assert.Equal("Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("companies-house-test-key:")), handler.Authorization);
         Assert.Contains("q=water%20pumps", handler.RequestUri, StringComparison.Ordinal);
-        Assert.Contains("start_index=0", handler.RequestUri, StringComparison.Ordinal);\n        Assert.DoesNotContain("companies-house-test-key", handler.RequestUri, StringComparison.Ordinal);
+        Assert.Contains("start_index=0", handler.RequestUri, StringComparison.Ordinal);
+        Assert.DoesNotContain("companies-house-test-key", handler.RequestUri, StringComparison.Ordinal);
         Assert.True(result.IsComplete);
     }
 
