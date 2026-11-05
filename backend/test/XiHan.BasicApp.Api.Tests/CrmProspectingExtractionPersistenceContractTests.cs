@@ -27,10 +27,26 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("TryAcknowledgeSubmissionAsync", methods);
         Assert.Contains("GetByIdAsync", methods);
         Assert.Contains("ClaimDueAsync", methods);
+        Assert.Contains("TryRenewLeaseAsync", methods);
         Assert.Contains("ExpireDueAsync", methods);
         Assert.Contains("TryTransitionAsync", methods);
         Assert.Contains("TryCompleteResultsAsync", methods);
         Assert.Contains("TryAdvanceCursorAsync", methods);
+    }
+
+    [Fact]
+    public void ExtractionLeaseRenewal_ShouldRequireLiveTenantScopedFencedLease()
+    {
+        var repository = ReadRepositorySource();
+        var start = repository.IndexOf("public async Task<bool> TryRenewLeaseAsync", StringComparison.Ordinal);
+        var end = repository.IndexOf("public async Task<int> ExpireDueAsync", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var renewal = repository[start..end];
+        Assert.Contains("lease_expires_at_utc > clock_timestamp()", renewal, StringComparison.Ordinal);
+        Assert.Contains("lease_token = @leaseToken", renewal, StringComparison.Ordinal);
+        Assert.Contains("fencing_version = @fencingVersion", renewal, StringComparison.Ordinal);
+        Assert.Contains("tenant_id = @tenantId", renewal, StringComparison.Ordinal);
+        Assert.Contains("leaseDuration > TimeSpan.FromMinutes(15)", renewal, StringComparison.Ordinal);
     }
 
     [Fact]
