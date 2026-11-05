@@ -94,6 +94,8 @@ public sealed class CrmFranceCompanySearchProspectingProvider : ICrmProspectingP
                     throw new InvalidDataException("French company search response did not contain results.");
                 if (root.TryGetProperty("total_pages", out var pages) && pages.TryGetInt32(out var parsedPages))
                     totalPages = Math.Max(1, parsedPages);
+                else if (results.GetArrayLength() >= PageSize)
+                    totalPages = Math.Max(totalPages, page + 1);
 
                 foreach (var item in results.EnumerateArray())
                 {
