@@ -339,3 +339,16 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - 返回满 100 条或 meta 仍显示更多结果时，必须将 coverage 标记 incomplete。
 - 当前源码和测试已提交，尚未运行 .NET build/test 或真实 Hunter API 冒烟；API Discover 权限/套餐、调用限额和最终用户数据使用范围需由实际 Hunter 账号确认。
 - 限流语义复核：Hunter 403 按请求频率限制进入 cooldown；503 按临时故障进入 cooldown；429 是账户使用额度耗尽，记为普通 HTTP 失败，不进入自动重试/cooldown。2026-11-05 已修正测试名称/断言，避免把 429 配额错误当作短时限流。
+
+
+## 5.2 异步 Provider Runtime 阻断项与 Comext 实施顺序（2026-11-05）
+
+当前目标端的 `ICrmProspectingProvider.SearchAsync` 是单次同步搜索契约；源项目则存在 Preflight、Health、Enrich、Trade Query 等独立运行操作，以及 Comext 可能返回异步 extraction 状态的场景。不能把一次提交 extraction 的 HTTP 2xx 当作数据检索完成，也不能在 Worker 中用长时间 sleep/poll 模拟持久化任务。
+
+已新增设计基线：`docs/kiger/PROVIDER-ASYNC-EXTRACTION-DESIGN.md`。关键要求：
+- 保持现有同步 Provider 接口向后兼容；新增可选异步 extraction capability，不强迫所有既有 Provider 实现新成员。
+- Extraction Job 必须持久化 tenant、Run、Provider、request fingerprint、provider extraction ID、status、next poll、expiry、cursor、lease/fencing 和安全错误摘要。
+- 通过数据库恢复 due jobs；轮询、结果分页和游标推进必须可在进程重启后恢复，且重复队列消息幂等。
+- 只有全部结果页及 evidence 持久化完成后才推进 coverage；失败、过期、未知状态、取消、截断或部分取数一律不推进。
+- Comext 查询必须先限制 reporter/partner/product/flow/indicator/month 并核对官方 codelist；初期限制每租户一个 active extraction，不并行轰击官方服务。
+- 该文档是设计基线，不代表异步 Runtime、数据库迁移或 Comext Provider 已实现；Comext 继续保持未接入状态。
