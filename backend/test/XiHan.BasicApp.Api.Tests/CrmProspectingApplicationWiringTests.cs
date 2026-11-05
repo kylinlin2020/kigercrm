@@ -794,4 +794,27 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("extraction.ResultFailureCount + page.FailureCount > 0", persistence, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RunCompletion_ShouldWaitForActiveExtractionsAndAggregateTerminalFailures()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+
+        var start = repository.IndexOf("public async Task<bool> CompleteFencedWithDatabaseClockAsync", StringComparison.Ordinal);
+        var end = repository.IndexOf("public async Task<bool> CancelFencedWithDatabaseClockAsync", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var completion = repository[start..end];
+
+        Assert.Contains("FROM crm_prospecting_extraction_job AS job", completion, StringComparison.Ordinal);
+        Assert.Contains("pending_job.status IN", completion, StringComparison.Ordinal);
+        Assert.Contains("@submittingExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("@succeededExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("@needsReviewExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("NOT EXISTS", completion, StringComparison.Ordinal);
+        Assert.Contains("COUNT(*) FILTER", completion, StringComparison.Ordinal);
+        Assert.Contains("@failedExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("@expiredExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("@cancelledExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("failure_count = @failureCount + extraction_summary.terminal_failure_count", completion, StringComparison.Ordinal);
+    }
+
 }
