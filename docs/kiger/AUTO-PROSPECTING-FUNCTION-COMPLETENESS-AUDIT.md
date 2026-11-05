@@ -188,7 +188,7 @@ A follow-up source inspection found that several rows in the original static inv
 - **Incremental coverage checkpoint:** `SysCrmProspectingProviderCoverage` and a PostgreSQL atomic success+coverage finalization path exist. The HostedService now defers successful request finalization and checkpoint advancement until all accepted records in the Run have been reconciled into durable Candidate/Evidence/Score rows. Partial/truncated/failed scans and cancelled Runs do not advance coverage. Providers that support it receive a 48-hour overlap lower bound. A crash before candidate persistence leaves the attempt Started and the prior checkpoint unchanged, allowing recovery and rescan.
 - **Cross-Run duplicate screening:** candidate lookup now checks earlier non-rejected Runs for provider/external identity, normalized email and website host, as well as same-Run duplicates and existing CRM Leads. This is not yet a full source-observation-to-canonical-candidate graph.
 - **Worker lifecycle:** the HostedService now claims a PostgreSQL lease, carries the UUID token and fencing version, renews at work boundaries and with an independent two-minute heartbeat, fences Candidate/Evidence/Score persistence and terminal transitions, and performs expired-lease recovery before queue reconstruction. The heartbeat uses a fresh tenant-aware scope.
-- **Operational safety:** official adapters use fixed HTTPS endpoints, bounded response reads, redirect restrictions, cancellation and provider-specific cooldown handling. This is per-adapter hardening, not yet a single shared DNS/IP-aware HTTP security gateway.
+- **Operational safety:** official adapters use fixed HTTPS endpoints, bounded response reads, redirect restrictions, cancellation and provider-specific cooldown handling. A shared `CrmProspectingHttpHandlerFactory` now supplies the five official source clients with fixed-host allowlists, disabled redirects/proxies, DNS answer validation and direct TCP connection to the validated IP (TLS hostname validation remains with `HttpClient`). This closes the DNS-rebinding gap for those registered clients at source level; it is not yet a universal request gateway.
 
 ### Still missing or not yet proven
 
@@ -197,7 +197,7 @@ A follow-up source inspection found that several rows in the original static inv
 - No complete scheduler/Schedule entity and user-facing scheduling workflow.
 - No complete deep-mining/Super Search workflow, general website discovery, or commercial contact enrichment. Paid enrichment must remain opt-in with explicit credential, quota and cost controls.
 - No unified provider catalog with complete capability, geographic coverage, license/terms, field-authority and cost metadata.
-- No shared central HTTP execution gateway with DNS/IP rebinding and private/link-local/loopback destination protection. Fixed endpoint and redirect checks in individual adapters do not replace that control.
+- No universal HTTP execution gateway for arbitrary future providers or outbound URLs. The new pinned handler is wired only to the five current official source clients; it does not implement redirect-by-redirect validation (redirects are disabled), tenant/provider concurrency budgets, or a general policy engine. DNS/IP behavior still requires executable tests and live network verification.
 - No multi-instance approval: worker remains single-active-instance until PostgreSQL dual-connection claim, renewal, takeover, stale-write, cancellation and crash-recovery tests pass.
 - No .NET 10 build/test execution, PostgreSQL migration/transaction acceptance, live provider verification or Windows end-to-end acceptance has been evidenced in this environment.
 
@@ -213,3 +213,11 @@ The request ledger, coverage checkpoint and lease lifecycle are no longer "not i
 4. Add a durable source-observation-to-Candidate link and reconciliation workflow for repeat observations and identity conflicts.
 5. Add scheduling, deep-mining and remaining provider families in separately testable slices.
 6. Execute Windows-native .NET 10 restore/build/test and PostgreSQL migration + end-to-end acceptance; keep PR #1 Draft until all release gates have evidence.
+
+
+### DNS/IP connection pinning increment (2026-11-05)
+
+- Added `CrmProspectingHttpHandlerFactory` and wired USAspending, Find a Tender, Contracts Finder, TED and GLEIF clients to fixed hostname allowlists.
+- The handler disables system proxy use and automatic redirects. For each new TCP connection it resolves the approved hostname, rejects the entire DNS answer set if any address is outside the conservative public-unicast policy, then connects the socket directly to a validated IP address. This avoids a second DNS lookup between validation and TCP connection. HTTPS certificate/SNI validation remains handled by the original request hostname in `HttpClient`.
+- Added source-level tests for IPv4/IPv6 public-address classification, IPv4-mapped IPv6 rejection, handler configuration and all five DI registrations.
+- Scope limits: this does not add arbitrary URL fetching, redirect following, per-tenant concurrency/rate budgets, or PostgreSQL integration coverage. The DNS resolver/socket path and actual TLS handshake have not been executed here. The new tests have not been run; no .NET build/test, live provider call, or Windows acceptance is claimed.
