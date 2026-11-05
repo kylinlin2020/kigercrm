@@ -42,7 +42,7 @@ public sealed class CrmNppesOrganizationProspectingProvider : ICrmProspectingPro
         {
             "find","search","discover","prospect","prospecting","lead","leads","target","market",
             "company","companies","business","businesses","healthcare","health","medical","provider",
-            "providers","organization","organizations","the","and","for","with","from","into","of","in","to"
+            "providers","organization","organizations","equipment","device","devices","pump","pumps","generator","generators","supplier","suppliers","distributor","distributors","the","and","for","with","from","into","of","in","to"
         };
         var terms = Regex.Split($"{request.ProductScope} {request.IdealCustomerProfile} {request.SearchObjective}",
                 @"[^\p{L}\p{N}]+")
@@ -124,8 +124,6 @@ public sealed class CrmNppesOrganizationProspectingProvider : ICrmProspectingPro
                     }
                     var status = Read(basic, "status");
                     var taxonomy = ReadPrimaryTaxonomy(item);
-                    var address = ReadLocationAddress(item);
-                    var phone = ReadLocationPhone(item);
                     var summary = string.Join("; ", new[]
                     {
                         "NPI Type 2 organization record",
@@ -143,8 +141,6 @@ public sealed class CrmNppesOrganizationProspectingProvider : ICrmProspectingPro
                         RawPayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(item.GetRawText()))).ToLowerInvariant(),
                         EvidenceType = "us_healthcare_organization_registry"
                     });
-                    _ = address; // Location/phone are parsed only for schema validation; NPPES records are not contact-verified.
-                    _ = phone;
                 }
 
                 processed += results.GetArrayLength();
@@ -180,24 +176,6 @@ public sealed class CrmNppesOrganizationProspectingProvider : ICrmProspectingPro
         foreach (var taxonomy in values.EnumerateArray())
             if (taxonomy.TryGetProperty("primary", out var primary) && primary.ValueKind == JsonValueKind.True)
                 return Read(taxonomy, "desc") ?? Read(taxonomy, "code");
-        return null;
-    }
-
-    private static string? ReadLocationAddress(JsonElement item)
-    {
-        if (!item.TryGetProperty("addresses", out var values) || values.ValueKind != JsonValueKind.Array) return null;
-        foreach (var address in values.EnumerateArray())
-            if (string.Equals(Read(address, "address_purpose"), "LOCATION", StringComparison.OrdinalIgnoreCase))
-                return string.Join(", ", new[] { Read(address, "address_1"), Read(address, "city"), Read(address, "state"), Read(address, "postal_code") }.Where(x => !string.IsNullOrWhiteSpace(x)));
-        return null;
-    }
-
-    private static string? ReadLocationPhone(JsonElement item)
-    {
-        if (!item.TryGetProperty("addresses", out var values) || values.ValueKind != JsonValueKind.Array) return null;
-        foreach (var address in values.EnumerateArray())
-            if (string.Equals(Read(address, "address_purpose"), "LOCATION", StringComparison.OrdinalIgnoreCase))
-                return Read(address, "telephone_number");
         return null;
     }
 
