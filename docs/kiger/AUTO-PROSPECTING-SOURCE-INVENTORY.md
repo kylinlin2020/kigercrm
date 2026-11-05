@@ -36,7 +36,7 @@
 | Serper（Google） | 搜索 API；需租户 Key；按 credits 计费 | 已实现待验收 | 已新增 Google organic search Provider；租户加密 Key、X-API-KEY Header、最多 20 条/次；满页标记覆盖不完整 |
 | Brave Search | 搜索 API；需 Token/付费计划 | 已实现待验收 | 已新增 Web Search API Provider；租户加密 Token、国家定向、最多 2 页×20 条、尊重 more_results_available；结果仅作为网页发现证据 |
 | SerpApi（Google） | 搜索 API；需租户 Key；免费/付费额度 | 已实现待验收 | 已新增 Google Search Provider；租户加密 Key、受限两页分页；API 要求 key 在 query string，诊断必须脱敏 |
-| Google Places | 地图企业 API；需 Key/计费；受 Google 数据条款约束 | 未迁移 | FieldMask、分页、电话/网站字段来源、缓存与保留条款 |
+| Google Places | Places API (New) Text Search；需启用 Billing + API Key/OAuth；按 FieldMask SKU 计费 | 已完成接口核验，待适配器 | 2026-11-05 核验 `POST https://places.googleapis.com/v1/places:searchText`；必须显式设置 `X-Goog-FieldMask`，建议首轮仅取 `places.id,places.displayName,places.formattedAddress,places.websiteUri,places.internationalPhoneNumber,nextPageToken`（website/phone 会触发 Enterprise SKU）；pageSize 最大 20，跨页总上限 60；所有分页请求除 pageToken/pageSize 外参数保持一致。需在实现前确认 Google Places 数据使用、展示、缓存/存储限制；默认关闭、租户 Key、调用预算和逐字段成本提示。
 
 ### B. 官方企业身份、注册和行业名录
 
@@ -49,8 +49,8 @@
 | Netherlands KVK | 荷兰官方企业登记；订阅/Key | 已实现待验收 | 已新增真实 Zoeken API Provider；租户加密 Key、仅 NL 市场调用、最多 3 个关键词×每词 2 页；搜索结果只作为企业登记证据 |
 | France company search（fr_company_search） | 法国政府开放企业目录；免 Key | 已实现待验收 | 已新增官方 Recherche d’Entreprises API Provider；限法国市场、SIREN/SIRET 企业身份字段、最多 3 词×2 页 |
 | ROR | 全球研究机构标识；公开 REST API、无需 Key | 已实现待验收 | 新增真实 v2 organizations 查询 Provider；最多 3 个关键词×每词 20 条；记录研究机构类型/国家/网站；上限命中标记 incomplete；不作为普通公司库 |
-| US NPPES | 美国医疗机构/从业者名录 | 未迁移 | 行业专用来源，明确个人数据边界 |
-| FDA 510(k) | 美国医疗器械上市前通告记录 | 未迁移 | 行业专用产品/企业信号，不等同于企业注册 |
+| US NPPES | CMS NPPES/NPI Registry；免费公开 API/全量 DDS 文件 | 已完成接口可行性核验，待适配器 | NPI 记录可包含个人从业者及组织；只在医疗行业 ICP 明确匹配时启用，优先组织 NPI Type 2，默认排除个人 Type 1；不能把 NPI 当作执照/资质背书。Registry UI 对查询量限流且最多显示前 2100 条，批量检索应评估 DDS 下载而非高频 API；实现前确认 API 技术文档的精确分页/频控。
+| FDA 510(k) | openFDA Device 510(k) Clearances；公开 API，无 Key 可用（常规使用建议申请 Key） | 已完成接口核验，待适配器 | `GET https://api.fda.gov/device/510k.json`；可按 applicant/device_name/product_code/date_received 查询；返回 applicant、device_name、k_number、decision_date 等字段；limit 最大 1000、skip 最大 25000；数据按月更新。应作为医疗器械产品/申请人监管信号，不等同采购意向或普通公司注册；Key 放租户加密配置，默认关闭。
 | Mexico DENUE | 墨西哥经济单位目录 | 需拆分确认 | 源项目归入公开/采购来源模块，核对接口和目标用途 |
 | US FMCSA QCMobile | 美国运输承运商记录 | 需拆分确认 | 明确行业范围、可用 API 与字段含义 |
 
@@ -252,3 +252,23 @@
 | PostgreSQL + Redis 端到端验收 | 未完成 |
 
 **总判定：P0 未完成。** 这份台账将作为后续每一批 Provider 迁移、代码审查和最终 100% 验收的核对基准。
+
+
+## 4. 新增来源接口核验（2026-11-05）
+
+### Google Places API (New)
+
+- 使用 Text Search (New)，不使用已弃用/旧版 Places 搜索端点。
+- `FieldMask` 是必填项；禁止生产环境通配符 `*`，避免意外升级 SKU 和过度采集。
+- `places.id` 可作为稳定来源键；电话、网站属于较高价格层级字段，按需分阶段补取，不能默认每次搜索都请求。
+- 单页最多 20 条，跨页最多 60 条；超过本 Provider 预算时必须标记 `IsComplete=false`。
+- 位置偏置不能代替目标市场过滤；返回记录必须按目标国家/地区二次核验。
+- API Key 不进入 URL、证据链接或日志；使用 `X-Goog-Api-Key` header、固定 host、关闭重定向、租户加密配置。
+- 官方接口参考：Google Places Text Search (New)、Field Masks、Usage and Billing。
+
+### NPPES 与 openFDA 适用性
+
+- NPPES 是医疗行业专用身份目录，包含自然人和机构；不得把个人医疗从业者无差别加入普通 B2B 获客名单。优先 Type 2 组织实体，并将 NPI 仅作为登记标识，不代表执照有效或专业资质已核验。
+- openFDA 510(k) 记录的是器械上市前通告申请及申请人/器械信息；适合医疗器械行业的产品和申请人线索，不是一般采购商目录。
+- openFDA 允许无 Key 调用，建议持续使用时申请 Key；单次 `limit` 最大 1000，`skip` 最大 25000，超过范围需采用更细查询窗口或其他官方数据下载方式。
+- 两者都应默认关闭，并只在医疗行业 ICP 适配时运行；不能用于 SUPERKIGER 发电机/水泵常规获客主流程。
