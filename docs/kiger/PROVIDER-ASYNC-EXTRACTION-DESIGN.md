@@ -409,3 +409,10 @@ The service is registered scoped alongside the CRM repositories. A source-wiring
 - Every non-final page transaction increments the cumulative failure count alongside the cursor and persisted-record count. The final-page transaction may complete only when the cumulative count plus the current page failures is zero; the SQL condition enforces this even if application state is stale.
 - The page validator now rejects failure counts larger than the number of records in that page. Thus a clean final page cannot erase failures reported by an earlier page, and the extraction cannot be marked Completed (or later qualify for coverage finalization) after a partial result set.
 - The new schema change is authored but has not been applied to a PostgreSQL database. Worker-level coverage gating and real database tests remain pending.
+
+## 11.27 Commit final partial data without falsely completing extraction (2026-11-05)
+
+- `CanCommitPage` now distinguishes page durability from successful extraction completion. A structurally complete final page may be persisted even when its record-failure count is nonzero.
+- Added `TryFailIncompleteResultsAsync`: in the same transaction as Candidate/Evidence/Score writes, it commits the final page counts, sets the extraction to `Failed` with a fixed safe failure code/summary, and releases the lease. Its SQL requires a live exact lease/fencing version, expected cursor match, and a positive cumulative failure count.
+- The page service selects `Completed` only when cumulative failures are zero; otherwise it commits the final page as `Failed`. This preserves successfully extracted candidates while ensuring partial results cannot advance coverage.
+- This terminal path is authored but not yet exercised against PostgreSQL; Run-level coverage finalization still needs to explicitly require every extraction job to be `Completed`.
