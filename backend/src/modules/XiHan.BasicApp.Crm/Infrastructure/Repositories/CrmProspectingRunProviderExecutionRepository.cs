@@ -206,8 +206,8 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             throw new ArgumentOutOfRangeException(nameof(checkpointJson), $"Checkpoint must be between 1 and {MaxCheckpointBytes} UTF-8 bytes.");
         cancellationToken.ThrowIfCancellationRequested();
         var (client, tenantId) = GetPostgresTenant();
-        if (client.Ado.Transaction is null)
-            throw new InvalidOperationException("Provider checkpoint persistence requires the caller's active transaction.");
+        if (client.Ado.Transaction is not null)
+            throw new InvalidOperationException("Provider checkpoint persistence owns its transaction and cannot run inside another transaction.");
         var hash = Convert.ToHexString(SHA256.HashData(bytes));
         const string sql = """
             WITH locked_run AS MATERIALIZED (
@@ -234,17 +234,28 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
               AND step.checkpoint_json IS NULL
               AND EXISTS (SELECT 1 FROM locked_run);
             """;
-        return await client.Ado.ExecuteCommandAsync(sql,
-            new SugarParameter("@checkpointJson", checkpointJson),
-            new SugarParameter("@checkpointHash", hash),
-            new SugarParameter("@checkpointBytes", bytes.Length),
-            new SugarParameter("@rawRecordCount", rawRecordCount),
-            new SugarParameter("@tenantId", tenantId),
-            new SugarParameter("@executionId", executionId),
-            new SugarParameter("@runId", runId),
-            new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
-            new SugarParameter("@leaseToken", leaseToken),
-            new SugarParameter("@fencingVersion", fencingVersion)) == 1;
+        client.Ado.BeginTran();
+        try
+        {
+            var changed = await client.Ado.ExecuteCommandAsync(sql,
+                new SugarParameter("@checkpointJson", checkpointJson),
+                new SugarParameter("@checkpointHash", hash),
+                new SugarParameter("@checkpointBytes", bytes.Length),
+                new SugarParameter("@rawRecordCount", rawRecordCount),
+                new SugarParameter("@tenantId", tenantId),
+                new SugarParameter("@executionId", executionId),
+                new SugarParameter("@runId", runId),
+                new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
+                new SugarParameter("@leaseToken", leaseToken),
+                new SugarParameter("@fencingVersion", fencingVersion));
+            client.Ado.CommitTran();
+            return changed == 1;
+        }
+        catch
+        {
+            client.Ado.RollbackTran();
+            throw;
+        }
     }
 
 
