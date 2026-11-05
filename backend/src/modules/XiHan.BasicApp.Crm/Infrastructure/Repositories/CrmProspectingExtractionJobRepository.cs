@@ -145,7 +145,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             )
             UPDATE crm_prospecting_extraction_job AS job
             SET lease_owner = @leaseOwner,
-                lease_token = md5(job.basic_id::text || clock_timestamp()::text || random()::text)::uuid,
+                lease_token = gen_random_uuid(),
                 lease_expires_at_utc = clock_timestamp() + (@leaseDurationMilliseconds * INTERVAL '1 millisecond'),
                 fencing_version = job.fencing_version + 1
             FROM due_jobs
