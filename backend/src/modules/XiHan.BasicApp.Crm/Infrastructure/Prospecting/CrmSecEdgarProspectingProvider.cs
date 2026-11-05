@@ -13,6 +13,8 @@ public sealed class CrmSecEdgarProspectingProvider : ICrmProspectingProvider, ID
     private static readonly Uri Endpoint = new("https://www.sec.gov/files/company_tickers.json");
     private const int MaxResponseBytes = 12 * 1024 * 1024;
     private const int MaxRecords = 100;
+    private static readonly SemaphoreSlim RequestScheduleGate = new(1, 1);
+    private static DateTimeOffset _nextRequestAtUtc = DateTimeOffset.MinValue;
     private readonly HttpClient _client;
     private readonly Func<CancellationToken, Task<string?>> _userAgentFactory;
 
@@ -58,6 +60,7 @@ public sealed class CrmSecEdgarProspectingProvider : ICrmProspectingProvider, ID
                 ["SEC EDGAR requires a company name, ticker, product or industry keyword."])
                 { IsComplete = false };
 
+        await WaitForFairAccessSlotAsync(cancellationToken);
         using var message = new HttpRequestMessage(HttpMethod.Get, Endpoint);
         message.Headers.Accept.ParseAdd("application/json");
         message.Headers.TryAddWithoutValidation("User-Agent", userAgent!.Trim());
@@ -137,6 +140,22 @@ public sealed class CrmSecEdgarProspectingProvider : ICrmProspectingProvider, ID
         if (records.Count == 0)
             warnings.Add("SEC EDGAR returned no matching company-ticker records; it is a US registrant identity source, not a general business directory.");
         return new CrmProspectingProviderResult(records, 0, warnings) { IsComplete = !truncated };
+    }
+
+    private static async Task WaitForFairAccessSlotAsync(CancellationToken cancellationToken)
+    {
+        await RequestScheduleGate.WaitAsync(cancellationToken);
+        try
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (_nextRequestAtUtc > now)
+                await Task.Delay(_nextRequestAtUtc - now, cancellationToken);
+            _nextRequestAtUtc = DateTimeOffset.UtcNow.AddMilliseconds(150);
+        }
+        finally
+        {
+            RequestScheduleGate.Release();
+        }
     }
 
     private static bool IsUnitedStatesTarget(string value)
