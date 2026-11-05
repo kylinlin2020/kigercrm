@@ -122,7 +122,11 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                     "U.S. federal contracting agency");
                 var solicitation = ReadString(notice, "solicitationNumber");
                 var posted = ReadString(notice, "postedDate");
-                var deadline = FirstNonEmpty(ReadString(notice, "responseDeadLine"), ReadString(notice, "responseDeadline"));
+                var deadline = FirstNonEmpty(ReadString(notice, "responseDeadLine"), ReadString(notice, "reponseDeadLine"), ReadString(notice, "responseDeadline"));
+                var contact = ReadFirstContact(notice);
+                var contactName = ReadString(contact, "fullName");
+                var contactEmail = NormalizeEmail(ReadString(contact, "email"));
+                var contactPhone = ReadString(contact, "phone");
                 var noticeType = ReadString(notice, "type");
                 var naics = ReadString(notice, "naicsCode");
                 var summary = string.Join("; ", new[]
@@ -131,16 +135,16 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                     string.IsNullOrWhiteSpace(noticeType) ? null : $"Notice type {noticeType}",
                     string.IsNullOrWhiteSpace(posted) ? null : $"Posted {posted}",
                     string.IsNullOrWhiteSpace(deadline) ? null : $"Response deadline {deadline}",
-                    string.IsNullOrWhiteSpace(naics) ? null : $"NAICS {naics}"
+                    string.IsNullOrWhiteSpace(naics) ? null : $"NAICS {naics}",
+                    string.IsNullOrWhiteSpace(contactPhone) ? null : $"Public buyer contact phone {contactPhone}"
                 }.Where(value => !string.IsNullOrWhiteSpace(value)));
                 records.Add(new CrmProspectingRawRecord(
                     $"SAMGOV:{id}",
                     "SAM.gov Opportunities",
                     Limit(title, 500),
                     Limit(buyer, 200),
-                    null,
-                    null,
-                    null,
+                    Limit(contactName, 200),
+                    contactEmail,
                     Limit(summary, 2000))
                 {
                     SourceUrl = $"https://sam.gov/opp/{Uri.EscapeDataString(id)}/view",
@@ -170,6 +174,18 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                 || value.Equals("USA", StringComparison.OrdinalIgnoreCase)
                 || value.Equals("US", StringComparison.OrdinalIgnoreCase)
                 || value.Equals("United States of America", StringComparison.OrdinalIgnoreCase));
+
+    private static JsonElement ReadFirstContact(JsonElement notice)
+    {
+        if (!notice.TryGetProperty("pointOfContact", out var contacts) || contacts.ValueKind != JsonValueKind.Array)
+            return default;
+        foreach (var contact in contacts.EnumerateArray())
+            if (contact.ValueKind == JsonValueKind.Object) return contact;
+        return default;
+    }
+
+    private static string? NormalizeEmail(string? value)
+        => !string.IsNullOrWhiteSpace(value) && value.Contains('@') ? value.Trim() : null;
 
     private static long ReadInt64(JsonElement element, string property)
         => element.TryGetProperty(property, out var value) && value.TryGetInt64(out var number) ? number : 0;
