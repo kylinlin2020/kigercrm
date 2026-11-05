@@ -333,3 +333,10 @@ The worker now distinguishes this case: if the selected code exists in the async
 The durable claim query previously included `NeedsReview` rows whenever a remote extraction ID and submitted timestamp existed. That made a manual-review state eligible for the same automatic worker claim path as Pending/Running jobs. A worker could then poll or otherwise act on a provider job whose state had explicitly been escalated for human inspection. This conflicts with the rule that unknown remote states and uncertain outcomes must stop automatic progression.
 
 `ClaimDueAsync` now claims only Submitting, Pending, Running, and FetchingResults. `NeedsReview` is excluded regardless of whether a remote ID is present. It remains tenant-scoped and durable for inspection; a future explicit human approval/requeue application operation must be added before such a job can resume. This intentionally favors a visible paused job over unsafe automatic retries. A source-level regression test asserts that the claim SQL contains no NeedsReview predicate. PostgreSQL execution is still required to validate the complete SQL behavior.
+
+
+### 11.18 Succeeded is a durable result-fetch work item
+
+A lifecycle review found that `Succeeded` was a valid state before `FetchingResults`, but it was absent from both the automatic claim set and the expiry set. If a poller persisted Succeeded and released its lease before fetching the first page, the job could remain stranded forever: no worker could claim it to begin result retrieval, and expiry recovery would not terminalize it.
+
+The claim query and expiry recovery now both include Succeeded. A later worker claim can transition Succeeded to FetchingResults and start bounded page retrieval. If the provider-side extraction expires before retrieval is complete, expiry recovery marks Succeeded jobs Expired as well. NeedsReview remains excluded from claims. This is a source-level correction; PostgreSQL scheduling/expiry behavior still requires integration testing.
