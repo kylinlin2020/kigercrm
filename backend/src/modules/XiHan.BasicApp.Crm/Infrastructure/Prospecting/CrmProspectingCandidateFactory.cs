@@ -253,7 +253,8 @@ public sealed class CrmProspectingCandidatePersistenceService
                 page.IsComplete,
                 page.FailureCount,
                 cancellationToken,
-                persistedRecordCount: items.Count)
+                persistedRecordCount: items.Count,
+                expectedCursor: expectedCursor)
             : await _extractionJobs.TryAdvanceCursorAsync(
                 extractionJobId,
                 extractionLeaseToken,
