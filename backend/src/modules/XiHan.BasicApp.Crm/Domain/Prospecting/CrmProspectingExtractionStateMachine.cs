@@ -1,16 +1,11 @@
 namespace XiHan.BasicApp.Crm.Domain.Prospecting;
 
 /// <summary>
-/// Pure transition policy for provider-side asynchronous extraction jobs.
-/// Persistence, tenant scoping, leases and retries belong to the application/infrastructure layers.
+/// Pure transition policy for durable extraction jobs. Provider remote status and local result-fetch
+/// lifecycle share one enum so persistence can represent the full state without treating submission as success.
 /// </summary>
 public static class CrmProspectingExtractionStateMachine
 {
-    /// <summary>
-    /// Returns whether a persisted state may move to the requested state.
-    /// Repeated Pending/Running observations and repeated Succeeded while fetching are idempotent.
-    /// Terminal states never regress.
-    /// </summary>
     public static bool CanTransition(
         CrmProspectingExtractionStatus current,
         CrmProspectingExtractionStatus next)
@@ -20,7 +15,8 @@ public static class CrmProspectingExtractionStateMachine
 
         if (current == next)
             return current is CrmProspectingExtractionStatus.Pending
-                or CrmProspectingExtractionStatus.Running;
+                or CrmProspectingExtractionStatus.Running
+                or CrmProspectingExtractionStatus.FetchingResults;
 
         return current switch
         {
@@ -39,9 +35,14 @@ public static class CrmProspectingExtractionStateMachine
                     or CrmProspectingExtractionStatus.Cancelled
                     or CrmProspectingExtractionStatus.NeedsReview,
 
-            // Succeeded means the provider finished computing; result pages may still need fetching.
             CrmProspectingExtractionStatus.Succeeded =>
-                next is CrmProspectingExtractionStatus.Failed
+                next is CrmProspectingExtractionStatus.FetchingResults
+                    or CrmProspectingExtractionStatus.Failed
+                    or CrmProspectingExtractionStatus.Expired,
+
+            CrmProspectingExtractionStatus.FetchingResults =>
+                next is CrmProspectingExtractionStatus.Completed
+                    or CrmProspectingExtractionStatus.Failed
                     or CrmProspectingExtractionStatus.Expired,
 
             CrmProspectingExtractionStatus.NeedsReview =>
@@ -53,19 +54,20 @@ public static class CrmProspectingExtractionStateMachine
 
             CrmProspectingExtractionStatus.Failed
                 or CrmProspectingExtractionStatus.Expired
-                or CrmProspectingExtractionStatus.Cancelled => false,
+                or CrmProspectingExtractionStatus.Cancelled
+                or CrmProspectingExtractionStatus.Completed => false,
 
             _ => false
         };
     }
 
-    /// <summary>Only a fully persisted final page may mark the extraction Completed.</summary>
+    /// <summary>Only a fully persisted final page may complete a job currently fetching results.</summary>
     public static bool CanCompleteResults(
         CrmProspectingExtractionStatus current,
         bool isLastPage,
         bool isComplete,
         int failureCount)
-        => current == CrmProspectingExtractionStatus.Succeeded
+        => current == CrmProspectingExtractionStatus.FetchingResults
             && isLastPage
             && isComplete
             && failureCount == 0;
