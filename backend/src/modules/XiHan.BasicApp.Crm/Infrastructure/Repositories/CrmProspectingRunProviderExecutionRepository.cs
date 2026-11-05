@@ -52,15 +52,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
               AND step.basic_id = @executionId
               AND step.run_id = @runId
               AND step.state = 'Queued'
-              AND EXISTS (
-                  SELECT 1 FROM crm_prospecting_run AS run
-                  WHERE run.tenant_id = @tenantId
-                    AND run.basic_id = @runId
-                    AND run.status = @runningStatus
-                    AND run.lease_token = @leaseToken
-                    AND run.fencing_version = @fencingVersion
-                    AND run.lease_expires_at > clock_timestamp()
-              );
+              AND EXISTS (SELECT 1 FROM locked_run);
             """;
         return await client.Ado.ExecuteCommandAsync(sql,
             new SugarParameter("@tenantId", tenantId),
@@ -89,6 +81,17 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             throw new InvalidOperationException("Provider checkpoint persistence requires the caller's active transaction.");
         var hash = Convert.ToHexString(SHA256.HashData(bytes));
         const string sql = """
+            WITH locked_run AS MATERIALIZED (
+                SELECT run.basic_id
+                FROM crm_prospecting_run AS run
+                WHERE run.tenant_id = @tenantId
+                  AND run.basic_id = @runId
+                  AND run.status = @runningStatus
+                  AND run.lease_token = @leaseToken
+                  AND run.fencing_version = @fencingVersion
+                  AND run.lease_expires_at > clock_timestamp()
+                FOR UPDATE
+            )
             UPDATE crm_prospecting_run_provider_execution AS step
             SET state = 'Checkpointed',
                 checkpoint_json = @checkpointJson,
@@ -100,15 +103,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
               AND step.run_id = @runId
               AND step.state = 'Started'
               AND step.checkpoint_json IS NULL
-              AND EXISTS (
-                  SELECT 1 FROM crm_prospecting_run AS run
-                  WHERE run.tenant_id = @tenantId
-                    AND run.basic_id = @runId
-                    AND run.status = @runningStatus
-                    AND run.lease_token = @leaseToken
-                    AND run.fencing_version = @fencingVersion
-                    AND run.lease_expires_at > clock_timestamp()
-              );
+              AND EXISTS (SELECT 1 FROM locked_run);
             """;
         return await client.Ado.ExecuteCommandAsync(sql,
             new SugarParameter("@checkpointJson", checkpointJson),
@@ -159,6 +154,17 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
                 throw new InvalidOperationException("Terminal provider execution transitions require the caller's active transaction.");
         }
         const string sql = """
+            WITH locked_run AS MATERIALIZED (
+                SELECT run.basic_id
+                FROM crm_prospecting_run AS run
+                WHERE run.tenant_id = @tenantId
+                  AND run.basic_id = @runId
+                  AND run.status = @runningStatus
+                  AND run.lease_token = @leaseToken
+                  AND run.fencing_version = @fencingVersion
+                  AND run.lease_expires_at > clock_timestamp()
+                FOR UPDATE
+            )
             UPDATE crm_prospecting_run_provider_execution AS step
             SET state = @nextState,
                 projected_record_count = COALESCE(@projectedRecordCount, step.projected_record_count),
