@@ -41,12 +41,7 @@ public sealed class CrmGleifIdentityResolver : ICrmProspectingIdentityResolver, 
             message,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
-        if (response.RequestMessage?.RequestUri is not { } finalUri ||
-            !string.Equals(finalUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
-            !finalUri.IsDefaultPort ||
-            !string.IsNullOrEmpty(finalUri.UserInfo) ||
-            !string.Equals(finalUri.Host, Endpoint.Host, StringComparison.OrdinalIgnoreCase) ||
-            !string.Equals(finalUri.AbsolutePath, Endpoint.AbsolutePath, StringComparison.Ordinal))
+        if (!CrmProspectingEndpointGuard.IsApprovedResponseUri(response.RequestMessage?.RequestUri, Endpoint))
         {
             throw new HttpRequestException("GLEIF response came from an unapproved endpoint.");
         }
