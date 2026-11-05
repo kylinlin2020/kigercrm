@@ -123,6 +123,9 @@ This document is an architecture baseline, not evidence that the async extractio
 
 The following foundation is present on `kiger-dev`:
 
+- Durable pre-submit intent is now represented explicitly by `Submitting`, nullable remote extraction ID/submitted timestamp, and a persisted tenant-scoped submission idempotency UUID. `CreateSubmissionIntentAsync` writes this row before network I/O; `ClaimDueAsync` can lease it; `TryAcknowledgeSubmissionAsync` records the remote ID only under the exact live lease/fencing identity. Migration `5.9.34` upgrades existing acknowledged rows without changing their state.
+- The async provider Submit contract now receives the stable local idempotency UUID. An adapter must pass it through the provider's documented idempotency mechanism. If the provider does not support idempotency or lookup by client token, an uncertain timeout must be parked in `NeedsReview`; it must not be blindly resubmitted.
+
 - Backward-compatible `ICrmProspectingAsyncExtractionProvider` contract and separate remote/local status enums.
 - Local extraction state machine and status mapper; unknown numeric remote states map to `NeedsReview`.
 - Tenant-scoped extraction job entity, repository, DI/entity registration, and PostgreSQL migration `5.9.33`.
@@ -147,11 +150,11 @@ The current job repository's `CreateAsync` accepts a non-empty remote `ProviderE
 
 Do not wire Submit directly to the current `CreateAsync` method. Before enabling async providers, evolve the local lifecycle to include a durable pre-submit intent:
 
-1. Create a tenant/run/provider/fingerprint row in a local `Submitting` state before network I/O. The remote extraction ID must be nullable while submission is unresolved.
+1. Create a tenant/run/provider/fingerprint row in a local `Submitting` state before network I/O. The remote extraction ID and submitted timestamp remain nullable while submission is unresolved.
 2. Give each intent a stable submission idempotency token derived from the persisted local job identity (not from secrets or mutable timestamps).
-3. Extend the provider Submit contract to accept that token. Providers that support idempotency must send it using the provider's documented idempotency mechanism.
-4. Persist the remote ID and accepted timestamps with a conditional transition tied to the local job lease/token/version.
-5. If a timeout occurs and the provider does not support idempotent submission or lookup by client token, transition to `NeedsReview` rather than automatically submitting again. Exactly-once remote submission cannot be guaranteed by local SQL alone.
+3. The provider Submit contract now accepts that token. Providers that support idempotency must send it using the provider's documented idempotency mechanism.
+4. `TryAcknowledgeSubmissionAsync` persists the remote ID and accepted timestamps with a conditional update tied to the local job lease/token/version.
+5. If a timeout occurs and the provider does not support idempotent submission or lookup by client token, transition to `NeedsReview` rather than automatically submitting again. The intent remains without a remote ID and is excluded from normal due polling until human reconciliation. Exactly-once remote submission cannot be guaranteed by local SQL alone.
 6. Add unique-key race tests and crash-window tests for: before Submit, after provider acceptance but before local acknowledgement, and after acknowledgement persistence.
 
 The migration must permit a null remote ID only for pre-acknowledgement states and enforce a non-empty remote ID for poll/fetch states. Status constraints, repository methods, and entity metadata must be changed together.
