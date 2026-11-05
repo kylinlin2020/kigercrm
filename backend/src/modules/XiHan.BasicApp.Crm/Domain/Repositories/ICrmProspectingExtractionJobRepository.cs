@@ -7,6 +7,25 @@ namespace XiHan.BasicApp.Crm.Domain.Repositories;
 /// <summary>Tenant-scoped persistence and lease operations for asynchronous provider extraction jobs.</summary>
 public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrmProspectingExtractionJob>
 {
+    /// <summary>Creates the local Submitting intent before any provider network call; repeated calls return the same tenant-scoped intent.</summary>
+    Task<SysCrmProspectingExtractionJob> CreateSubmissionIntentAsync(
+        long runId,
+        string providerCode,
+        string requestFingerprint,
+        DateTimeOffset nextAttemptAtUtc,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Persists the remote acknowledgement only while the exact live lease owns a Submitting intent.</summary>
+    Task<bool> TryAcknowledgeSubmissionAsync(
+        long jobId,
+        Guid leaseToken,
+        long fencingVersion,
+        string providerExtractionId,
+        DateTimeOffset submittedAtUtc,
+        DateTimeOffset nextPollAtUtc,
+        DateTimeOffset? expiresAtUtc,
+        CancellationToken cancellationToken = default);
+
     Task<SysCrmProspectingExtractionJob> CreateAsync(
         long runId,
         string providerCode,
