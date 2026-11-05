@@ -202,6 +202,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     }
                     checkpointedSteps.Add((executionStep.BasicId, executionStep.State,
                         replayFailures, checkpoint.IsComplete, replayedRecordCount));
+                    failures += replayFailures;
+                    if (replayFailures > 0)
+                        AddBoundedWarning(warnings, $"{providerCode}: replayed checkpoint contains incomplete or rejected records.");
                     continue;
                 }
                 else if (executionStep.State == "Succeeded")
