@@ -49,6 +49,10 @@ public sealed class CrmUsCensusTradeProspectingProvider : ICrmProspectingProvide
         if (apiKey is null)
             return new CrmProspectingProviderResult([], 1, ["US Census trade API requires a tenant API key. Configure it in the prospecting provider credentials panel."]) { IsComplete = false };
 
+        var targetMarkets = Regex.Split(request.TargetMarkets ?? string.Empty, @"[,;，；|]+").Select(value => value.Trim()).Where(value => value.Length >= 2).ToArray();
+        if (targetMarkets.Length == 0)
+            return new CrmProspectingProviderResult([], 0, ["US Census trade search requires explicit target-market countries."]) { IsComplete = false };
+
         var keywords = Regex.Split($"{request.ProductScope} {request.SearchObjective} {request.IdealCustomerProfile}", @"[^\p{L}\p{N}]+")
             .Where(value => value.Length >= 3).Distinct(StringComparer.OrdinalIgnoreCase).Take(8).ToList();
         if (keywords.Count == 0)
@@ -105,6 +109,8 @@ public sealed class CrmUsCensusTradeProspectingProvider : ICrmProspectingProvide
             var country = Get("CTY_NAME");
             var countryCode = Get("CTY_CODE");
             if (string.IsNullOrWhiteSpace(country) || string.IsNullOrWhiteSpace(countryCode)) continue;
+            if (!targetMarkets.Any(target => country.Contains(target, StringComparison.OrdinalIgnoreCase)
+                || target.Contains(country, StringComparison.OrdinalIgnoreCase))) continue;
             var allValue = Get("ALL_VAL_MO");
             var id = $"USCENSUS:EXPORT:{period}:{countryCode}:{Get("E_COMMODITY")}";
             var summary = $"U.S. exports to {country}; HS commodity {commodity}; month {period}; total value {allValue}";
