@@ -114,7 +114,7 @@ public sealed record CrmProspectingExtractionSubmission(
 
 /// <summary>Normalized remote extraction status and bounded retry guidance.</summary>
 public sealed record CrmProspectingExtractionPollResult(
-    CrmProspectingExtractionStatus Status,
+    CrmProspectingExtractionProviderStatus Status,
     DateTimeOffset? RetryAtUtc,
     string? FailureCode,
     string? SafeFailureSummary);
@@ -140,4 +140,17 @@ public enum CrmProspectingExtractionStatus
     Expired = 6,
     Cancelled = 7,
     NeedsReview = 8
+}
+
+
+/// <summary>Normalized status values returned by the remote provider API.</summary>
+public enum CrmProspectingExtractionProviderStatus
+{
+    Pending = 0,
+    Running = 1,
+    Succeeded = 2,
+    Failed = 3,
+    Expired = 4,
+    Cancelled = 5,
+    NeedsReview = 6
 }
