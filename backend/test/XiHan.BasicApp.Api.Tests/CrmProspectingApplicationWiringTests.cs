@@ -100,6 +100,16 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.DoesNotContain("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();", registration, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ProspectingRun_ShouldFailClosedWhenAsyncProviderIsSelectedBeforeExtractionWorkerIsWired()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        Assert.Contains("providerRegistry.Asynchronous.ContainsKey(providerCode)", worker, StringComparison.Ordinal);
+        Assert.Contains("requires the asynchronous extraction worker, which is not yet wired to Run orchestration", worker, StringComparison.Ordinal);
+        Assert.Contains("throw new InvalidOperationException", worker, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void TradeProviders_ShouldResolveEncryptedCredentialsInsideTheCurrentTenantScope()
     {
