@@ -174,6 +174,20 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmSamGovOpportunitiesProspectingProvider>());
         }
+        // Companies House is the UK official company register. Search results are registry evidence,
+        // not proof of buyer intent; the API key is read from the current tenant's encrypted configuration.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableCompaniesHouseProvider"], out var enableCompaniesHouse)
+            && enableCompaniesHouse)
+        {
+            services.AddScoped<CrmCompaniesHouseProspectingProvider>(provider => new CrmCompaniesHouseProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.company-information.service.gov.uk"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmCompaniesHouseProspectingProvider>());
+        }
         // Providers resolve API keys from encrypted tenant configuration at execution time.
         // They are Scoped because the prospecting worker establishes the Run tenant before resolving providers.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUnComtradeProvider"], out var enableUnComtrade)
