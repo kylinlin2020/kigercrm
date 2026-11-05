@@ -209,7 +209,8 @@ public sealed class CrmProspectingCandidatePersistenceService
                 expectedCursor,
                 page.NextCursor,
                 items.Count,
-                cancellationToken);
+                cancellationToken,
+                page.FailureCount);
         if (!advanced)
             throw new InvalidOperationException("The extraction cursor/lease changed before page commit; all page writes were rolled back.");
 
