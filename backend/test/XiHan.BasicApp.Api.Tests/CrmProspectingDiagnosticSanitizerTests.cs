@@ -69,4 +69,13 @@ public sealed class CrmProspectingDiagnosticSanitizerTests
         Assert.Equal("openFDA request failed: https://api.fda.gov/device/510k.json", result);
         Assert.DoesNotContain("private-fda-key", result, StringComparison.Ordinal);
     }
+    [Fact]
+    public void Sanitize_RedactsFmcsaWebKey()
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize("FMCSA request failed: webKey=private-fmcsa-key", 500);
+
+        Assert.Equal("FMCSA request failed: webKey=[REDACTED]", result);
+        Assert.DoesNotContain("private-fmcsa-key", result, StringComparison.Ordinal);
+    }
+
 }
