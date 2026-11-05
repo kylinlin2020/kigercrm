@@ -50,7 +50,7 @@
 | France company search（fr_company_search） | 法国政府开放企业目录；免 Key | 已实现待验收 | 已新增官方 Recherche d’Entreprises API Provider；限法国市场、SIREN/SIRET 企业身份字段、最多 3 词×2 页 |
 | ROR | 全球研究机构标识；公开 REST API、无需 Key | 已实现待验收 | 新增真实 v2 organizations 查询 Provider；最多 3 个关键词×每词 20 条；记录研究机构类型/国家/网站；上限命中标记 incomplete；不作为普通公司库 |
 | US NPPES | CMS NPPES/NPI Registry；免费公开 API/全量 DDS 文件 | 已完成接口可行性核验，待适配器 | NPI 记录可包含个人从业者及组织；只在医疗行业 ICP 明确匹配时启用，优先组织 NPI Type 2，默认排除个人 Type 1；不能把 NPI 当作执照/资质背书。Registry UI 对查询量限流且最多显示前 2100 条，批量检索应评估 DDS 下载而非高频 API；实现前确认 API 技术文档的精确分页/频控。
-| FDA 510(k) | openFDA Device 510(k) Clearances；公开 API，无 Key 可用（常规使用建议申请 Key） | 已完成接口核验，待适配器 | `GET https://api.fda.gov/device/510k.json`；可按 applicant/device_name/product_code/date_received 查询；返回 applicant、device_name、k_number、decision_date 等字段；limit 最大 1000、skip 最大 25000；数据按月更新。应作为医疗器械产品/申请人监管信号，不等同采购意向或普通公司注册；Key 放租户加密配置，默认关闭。
+| FDA 510(k) | openFDA Device 510(k) Clearances；公开 API，无 Key 可用（常规使用建议申请 Key） | 已实现待验收 | 已新增 `open_fda_510k` Provider；仅美国目标市场且活动明确涉及 medical device/medical equipment 时运行；租户加密 Key 可选；每关键词最多 3 页×100 条，超限标记 incomplete；提取申请人、器械名称、K 编号、决定日期和产品代码；结果仅为医疗器械监管证据，不等同采购意向或普通企业注册。
 | Mexico DENUE | 墨西哥经济单位目录 | 需拆分确认 | 源项目归入公开/采购来源模块，核对接口和目标用途 |
 | US FMCSA QCMobile | 美国运输承运商记录 | 需拆分确认 | 明确行业范围、可用 API 与字段含义 |
 
@@ -114,6 +114,7 @@
 - `un_comtrade`（新增；公开预览无 Key，或使用订阅 Key 的官方贸易统计 API）
 - `us_census_trade`（新增；需要 Census API Key，从当前租户加密配置读取）
 - `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
+- `open_fda_510k`（新增；openFDA 510(k) 医疗器械监管记录，租户 API Key 可选；仅美国医疗器械行业活动可调用，最多 3 页×100 条）
 - `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
 - `kvk`（新增；荷兰 KVK 官方 Handelsregister Zoeken API，租户 API Key 通过 `apikey` 请求头发送，最多 3 个关键词×每词 2 页 bounded fetch）
 - `brave`（新增；Brave Web Search API，租户订阅 Token 通过 `X-Subscription-Token` 请求头发送，最多 2 页×20 条，按 `more_results_available` 标记覆盖状态）
@@ -272,3 +273,13 @@
 - openFDA 510(k) 记录的是器械上市前通告申请及申请人/器械信息；适合医疗器械行业的产品和申请人线索，不是一般采购商目录。
 - openFDA 允许无 Key 调用，建议持续使用时申请 Key；单次 `limit` 最大 1000，`skip` 最大 25000，超过范围需采用更细查询窗口或其他官方数据下载方式。
 - 两者都应默认关闭，并只在医疗行业 ICP 适配时运行；不能用于 SUPERKIGER 发电机/水泵常规获客主流程。
+
+
+### openFDA 510(k) Provider 实现记录（2026-11-05）
+
+- 新增 `CrmOpenFda510kProspectingProvider`、独立契约测试、DI opt-in 注册及默认关闭配置。
+- API Key 通过当前租户加密 SaaS 配置 `CRM.Prospecting.Provider.open_fda_510k.ApiKey` 读取；不硬编码、不回显。openFDA 无 Key 可用，Key 为可选增强额度。
+- 只允许美国目标市场；活动的产品范围/ICP/目标必须包含医疗器械、医疗设备、临床、诊断、外科或医院等明确医疗语义。普通发电机、水泵获客不会调用此来源。
+- 按器械名称关键词查询，最多 3 个关键词×3 页×100 条；稳定键为 K 编号；保留 applicant/device/product code/decision date；证据类型 `medical_device_regulatory_record`。
+- 不把 510(k) 清关记录解释成采购意向；不自动创建 CRM Lead、不自动发送邮件。
+- 当前状态为源码已实现待运行验收；尚未执行 .NET 构建、单元测试或真实 openFDA API 冒烟。
