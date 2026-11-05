@@ -133,6 +133,16 @@
 - Apollo、PDL、Hunter 作为可选商业补全源，必须租户显式启用、提供凭证并确认配额/成本；默认关闭。
 - AI 搜索、网站发现和深度挖掘作为编排能力单独验收。
 
+## 4.1 API Key 前端录入入口（本轮新增）
+
+获客工作台新增 `ProviderCredentialsPanel.vue`，可为需要凭证的数据源录入/轮换/清除 API Key 或 Token。当前首批入口包括 Serper、Brave Search、SerpApi、Google Places、SAM.gov、UN Comtrade、US Census、Apollo、People Data Labs、Hunter、OpenCorporates、Netherlands KVK、Companies House。
+
+- 前端通过现有系统配置 API 写入 `CRM_PROSPECTING_PROVIDER` 配置组，配置项标记 `isEncrypted=true`，由现有 SaaS 配置密文保护机制加密保存。
+- 列表仅使用 `hasCurrentValue` 显示是否已配置；不读取或回显密钥明文。
+- 修改时留空表示不覆盖；提供显式清除动作。
+- 新建凭证配置默认 Disabled；保存凭证不等于启用 Provider，不会自动触发外部调用。
+- 该面板完成的是安全录入与密文存储入口。各 Provider 从租户/系统配置动态取密钥、凭证轮换后热更新以及租户隔离读取，仍需逐项接入并测试；在此之前不能把“前端已可录入”计作“数据源已可运行”。
+
 ## 5. 业务与安全边界
 
 - 数据源只能生成 Candidate / Evidence，不得直接创建或更新正式 CRM Lead。
