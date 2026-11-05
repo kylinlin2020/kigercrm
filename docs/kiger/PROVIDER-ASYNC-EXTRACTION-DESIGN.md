@@ -559,3 +559,18 @@ Required recovery semantics:
 6. Recovery must use the immutable Run snapshot and provider-plan version, not current UI settings or a newly computed plan.
 
 This is a confirmed implementation gap, not a claim that a checkpoint store or replay worker already exists. The synchronous Run worker remains single-pass/in-memory for provider results; async provider execution must remain fail-closed until the checkpoint and continuation protocol is implemented and PostgreSQL-tested.
+
+
+## 11.35 Durable provider-execution checkpoint schema foundation (2026-11-05)
+
+Added the first persistence foundation on `kiger-dev`:
+
+- Entity: `SysCrmProspectingRunProviderExecution`.
+- PostgreSQL migration: `5.9.36`, table `crm_prospecting_run_provider_execution`.
+- Unique identity: tenant + Run + plan version + normalized provider code.
+- Immutable execution identity fields: plan version, plan ordinal, provider code, request fingerprint.
+- Explicit step lifecycle: Queued, Started, Checkpointed, Projecting, Succeeded, Failed, NeedsReview, Skipped.
+- Bounded-checkpoint metadata: JSON payload, SHA-256 hash, byte count, raw/projected/failure counters.
+- Database constraints validate state names, lifecycle completion timestamp shape, non-negative counters, fingerprint/hash shape, and checkpoint metadata consistency.
+
+This is schema foundation only. It does not yet create or materialize execution rows, implement a repository, enforce the application-level checkpoint byte quota, persist provider results, project candidates, or resume Runs. Do not change the Run worker to consume this table until repository transitions are transactional and fenced by the live Run lease, the migration is exercised against PostgreSQL, and synchronous crash/replay tests pass. Existing Request Ledger semantics remain unchanged.
