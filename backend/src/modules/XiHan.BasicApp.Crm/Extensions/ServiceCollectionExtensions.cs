@@ -64,6 +64,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrmProspectingScoreRepository, CrmProspectingScoreRepository>();
         services.AddScoped<ICrmProspectingProviderRequestRepository, CrmProspectingProviderRequestRepository>();
         services.AddScoped<ICrmProspectingExtractionJobRepository, CrmProspectingExtractionJobRepository>();
+        services.AddScoped<ICrmProspectingRunProviderExecutionRepository, CrmProspectingRunProviderExecutionRepository>();
         services.AddScoped<CrmProspectingCandidatePersistenceService>();
         // CrmProspectingRunHostedService follows the framework worker convention:
         // XiHanBackgroundServiceBase supplies IBackgroundWorker/SingletonDependency and the HostedService suffix
