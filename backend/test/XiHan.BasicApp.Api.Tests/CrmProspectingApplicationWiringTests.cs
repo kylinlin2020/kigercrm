@@ -106,6 +106,7 @@ public sealed class CrmProspectingApplicationWiringTests
 
         Assert.Contains("services.AddScoped<CrmUnComtradeProspectingProvider>", registration, StringComparison.Ordinal);
         Assert.Contains("services.AddScoped<CrmUsCensusTradeProspectingProvider>", registration, StringComparison.Ordinal);
+        Assert.Contains("services.AddScoped<CrmSamGovOpportunitiesProspectingProvider>", registration, StringComparison.Ordinal);
         Assert.Contains("ISaasConfigurationService", registration, StringComparison.Ordinal);
         Assert.Contains("ICurrentTenant>().Change(message.TenantId)", worker, StringComparison.Ordinal);
         Assert.Contains("CRM.Prospecting.Provider.un_comtrade.ApiKey", comtrade, StringComparison.Ordinal);
