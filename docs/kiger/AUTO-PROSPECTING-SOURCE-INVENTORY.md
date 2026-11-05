@@ -63,7 +63,7 @@
 | USAspending | 美国联邦合同/支出 | 已实现待验收 | 完整分页、金额/机构字段、真实 API 冒烟 |
 | UK Find a Tender | 英国官方招标公告 | 已实现待验收 | 游标续页、公告/买方字段和限流验收 |
 | UK Contracts Finder | 英国公共采购公告 | 已实现待验收 | 游标续页、公告阶段、买方与联系字段验证 |
-| SAM.gov opportunities | 美国联邦招标机会；需 API Key | 已实现待验收 | 已新增官方 v2 Opportunities 搜索适配器；按最近 30 天窗口、最多 3 页；租户密钥从加密 SaaS 配置读取；需验收真实 Key 权限、额度、分页和字段映射 |
+| SAM.gov opportunities | 美国联邦招标机会；需 API Key | 已实现待验收 | 已新增官方 v2 Opportunities 搜索适配器；按最近 30 天窗口、最多 3 页；租户密钥从加密 SaaS 配置读取；映射公开采购联系人字段但不自动外联；需验收真实 Key 权限、额度、分页和字段映射 |
 | Brazil PNCP | 巴西国家公共采购门户；公开接口 | 已实现待验收 | 已新增真实适配器、国家匹配、最多 5 页 bounded fetch、证据映射和契约测试；超过页数标记不完整 |
 | Singapore GeBIZ | data.gov.sg GeBIZ 已授标数据集 | 已实现待验收 | 已新增真实适配器、国家匹配、最多 5 页 bounded fetch；明确为历史授标记录而非开放招标；契约测试待运行 |
 | CanadaBuys | 加拿大联邦采购 | 需拆分确认 | 源项目为 assisted source，确认可自动 API 与人工辅助边界 |
@@ -75,7 +75,7 @@
 | 源项目来源 | 类别 / 覆盖 | 目标状态 | 后续工作 |
 |---|---|---|---|
 | UN Comtrade | 官方国际商品贸易统计 | 已实现待验收 | 已新增公开预览（无 Key，最多 500 行）与订阅 Key 数据 API 两种模式；按目标市场 Reporter 取数，结果标记为聚合贸易信号，不视为具体进口商；需验证配额、分类与月份覆盖 |
-| US Census International Trade | 美国官方进出口统计 | 已实现待验收 | 已新增 HS2 出口贸易统计适配器，Key 必填，默认关闭；当前从受保护部署配置读取 Key，租户凭证面板到后台 Worker 的动态读取链路尚未接通；需验收变量/分类/时间覆盖 |
+| US Census International Trade | 美国官方进出口统计 | 已实现待验收 | 已新增 HS2 出口贸易统计适配器，Key 必填，默认关闭；从当前租户加密配置读取 Key，并按 target market 国家过滤目的地；需验收变量/分类/时间覆盖 |
 | Eurostat Comext | 欧盟官方商品贸易统计 | 未迁移 | 数据集版本、Reporter/Partner/商品编码和修订 |
 | China Customs Statistics | 中国海关统计入口 | 需拆分确认 | 核验接口可用性、许可、数据粒度及是否聚合统计 |
 | ImportYeti | 美国提单/进口商发现 | 需拆分确认 | 确认是否有正式 API、许可和自动化访问边界；禁止绕过访问控制 |
