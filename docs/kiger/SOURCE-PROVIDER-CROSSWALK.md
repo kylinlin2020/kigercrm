@@ -106,6 +106,18 @@
 | 独立操作面 | Search、Enrich、Trade、Health、Preflight 分别执行；域名补全有输入校验；trade 单独分页并校验 cursor | 目标端需明确是否具备独立的健康检查、预检、补全和贸易查询入口；不能把所有能力压缩为一次 SearchAsync 后宣称功能等价 |
 | 分页与覆盖完整性 | Search/Trade 使用 cursor 分页；cursor 长度限制；页面经字段 allowlist、authority 和 retention policy 规范化 | 目标端每个 Provider 必须证明分页终止、结果上限和 coverage incomplete 语义；达到页数/记录上限、被限流或异步提交时不能报告完整覆盖 |
 
+### 目标端 Provider 契约静态复核（2026-11-05）
+
+已读取目标端 Provider contracts、Run HostedService、HTTP handler factory、Prospecting AppService 与 CRM DI 注册代码，确认以下边界：
+
+- `ICrmProspectingProvider` 目前只有 `ProviderCode` 和 `SearchAsync`；没有独立 Health、Preflight、Enrich、Trade Query 或异步 continuation 方法。
+- `CrmProspectingProviderResult.IsComplete` 默认 false。适配器必须显式说明是否耗尽结果，不能把分页截断视为完整覆盖。
+- HostedService 已有 Redis 延迟队列、租户上下文、Run lease/heartbeat/fencing 和 Provider Request Ledger。它们是 Run 级执行设施，不等同于 Comext extraction Job 的持久化轮询、过期和恢复。
+- HTTP handler 已固定允许 host、禁用自动重定向、校验 DNS 公网地址并连接已验证 IP。DENUE Token 位于 URL path，仍需单独证明完整 URI 不会进入应用、代理或诊断日志。
+- Provider DI 注册存在，但仅有 SearchAsync + DI 不代表源项目 Runtime parity。
+
+新增阻断项：在实现 Comext 前，先设计独立租户级 Provider Job 实体/仓储/状态机，包含 Run/Provider 关联、Extraction ID、NextPollAt、ExpiresAt、幂等轮询、取消与恢复；并以向后兼容方式扩展 Health/Preflight/Enrich/Trade 操作面。不得把异步 SUBMITTED/PROCESSING 当作空成功结果。以上是静态代码复核，尚未执行构建或运行测试。
+
 ### 源端运行时符号级证据（2026-11-05 复核）
 
 本轮重新读取源仓库以下真实文件，而非仅依据文件名推断能力：
