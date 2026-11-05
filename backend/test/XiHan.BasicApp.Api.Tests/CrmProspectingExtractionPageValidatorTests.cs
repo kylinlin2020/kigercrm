@@ -26,7 +26,7 @@ public sealed class CrmProspectingExtractionPageValidatorTests
     public void TryValidate_RejectsControlCharactersInOpaqueCursor()
     {
         var page = new CrmProspectingExtractionPage(
-            [Record()], "cursor-2\\nforged-log-line", false, false, 0, []);
+            [Record()], "cursor-2\nforged-log-line", false, false, 0, []);
 
         Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
         Assert.Equal("invalid_cursor", failure);
