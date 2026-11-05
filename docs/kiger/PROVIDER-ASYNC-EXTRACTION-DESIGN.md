@@ -347,3 +347,8 @@ The claim query and expiry recovery now both include Succeeded. A later worker c
 Long-running asynchronous provider calls and multi-page result retrieval can outlive the initial worker lease. The extraction repository now exposes `TryRenewLeaseAsync`. Renewal is tenant-scoped and conditional on the exact job ID, lease token, fencing version, and a lease that is still live according to PostgreSQL `clock_timestamp()`. It cannot resurrect an expired lease, and it rejects durations outside the same 15-minute maximum used by initial claims. Only executable lifecycle states are renewable; NeedsReview and terminal states are excluded.
 
 The method is a persistence primitive, not yet a running heartbeat. The future Extraction Worker must renew before expiry while provider calls/pages are in progress, cancel work immediately when renewal fails, and continue to use fenced writes for every state/cursor update. No background worker is wired by this change.
+
+
+### 11.20 Cursor persistence boundary validation
+
+The repository cursor CAS now independently rejects a non-null cursor that is blank or equal to the expected cursor, and bounds each persisted page count to the page validator's 100-record maximum. This protects the durable cursor from accidental replay loops and oversized accounting even if a future caller bypasses the page validator. A null next cursor remains available for a final page; the worker must still validate the page's final/complete markers and zero failure count before calling the completion operation. Cursor CAS continues to require the same transaction as candidate/evidence persistence and the live tenant-scoped fenced lease.
