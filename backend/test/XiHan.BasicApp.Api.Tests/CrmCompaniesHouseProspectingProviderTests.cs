@@ -49,10 +49,10 @@ public sealed class CrmCompaniesHouseProspectingProviderTests
         Assert.Equal("Example Generator Holdings Ltd", record.CompanyName);
         Assert.Equal("official_company_registry", record.EvidenceType);
         Assert.Equal("https://find-and-update.company-information.service.gov.uk/company/01234567", record.SourceUrl);
-        Assert.Contains("London", record.Summary, StringComparison.Ordinal);
+        Assert.Contains("London", record.Summary!, StringComparison.Ordinal);
         Assert.Equal("Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("companies-house-test-key:")), handler.Authorization);
         Assert.Contains("q=water%20pumps", handler.RequestUri, StringComparison.Ordinal);
-        Assert.Contains("start_index=0", handler.RequestUri, StringComparison.Ordinal);
+        Assert.Contains("start_index=0", handler.RequestUri, StringComparison.Ordinal);\n        Assert.DoesNotContain("companies-house-test-key", handler.RequestUri, StringComparison.Ordinal);
         Assert.True(result.IsComplete);
     }
 
