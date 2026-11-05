@@ -425,3 +425,10 @@ The service is registered scoped alongside the CRM repositories. A source-wiring
 - Added a source-level regression test for active-job blocking and terminal failure aggregation. This gate protects the Run final UPDATE; it does not yet implement async provider submission/poll/fetch scheduling or prove that request-ledger/Coverage finalization waits for all jobs. Job creation must be serialized under the Run lease before full async wiring, and PostgreSQL concurrency tests remain required.
 
 - The completion predicate is fail-closed for future/unknown extraction status strings: only the four recognized terminal states (`Completed`, `Failed`, `Expired`, `Cancelled`) are allowed past the gate. This avoids a newly introduced lifecycle state being mistaken for a finished job.
+
+## 11.29 Async page candidate identity binding (2026-11-05)
+
+- Before opening the page transaction, the persistence boundary now loads the tenant-scoped Extraction Job and verifies `FetchingResults`, exact lease token/fencing version, and the expected cursor.
+- Every candidate page item must map to one distinct normalized external identity present in the fetched page. Candidate Run ID, candidate/provider envelope codes, and candidate External ID must agree with the Extraction Job and raw record.
+- This closes a prior validation gap: the page identity sets existed but were not used, so an incorrectly paired candidate/envelope could have been persisted under the wrong provider identity. Page cursor/fencing CAS remains the final in-transaction authority; preflight checks do not replace it.
+- Added source-level regression assertions. Runtime and PostgreSQL transaction tests remain outstanding.
