@@ -5,6 +5,10 @@ namespace XiHan.BasicApp.Api.Tests;
 public sealed class CrmProspectingExtractionStateMachineTests
 {
     [Theory]
+    [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.Pending, true)]
+    [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.NeedsReview, true)]
+    [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.Failed, true)]
+    [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.Succeeded, false)]
     [InlineData(CrmProspectingExtractionStatus.Pending, CrmProspectingExtractionStatus.Running, true)]
     [InlineData(CrmProspectingExtractionStatus.Pending, CrmProspectingExtractionStatus.Succeeded, true)]
     [InlineData(CrmProspectingExtractionStatus.Running, CrmProspectingExtractionStatus.Succeeded, true)]
