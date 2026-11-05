@@ -43,7 +43,7 @@
 | 源项目来源 | 类别 / 覆盖 | 目标状态 | 后续工作 |
 |---|---|---|---|
 | GLEIF | 全球 LEI 法人身份 | 已实现待验收 | 核验精确 LEI/名称查询、匹配置信度和冲突处理 |
-| Wikidata | 全球知识图谱；非权威登记 | 未迁移 | 标记为辅助/交叉验证，不作为唯一权威身份 |
+| Wikidata | 全球知识图谱实体发现；公开 API、无需 Key | 已实现待验收 | 新增低频 `wbsearchentities` 关键词发现 Provider；最多 3 个关键词×10 条；仅保留组织描述线索；上限命中标记 incomplete；不等同企业注册或采购意向 |
 | OpenCorporates | 多国企业登记聚合；需核对许可/Key | 未迁移 | API 许可、覆盖国家、Key、字段权威等级 |
 | Companies House | 英国官方企业登记；需租户 API Key（HTTP Basic 用户名） | 已实现待验收 | 已新增真实公司搜索 Provider；仅英国目标市场调用，最多 2 页，超限标记 coverage incomplete；公司登记不等同采购意向 |
 | Netherlands KVK | 荷兰官方企业登记；订阅/Key | 未迁移 | 订阅开关、成本、名称与编号精确查询 |
@@ -114,7 +114,9 @@
 - `un_comtrade`（新增；公开预览无 Key，或使用订阅 Key 的官方贸易统计 API）
 - `us_census_trade`（新增；需要 Census API Key，从当前租户加密配置读取）
 - `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
-- `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）\n- `wikidata`（新增；公开 Wikidata `wbsearchentities` API，最多 3 个关键词、每个 10 条，组织描述筛选，结果标记知识图谱线索）
+- `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
+- `wikidata`（新增；公开 Wikidata `wbsearchentities` API，最多 3 个关键词、每个 10 条，组织描述筛选，结果标记知识图谱线索）
+- `wikidata`（新增；公开 Wikidata `wbsearchentities` API，最多 3 个关键词、每个 10 条，组织描述筛选，结果标记知识图谱线索）
 
 它们均为**已实现待验收**，不是“运行已通过”。Fake Provider 不计入真实来源数量。
 
@@ -157,7 +159,9 @@
 - UN Comtrade：`EnableUnComtradeProvider` 显式开启；无 Key 时调用官方 public preview（500 行上限），提供订阅 Key 时切换到 `/data/v1/get`。目标市场只支持适配器内明确映射的 M49 Reporter 国家；不支持的国家返回清晰 warning，不猜测代码。
 - US Census：`EnableUsCensusTradeProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取；只请求官方 HS 出口数据集的有效字段。官方 API 要求 Key 作为 `key` 查询参数，需在 HTTP 诊断中脱敏。
 - SAM.gov：`EnableSamGovProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 `api_key` 查询参数发送；请求窗口限制为 30 天、最多 3 页，达到页数上限会标记 coverage incomplete。
-- Wikidata：`EnableWikidataProvider` 显式开启；默认关闭。无需 API Key；通过官方 MediaWiki `wbsearchentities` 搜索接口查询最多 3 个关键词，每个关键词最多 10 条，发送明确 User-Agent；仅保留描述中出现 company、manufacturer、supplier、distributor、organization 等组织线索的实体，单词条命中 10 条上限即标记 coverage incomplete。该来源是知识图谱发现线索，可能存在过期、误分类和描述语言偏差，必须人工核验。\n- Companies House：`EnableCompaniesHouseProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 HTTP Basic 用户名发送（密码为空）；只在目标市场明确包含 UK/GB/United Kingdom 等英国标识时调用，搜索结果是公司登记证据而非采购意向，最多 2 页并标记未覆盖的后续结果。
+- Wikidata：`EnableWikidataProvider` 显式开启；默认关闭。无需 API Key；通过官方 MediaWiki `wbsearchentities` 搜索接口查询最多 3 个关键词，每个关键词最多 10 条，发送明确 User-Agent；仅保留描述中出现 company、manufacturer、supplier、distributor、organization 等组织线索的实体，单词条命中 10 条上限即标记 coverage incomplete。该来源是知识图谱发现线索，可能存在过期、误分类和描述语言偏差，必须人工核验。
+- Wikidata：`EnableWikidataProvider` 显式开启；默认关闭。无需 API Key；通过官方 MediaWiki `wbsearchentities` 搜索接口查询最多 3 个关键词，每个关键词最多 10 条，发送明确 User-Agent；仅保留描述中出现 company、manufacturer、supplier、distributor、organization 等组织线索的实体，单词条命中 10 条上限即标记 coverage incomplete。该来源是知识图谱发现线索，可能存在过期、误分类和描述语言偏差，必须人工核验。
+- Companies House：`EnableCompaniesHouseProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 HTTP Basic 用户名发送（密码为空）；只在目标市场明确包含 UK/GB/United Kingdom 等英国标识时调用，搜索结果是公司登记证据而非采购意向，最多 2 页并标记未覆盖的后续结果。
 - **租户凭证链路已接通（待测试）：**相关 Provider 均为 Scoped，后台 Worker 先切换到 Run 的 Tenant Scope，再解析 `ISaasConfigurationService`；分别读取 `CRM.Prospecting.Provider.un_comtrade.ApiKey`、`CRM.Prospecting.Provider.us_census.ApiKey`、`CRM.Prospecting.Provider.sam_gov.ApiKey` 与 `CRM.Prospecting.Provider.companies_house.ApiKey`，复用 SaaS 的加密配置解密与租户优先级/缓存逻辑。Comtrade Key 通过 `Ocp-Apim-Subscription-Key` 请求头发送；Census 按官方要求使用 `key` 查询参数；SAM.gov 使用 `api_key` 查询参数；Companies House 使用 HTTP Basic 用户名。诊断脱敏器现覆盖通用 `key`、`api_key`、订阅 Key 和 Basic/Bearer 认证文本；仍需实机检查应用日志、HTTP handler 诊断与 APM 遥测是否存在额外的请求头/查询串采集。真实多租户隔离和 Data Protection 密钥环仍待实机验收。
 
 ## 4.2 Companies House 公司登记 Provider（本轮新增）
