@@ -381,3 +381,11 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 安全边界：Provider failure summary 不保存原始异常/响应文本，只写固定脱敏摘要；Provider ID 和 cursor 均长度受限。所有 repository SQL 显式 tenant 过滤。Claim 使用每个 job 独立 token 和递增 fencing version。
 
 **尚未完成：**没有 scheduler/hosted worker 调用 ClaimDueAsync；没有 submission/poll/fetch orchestration；没有候选/evidence 页数据落库实现；没有 cursor + records 同事务端到端测试；没有 coverage 原子提交连接；没有 Comext adapter。迁移 SQL、C# 构建和测试均尚未在本轮实际执行，必须由后续 Windows/PostgreSQL 验收确认。
+
+
+### 持久化层安全补充
+
+- Repository 创建接口不再接受通用 provider metadata；当前不把 provider 返回的 metadata JSON 写入数据库，避免未经字段 allowlist 的 payload 混入潜在密钥或个人信息。实体中的 metadata 列仅作为后续经过审查的兼容扩展位，当前创建路径保持 NULL。
+- Provider failure code 只接受有限 ASCII 字符集，不符合格式时归一化为 `provider_error`；failure summary 仅保存固定说明，不保存原文。
+- 新增 `ExpireDueAsync`，以 PostgreSQL 数据库时钟将到期的 Pending/Running/FetchingResults 任务转为 Expired 并撤销租约。
+- Claim 使用 `FOR UPDATE SKIP LOCKED`、每个任务独立 lease token、fencing version；结果 cursor 只能在 PostgreSQL 活跃事务中推进。
