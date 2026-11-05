@@ -178,7 +178,7 @@ public sealed class CrmProspectingCandidatePersistenceService
         if (extractionJobId <= 0) throw new ArgumentOutOfRangeException(nameof(extractionJobId));
         if (extractionLeaseToken == Guid.Empty) throw new ArgumentException("Extraction lease token is required.", nameof(extractionLeaseToken));
         if (extractionFencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(extractionFencingVersion));
-        if (!CrmProspectingExtractionPageValidator.CanAdvanceCursor(page, expectedCursor))
+        if (!CrmProspectingExtractionPageValidator.CanCommitPage(page, expectedCursor))
             throw new ArgumentException("The extraction page is invalid, incomplete, or has a non-advancing cursor.", nameof(page));
         if (items.Count > CrmProspectingExtractionPageValidator.MaxRecordsPerPage ||
             items.Count > page.Records.Count)
