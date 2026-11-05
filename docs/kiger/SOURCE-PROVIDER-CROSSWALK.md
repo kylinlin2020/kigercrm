@@ -77,13 +77,13 @@
 
 ## 5. 本轮 SEC EDGAR 适配器范围
 
-- 固定调用 `https://www.sec.gov/files/company_tickers.json`，只访问 SEC 官方主机。
+- 固定调用 `https://www.sec.gov/files/company_tickers.json`，只访问 SEC 官方主机；进程内统一限速为每 150 ms 最多一次（约 6.7 req/s），低于 SEC 当前 10 req/s 上限。
 - 需要用户填写 SEC Fair Access User-Agent（系统名称 + 联系邮箱），不是 API Key；保存到租户加密配置 `CRM.Prospecting.Provider.sec_edgar.UserAgent`。
 - 仅美国目标市场运行；公司名称/股票代码与活动 ICP/产品/行业关键词做本地匹配；最多输出 100 条。
 - 记录 CIK、Ticker、官方 SEC browse URL、检索时间、原始记录 SHA-256；证据类型 `us_sec_company_directory`。
 - 不抓取联系人、不把 SEC 登记/上市记录解释为采购意向、不自动写入正式客户。
 - `EnableSecEdgarProvider=false` 默认关闭。
-- 当前代码与契约测试已提交；尚未运行 .NET 构建/测试、SEC 真实 API 冒烟或 Windows/PostgreSQL 联调。
+- 当前代码与契约测试已提交；尚未运行 .NET 构建/测试、SEC 真实 API 冒烟或 Windows/PostgreSQL 联调。当前限速器是进程内共享；若以后允许多个 API/Worker 进程并行，必须先把 SEC 限速升级为跨进程共享协调器。
 
 ## 6. 迁移验收原则
 
