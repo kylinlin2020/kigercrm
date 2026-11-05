@@ -213,6 +213,19 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmCompaniesHouseProspectingProvider>());
         }
+        // French public business-directory search is open-access and has no tenant API key.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFranceCompanySearchProvider"], out var enableFranceCompanySearch)
+            && enableFranceCompanySearch)
+        {
+            services.AddScoped<CrmFranceCompanySearchProspectingProvider>(_ =>
+                new CrmFranceCompanySearchProspectingProvider(
+                    new HttpClient(CrmProspectingHttpHandlerFactory.Create("recherche-entreprises.api.gouv.fr"))
+                    {
+                        Timeout = TimeSpan.FromSeconds(35)
+                    }));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmFranceCompanySearchProspectingProvider>());
+        }
         // Serper Google Search: API key is tenant-scoped and sent in X-API-KEY.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableSerperProvider"], out var enableSerper)
             && enableSerper)
