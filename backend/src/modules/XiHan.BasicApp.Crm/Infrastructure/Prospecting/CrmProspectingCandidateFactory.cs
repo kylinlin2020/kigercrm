@@ -188,7 +188,8 @@ public sealed class CrmProspectingCandidatePersistenceService
             throw new ArgumentException("A SHA-256 checkpoint hash is required.", nameof(checkpointHash));
         ArgumentNullException.ThrowIfNull(items);
         if (failureCount < 0) throw new ArgumentOutOfRangeException(nameof(failureCount));
-        if (items.Count > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
+        const int maxProviderBatchRecords = 2_000;
+        if (items.Count > maxProviderBatchRecords)
             throw new ArgumentOutOfRangeException(nameof(items));
 
         using var unitOfWork = _unitOfWorkManager.Begin(
