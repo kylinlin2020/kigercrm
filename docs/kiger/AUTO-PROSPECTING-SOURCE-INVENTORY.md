@@ -51,7 +51,7 @@
 | ROR | 全球研究机构标识；公开 REST API、无需 Key | 已实现待验收 | 新增真实 v2 organizations 查询 Provider；最多 3 个关键词×每词 20 条；记录研究机构类型/国家/网站；上限命中标记 incomplete；不作为普通公司库 |
 | US NPPES | CMS NPPES/NPI Registry；免费公开 API/全量 DDS 文件 | 已实现待验收 | 新增 `nppes` Provider：仅美国目标市场、医疗行业活动、强制 `enumeration_type=NPI-2`；最多 2 个关键词×2 页×200 条，满页上限标记 incomplete；不采集 NPI-1 个人记录、不把 NPI 当作执照/资质背书。CMS 对每小时查询实施限流，未公开具体额度；批量场景必须评估官方 DDS 文件，不以 API 高频扫库。
 | FDA 510(k) | openFDA Device 510(k) Clearances；公开 API，无 Key 可用（常规使用建议申请 Key） | 已实现待验收 | 已新增 `open_fda_510k` Provider；仅美国目标市场且活动明确涉及 medical device/medical equipment 时运行；租户加密 Key 可选；每关键词最多 3 页×100 条，超限标记 incomplete；提取申请人、器械名称、K 编号、决定日期和产品代码；结果仅为医疗器械监管证据，不等同采购意向或普通企业注册。
-| Mexico DENUE | 墨西哥经济单位目录 | 需拆分确认 | 源项目归入公开/采购来源模块，核对接口和目标用途 |
+| Mexico DENUE | 墨西哥 INEGI 经济单位目录；需 API Token | 暂缓实现（凭证路径泄漏风险待解决） | 源适配器把 Token 放在 URL 路径段；在确认 HttpClient/反向代理/诊断日志全链路不会记录 Token 前，不得直接迁移。先核验官方是否支持 Header 认证；若仅支持路径 Token，则必须采用受控日志脱敏/专用出站处理并增加 Token 不出日志测试，仍保持租户隔离与默认关闭 |
 | US FMCSA QCMobile | 美国运输承运商记录 | 需拆分确认 | 明确行业范围、可用 API 与字段含义 |
 
 ### C. 公共采购、招标与政府合同来源
@@ -334,3 +334,4 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - 过滤无效域名和租户排除域名；固定 host、HTTPS、响应 8 MB 上限、429/503 cooldown；诊断脱敏器已覆盖 `api_key` 查询参数。
 - 返回满 100 条或 meta 仍显示更多结果时，必须将 coverage 标记 incomplete。
 - 当前源码和测试已提交，尚未运行 .NET build/test 或真实 Hunter API 冒烟；API Discover 权限/套餐、调用限额和最终用户数据使用范围需由实际 Hunter 账号确认。
+- 限流语义复核：Hunter 403 按请求频率限制进入 cooldown；503 按临时故障进入 cooldown；429 是账户使用额度耗尽，记为普通 HTTP 失败，不进入自动重试/cooldown。2026-11-05 已修正测试名称/断言，避免把 429 配额错误当作短时限流。
