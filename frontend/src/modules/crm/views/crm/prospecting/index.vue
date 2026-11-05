@@ -15,6 +15,7 @@ import type {
   CrmProspectingStrategyDto,
 } from '@/api'
 import { toast } from '~/composables'
+import ProviderCredentialsPanel from './ProviderCredentialsPanel.vue'
 import { usePermission } from '~/hooks'
 
 defineOptions({ name: 'CrmProspectingPage' })
@@ -299,6 +300,8 @@ onMounted(loadCampaigns)
         {{ t('crm.prospecting.createCampaign') }}
       </button>
     </header>
+
+    <ProviderCredentialsPanel />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}
