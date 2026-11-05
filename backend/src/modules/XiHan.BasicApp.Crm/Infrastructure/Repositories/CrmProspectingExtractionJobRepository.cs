@@ -325,6 +325,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             UPDATE crm_prospecting_extraction_job
             SET status = @completedStatus,
                 result_record_count = result_record_count + @persistedRecordCount,
+                result_failure_count = result_failure_count + @failureCount,
                 lease_owner = NULL,
                 lease_token = NULL,
                 lease_expires_at_utc = NULL,
@@ -336,12 +337,14 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
               AND lease_token = @leaseToken
               AND fencing_version = @fencingVersion
               AND result_cursor IS NOT DISTINCT FROM @expectedCursor
+              AND result_failure_count + @failureCount = 0
               AND lease_expires_at_utc > clock_timestamp();
             """;
         var affected = await client.Ado.ExecuteCommandAsync(
             sql,
             new SugarParameter("@completedStatus", CrmProspectingExtractionStatus.Completed.ToString()),
             new SugarParameter("@persistedRecordCount", persistedRecordCount),
+            new SugarParameter("@failureCount", failureCount),
             new SugarParameter("@tenantId", tenant.TenantId),
             new SugarParameter("@jobId", jobId),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
@@ -437,7 +440,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         string? expectedCursor,
         string? nextCursor,
         int persistedRecordCount,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int pageFailureCount = 0)
     {
         if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
         if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
@@ -450,6 +454,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             throw new ArgumentException("A non-final result cursor must be non-empty and advance beyond the expected cursor.", nameof(nextCursor));
         if (persistedRecordCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
             throw new ArgumentOutOfRangeException(nameof(persistedRecordCount));
+        if (pageFailureCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
+            throw new ArgumentOutOfRangeException(nameof(pageFailureCount));
         cancellationToken.ThrowIfCancellationRequested();
 
         var client = DbClient;
@@ -463,7 +469,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         const string sql = """
             UPDATE crm_prospecting_extraction_job
             SET result_cursor = @nextCursor,
-                result_record_count = result_record_count + @persistedRecordCount
+                result_record_count = result_record_count + @persistedRecordCount,
+                result_failure_count = result_failure_count + @pageFailureCount
             WHERE tenant_id = @tenantId
               AND basic_id = @jobId
               AND status = @fetchingStatus
@@ -476,6 +483,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             sql,
             new SugarParameter("@nextCursor", nextCursor),
             new SugarParameter("@persistedRecordCount", persistedRecordCount),
+            new SugarParameter("@pageFailureCount", pageFailureCount),
             new SugarParameter("@tenantId", tenant.TenantId),
             new SugarParameter("@jobId", jobId),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
