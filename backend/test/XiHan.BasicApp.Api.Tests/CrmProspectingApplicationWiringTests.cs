@@ -102,6 +102,22 @@ public sealed class CrmProspectingApplicationWiringTests
 
 
     [Fact]
+    public void ExtractionLeaseRenewal_ShouldBeTenantScopedAndCannotResurrectExpiredLease()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs");
+        var start = repository.IndexOf("public async Task<bool> TryRenewLeaseAsync", StringComparison.Ordinal);
+        var end = repository.IndexOf("public async Task<int> ExpireDueAsync", StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var renewal = repository[start..end];
+        Assert.Contains("lease_expires_at_utc > clock_timestamp()", renewal, StringComparison.Ordinal);
+        Assert.Contains("lease_token = @leaseToken", renewal, StringComparison.Ordinal);
+        Assert.Contains("fencing_version = @fencingVersion", renewal, StringComparison.Ordinal);
+        Assert.Contains("tenant_id = @tenantId", renewal, StringComparison.Ordinal);
+        Assert.Contains("leaseDuration > TimeSpan.FromMinutes(15)", renewal, StringComparison.Ordinal);
+        Assert.DoesNotContain("NeedsReview", renewal, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ExtractionMigration_ShouldAllowNeedsReviewBeforeOrAfterRemoteAcknowledgement()
     {
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.34", "5.9.34.sql");
