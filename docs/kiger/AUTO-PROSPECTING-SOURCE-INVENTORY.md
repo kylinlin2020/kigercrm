@@ -352,3 +352,18 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - 只有全部结果页及 evidence 持久化完成后才推进 coverage；失败、过期、未知状态、取消、截断或部分取数一律不推进。
 - Comext 查询必须先限制 reporter/partner/product/flow/indicator/month 并核对官方 codelist；初期限制每租户一个 active extraction，不并行轰击官方服务。
 - 该文档是设计基线，不代表异步 Runtime、数据库迁移或 Comext Provider 已实现；Comext 继续保持未接入状态。
+
+
+## 5.3 异步 Provider 契约第一阶段代码落地（2026-11-05）
+
+已在目标端新增可选接口 `ICrmProspectingAsyncExtractionProvider`，与原有 `ICrmProspectingProvider.SearchAsync` 分离，避免同步 Provider 被迫实现异步成员。新增提交/轮询/结果分页/取消契约，以及 extraction reference、submission、poll result、page 数据类型。
+
+同时新增纯状态转换策略 `CrmProspectingExtractionStateMachine`：
+- 区分远端 Provider 状态与本地持久化任务状态。
+- 本地状态包括 Pending、Running、Succeeded、FetchingResults、Completed、Failed、Expired、Cancelled、NeedsReview。
+- Completed 只能从 FetchingResults 到达；失败/过期/取消/完成状态不能回退。
+- 只有处于 FetchingResults、最后一页、Provider 标记完整且无记录级失败时，才允许完成结果提取。
+
+新增 `CrmProspectingExtractionStateMachineTests` 覆盖主要状态转换、终态回退阻断、最后一页完整性条件和同步 Provider 接口兼容性。
+
+**当前边界：**本轮只完成可选契约与纯状态策略；Extraction Job 实体、PostgreSQL 表/索引、Repository、调度恢复 Worker、分页持久化和 coverage 原子提交仍未实现。Comext 不得启用，所有现有同步 Provider 路径不变。自动化测试尚未执行。
