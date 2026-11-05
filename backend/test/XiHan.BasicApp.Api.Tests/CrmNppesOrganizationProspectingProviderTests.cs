@@ -64,7 +64,7 @@ public sealed class CrmNppesOrganizationProspectingProviderTests
         });
         using var provider = new CrmNppesOrganizationProspectingProvider(new HttpClient(handler));
 
-        var result = await provider.SearchAsync(Request(product: "medical equipment", profile: "medical equipment clinics"));
+        var result = await provider.SearchAsync(Request(product: "medical equipment", profile: "hospitals clinics"));
 
         Assert.Equal(4, handler.CallCount);
         Assert.Equal(800, result.Records.Count);
