@@ -171,6 +171,36 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         return rows;
     }
 
+    public async Task<int> ExpireDueAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Extraction expiry recovery requires PostgreSQL.");
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for extraction expiry recovery.");
+
+        const string sql = """
+            UPDATE crm_prospecting_extraction_job
+            SET status = 'Expired',
+                failure_code = 'provider_extraction_expired',
+                failure_summary = 'Provider extraction expired before complete result retrieval.',
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at_utc = NULL
+            WHERE tenant_id = @tenantId
+              AND status IN (@pendingStatus, @runningStatus, @fetchingStatus)
+              AND expires_at_utc IS NOT NULL
+              AND expires_at_utc <= clock_timestamp();
+            """;
+        return await client.Ado.ExecuteCommandAsync(
+            sql,
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@pendingStatus", CrmProspectingExtractionStatus.Pending.ToString()),
+            new SugarParameter("@runningStatus", CrmProspectingExtractionStatus.Running.ToString()),
+            new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()));
+    }
+
     public async Task<bool> TryTransitionAsync(
         long jobId,
         CrmProspectingExtractionStatus expectedStatus,
