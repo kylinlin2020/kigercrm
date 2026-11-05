@@ -102,6 +102,20 @@ public sealed class CrmProspectingApplicationWiringTests
 
 
     [Fact]
+    public void ExtractionCursorPersistence_ShouldRejectNonAdvancingCursorAndOversizedPageCount()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs");
+        var start = repository.IndexOf("public async Task<bool> TryAdvanceCursorAsync", StringComparison.Ordinal);
+        var end = repository.IndexOf("\n    }", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var method = repository[start..end];
+        Assert.Contains("string.IsNullOrWhiteSpace(nextCursor)", method, StringComparison.Ordinal);
+        Assert.Contains("string.Equals(expectedCursor, nextCursor, StringComparison.Ordinal)", method, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingExtractionPageValidator.MaxRecordsPerPage", method, StringComparison.Ordinal);
+        Assert.Contains("client.Ado.Transaction is null", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ExtractionLeaseRenewal_ShouldBeTenantScopedAndCannotResurrectExpiredLease()
     {
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs");
