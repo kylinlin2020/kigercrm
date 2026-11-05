@@ -19,7 +19,7 @@ public sealed class CrmProspectingExtractionPageValidatorTests
 
         Assert.True(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
         Assert.Equal(string.Empty, failure);
-        Assert.True(CrmProspectingExtractionPageValidator.CanAdvanceCursor(page, null));
+        Assert.True(CrmProspectingExtractionPageValidator.CanCommitPage(page, null));
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class CrmProspectingExtractionPageValidatorTests
 
         Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
         Assert.Equal("invalid_cursor", failure);
-        Assert.False(CrmProspectingExtractionPageValidator.CanAdvanceCursor(page, null));
+        Assert.False(CrmProspectingExtractionPageValidator.CanCommitPage(page, null));
     }
 
     [Fact]
@@ -102,18 +102,18 @@ public sealed class CrmProspectingExtractionPageValidatorTests
     }
 
     [Fact]
-    public void CanAdvanceCursor_RequiresAChangingCursorOrACompleteFinalPage()
+    public void CanCommitPage_RequiresAChangingCursorOrACompleteFinalPage()
     {
         var repeated = new CrmProspectingExtractionPage(
             [Record()], "cursor-1", false, false, 0, []);
-        Assert.False(CrmProspectingExtractionPageValidator.CanAdvanceCursor(repeated, "cursor-1"));
+        Assert.False(CrmProspectingExtractionPageValidator.CanCommitPage(repeated, "cursor-1"));
 
         var failedFinal = new CrmProspectingExtractionPage(
             [Record()], null, true, true, 1, []);
-        Assert.False(CrmProspectingExtractionPageValidator.CanAdvanceCursor(failedFinal, null));
+        Assert.True(CrmProspectingExtractionPageValidator.CanCommitPage(failedFinal, null)); // Commit records, then mark the extraction Failed.
 
         var completeFinal = new CrmProspectingExtractionPage(
             [Record()], null, true, true, 0, []);
-        Assert.True(CrmProspectingExtractionPageValidator.CanAdvanceCursor(completeFinal, null));
+        Assert.True(CrmProspectingExtractionPageValidator.CanCommitPage(completeFinal, null));
     }
 }
