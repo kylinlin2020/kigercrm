@@ -76,3 +76,25 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.FencingVersion), properties);
     }
 }
+    [Fact]
+    public void CandidatePersistence_ShouldExposeAtomicProviderBatchAndTerminalTransitionBoundary()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs"));
+        var methodStart = source.IndexOf("PersistProviderBatchAndTransitionAsync", StringComparison.Ordinal);
+        Assert.True(methodStart >= 0);
+        var methodEnd = source.IndexOf("PersistPageAndAdvanceAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+        Assert.Contains("_providerExecutions.GetByRunAsync", method, StringComparison.Ordinal);
+        Assert.Contains("execution.CheckpointHash", method, StringComparison.Ordinal);
+        Assert.Contains("PersistCandidateOrRepairAsync", method, StringComparison.Ordinal);
+        Assert.Contains("\"Projecting\", \"Succeeded\"", method, StringComparison.Ordinal);
+        Assert.Contains("\"Projecting\", \"Failed\"", method, StringComparison.Ordinal);
+        Assert.Contains("unitOfWork.CompleteAsync", method, StringComparison.Ordinal);
+        Assert.Contains("_providerExecutions", source, StringComparison.Ordinal);
+    }
