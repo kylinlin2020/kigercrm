@@ -62,6 +62,7 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
         var retrievedAt = DateTimeOffset.UtcNow;
         long totalRecords = 0;
         var processed = 0;
+        var lastPageCount = 0;
 
         for (var page = 0; page < MaxPages; page++)
         {
@@ -98,7 +99,8 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
             if (!root.TryGetProperty("opportunitiesData", out var opportunities) || opportunities.ValueKind != JsonValueKind.Array)
                 throw new InvalidDataException("SAM.gov response did not contain a valid opportunitiesData array.");
             totalRecords = ReadInt64(root, "totalRecords");
-            processed += opportunities.GetArrayLength();
+            lastPageCount = opportunities.GetArrayLength();
+            processed += lastPageCount;
 
             foreach (var notice in opportunities.EnumerateArray())
             {
@@ -146,11 +148,11 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                 });
             }
 
-            if (opportunities.GetArrayLength() < PageSize || (totalRecords > 0 && processed >= totalRecords))
+            if ((totalRecords > 0 && processed >= totalRecords) || lastPageCount < PageSize)
                 break;
         }
 
-        var complete = (totalRecords > 0 && processed >= totalRecords) || processed < MaxPages * PageSize;
+        var complete = totalRecords > 0 ? processed >= totalRecords : lastPageCount < PageSize;
         if (!complete)
             warnings.Add($"SAM.gov pagination stopped after {MaxPages} pages ({processed} records of {totalRecords}); coverage is incomplete.");
         if (records.Count == 0)
