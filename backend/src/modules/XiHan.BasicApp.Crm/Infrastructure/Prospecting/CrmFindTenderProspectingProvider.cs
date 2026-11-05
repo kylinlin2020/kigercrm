@@ -70,6 +70,8 @@ public sealed class CrmFindTenderProspectingProvider : ICrmProspectingProvider, 
 
             if (response.RequestMessage?.RequestUri is not { } finalUri ||
                 !string.Equals(finalUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            !finalUri.IsDefaultPort ||
+            !string.IsNullOrEmpty(finalUri.UserInfo) ||
                 !string.Equals(finalUri.Host, Endpoint.Host, StringComparison.OrdinalIgnoreCase) ||
                 !string.Equals(finalUri.AbsolutePath, Endpoint.AbsolutePath, StringComparison.Ordinal))
             {
