@@ -806,10 +806,9 @@ public sealed class CrmProspectingApplicationWiringTests
 
         Assert.Contains("FROM crm_prospecting_extraction_job AS job", completion, StringComparison.Ordinal);
         Assert.Contains("pending_job.status IN", completion, StringComparison.Ordinal);
-        Assert.Contains("@submittingExtractionStatus", completion, StringComparison.Ordinal);
-        Assert.Contains("@succeededExtractionStatus", completion, StringComparison.Ordinal);
-        Assert.Contains("@needsReviewExtractionStatus", completion, StringComparison.Ordinal);
         Assert.Contains("NOT EXISTS", completion, StringComparison.Ordinal);
+        Assert.Contains("pending_job.status NOT IN", completion, StringComparison.Ordinal);
+        Assert.Contains("@completedExtractionStatus", completion, StringComparison.Ordinal);
         Assert.Contains("COUNT(*) FILTER", completion, StringComparison.Ordinal);
         Assert.Contains("@failedExtractionStatus", completion, StringComparison.Ordinal);
         Assert.Contains("@expiredExtractionStatus", completion, StringComparison.Ordinal);
