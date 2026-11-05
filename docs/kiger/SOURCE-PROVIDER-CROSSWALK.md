@@ -188,3 +188,6 @@ The target branch now includes a strict-tenant extraction-job entity and Postgre
 Migration `5.9.33` creates the durable table and indexes. CRM entity metadata and DI registrations are included. Contract tests cover strict tenant scope, repository operations, lifecycle/provider-status separation, and required persistence fields.
 
 This is persistence groundwork only. No worker currently consumes the repository; no provider submission/poll/fetch orchestration, candidate/evidence page persistence, transaction-level cursor integration test, coverage advancement, or Comext adapter is complete. No build/test/DB execution is claimed.
+
+
+Persistence hardening follow-up: the generic provider metadata JSON is deliberately not accepted by the repository creation API or persisted yet; failure codes are allowlist-normalized and failure summaries are fixed text only. Expiry recovery uses PostgreSQL database time, and cursor advancement requires an active PostgreSQL transaction. This reduces secret leakage and prevents a cursor from advancing independently of page persistence.
