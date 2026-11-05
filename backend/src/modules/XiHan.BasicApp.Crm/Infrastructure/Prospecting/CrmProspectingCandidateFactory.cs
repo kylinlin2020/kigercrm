@@ -183,6 +183,10 @@ public sealed class CrmProspectingCandidatePersistenceService
         if (items.Count > CrmProspectingExtractionPageValidator.MaxRecordsPerPage ||
             items.Count > page.Records.Count)
             throw new ArgumentOutOfRangeException(nameof(items));
+        if (items.Count + page.FailureCount != page.Records.Count)
+            throw new ArgumentException(
+                "Every fetched record must be represented by one candidate item or one declared page failure.",
+                nameof(items));
 
         using var unitOfWork = _unitOfWorkManager.Begin(
             new XiHan.Framework.Uow.Options.XiHanUnitOfWorkOptions(isTransactional: true),
