@@ -137,7 +137,7 @@
 
 获客工作台新增 `ProviderCredentialsPanel.vue`，可为需要凭证的数据源录入/轮换/清除 API Key 或 Token。当前首批入口包括 Serper、Brave Search、SerpApi、Google Places、SAM.gov、UN Comtrade、US Census、Apollo、People Data Labs、Hunter、OpenCorporates、Netherlands KVK、Companies House。
 
-- 前端通过现有系统配置 API 写入 `CRM_PROSPECTING_PROVIDER` 配置组，配置项标记 `isEncrypted=true`，由现有 SaaS 配置密文保护机制加密保存。
+- 前端通过现有系统配置 API 写入 `CRM_PROSPECTING_PROVIDER` 配置组，按当前租户保存，配置项标记 `ConfigType.Tenant` 与 `isEncrypted=true`，由现有 SaaS 配置密文保护机制加密保存。
 - 列表仅使用 `hasCurrentValue` 显示是否已配置；不读取或回显密钥明文。
 - 修改时留空表示不覆盖；提供显式清除动作。
 - 新建凭证配置默认 Disabled；保存凭证不等于启用 Provider，不会自动触发外部调用。
