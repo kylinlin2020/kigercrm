@@ -125,10 +125,10 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("job.status IN (@submittingStatus, @pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)", claim, StringComparison.Ordinal);
         Assert.Contains("new SugarParameter(\"@succeededStatus\", CrmProspectingExtractionStatus.Succeeded.ToString())", claim, StringComparison.Ordinal);
 
-        var expireStart = repository.IndexOf("public async Task<int> ExpireDueAsync", StringComparison.Ordinal);
+        var expiryMethodStart = repository.IndexOf("public async Task<int> ExpireDueAsync", StringComparison.Ordinal);
         var completeStart = repository.IndexOf("public async Task<bool> TryCompleteResultsAsync", StringComparison.Ordinal);
-        Assert.True(expireStart >= 0 && completeStart > expireStart);
-        var expiry = repository[expireStart..completeStart];
+        Assert.True(expiryMethodStart >= 0 && completeStart > expiryMethodStart);
+        var expiry = repository[expiryMethodStart..completeStart];
         Assert.Contains("AND status IN (@pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)", expiry, StringComparison.Ordinal);
     }
 
