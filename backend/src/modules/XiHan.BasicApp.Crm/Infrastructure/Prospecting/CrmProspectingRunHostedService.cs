@@ -176,7 +176,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 {
                     continue;
                 }
-                else
+                else if (executionStep.State != "Queued")
                 {
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: provider execution is in terminal state '{executionStep.State}' and was not re-invoked.");
