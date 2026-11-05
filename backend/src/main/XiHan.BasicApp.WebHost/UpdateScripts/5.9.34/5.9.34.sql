@@ -26,9 +26,15 @@ BEGIN
             DROP CONSTRAINT IF EXISTS ck_crm_prospecting_extraction_job_submission_ack;
         ALTER TABLE crm_prospecting_extraction_job
             ADD CONSTRAINT ck_crm_prospecting_extraction_job_submission_ack CHECK (
-                (status IN ('Submitting','NeedsReview') AND provider_extraction_id IS NULL AND submitted_at_utc IS NULL)
+                (status = 'Submitting' AND provider_extraction_id IS NULL AND submitted_at_utc IS NULL)
                 OR
-                (status <> 'Submitting' AND provider_extraction_id IS NOT NULL AND length(provider_extraction_id) > 0 AND submitted_at_utc IS NOT NULL)
+                (status = 'NeedsReview' AND (
+                    (provider_extraction_id IS NULL AND submitted_at_utc IS NULL)
+                    OR
+                    (provider_extraction_id IS NOT NULL AND length(provider_extraction_id) > 0 AND submitted_at_utc IS NOT NULL)
+                ))
+                OR
+                (status NOT IN ('Submitting','NeedsReview') AND provider_extraction_id IS NOT NULL AND length(provider_extraction_id) > 0 AND submitted_at_utc IS NOT NULL)
             );
 
         CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_extraction_job_te_submission_key
