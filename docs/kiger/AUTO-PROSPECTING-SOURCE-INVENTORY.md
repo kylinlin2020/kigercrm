@@ -389,3 +389,12 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - Provider failure code 只接受有限 ASCII 字符集，不符合格式时归一化为 `provider_error`；failure summary 仅保存固定说明，不保存原文。
 - 新增 `ExpireDueAsync`，以 PostgreSQL 数据库时钟将到期的 Pending/Running/FetchingResults 任务转为 Expired 并撤销租约。
 - Claim 使用 `FOR UPDATE SKIP LOCKED`、每个任务独立 lease token、fencing version；结果 cursor 只能在 PostgreSQL 活跃事务中推进。
+
+
+### 5.5 异步结果页边界与状态归一化
+
+- 新增 `CrmProspectingExtractionPageValidator`：限制单页最多 100 条、cursor 最长 2048 字符、字段长度、序列化页体积最多 2 MB；拒绝页内重复 ExternalId、带 userinfo 的来源 URL、非 HTTP(S) 来源 URL、无效 SHA-256。
+- 最后一页必须同时声明 `IsLastPage=true` 和 `IsComplete=true`；中间页不得声明 complete。非最后页必须推进到不同的非空 cursor；最后页只有 failure count 为 0 才允许作为完成候选。
+- 新增 `CrmProspectingExtractionStatusMapper`：未知远端状态一律转为 `NeedsReview`；Provider RetryAt 限制在 now+5 秒至 now+30 分钟，缺省为 1 分钟。
+- 新增 page validator 与 status mapper 单元测试代码，尚未执行。
+- Lease token 由 PostgreSQL `gen_random_uuid()` 生成，不再由可预测的 MD5 拼接生成。
