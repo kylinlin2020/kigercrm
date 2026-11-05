@@ -212,6 +212,52 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         return rows;
     }
 
+    public async Task<bool> TryRenewLeaseAsync(
+        long jobId,
+        Guid leaseToken,
+        long fencingVersion,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        if (leaseDuration <= TimeSpan.Zero || leaseDuration > TimeSpan.FromMinutes(15))
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for extraction lease renewal.");
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Extraction lease renewal requires PostgreSQL.");
+        var durationMilliseconds = checked((long)Math.Ceiling(leaseDuration.TotalMilliseconds));
+
+        const string sql = """
+            UPDATE crm_prospecting_extraction_job
+            SET lease_expires_at_utc = clock_timestamp() + (@leaseDurationMilliseconds * INTERVAL '1 millisecond')
+            WHERE tenant_id = @tenantId
+              AND basic_id = @jobId
+              AND lease_token = @leaseToken
+              AND fencing_version = @fencingVersion
+              AND lease_expires_at_utc > clock_timestamp()
+              AND status IN (@submittingStatus, @pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus);
+            """;
+        var affected = await client.Ado.ExecuteCommandAsync(
+            sql,
+            new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds),
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@jobId", jobId),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion),
+            new SugarParameter("@submittingStatus", CrmProspectingExtractionStatus.Submitting.ToString()),
+            new SugarParameter("@pendingStatus", CrmProspectingExtractionStatus.Pending.ToString()),
+            new SugarParameter("@runningStatus", CrmProspectingExtractionStatus.Running.ToString()),
+            new SugarParameter("@succeededStatus", CrmProspectingExtractionStatus.Succeeded.ToString()),
+            new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()));
+        return affected == 1;
+    }
+
     public async Task<int> ExpireDueAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
