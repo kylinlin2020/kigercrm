@@ -64,6 +64,20 @@
 | 2 | `us_census_trade` | US Census International Trade | 已实现待验收：`CrmUsCensusTradeProspectingProvider`；美国官方贸易统计 |
 | 3 | `eurostat_comext` | Eurostat Comext | 接口已核实待适配器：同步查询边界已确认；通用 Provider contract 尚缺异步 job 续取能力，优先实现严格小查询或扩展异步执行契约 |
 
+## 3.1 Eurostat Comext 适配器实施边界（官方接口复核）
+
+- Comext/DS 前缀数据集必须使用独立 base URL：`https://ec.europa.eu/eurostat/api/comext/dissemination`，不能误用普通 Eurostat dissemination endpoint。
+- 当前核对的数据集为 `DS-045409`。SDMX 2.1 数据路径形态为 `/sdmx/2.1/data/DS-045409/{freq}.{reporter}.{partner}.{product}.{flow}.{time_period}.{indicators}`；维度顺序必须按数据集结构，不得把普通参数顺序套用到 Comext。
+- 官方数据约束示例显示该数据集包含 2 个 freq、33 个 reporter、282 个 partner、40,321 个 product、2 个 flow、468 个 time_period 和 3 个 indicators。无过滤全量查询不可接受。
+- 官方估算规则：低于 500,000 cells 通常同步返回；500,000 至 5,000,000 cells 可能异步返回；超过 5,000,000 cells 返回 HTTP 413，要求进一步过滤。即使估算低于同步阈值，公平使用策略也可能将请求转为异步。
+- 异步工作流包括提交后取得 extraction ID、查询 `/1.0/async/status/{id}`、状态为 AVAILABLE 后读取 `/1.0/async/data/{id}`。当前 `ICrmProspectingProvider.SearchAsync` 是单次同步结果契约，不能把 SUBMITTED/PROCESSING 当作空结果或成功覆盖。
+- 实施顺序：先实现通用异步 Provider Job 持久化（tenant + run + provider + extraction ID + status + next poll + expiry），再实现 Comext；在此之前仅允许有严格维度过滤且可证明小于同步阈值的请求，并将 HTTP 413/异步提交识别为 coverage incomplete。
+- 商品编码必须来自 Comext 官方 codelist/约束元数据并经版本化映射；不得仅凭用户输入的自然语言“发电机/水泵”猜测 HS 编码。Reporter、Partner、Flow、Time 和 Indicator 均须显式受限。
+- 官方依据：
+  - [Comext 专用 API base 与数据集说明](https://ec.europa.eu/eurostat/en/web/user-guides/data-browser/api-data-access/api-getting-started/comext-database)
+  - [Comext DS 前缀数据集规则](https://ec.europa.eu/eurostat/en/web/user-guides/data-browser/api-data-access/api-detailed-guidelines/prefixed-datasets)
+  - [异步提取阈值与续取流程](https://ec.europa.eu/eurostat/web/user-guides/data-browser/api-data-access/api-detailed-guidelines/asynchronous-api)
+
 ## 4. 源项目额外获客能力（不计入 37 个 Provider）
 
 | 能力 | 源项目代码/测试证据 | 目标端核对状态 |
