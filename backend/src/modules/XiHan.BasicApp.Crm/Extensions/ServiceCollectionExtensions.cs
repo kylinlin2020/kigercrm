@@ -213,6 +213,20 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmCompaniesHouseProspectingProvider>());
         }
+        // Netherlands KVK is the official Dutch Business Register. It requires a tenant API key
+        // and an active subscription; registration evidence is not buyer intent.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableKvkProvider"], out var enableKvk)
+            && enableKvk)
+        {
+            services.AddScoped<CrmKvkProspectingProvider>(provider => new CrmKvkProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.kvk.nl"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmKvkProspectingProvider>());
+        }
         // Providers resolve API keys from encrypted tenant configuration at execution time.
         // They are Scoped because the prospecting worker establishes the Run tenant before resolving providers.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUnComtradeProvider"], out var enableUnComtrade)
