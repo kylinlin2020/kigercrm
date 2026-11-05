@@ -65,8 +65,6 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
             ["cmdCode"] = "TOTAL",
             ["maxRecords"] = MaxRecords.ToString(CultureInfo.InvariantCulture)
         };
-        if (subscriptionKey is not null)
-            query["subscription-key"] = subscriptionKey;
         var builder = new UriBuilder(endpoint)
         {
             Query = string.Join("&", query.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"))
@@ -74,6 +72,8 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
 
         using var message = new HttpRequestMessage(HttpMethod.Get, builder.Uri);
         message.Headers.Accept.ParseAdd("application/json");
+        if (subscriptionKey is not null)
+            message.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", subscriptionKey);
         using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!CrmProspectingEndpointGuard.IsApprovedResponseUri(response.RequestMessage?.RequestUri, endpoint))
             throw new HttpRequestException("UN Comtrade response came from an unapproved endpoint.");
@@ -122,7 +122,7 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
                 null,
                 Limit(summary, 2000))
             {
-                SourceUrl = "https://comtradeapi.un.org/public/v1/preview/C/A/HS",
+                SourceUrl = $"https://comtradeapi.un.org/{(subscriptionKey is null ? "public/v1/preview/C/A/HS" : "data/v1/get/C/A/HS")}?reporterCode={Uri.EscapeDataString(reporter)}&period={Uri.EscapeDataString(period)}&partnerCode=0&flowCode=X&cmdCode=TOTAL",
                 RetrievedAtUtc = retrievedAt,
                 RawPayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(item.GetRawText()))).ToLowerInvariant(),
                 EvidenceType = "official_trade_statistics"
