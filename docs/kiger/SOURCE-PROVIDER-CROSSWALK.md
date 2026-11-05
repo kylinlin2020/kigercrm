@@ -191,3 +191,6 @@ This is persistence groundwork only. No worker currently consumes the repository
 
 
 Persistence hardening follow-up: the generic provider metadata JSON is deliberately not accepted by the repository creation API or persisted yet; failure codes are allowlist-normalized and failure summaries are fixed text only. Expiry recovery uses PostgreSQL database time, and cursor advancement requires an active PostgreSQL transaction. This reduces secret leakage and prevents a cursor from advancing independently of page persistence.
+
+
+Async extraction boundary follow-up: added bounded page validation (record/cursor/serialized-byte caps, duplicate identity rejection, HTTP(S) source URL validation, SHA-256 validation, and strict final-page markers) plus a remote-to-local status mapper. Unknown numeric remote statuses map to `NeedsReview`; provider retry hints are clamped to a five-second to thirty-minute window. These are tested by new unit test source files, not yet executed. PostgreSQL now generates per-claim lease tokens with `gen_random_uuid()`.
