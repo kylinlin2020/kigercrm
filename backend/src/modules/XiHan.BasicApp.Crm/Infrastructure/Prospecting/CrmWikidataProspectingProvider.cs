@@ -31,8 +31,14 @@ public sealed class CrmWikidataProspectingProvider : ICrmProspectingProvider, ID
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var terms = Regex.Split($"{request.ProductScope} {request.SearchObjective} {request.IdealCustomerProfile}", @"[^\p{L}\p{N}]+")
-            .Where(term => term.Length >= 3)
+        var stopWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "find", "search", "discover", "prospect", "prospecting", "lead", "leads", "target",
+            "market", "company", "companies", "business", "businesses", "the", "and", "for",
+            "with", "from", "into", "of", "in", "to", "a", "an"
+        };
+        var terms = Regex.Split($"{request.ProductScope} {request.IdealCustomerProfile} {request.SearchObjective}", @"[^\p{L}\p{N}]+")
+            .Where(term => term.Length >= 3 && !stopWords.Contains(term))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(MaxTerms)
             .ToArray();
