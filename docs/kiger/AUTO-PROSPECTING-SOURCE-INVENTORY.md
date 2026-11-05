@@ -64,8 +64,8 @@
 | UK Find a Tender | 英国官方招标公告 | 已实现待验收 | 游标续页、公告/买方字段和限流验收 |
 | UK Contracts Finder | 英国公共采购公告 | 已实现待验收 | 游标续页、公告阶段、买方与联系字段验证 |
 | SAM.gov opportunities | 美国联邦招标机会；通常需 API Key | 未迁移 | Key/权限/额度、机会与采购机构字段 |
-| Brazil PNCP | 巴西国家公共采购门户 | 未迁移 | 葡语查询、分页、采购方/标的/日期映射 |
-| Singapore GeBIZ | 新加坡政府采购 | 未迁移 | 确认开放 API/数据集与条款，不以网页抓取替代 |
+| Brazil PNCP | 巴西国家公共采购门户；公开接口 | 已实现待验收 | 已新增真实适配器、国家匹配、最多 5 页 bounded fetch、证据映射和契约测试；超过页数标记不完整 |
+| Singapore GeBIZ | data.gov.sg GeBIZ 已授标数据集 | 已实现待验收 | 已新增真实适配器、国家匹配、最多 5 页 bounded fetch；明确为历史授标记录而非开放招标；契约测试待运行 |
 | CanadaBuys | 加拿大联邦采购 | 需拆分确认 | 源项目为 assisted source，确认可自动 API 与人工辅助边界 |
 | KONEPS | 韩国公共采购 | 需拆分确认 | 确认开放 API、认证、语言和许可 |
 | SBIR/STTR awards | 美国创新研发政府资助/合同数据 | 需拆分确认 | 确认数据集接口、获奖主体与采购意向的区别 |
@@ -107,7 +107,7 @@
 - `uk_find_tender`
 - `uk_contracts_finder`
 - `eu_ted`
-- `gleif`（身份解析/补充，不应错误计作通用搜客来源）\n- `world_bank_procurement`（新增；公开采购公告适配器，单页 bounded fetch，存在后续页时标记不完整）
+- `gleif`（身份解析/补充，不应错误计作通用搜客来源）\n- `world_bank_procurement`（新增；公开采购公告适配器，单页 bounded fetch，存在后续页时标记不完整）\n- `brazil_pncp`（新增；巴西官方采购 API，最多 5 页 bounded fetch）\n- `singapore_gebiz`（新增；新加坡政府授标开放数据集，最多 5 页 bounded fetch）
 
 它们均为**已实现待验收**，不是“运行已通过”。Fake Provider 不计入真实来源数量。
 
