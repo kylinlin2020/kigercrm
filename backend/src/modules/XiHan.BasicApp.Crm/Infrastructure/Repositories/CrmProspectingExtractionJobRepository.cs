@@ -115,7 +115,6 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             throw new NotSupportedException("Durable extraction job claims require PostgreSQL.");
         var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for extraction job claims.");
-        var token = Guid.NewGuid();
         var durationMilliseconds = checked((long)Math.Ceiling(leaseDuration.TotalMilliseconds));
 
         const string sql = """
@@ -133,7 +132,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             )
             UPDATE crm_prospecting_extraction_job AS job
             SET lease_owner = @leaseOwner,
-                lease_token = @leaseToken,
+                lease_token = md5(job.basic_id::text || clock_timestamp()::text || random()::text)::uuid,
                 lease_expires_at_utc = clock_timestamp() + (@leaseDurationMilliseconds * INTERVAL '1 millisecond'),
                 fencing_version = job.fencing_version + 1
             FROM due_jobs
@@ -149,7 +148,6 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@runningStatus", CrmProspectingExtractionStatus.Running.ToString()),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
             new SugarParameter("@leaseOwner", leaseOwner),
-            new SugarParameter("@leaseToken", token),
             new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds),
             new SugarParameter("@batchSize", batchSize));
         return rows;
@@ -181,11 +179,6 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for extraction job transitions.");
 
-        var terminal = nextStatus is CrmProspectingExtractionStatus.Completed
-            or CrmProspectingExtractionStatus.Failed
-            or CrmProspectingExtractionStatus.Expired
-            or CrmProspectingExtractionStatus.Cancelled;
-
         return await UpdateAsync(
             _ => new SysCrmProspectingExtractionJob
             {
@@ -193,7 +186,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
                 NextPollAtUtc = nextPollAtUtc ?? DateTimeOffset.UtcNow,
                 LastPolledAtUtc = lastPolledAtUtc,
                 FailureCode = failureCode,
-                FailureSummary = safeFailureSummary,
+                FailureSummary = string.IsNullOrWhiteSpace(safeFailureSummary) ? null : "Provider extraction failed; details withheld.",
                 LeaseOwner = null,
                 LeaseToken = null,
                 LeaseExpiresAtUtc = null
