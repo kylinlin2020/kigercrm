@@ -174,6 +174,19 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmSamGovOpportunitiesProspectingProvider>());
         }
+        // openFDA 510(k) is a medical-device regulatory signal only; credentials are tenant-scoped and optional.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableOpenFda510kProvider"], out var enableOpenFda510k)
+            && enableOpenFda510k)
+        {
+            services.AddScoped<CrmOpenFda510kProspectingProvider>(provider => new CrmOpenFda510kProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.fda.gov"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmOpenFda510kProspectingProvider>());
+        }
         // Wikidata is a public knowledge graph. Keep results explicitly classified as discovery clues,
         // not authoritative company registration or buyer-intent evidence.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableWikidataProvider"], out var enableWikidata)
