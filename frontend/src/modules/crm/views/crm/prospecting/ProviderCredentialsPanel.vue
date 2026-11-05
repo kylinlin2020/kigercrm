@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ConfigCreateDto, ConfigListItemDto, ConfigUpdateDto } from '@/api'
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ConfigDataType, ConfigType, configApi, createPageRequest, EnableStatus } from '@/api'
 import { toast } from '~/composables'
 
@@ -35,7 +35,6 @@ const definitions = [
 const loading = ref(false)
 const saving = ref(false)
 const credentials = ref<ProviderCredential[]>([])
-const hasChanges = computed(() => credentials.value.some(item => item.value.length > 0))
 
 async function load() {
   loading.value = true
@@ -79,7 +78,7 @@ async function save(item: ProviderCredential) {
         basicId: item.record.basicId,
         configName: item.name,
         configGroup: 'CRM_PROSPECTING_PROVIDER',
-        configType: ConfigType.Application,
+        configType: ConfigType.Tenant,
         configValue: item.value.trim(),
         dataType: ConfigDataType.String,
         isEncrypted: true,
@@ -92,7 +91,7 @@ async function save(item: ProviderCredential) {
         configKey: item.configKey,
         configName: item.name,
         configGroup: 'CRM_PROSPECTING_PROVIDER',
-        configType: ConfigType.Application,
+        configType: ConfigType.Tenant,
         configValue: item.value.trim(),
         dataType: ConfigDataType.String,
         isEncrypted: true,
@@ -121,7 +120,7 @@ async function clear(item: ProviderCredential) {
       basicId: item.record.basicId,
       configName: item.name,
       configGroup: 'CRM_PROSPECTING_PROVIDER',
-      configType: ConfigType.Application,
+      configType: ConfigType.Tenant,
       configValue: '',
       dataType: ConfigDataType.String,
       isEncrypted: true,
