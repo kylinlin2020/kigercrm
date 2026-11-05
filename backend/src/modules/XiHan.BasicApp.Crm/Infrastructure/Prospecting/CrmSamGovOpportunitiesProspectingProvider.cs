@@ -45,6 +45,9 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
+        if (!IsUnitedStatesTarget(request.TargetMarkets))
+            return new CrmProspectingProviderResult([], 0, ["SAM.gov was skipped because the campaign target market does not include the United States."]) { IsComplete = true };
+
         var apiKey = await _apiKeyFactory(cancellationToken);
         apiKey = string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim();
         if (apiKey is null)
@@ -159,6 +162,14 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
             warnings.Add("SAM.gov returned no matching procurement notices for the selected 30-day window.");
         return new CrmProspectingProviderResult(records, 0, warnings) { IsComplete = complete };
     }
+
+    private static bool IsUnitedStatesTarget(string markets)
+        => Regex.Split(markets ?? string.Empty, @"[,;，；|]+")
+            .Select(value => value.Trim())
+            .Any(value => value.Equals("United States", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("USA", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("US", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("United States of America", StringComparison.OrdinalIgnoreCase));
 
     private static long ReadInt64(JsonElement element, string property)
         => element.TryGetProperty(property, out var value) && value.TryGetInt64(out var number) ? number : 0;
