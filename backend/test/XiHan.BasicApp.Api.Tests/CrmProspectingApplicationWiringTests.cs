@@ -109,6 +109,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Ocp-Apim-Subscription-Key", comtrade, StringComparison.Ordinal);
         Assert.Contains("ConfigType.Tenant", frontend, StringComparison.Ordinal);
         Assert.Contains("isEncrypted: true", frontend, StringComparison.Ordinal);
+        Assert.Contains("configApi.delete(item.record.basicId)", frontend, StringComparison.Ordinal);
+        Assert.Contains("configValue: null", frontend, StringComparison.Ordinal);
+        Assert.Contains("status: EnableStatus.Enabled", frontend, StringComparison.Ordinal);
         Assert.Contains("CRM.Prospecting.Provider.${item.code}.ApiKey", frontend, StringComparison.Ordinal);
     }
 
