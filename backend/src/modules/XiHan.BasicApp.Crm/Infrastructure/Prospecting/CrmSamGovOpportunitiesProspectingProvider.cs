@@ -123,10 +123,9 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                 var solicitation = ReadString(notice, "solicitationNumber");
                 var posted = ReadString(notice, "postedDate");
                 var deadline = FirstNonEmpty(ReadString(notice, "responseDeadLine"), ReadString(notice, "reponseDeadLine"), ReadString(notice, "responseDeadline"));
-                var contact = ReadFirstContact(notice);
-                var contactName = ReadString(contact, "fullName");
-                var contactEmail = NormalizeEmail(ReadString(contact, "email"));
-                var contactPhone = ReadString(contact, "phone");
+                var contactName = ReadFirstContactValue(notice, "fullName");
+                var contactEmail = NormalizeEmail(ReadFirstContactValue(notice, "email"));
+                var contactPhone = ReadFirstContactValue(notice, "phone");
                 var noticeType = ReadString(notice, "type");
                 var naics = ReadString(notice, "naicsCode");
                 var summary = string.Join("; ", new[]
@@ -175,13 +174,13 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                 || value.Equals("US", StringComparison.OrdinalIgnoreCase)
                 || value.Equals("United States of America", StringComparison.OrdinalIgnoreCase));
 
-    private static JsonElement ReadFirstContact(JsonElement notice)
+    private static string? ReadFirstContactValue(JsonElement notice, string property)
     {
         if (!notice.TryGetProperty("pointOfContact", out var contacts) || contacts.ValueKind != JsonValueKind.Array)
-            return default;
+            return null;
         foreach (var contact in contacts.EnumerateArray())
-            if (contact.ValueKind == JsonValueKind.Object) return contact;
-        return default;
+            if (contact.ValueKind == JsonValueKind.Object) return ReadString(contact, property);
+        return null;
     }
 
     private static string? NormalizeEmail(string? value)
