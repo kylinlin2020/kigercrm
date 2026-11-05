@@ -187,6 +187,19 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmOpenFda510kProspectingProvider>());
         }
+        // Hunter Discover is limited to professional B2B company discovery; it does not reveal or email contacts.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableHunterDiscoverProvider"], out var enableHunterDiscover)
+            && enableHunterDiscover)
+        {
+            services.AddScoped<CrmHunterDiscoverProspectingProvider>(provider => new CrmHunterDiscoverProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.hunter.io"))
+                {
+                    Timeout = TimeSpan.FromSeconds(35)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmHunterDiscoverProspectingProvider>());
+        }
         // NPPES is a public US healthcare registry. Restrict discovery to organization Type 2 records.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableNppesProvider"], out var enableNppes)
             && enableNppes)
