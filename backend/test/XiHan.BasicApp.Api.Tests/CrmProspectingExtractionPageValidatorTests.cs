@@ -23,6 +23,17 @@ public sealed class CrmProspectingExtractionPageValidatorTests
     }
 
     [Fact]
+    public void TryValidate_RejectsControlCharactersInOpaqueCursor()
+    {
+        var page = new CrmProspectingExtractionPage(
+            [Record()], "cursor-2\\nforged-log-line", false, false, 0, []);
+
+        Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
+        Assert.Equal("invalid_cursor", failure);
+        Assert.False(CrmProspectingExtractionPageValidator.CanAdvanceCursor(page, null));
+    }
+
+    [Fact]
     public void TryValidate_RejectsLastPageWithoutCompleteMarker()
     {
         var page = new CrmProspectingExtractionPage(
