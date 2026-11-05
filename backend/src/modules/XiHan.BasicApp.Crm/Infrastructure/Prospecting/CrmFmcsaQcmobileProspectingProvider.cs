@@ -71,12 +71,13 @@ public sealed class CrmFmcsaQcmobileProspectingProvider : ICrmProspectingProvide
         var query = string.Join(" ", terms);
         var requestUri = new UriBuilder(new Uri(new Uri("https://" + Host), PathPrefix + Uri.EscapeDataString(query)));
         requestUri.Query = "webKey=" + Uri.EscapeDataString(webKey.Trim());
+        var approvedResponseEndpoint = new UriBuilder(requestUri.Uri) { Query = string.Empty }.Uri;
         using var message = new HttpRequestMessage(HttpMethod.Get, requestUri.Uri);
         message.Headers.Accept.ParseAdd("application/json");
 
         using var response = await _httpClient.SendAsync(
             message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        if (!CrmProspectingEndpointGuard.IsApprovedResponseUri(response.RequestMessage?.RequestUri, ApprovedEndpoint))
+        if (!CrmProspectingEndpointGuard.IsApprovedResponseUri(response.RequestMessage?.RequestUri, approvedResponseEndpoint))
             throw new HttpRequestException("FMCSA response came from an unapproved endpoint.");
 
         if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
