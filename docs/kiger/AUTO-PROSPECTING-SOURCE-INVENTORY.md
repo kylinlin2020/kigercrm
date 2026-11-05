@@ -151,7 +151,7 @@
 
 - UN Comtrade：`EnableUnComtradeProvider` 显式开启；无 Key 时调用官方 public preview（500 行上限），提供订阅 Key 时切换到 `/data/v1/get`。目标市场只支持适配器内明确映射的 M49 Reporter 国家；不支持的国家返回清晰 warning，不猜测代码。
 - US Census：`EnableUsCensusTradeProvider` 与 API Key 同时满足才注册；默认关闭。Key 从部署配置 `XiHan:CRM:Prospecting:Providers:UsCensus:ApiKey` 读取，必须通过环境变量/密钥管理系统注入，不能提交真实 Key。
-- **租户凭证链路尚未完成：**前端已将 Key 保存为租户级加密配置，但当前后台 Worker 的 Provider 构造尚未按 Run 的 Tenant Scope 读取该配置。本轮没有假称这两个 Provider 已可从前端 Key 直接运行。后续 P0 任务是将加密凭证解析接入 Worker 的 tenant-scope 执行边界，并在不把 Key 写入日志、请求账本或原始结果的前提下做运行时解析。
+- **租户凭证链路已接通（待测试）：**两个 Provider 均为 Scoped，后台 Worker 先切换到 Run 的 Tenant Scope，再解析 `ISaasConfigurationService`；分别读取 `CRM.Prospecting.Provider.un_comtrade.ApiKey` 与 `CRM.Prospecting.Provider.us_census.ApiKey`，复用 SaaS 的加密配置解密与租户优先级/缓存逻辑。Comtrade Key 通过 `Ocp-Apim-Subscription-Key` 请求头发送；Census 按官方要求使用 `key` 查询参数。真实多租户隔离、Data Protection 密钥环和请求诊断脱敏仍待实机验收。
 
 ## 5. 业务与安全边界
 
