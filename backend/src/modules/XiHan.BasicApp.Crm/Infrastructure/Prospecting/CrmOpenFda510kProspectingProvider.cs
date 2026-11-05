@@ -20,12 +20,20 @@ public sealed class CrmOpenFda510kProspectingProvider : ICrmProspectingProvider,
     private readonly HttpClient _client;
     private readonly Func<CancellationToken, Task<string?>> _apiKeyFactory;
 
+    public CrmOpenFda510kProspectingProvider(HttpClient client, string? apiKey)
+        : this(client, _ => Task.FromResult(string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim())) { }
+
     public CrmOpenFda510kProspectingProvider(HttpClient client, ISaasConfigurationService configuration)
+        : this(client, cancellationToken => configuration.GetStringAsync(
+            "CRM.Prospecting.Provider.open_fda_510k.ApiKey", cancellationToken: cancellationToken))
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+    }
+
+    private CrmOpenFda510kProspectingProvider(HttpClient client, Func<CancellationToken, Task<string?>> keyFactory)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
-        ArgumentNullException.ThrowIfNull(configuration);
-        _apiKeyFactory = cancellationToken => configuration.GetStringAsync(
-            "CRM.Prospecting.Provider.open_fda_510k.ApiKey", cancellationToken: cancellationToken);
+        _apiKeyFactory = keyFactory ?? throw new ArgumentNullException(nameof(keyFactory));
     }
 
     public string ProviderCode => "open_fda_510k";
@@ -69,6 +77,7 @@ public sealed class CrmOpenFda510kProspectingProvider : ICrmProspectingProvider,
         foreach (var term in terms)
         {
             long total = 0;
+            var hasTotal = false;
             var processed = 0;
             for (var page = 0; page < MaxPages; page++)
             {
@@ -112,7 +121,10 @@ public sealed class CrmOpenFda510kProspectingProvider : ICrmProspectingProvider,
                     && meta.TryGetProperty("results", out var metaResults)
                     && metaResults.TryGetProperty("total", out var totalElement)
                     && totalElement.TryGetInt64(out var parsedTotal))
+                {
                     total = parsedTotal;
+                    hasTotal = true;
+                }
 
                 foreach (var item in results.EnumerateArray())
                 {
@@ -153,10 +165,10 @@ public sealed class CrmOpenFda510kProspectingProvider : ICrmProspectingProvider,
                 }
 
                 processed += results.GetArrayLength();
-                if (processed >= total || results.GetArrayLength() < PageSize) break;
+                if ((hasTotal && processed >= total) || results.GetArrayLength() < PageSize) break;
             }
 
-            if (total > processed && processed >= MaxPages * PageSize)
+            if (processed >= MaxPages * PageSize && (!hasTotal || total > processed))
             {
                 complete = false;
                 warnings.Add($"openFDA has {total} matching records for '{term}'; only {processed} were read.");
