@@ -146,7 +146,7 @@
 - 每个来源都要能输出采购方/贸易主体的证据语义，不能把统计聚合数据直接当成具体进口商。
 
 ### P0-C：官方企业身份与注册
-- Companies House 已有真实 Provider 源码，进入来源级测试与实机验收；继续补齐 KVK、OpenCorporates、Wikidata、法国企业名录、ROR、NPPES、FDA 510(k) 等。
+- Companies House 已有真实 Provider 源码，进入来源级测试与实机验收；继续补齐 KVK、OpenCorporates、Wikidata、法国企业名录、ROR、NPPES 等；FDA 510(k) 已有适配器源码，待运行验收。
 - 为每个来源标注适用行业、国家覆盖和权威等级；身份冲突不得静默覆盖。
 
 ### P0-D：通用发现与商业补全
@@ -156,7 +156,7 @@
 
 ## 4.1 API Key 前端录入入口（本轮新增）
 
-获客工作台新增 `ProviderCredentialsPanel.vue`，可为需要凭证的数据源录入/轮换/清除 API Key 或 Token。当前首批入口包括 Serper、Brave Search、SerpApi、Google Places、SAM.gov、UN Comtrade、US Census、Apollo、People Data Labs、Hunter、OpenCorporates、Netherlands KVK、Companies House。
+获客工作台新增 `ProviderCredentialsPanel.vue`，可为需要凭证的数据源录入/轮换/清除 API Key 或 Token。当前首批入口包括 Serper、Brave Search、SerpApi、Google Places、SAM.gov、UN Comtrade、US Census、Apollo、People Data Labs、Hunter、OpenCorporates、Netherlands KVK、Companies House、openFDA 510(k)。
 
 - 前端通过现有系统配置 API 写入 `CRM_PROSPECTING_PROVIDER` 配置组，按当前租户保存，配置项标记 `ConfigType.Tenant` 与 `isEncrypted=true`，由现有 SaaS 配置密文保护机制加密保存。
 - 列表仅使用 `hasCurrentValue` 显示是否已配置；不读取或回显密钥明文。
