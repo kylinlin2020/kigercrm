@@ -106,6 +106,12 @@
 | 独立操作面 | Search、Enrich、Trade、Health、Preflight 分别执行；域名补全有输入校验；trade 单独分页并校验 cursor | 目标端需明确是否具备独立的健康检查、预检、补全和贸易查询入口；不能把所有能力压缩为一次 SearchAsync 后宣称功能等价 |
 | 分页与覆盖完整性 | Search/Trade 使用 cursor 分页；cursor 长度限制；页面经字段 allowlist、authority 和 retention policy 规范化 | 目标端每个 Provider 必须证明分页终止、结果上限和 coverage incomplete 语义；达到页数/记录上限、被限流或异步提交时不能报告完整覆盖 |
 
+### SSRF / DNS 特殊用途地址回归审计（2026-11-05）
+
+- 复核目标端 `CrmProspectingHttpHandlerFactory.IsPublicAddress` 与 `CrmProspectingEndpointGuardTests` 时发现：测试已明确要求拒绝 `192.175.48.0/24`（AS112 特殊用途地址），但生产 IPv4 deny-list 漏掉该网段，形成“测试期望与实际实现不一致”的防护缺口。
+- 已在生产过滤器中补入 `192.175.48.0/24` 拒绝规则，提交 `e6d7eb5cb4ba53f3f18123e9829836fef9bf3271`。现有 `CrmProspectingEndpointGuardTests` 已包含 `192.175.48.1 => false` 的回归用例，无需重复造测试。
+- 这项修复尚未执行 .NET 测试；后续验收仍须实际运行 `CrmProspectingSafeHttpHandlerTests.IsPublicAddress_ShouldApplyConservativePublicUnicastPolicy`，并继续核对 DNS 多地址混合应答、IPv4-mapped IPv6、重定向关闭和连接固定行为。
+
 ### 当前迁移控制结论
 
 - 源项目除了 37 个 Provider 注册项，还存在统一目录、执行策略、租户凭证校验、请求账本、指纹/缓存、并发预算、single-flight、健康检查、预检、联系人补全和贸易查询等独立运行时能力。
