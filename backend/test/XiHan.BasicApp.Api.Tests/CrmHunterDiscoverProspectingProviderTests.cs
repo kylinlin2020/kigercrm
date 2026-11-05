@@ -79,16 +79,25 @@ public sealed class CrmHunterDiscoverProspectingProviderTests
     }
 
     [Fact]
-    public async Task SearchAsync_Treats403AsRequestRateLimit()
+    public async Task SearchAsync_Treats403AsRequestRateLimitAndHonorsRetryAfter()
     {
-        var handler = new StubHandler((request, _) => new HttpResponseMessage(HttpStatusCode.Forbidden)
+        var retryAfter = DateTimeOffset.UtcNow.AddMinutes(4);
+        var handler = new StubHandler((request, _) =>
         {
-            RequestMessage = request,
-            Content = new StringContent("""{"errors":[{"details":"rate limit"}]}""", Encoding.UTF8, "application/json")
+            var response = new HttpResponseMessage(HttpStatusCode.Forbidden)
+            {
+                RequestMessage = request,
+                Content = new StringContent("""{"errors":[{"details":"rate limit"}]}""", Encoding.UTF8, "application/json")
+            };
+            response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(retryAfter);
+            return response;
         });
         using var provider = new CrmHunterDiscoverProspectingProvider(new HttpClient(handler), "key");
 
-        await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() => provider.SearchAsync(Request()));
+        var exception = await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() => provider.SearchAsync(Request()));
+        Assert.Equal((int)HttpStatusCode.Forbidden, exception.HttpStatus);
+        Assert.NotNull(exception.RetryAfterAt);
+        Assert.InRange(exception.RetryAfterAt!.Value, retryAfter.AddSeconds(-2), retryAfter.AddSeconds(2));
         Assert.Equal(1, handler.CallCount);
     }
 
