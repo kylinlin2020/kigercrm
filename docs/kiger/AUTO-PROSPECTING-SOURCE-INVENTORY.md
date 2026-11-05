@@ -47,7 +47,7 @@
 | OpenCorporates | 多国企业登记聚合；需核对许可/Key | 未迁移 | API 许可、覆盖国家、Key、字段权威等级 |
 | Companies House | 英国官方企业登记；需租户 API Key（HTTP Basic 用户名） | 已实现待验收 | 已新增真实公司搜索 Provider；仅英国目标市场调用，最多 2 页，超限标记 coverage incomplete；公司登记不等同采购意向 |
 | Netherlands KVK | 荷兰官方企业登记；订阅/Key | 已实现待验收 | 已新增真实 Zoeken API Provider；租户加密 Key、仅 NL 市场调用、最多 3 个关键词×每词 2 页；搜索结果只作为企业登记证据 |
-| France company search（fr_company_search） | 法国企业公开登记入口 | 未迁移 | 确认真实 API 端点、数据许可和覆盖字段 |
+| France company search（fr_company_search） | 法国政府开放企业目录；免 Key | 已实现待验收 | 已新增官方 Recherche d’Entreprises API Provider；限法国市场、SIREN/SIRET 企业身份字段、最多 3 词×2 页 |
 | ROR | 全球研究机构标识；公开 REST API、无需 Key | 已实现待验收 | 新增真实 v2 organizations 查询 Provider；最多 3 个关键词×每词 20 条；记录研究机构类型/国家/网站；上限命中标记 incomplete；不作为普通公司库 |
 | US NPPES | 美国医疗机构/从业者名录 | 未迁移 | 行业专用来源，明确个人数据边界 |
 | FDA 510(k) | 美国医疗器械上市前通告记录 | 未迁移 | 行业专用产品/企业信号，不等同于企业注册 |
@@ -219,6 +219,14 @@
 - Key 从租户加密 SaaS 配置 `CRM.Prospecting.Provider.serpapi.ApiKey` 读取；`EnableSerpApiProvider` 默认关闭。最多 2 页，每页 10 条；只在 `serpapi_pagination.next` 存在时请求下一页，超过上限标记 `IsComplete=false`。
 - 只接受 HTTPS `organic_results`，过滤 ExcludedDomains，按规范化 URL 去重；`EvidenceType=web_search_result`。API Key 进入 URL 是上游合同限制，建议优先使用 Serper/Brave 等 Header 认证来源，并在实机环境检查 HttpClient/代理/异常日志的 URL 脱敏。
 - 官方参数与分页说明：SerpApi Search API、Pagination 文档。
+
+## 4.7 France Government Company Search Provider（本轮新增）
+
+- 使用法国政府公开 API `GET https://recherche-entreprises.api.gouv.fr/search`，无需 API Key；请求包含 `q`、`page`、`per_page=25`、`minimal=true` 与 `include=siege`。只在目标市场明确包含 FR/FRA/France/French Republic 时调用。
+- 最多 3 个产品/ICP/搜索目标关键词，每个关键词最多 2 页；请求串行执行，间隔 200ms，低于官方 7 req/s/IP 上限。遇到 429/503 按 `Retry-After` 返回限流异常。
+- 只接受 9 位数字 SIREN 和非空企业名称；映射 SIRET、注册地址城市/邮编、NAF/APE 与行政状态为 `official_company_registry` 证据。只保存政府目录企业详情 URL，不抓取自然人负责人信息、不提取邮箱电话、不推断采购意向。
+- API 的边界必须保留：该搜索接口并非完整 Sirene 数据库；不可查询非公开传播企业和拒绝 RCS 注册的企业。结果覆盖不完整时由 Provider 标记 `IsComplete=false`。
+- 官方资料：API Recherche d’entreprises 文档说明开放访问、搜索参数、每页最多 25 条、7 req/s/IP 与 429/Retry-After；data.gouv.fr 说明其为 DINUM 公开企业搜索 API，返回企业名称、SIREN、SIRET、NAF 等字段。
 
 ## 5. 业务与安全边界
 
