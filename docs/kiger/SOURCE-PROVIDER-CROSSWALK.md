@@ -170,3 +170,12 @@
 - 暂缓来源在许可门槛解除前不应开发或启用。
 - 每个真实 Provider 的“代码存在”与“来源验收完成”分开计数。
 - 最终验收必须包括目标 Windows 原生环境拉取、构建、单元/集成测试、PostgreSQL 联调、真实 API smoke test、租户隔离与人工审批检查。
+
+
+## 2026-11-05 — Async extraction capability contract
+
+The target branch now has an optional `ICrmProspectingAsyncExtractionProvider` capability alongside the unchanged synchronous `ICrmProspectingProvider`. It defines submit, poll, bounded result-page fetch, and cancellation operations. Remote provider status is distinct from the durable local extraction lifecycle, which includes FetchingResults and Completed.
+
+A pure `CrmProspectingExtractionStateMachine` rejects terminal-state regression and only permits result completion from FetchingResults when the final page is complete and has zero record failures. Contract/state tests were added but have not been executed.
+
+This is contract-level migration only. There is no extraction-job persistence, scheduler/recovery worker, result-page persistence, PostgreSQL migration, or Comext adapter yet. Do not count this capability as full source runtime parity.
