@@ -30,6 +30,15 @@ public sealed class CrmProspectingProviderRegistryTests
     }
 
     [Fact]
+    public void Create_RejectsAsyncProviderWithoutExplicitIdempotentSubmissionSupport()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            CrmProspectingProviderRegistry.Create([], [new AsyncProvider("unsafe_export", false)]));
+
+        Assert.Contains("must explicitly support provider-documented idempotent submission", exception.Message);
+    }
+
+    [Fact]
     public void Create_RejectsBlankOrOversizedCodes()
     {
         Assert.Throws<InvalidOperationException>(() =>
@@ -48,9 +57,10 @@ public sealed class CrmProspectingProviderRegistryTests
             => Task.FromResult(new CrmProspectingProviderResult([], 0, []));
     }
 
-    private sealed class AsyncProvider(string providerCode) : ICrmProspectingAsyncExtractionProvider
+    private sealed class AsyncProvider(string providerCode, bool supportsIdempotentSubmission = true) : ICrmProspectingAsyncExtractionProvider
     {
         public string ProviderCode { get; } = providerCode;
+        public bool SupportsIdempotentSubmission { get; } = supportsIdempotentSubmission;
 
         public Task<CrmProspectingExtractionSubmission> SubmitExtractionAsync(
             CrmProspectingProviderRequest request,
