@@ -26,7 +26,7 @@ BEGIN
             DROP CONSTRAINT IF EXISTS ck_crm_prospecting_extraction_job_submission_ack;
         ALTER TABLE crm_prospecting_extraction_job
             ADD CONSTRAINT ck_crm_prospecting_extraction_job_submission_ack CHECK (
-                (status = 'Submitting' AND provider_extraction_id IS NULL AND submitted_at_utc IS NULL)
+                (status IN ('Submitting','NeedsReview') AND provider_extraction_id IS NULL AND submitted_at_utc IS NULL)
                 OR
                 (status <> 'Submitting' AND provider_extraction_id IS NOT NULL AND length(provider_extraction_id) > 0 AND submitted_at_utc IS NOT NULL)
             );
