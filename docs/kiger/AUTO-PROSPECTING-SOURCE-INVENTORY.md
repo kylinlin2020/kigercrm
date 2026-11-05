@@ -404,3 +404,10 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 
 - `TryTransitionAsync` 与 `TryAdvanceCursorAsync` 的 SQL 除 tenant/job/token/fencing version 外，额外要求 `lease_expires_at_utc > clock_timestamp()`。
 - 因此 Worker 即使保留旧 token，在租约过期后也不能继续改变状态或推进游标；若另一个 Worker 已领取，fencing version 也会阻止旧 Worker 写入。
+
+## 14. 异步来源提交确认安全边界（2026-11-05）
+
+- 新增 `CrmProspectingExtractionSubmissionValidator`，为未来异步 Provider 的 Submit acknowledgement 提供统一校验：Provider 身份必须与当前适配器一致；远端 extraction ID 必须非空、长度受限且不含控制字符；过期时间必须晚于提交时间；PollAfter 必须在有界范围；SafeMetadata 必须是大小受限的 JSON object。
+- 新增独立契约测试源，覆盖 Provider 错配、空值/控制字符/超长 ID、无效过期时间、负数或过长 PollAfter、错误或超长 metadata。
+- **重要边界：** 当前尚无异步提交协调器调用该 Validator，尚无生产异步 Provider，不能把这项基础校验记为异步数据源已接通。未来协调器必须先校验 acknowledgement，再调用 `TryAcknowledgeSubmissionAsync`；无效 acknowledgement 不得成为可轮询的远端任务。
+- 测试源码尚未执行；.NET 编译、单测、PostgreSQL 联调及 Windows 原生验收仍未完成。
