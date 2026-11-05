@@ -13,6 +13,7 @@ using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Crm.Infrastructure.Repositories;
 using XiHan.Framework.Data.Extensions.DependencyInjection;
 using XiHan.BasicApp.Saas.Extensions;
+using XiHan.BasicApp.Saas.Application.Services;
 
 namespace XiHan.BasicApp.Crm.Extensions;
 
@@ -160,35 +161,30 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmTedProspectingProvider>());
         }
-        // UN Comtrade public preview is keyless; a configured subscription key upgrades the adapter
-        // to the registered data API. Keep the provider explicitly opt-in in either mode.
+        // Providers resolve API keys from encrypted tenant configuration at execution time.
+        // They are Scoped because the prospecting worker establishes the Run tenant before resolving providers.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUnComtradeProvider"], out var enableUnComtrade)
             && enableUnComtrade)
         {
-            var subscriptionKey = configuration["XiHan:CRM:Prospecting:Providers:UnComtrade:ApiKey"];
-            services.AddSingleton<CrmUnComtradeProspectingProvider>(provider => new CrmUnComtradeProspectingProvider(
+            services.AddScoped<CrmUnComtradeProspectingProvider>(provider => new CrmUnComtradeProspectingProvider(
                 new HttpClient(CrmProspectingHttpHandlerFactory.Create("comtradeapi.un.org"))
                 {
                     Timeout = TimeSpan.FromSeconds(30)
                 },
-                subscriptionKey));
-            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmUnComtradeProspectingProvider>());
         }
-        // Census requires an API key. It is read from protected deployment configuration until
-        // tenant-scoped runtime credential resolution is wired into the background worker.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUsCensusTradeProvider"], out var enableUsCensus)
-            && enableUsCensus
-            && !string.IsNullOrWhiteSpace(configuration["XiHan:CRM:Prospecting:Providers:UsCensus:ApiKey"]))
+            && enableUsCensus)
         {
-            var apiKey = configuration["XiHan:CRM:Prospecting:Providers:UsCensus:ApiKey"];
-            services.AddSingleton<CrmUsCensusTradeProspectingProvider>(provider => new CrmUsCensusTradeProspectingProvider(
+            services.AddScoped<CrmUsCensusTradeProspectingProvider>(provider => new CrmUsCensusTradeProspectingProvider(
                 new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.census.gov"))
                 {
                     Timeout = TimeSpan.FromSeconds(30)
                 },
-                apiKey));
-            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmUsCensusTradeProspectingProvider>());
         }
         // GLEIF is an identity-resolution source, not a discovery directory. It is opt-in
