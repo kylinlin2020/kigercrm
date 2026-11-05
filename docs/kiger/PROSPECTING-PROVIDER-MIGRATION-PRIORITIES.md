@@ -62,10 +62,15 @@ These are implemented at source level but have not yet passed .NET 10 execution,
 ### Revised next priorities
 
 1. **PostgreSQL correctness tests first:** prove concurrent lease claims, lease takeover, heartbeat rejection after takeover, stale child-write rejection, fenced terminal transitions, and atomic request-ledger/coverage advancement using two independent connections.
-2. **Shared provider security boundary:** centralize DNS/IP destination validation (including private, loopback and link-local rejection), redirect-by-redirect validation, bounded response streaming, per-tenant/provider concurrency and retry budgets. Keep fixed endpoint allowlists in every adapter.
+2. **Shared provider security boundary:** DNS/IP pinning for the five current official clients is now implemented at source level through a shared handler factory. Next extend the boundary with redirect-by-redirect validation if redirects are ever enabled, per-tenant/provider concurrency and retry budgets, and executable DNS/socket tests. Keep fixed endpoint allowlists in every adapter.
 3. **Provider catalog metadata:** expose provider code, source class, geographic/time coverage, required configuration, enabled state, result limitations, terms/policy URL, field authority and cost/quota class. Never expose secrets.
 4. **Observation reconciliation and cache:** add durable links from repeated source observations to canonical Candidates; introduce a shared response cache only with tenant-safe cache keys, retention limits and privacy review.
 5. **Remaining business workflows:** Schedule/Scheduler, deep-mining/Super Search, general website discovery and optional paid contact enrichment, each behind explicit opt-in and human review.
 6. **Runtime acceptance:** Windows-native .NET 10 restore/build/test, PostgreSQL migrations and concurrency, Redis worker restart/recovery, live official-source contract checks and full candidate-to-human-approved-Lead workflow.
 
 The earlier statement that the current provider contract is only a flat raw record is historical: the present contract includes source URL, publication/retrieval timestamps, payload hash, evidence classification and provider-result completeness. Further pagination, typed retry/quota metadata and a shared execution gateway remain future work.
+
+
+### DNS/IP transport update (2026-11-05)
+
+The five official provider/identity clients now use `CrmProspectingHttpHandlerFactory`: approved hostname allowlists, no system proxy, no automatic redirects, DNS answer validation and direct socket connection to the validated address. This prevents a validation-to-connect second DNS lookup for these clients. Unit-test source has been added for public-unicast classification and DI wiring, but has not been executed. PostgreSQL two-connection tests, runtime DNS/socket verification, full .NET build/test and Windows acceptance remain open.
