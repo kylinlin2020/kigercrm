@@ -11,12 +11,12 @@ public sealed class CrmUnComtradeProspectingProviderTests
     [Fact]
     public async Task SearchAsync_UsesKeylessPreviewAndMapsTradeSignal()
     {
-        var handler = new StubHandler(_ => Ok("""{"data":[{"reporterCode":842,"reporterDesc":"United States","partnerDesc":"World","cmdCode":"TOTAL","cmdDesc":"All commodities","period":"2025","flowDesc":"Export","primaryValue":123456}]}"""));
+        var handler = new StubHandler(_ => Ok("""{"data":[{"reporterCode":842,"reporterDesc":"United States","partnerDesc":"World","cmdCode":"TOTAL","cmdDesc":"All commodities","period":"2025","flowDesc":"Import","primaryValue":123456}]}"""));
         using var provider = new CrmUnComtradeProspectingProvider(new HttpClient(handler));
         var result = await provider.SearchAsync(Request("United States"));
         var record = Assert.Single(result.Records);
         Assert.Equal("un_comtrade", provider.ProviderCode);
-        Assert.Equal("UNCOMTRADE:842:2025:Export:TOTAL", record.ExternalId);
+        Assert.Equal("UNCOMTRADE:842:2025:Import:TOTAL", record.ExternalId);
         Assert.Equal("official_trade_statistics", record.EvidenceType);
         Assert.Contains("/public/v1/preview/", handler.RequestUri, StringComparison.Ordinal);
         Assert.DoesNotContain("subscription-key", handler.RequestUri, StringComparison.Ordinal);
