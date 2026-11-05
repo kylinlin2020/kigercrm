@@ -136,6 +136,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
             var excludedDomains = ParseStringArray(run.SnapshotExcludedDomainsJson, "excluded domains", allowNull: true);
             var raw = new List<CrmProspectingRawEnvelope>();
+            var checkpointedSteps = new List<(long ExecutionId, string State)>();
             // Do not advance incremental coverage while provider records are only in memory.
             // Candidate/evidence persistence must finish first so a worker crash cannot skip data.
             var pendingCoverage = new List<(long AttemptId, string RequestKey, int ResultCount, string ResponseHash, long DurationMs)>();
@@ -155,21 +156,36 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 var executionStep = persistedPlan.Single(step =>
                     string.Equals(step.ProviderCode, providerCode, StringComparison.OrdinalIgnoreCase));
-                if (executionStep.State is "Started" or "Checkpointed")
+                if (executionStep.State == "Started")
                 {
-                    // The previous process may have died after the external request or after
-                    // receiving a response. Until response checkpoint replay is implemented,
-                    // neither state is safe to invoke again: preserve the evidence for review.
+                    // The external outcome is ambiguous: no response checkpoint proves what was returned.
                     if (!await providerExecutions.TryMarkInterruptedNeedsReviewAsync(
                         executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
                         executionStep.State, "provider_execution_interrupted",
-                        executionStep.State == "Started"
-                            ? "Worker restarted while provider outcome was ambiguous; automatic re-invocation was blocked."
-                            : "A durable response checkpoint exists but replay/projection is not yet available; automatic re-invocation was blocked.",
+                        "Worker restarted while provider outcome was ambiguous; automatic re-invocation was blocked.",
                         cancellationToken))
                         throw new InvalidOperationException($"Interrupted provider execution step '{providerCode}' could not be fenced into NeedsReview.");
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: interrupted provider execution requires review; no duplicate external request was issued.");
+                    continue;
+                }
+                else if (executionStep.State is "Checkpointed" or "Projecting")
+                {
+                    var checkpointJson = executionStep.CheckpointJson
+                        ?? throw new InvalidOperationException($"Provider checkpoint is missing for '{providerCode}'.");
+                    var checkpointBytes = System.Text.Encoding.UTF8.GetByteCount(checkpointJson);
+                    var checkpointHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(checkpointJson)));
+                    if (checkpointBytes != executionStep.CheckpointBytes ||
+                        !string.Equals(checkpointHash, executionStep.CheckpointHash, StringComparison.Ordinal))
+                        throw new InvalidOperationException($"Provider checkpoint integrity validation failed for '{providerCode}'.");
+                    var checkpointRecords = JsonSerializer.Deserialize<List<CrmProspectingRawRecord>>(checkpointJson)
+                        ?? throw new InvalidOperationException($"Provider checkpoint payload is invalid for '{providerCode}'.");
+                    if (checkpointRecords.Count != executionStep.RawRecordCount ||
+                        checkpointRecords.Any(record => record is null))
+                        throw new InvalidOperationException($"Provider checkpoint record count or shape is invalid for '{providerCode}'.");
+                    foreach (var checkpointRecord in checkpointRecords)
+                        raw.Add(new CrmProspectingRawEnvelope(providerCode, checkpointRecord));
+                    checkpointedSteps.Add((executionStep.BasicId, executionStep.State));
                     continue;
                 }
                 else if (executionStep.State == "Succeeded")
@@ -301,6 +317,34 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     AddBoundedWarning(warnings, $"{providerCode}: provider returned an empty or malformed result envelope.");
                     continue;
                 }
+
+                var checkpointJson = JsonSerializer.Serialize(result.Records);
+                var checkpointBytes = System.Text.Encoding.UTF8.GetByteCount(checkpointJson);
+                if (checkpointBytes > CrmProspectingRunProviderExecutionRepository.MaxCheckpointBytes)
+                {
+                    if (!await requestLedger.TryFinalizeAsync(
+                        attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
+                        resultCount: result.Records.Count,
+                        failureCode: "provider_checkpoint_oversized",
+                        failureSummary: "Normalized provider result exceeded the 1 MiB durable checkpoint limit.",
+                        cancellationToken: CancellationToken.None))
+                        throw new InvalidOperationException("The oversized provider response request ledger attempt could not be finalized.");
+                    if (!await providerExecutions.TryMarkInterruptedNeedsReviewAsync(
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                        "Started", "provider_checkpoint_oversized",
+                        "Normalized provider response exceeded the 1 MiB durable checkpoint limit and requires manual review.",
+                        CancellationToken.None))
+                        throw new InvalidOperationException("The oversized provider response could not be moved to NeedsReview.");
+                    failures++;
+                    AddBoundedWarning(warnings, $"{providerCode}: response exceeded the durable checkpoint limit and requires review.");
+                    continue;
+                }
+
+                if (!await providerExecutions.TrySaveCheckpointAsync(
+                    executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                    checkpointJson, result.Records.Count, cancellationToken))
+                    throw new InvalidOperationException($"Provider response checkpoint for '{providerCode}' could not be persisted under the live Run lease.");
+                checkpointedSteps.Add((executionStep.BasicId, "Checkpointed"));
 
                 const int maxRawRecordsPerRun = 2000;
                 var remainingRawRecords = Math.Max(0, maxRawRecordsPerRun - raw.Count);
@@ -739,6 +783,34 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (normalizedEmail is not null) seenCandidateEmails.Add(normalizedEmail);
                 if (websiteHost is not null) seenCandidateWebsites.Add(websiteHost);
                 candidateCount++;
+            }
+
+            // All candidate/evidence/score writes above are durable and idempotent by
+            // provider identity. Only now advance checkpointed provider steps. If the process
+            // stops before this point, the next delivery replays the verified checkpoint.
+            var projectionRunState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+            if (projectionRunState?.Status != CrmProspectingRunStatus.CancelRequested)
+            {
+                foreach (var step in checkpointedSteps)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    using var stepUnitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWorkManager>()
+                        .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+                    if (step.State == "Checkpointed" &&
+                        !await providerExecutions.TryTransitionAsync(
+                            step.ExecutionId, run.BasicId, leaseToken, activeFencingVersion,
+                            "Checkpointed", "Projecting", cancellationToken: cancellationToken))
+                        throw new InvalidOperationException("A provider checkpoint could not enter Projecting under the live Run lease.");
+                    if (!await providerExecutions.TryTransitionAsync(
+                        step.ExecutionId, run.BasicId, leaseToken, activeFencingVersion,
+                        "Projecting", "Succeeded",
+                        projectedRecordCount: raw.Count(envelope => string.Equals(envelope.ProviderCode, plan.FirstOrDefault(code =>
+                            persistedPlan.Any(row => row.BasicId == step.ExecutionId && string.Equals(row.ProviderCode, code, StringComparison.OrdinalIgnoreCase))), StringComparison.OrdinalIgnoreCase)),
+                        failureCount: 0,
+                        cancellationToken: cancellationToken))
+                        throw new InvalidOperationException("A projected provider checkpoint could not be marked Succeeded.");
+                    await stepUnitOfWork.CompleteAsync(cancellationToken);
+                }
             }
 
             // Incremental scan coverage must never get ahead of durable Candidate/Evidence/Score
