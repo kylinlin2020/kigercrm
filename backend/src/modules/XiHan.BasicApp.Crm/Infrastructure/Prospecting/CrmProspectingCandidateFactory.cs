@@ -152,4 +152,113 @@ public sealed class CrmProspectingCandidatePersistenceService
         await unitOfWork.CompleteAsync(cancellationToken);
         return inserted;
     }
+    /// <summary>
+    /// Persists one validated extraction page and advances its cursor (or completes the final page)
+    /// in the same PostgreSQL transaction. A failed fencing/CAS update throws so the entire page rolls back.
+    /// </summary>
+    public async Task<int> PersistPageAndAdvanceAsync(
+        long extractionJobId,
+        Guid extractionLeaseToken,
+        long extractionFencingVersion,
+        string? expectedCursor,
+        CrmProspectingExtractionPage page,
+        IReadOnlyList<CrmProspectingCandidatePageItem> items,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+        ArgumentNullException.ThrowIfNull(items);
+        if (extractionJobId <= 0) throw new ArgumentOutOfRangeException(nameof(extractionJobId));
+        if (extractionLeaseToken == Guid.Empty) throw new ArgumentException("Extraction lease token is required.", nameof(extractionLeaseToken));
+        if (extractionFencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(extractionFencingVersion));
+        if (!CrmProspectingExtractionPageValidator.CanAdvanceCursor(page, expectedCursor))
+            throw new ArgumentException("The extraction page is invalid, incomplete, or has a non-advancing cursor.", nameof(page));
+        if (items.Count > CrmProspectingExtractionPageValidator.MaxRecordsPerPage ||
+            items.Count > page.Records.Count)
+            throw new ArgumentOutOfRangeException(nameof(items));
+
+        var pageIdentities = page.Records.Select(record => record.ExternalId).ToHashSet(StringComparer.Ordinal);
+        var itemIdentities = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in items)
+        {
+            if (item is null || item.Candidate is null || item.Envelope is null ||
+                item.Candidate.RunId <= 0 ||
+                string.IsNullOrWhiteSpace(item.Candidate.ProviderCode) ||
+                !string.Equals(item.Candidate.ProviderCode, item.Envelope.ProviderCode, StringComparison.Ordinal) ||
+                !string.Equals(item.Candidate.ExternalId, item.Envelope.Record.ExternalId, StringComparison.Ordinal) ||
+                !pageIdentities.Contains(item.Envelope.Record.ExternalId) ||
+                !itemIdentities.Add(item.Envelope.Record.ExternalId))
+                throw new ArgumentException("Candidate page items must map one-to-one to unique records in the validated provider page.", nameof(items));
+        }
+
+        using var unitOfWork = _unitOfWorkManager.Begin(
+            new XiHan.Framework.Uow.Options.XiHanUnitOfWorkOptions(isTransactional: true),
+            requiresNew: true);
+
+        var extraction = await _extractionJobs.GetByIdAsync(extractionJobId, cancellationToken)
+            ?? throw new InvalidOperationException("The extraction job does not exist in the current tenant.");
+        if (!string.Equals(extraction.Status, CrmProspectingExtractionStatus.FetchingResults.ToString(), StringComparison.Ordinal) ||
+            extraction.FencingVersion != extractionFencingVersion ||
+            extraction.LeaseToken != extractionLeaseToken ||
+            !string.Equals(extraction.ResultCursor, expectedCursor, StringComparison.Ordinal))
+            throw new InvalidOperationException("The extraction lease or expected cursor is stale.");
+        if (items.Any(item => item.Candidate.RunId != extraction.RunId ||
+            !string.Equals(item.Candidate.ProviderCode, extraction.ProviderCode, StringComparison.Ordinal)))
+            throw new ArgumentException("Candidate page items do not belong to the extraction Run/provider.", nameof(items));
+
+        foreach (var item in items)
+        {
+            var inserted = await _candidates.AddAsync(item.Candidate, cancellationToken);
+            var evidenceRows = CrmProspectingEvidenceFactory.Create(
+                inserted.BasicId, item.Envelope, DateTimeOffset.UtcNow);
+            if (evidenceRows.Count > 0)
+                await _evidence.AddRangeAsync(evidenceRows, cancellationToken);
+
+            var scoreInput = new CrmProspectingScoreInput(
+                HasVerifiableOrganization: false,
+                HasDirectProcurementSignal: false,
+                HasDirectProductFit: false,
+                HasTargetMarketFit: false,
+                PublishedAtUtc: item.Envelope.Record.PublishedAtUtc?.ToUniversalTime(),
+                HasTraceablePrimaryEvidence: evidenceRows.Any(evidence =>
+                    (evidence.EvidenceType is "direct" or "registry") &&
+                    evidence.VerificationStatus == "unverified" &&
+                    !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
+                HasPublicBusinessContact: !string.IsNullOrWhiteSpace(inserted.BusinessEmail),
+                IsKnownDuplicate: inserted.Status == CrmProspectingCandidateStatus.Duplicate,
+                IsRestrictedOrUnsafeSource: false);
+            var evaluatedAtUtc = DateTimeOffset.UtcNow;
+            var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
+            var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(
+                inserted.BasicId,
+                scoreResult,
+                evidenceRows,
+                $"initial:{inserted.BasicId}:{scoreResult.ScorecardVersion}");
+            await _scores.AddAsync(scoreSnapshot, cancellationToken);
+        }
+
+        var advanced = page.IsLastPage
+            ? await _extractionJobs.TryCompleteResultsAsync(
+                extractionJobId,
+                extractionLeaseToken,
+                extractionFencingVersion,
+                page.IsLastPage,
+                page.IsComplete,
+                page.FailureCount,
+                cancellationToken,
+                persistedRecordCount: items.Count)
+            : await _extractionJobs.TryAdvanceCursorAsync(
+                extractionJobId,
+                extractionLeaseToken,
+                extractionFencingVersion,
+                expectedCursor,
+                page.NextCursor,
+                items.Count,
+                cancellationToken);
+        if (!advanced)
+            throw new InvalidOperationException("The extraction cursor/lease changed before page commit; all page writes were rolled back.");
+
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return items.Count;
+    }
+
 }
