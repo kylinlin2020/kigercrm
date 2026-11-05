@@ -29,6 +29,9 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         int batchSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Marks provider jobs expired by database time and releases any stale lease.</summary>
+    Task<int> ExpireDueAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Conditionally changes lifecycle state under the exact tenant/job/lease identity.</summary>
     Task<bool> TryTransitionAsync(
         long jobId,
