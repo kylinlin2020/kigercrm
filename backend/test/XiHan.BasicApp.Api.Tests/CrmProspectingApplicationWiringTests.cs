@@ -102,6 +102,19 @@ public sealed class CrmProspectingApplicationWiringTests
 
 
     [Fact]
+    public void ExtractionNeedsReview_ShouldNeverBeClaimedByTheAutomaticWorker()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs");
+        var claimStart = repository.IndexOf("public async Task<IReadOnlyList<SysCrmProspectingExtractionJob>> ClaimDueAsync", StringComparison.Ordinal);
+        var expireStart = repository.IndexOf("public async Task<int> ExpireDueAsync", StringComparison.Ordinal);
+        Assert.True(claimStart >= 0 && expireStart > claimStart);
+        var claim = repository[claimStart..expireStart];
+        Assert.DoesNotContain("needsReviewStatus", claim, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("job.status = @needsReviewStatus", claim, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("job.status IN (@submittingStatus, @pendingStatus, @runningStatus, @fetchingStatus)", claim, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingRun_ShouldFailClosedWhenAsyncProviderIsSelectedBeforeExtractionWorkerIsWired()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
