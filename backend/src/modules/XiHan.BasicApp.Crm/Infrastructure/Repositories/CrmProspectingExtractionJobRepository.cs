@@ -221,6 +221,56 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()));
     }
 
+    public async Task<bool> TryCompleteResultsAsync(
+        long jobId,
+        Guid leaseToken,
+        long fencingVersion,
+        bool isLastPage,
+        bool isComplete,
+        int failureCount,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        if (!CrmProspectingExtractionStateMachine.CanCompleteResults(
+                CrmProspectingExtractionStatus.FetchingResults, isLastPage, isComplete, failureCount))
+            throw new InvalidOperationException(
+                "Extraction results can complete only after a complete final page with zero record failures.");
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for extraction completion.");
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Extraction completion requires PostgreSQL.");
+
+        const string sql = """
+            UPDATE crm_prospecting_extraction_job
+            SET status = @completedStatus,
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at_utc = NULL,
+                failure_code = NULL,
+                failure_summary = NULL
+            WHERE tenant_id = @tenantId
+              AND basic_id = @jobId
+              AND status = @fetchingStatus
+              AND lease_token = @leaseToken
+              AND fencing_version = @fencingVersion
+              AND lease_expires_at_utc > clock_timestamp();
+            """;
+        var affected = await client.Ado.ExecuteCommandAsync(
+            sql,
+            new SugarParameter("@completedStatus", CrmProspectingExtractionStatus.Completed.ToString()),
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@jobId", jobId),
+            new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+        return affected == 1;
+    }
+
     public async Task<bool> TryTransitionAsync(
         long jobId,
         CrmProspectingExtractionStatus expectedStatus,
@@ -236,6 +286,9 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
         if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
         if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        if (nextStatus == CrmProspectingExtractionStatus.Completed)
+            throw new InvalidOperationException(
+                "Use TryCompleteResultsAsync with final-page validation to complete extraction results.");
         if (!CrmProspectingExtractionStateMachine.CanTransition(expectedStatus, nextStatus))
             throw new InvalidOperationException("The requested extraction lifecycle transition is not allowed.");
         if (safeFailureSummary is { Length: > MaxFailureSummaryLength })
