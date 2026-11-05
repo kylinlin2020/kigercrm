@@ -148,7 +148,7 @@ public sealed class CrmKvkProspectingProvider : ICrmProspectingProvider, IDispos
 
                 var count = items.GetArrayLength();
                 processed += count;
-                if (count < PageSize || (total >= 0 && processed >= total)) break;
+                if (total >= 0 ? processed >= total : count < PageSize) break;
                 if (page == MaxPagesPerTerm)
                 {
                     complete = false;
