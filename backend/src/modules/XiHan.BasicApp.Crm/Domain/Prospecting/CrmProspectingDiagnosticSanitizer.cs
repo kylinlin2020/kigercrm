@@ -19,6 +19,9 @@ public static partial class CrmProspectingDiagnosticSanitizer
         return sanitized.Length > maxLength ? sanitized[..maxLength] : sanitized;
     }
 
+    [GeneratedRegex(@"(?i)(https?://www\.inegi\.org\.mx/app/api/denue/v1/consulta/Buscar/[^/\s?#]+/[^/\s?#]+/[^/\s?#]+/[^/\s?#]+/)[^/\s?#]+")]
+    private static partial Regex DenuePathSecret();
+
     [GeneratedRegex(@"(?i)(https?://[^\s?#]+)[^\s]*")]
     private static partial Regex UrlSensitiveSuffix();
 
