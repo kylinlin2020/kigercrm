@@ -66,6 +66,14 @@ public static class CrmProspectingExtractionStateMachine
         };
     }
 
+    /// <summary>Live remote lifecycle states require a persisted provider-side extraction identity.</summary>
+    public static bool RequiresProviderExtractionId(CrmProspectingExtractionStatus status)
+        => status is CrmProspectingExtractionStatus.Pending
+            or CrmProspectingExtractionStatus.Running
+            or CrmProspectingExtractionStatus.Succeeded
+            or CrmProspectingExtractionStatus.FetchingResults
+            or CrmProspectingExtractionStatus.Completed;
+
     /// <summary>Only a fully persisted final page may complete a job currently fetching results.</summary>
     public static bool CanCompleteResults(
         CrmProspectingExtractionStatus current,
