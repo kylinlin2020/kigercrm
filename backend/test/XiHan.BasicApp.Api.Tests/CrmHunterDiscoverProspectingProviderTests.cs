@@ -73,6 +73,22 @@ public sealed class CrmHunterDiscoverProspectingProviderTests
         await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() => provider.SearchAsync(Request()));
     }
 
+    [Fact]
+    public async Task SearchAsync_DoesNotTreatMissingDiscoverPlanAsRetryableQuota()
+    {
+        var handler = new StubHandler((request, _) => new HttpResponseMessage(HttpStatusCode.Forbidden)
+        {
+            RequestMessage = request,
+            Content = new StringContent("""{"errors":[{"code":"no_discover_access","details":"Discover is not included in this plan."}]}""", Encoding.UTF8, "application/json")
+        });
+        using var provider = new CrmHunterDiscoverProspectingProvider(new HttpClient(handler), "key");
+
+        var exception = await Assert.ThrowsAsync<HttpRequestException>(() => provider.SearchAsync(Request()));
+
+        Assert.Contains("plan eligibility", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(1, handler.CallCount);
+    }
+
     private static CrmProspectingProviderRequest Request()
         => new(1, "find water pump distributors", "water pumps", "United States",
             "industrial pump distributors and importers", "{}", []);
