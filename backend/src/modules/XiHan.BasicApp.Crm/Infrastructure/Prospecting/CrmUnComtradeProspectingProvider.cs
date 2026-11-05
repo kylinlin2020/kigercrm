@@ -122,7 +122,7 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
                 null,
                 Limit(summary, 2000))
             {
-                SourceUrl = $"https://comtradeapi.un.org/{(subscriptionKey is null ? "public/v1/preview/C/A/HS" : "data/v1/get/C/A/HS")}?reporterCode={Uri.EscapeDataString(reporter)}&period={Uri.EscapeDataString(period)}&partnerCode=0&flowCode=X&cmdCode=TOTAL",
+                SourceUrl = $"https://comtradeapi.un.org/{(subscriptionKey is null ? "public/v1/preview/C/A/HS" : "data/v1/get/C/A/HS")}?reporterCode={Uri.EscapeDataString(reporter)}&period={Uri.EscapeDataString(period)}&partnerCode=0&flowCode=M&cmdCode=TOTAL",
                 RetrievedAtUtc = retrievedAt,
                 RawPayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(item.GetRawText()))).ToLowerInvariant(),
                 EvidenceType = "official_trade_statistics"
