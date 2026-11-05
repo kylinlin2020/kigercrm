@@ -769,6 +769,8 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("client.Ado.Transaction is null", completion, StringComparison.Ordinal);
         Assert.Contains("result_record_count = result_record_count + @persistedRecordCount", completion, StringComparison.Ordinal);
         Assert.Contains("result_cursor IS NOT DISTINCT FROM @expectedCursor", completion, StringComparison.Ordinal);
+        Assert.Contains("result_failure_count + @failureCount = 0", completion, StringComparison.Ordinal);
+        Assert.Contains("result_failure_count = result_failure_count + @failureCount", completion, StringComparison.Ordinal);
         Assert.Contains("lease_expires_at_utc > clock_timestamp()", completion, StringComparison.Ordinal);
         Assert.Contains("int persistedRecordCount = 0", contract, StringComparison.Ordinal);
     }
