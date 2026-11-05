@@ -296,11 +296,14 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         bool isLastPage,
         bool isComplete,
         int failureCount,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int persistedRecordCount = 0)
     {
         if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
         if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
         if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        if (persistedRecordCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
+            throw new ArgumentOutOfRangeException(nameof(persistedRecordCount));
         if (!CrmProspectingExtractionStateMachine.CanCompleteResults(
                 CrmProspectingExtractionStatus.FetchingResults, isLastPage, isComplete, failureCount))
             throw new InvalidOperationException(
@@ -316,6 +319,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         const string sql = """
             UPDATE crm_prospecting_extraction_job
             SET status = @completedStatus,
+                result_record_count = result_record_count + @persistedRecordCount,
                 lease_owner = NULL,
                 lease_token = NULL,
                 lease_expires_at_utc = NULL,
@@ -331,6 +335,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         var affected = await client.Ado.ExecuteCommandAsync(
             sql,
             new SugarParameter("@completedStatus", CrmProspectingExtractionStatus.Completed.ToString()),
+            new SugarParameter("@persistedRecordCount", persistedRecordCount),
             new SugarParameter("@tenantId", tenant.TenantId),
             new SugarParameter("@jobId", jobId),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
