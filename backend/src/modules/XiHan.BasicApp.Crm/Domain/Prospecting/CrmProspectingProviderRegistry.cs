@@ -44,6 +44,9 @@ public sealed class CrmProspectingProviderRegistry
         {
             if (provider is null) throw new InvalidOperationException("An asynchronous prospecting provider registration is null.");
             var code = NormalizeCode(provider.ProviderCode);
+            if (!provider.SupportsIdempotentSubmission)
+                throw new InvalidOperationException(
+                    $"Asynchronous prospecting provider '{code}' must explicitly support provider-documented idempotent submission before registration.");
             if (!allCodes.Add(code))
                 throw new InvalidOperationException($"Duplicate prospecting provider code registration: {code}.");
             asynchronous.Add(code, provider);
