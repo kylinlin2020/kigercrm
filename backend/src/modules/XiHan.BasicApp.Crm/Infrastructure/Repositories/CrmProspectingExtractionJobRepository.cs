@@ -432,7 +432,12 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
         if (expectedCursor is { Length: > MaxCursorLength } || nextCursor is { Length: > MaxCursorLength })
             throw new ArgumentOutOfRangeException(nameof(nextCursor));
-        if (persistedRecordCount < 0) throw new ArgumentOutOfRangeException(nameof(persistedRecordCount));
+        if (nextCursor is not null
+            && (string.IsNullOrWhiteSpace(nextCursor)
+                || string.Equals(expectedCursor, nextCursor, StringComparison.Ordinal)))
+            throw new ArgumentException("A non-final result cursor must be non-empty and advance beyond the expected cursor.", nameof(nextCursor));
+        if (persistedRecordCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
+            throw new ArgumentOutOfRangeException(nameof(persistedRecordCount));
         cancellationToken.ThrowIfCancellationRequested();
 
         var client = DbClient;
