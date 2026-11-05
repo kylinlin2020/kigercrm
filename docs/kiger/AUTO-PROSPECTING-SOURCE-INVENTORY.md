@@ -107,10 +107,14 @@
 - `uk_find_tender`
 - `uk_contracts_finder`
 - `eu_ted`
-- `gleif`（身份解析/补充，不应错误计作通用搜客来源）\n- `world_bank_procurement`（新增；公开采购公告适配器，单页 bounded fetch，存在后续页时标记不完整）\n- `brazil_pncp`（新增；巴西官方采购 API，最多 5 页 bounded fetch）\n- `singapore_gebiz`（新增；新加坡政府授标开放数据集，最多 5 页 bounded fetch）
+- `gleif`（身份解析/补充，不应错误计作通用搜客来源）
+- `world_bank_procurement`（新增；公开采购公告适配器，单页 bounded fetch，存在后续页时标记不完整）
+- `brazil_pncp`（新增；巴西官方采购 API，最多 5 页 bounded fetch）
+- `singapore_gebiz`（新增；新加坡政府授标开放数据集，最多 5 页 bounded fetch）
 - `un_comtrade`（新增；公开预览无 Key，或使用订阅 Key 的官方贸易统计 API）
 - `us_census_trade`（新增；需要 Census API Key，从当前租户加密配置读取）
-- `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）\n- `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
+- `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
+- `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
 
 它们均为**已实现待验收**，不是“运行已通过”。Fake Provider 不计入真实来源数量。
 
@@ -152,10 +156,19 @@
 
 - UN Comtrade：`EnableUnComtradeProvider` 显式开启；无 Key 时调用官方 public preview（500 行上限），提供订阅 Key 时切换到 `/data/v1/get`。目标市场只支持适配器内明确映射的 M49 Reporter 国家；不支持的国家返回清晰 warning，不猜测代码。
 - US Census：`EnableUsCensusTradeProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取；只请求官方 HS 出口数据集的有效字段。官方 API 要求 Key 作为 `key` 查询参数，需在 HTTP 诊断中脱敏。
-- SAM.gov：`EnableSamGovProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 `api_key` 查询参数发送；请求窗口限制为 30 天、最多 3 页，达到页数上限会标记 coverage incomplete。\n- Companies House：`EnableCompaniesHouseProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 HTTP Basic 用户名发送（密码为空）；只在目标市场明确包含 UK/GB/United Kingdom 等英国标识时调用，搜索结果是公司登记证据而非采购意向，最多 2 页并标记未覆盖的后续结果。
+- SAM.gov：`EnableSamGovProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 `api_key` 查询参数发送；请求窗口限制为 30 天、最多 3 页，达到页数上限会标记 coverage incomplete。
+- Companies House：`EnableCompaniesHouseProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 HTTP Basic 用户名发送（密码为空）；只在目标市场明确包含 UK/GB/United Kingdom 等英国标识时调用，搜索结果是公司登记证据而非采购意向，最多 2 页并标记未覆盖的后续结果。
 - **租户凭证链路已接通（待测试）：**两个 Provider 均为 Scoped，后台 Worker 先切换到 Run 的 Tenant Scope，再解析 `ISaasConfigurationService`；分别读取 `CRM.Prospecting.Provider.un_comtrade.ApiKey`、`CRM.Prospecting.Provider.us_census.ApiKey`、`CRM.Prospecting.Provider.sam_gov.ApiKey` 与 `CRM.Prospecting.Provider.companies_house.ApiKey`，复用 SaaS 的加密配置解密与租户优先级/缓存逻辑。Comtrade Key 通过 `Ocp-Apim-Subscription-Key` 请求头发送；Census 按官方要求使用 `key` 查询参数。真实多租户隔离、Data Protection 密钥环和 Census 查询参数在 HTTP 诊断日志中的脱敏仍待实机验收。
 
-## 4.2 Companies House 公司登记 Provider（本轮新增）\n\n- 使用官方 `GET /search/companies` 接口；按 `q` 搜索产品/行业关键词，`items_per_page=100`，最多请求两页。\n- API Key 通过 HTTP Basic Authentication 的用户名字段发送，密码为空；Key 仅从当前租户加密 SaaS 配置读取，不进入 URL。\n- 仅在目标市场明确包含 UK、GB、United Kingdom、Great Britain 或英国组成地区时调用。\n- 输出公司编号、名称、登记状态、公司类型、登记地址摘要及官方公司详情 URL；不推断采购意向、不生成联系人或邮箱。\n- 达到两页上限仍有更多匹配项时，`IsComplete=false` 并返回 warning。官方 API 每应用默认限额为 5 分钟 600 次，Provider 仍按小页数 bounded fetch 控制单次任务。\n\n## 5. 业务与安全边界
+## 4.2 Companies House 公司登记 Provider（本轮新增）
+
+- 使用官方 `GET /search/companies` 接口；按 `q` 搜索产品/行业关键词，`items_per_page=100`，最多请求两页。
+- API Key 通过 HTTP Basic Authentication 的用户名字段发送，密码为空；Key 仅从当前租户加密 SaaS 配置读取，不进入 URL。
+- 仅在目标市场明确包含 UK、GB、United Kingdom、Great Britain 或英国组成地区时调用。
+- 输出公司编号、名称、登记状态、公司类型、登记地址摘要及官方公司详情 URL；不推断采购意向、不生成联系人或邮箱。
+- 达到两页上限仍有更多匹配项时，`IsComplete=false` 并返回 warning。官方 API 每应用默认限额为 5 分钟 600 次，Provider 仍按小页数 bounded fetch 控制单次任务。
+
+## 5. 业务与安全边界
 
 - 数据源只能生成 Candidate / Evidence，不得直接创建或更新正式 CRM Lead。
 - Candidate 必须经人工审核后才能转入目标项目已有 CRM。
