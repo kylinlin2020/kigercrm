@@ -289,6 +289,73 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()));
     }
 
+    public async Task<bool> TryFailIncompleteResultsAsync(
+        long jobId,
+        Guid leaseToken,
+        long fencingVersion,
+        bool isLastPage,
+        bool isComplete,
+        int pageFailureCount,
+        int persistedRecordCount,
+        string? expectedCursor,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        if (!isLastPage || !isComplete)
+            throw new InvalidOperationException("Only a complete final page can close a partially failed extraction.");
+        if (pageFailureCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
+            throw new ArgumentOutOfRangeException(nameof(pageFailureCount));
+        if (persistedRecordCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
+            throw new ArgumentOutOfRangeException(nameof(persistedRecordCount));
+        if (expectedCursor is { Length: > MaxCursorLength } || (expectedCursor is not null && expectedCursor.Any(char.IsControl)))
+            throw new ArgumentOutOfRangeException(nameof(expectedCursor));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for incomplete extraction finalization.");
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Extraction finalization requires PostgreSQL.");
+        if (client.Ado.Transaction is null)
+            throw new InvalidOperationException("Incomplete final-page finalization must share a transaction with result/evidence persistence.");
+
+        const string sql = """
+            UPDATE crm_prospecting_extraction_job
+            SET status = @failedStatus,
+                result_record_count = result_record_count + @persistedRecordCount,
+                result_failure_count = result_failure_count + @pageFailureCount,
+                failure_code = @failureCode,
+                failure_summary = @failureSummary,
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at_utc = NULL
+            WHERE tenant_id = @tenantId
+              AND basic_id = @jobId
+              AND status = @fetchingStatus
+              AND lease_token = @leaseToken
+              AND fencing_version = @fencingVersion
+              AND result_cursor IS NOT DISTINCT FROM @expectedCursor
+              AND result_failure_count + @pageFailureCount > 0
+              AND lease_expires_at_utc > clock_timestamp();
+            """;
+        var affected = await client.Ado.ExecuteCommandAsync(
+            sql,
+            new SugarParameter("@failedStatus", CrmProspectingExtractionStatus.Failed.ToString()),
+            new SugarParameter("@persistedRecordCount", persistedRecordCount),
+            new SugarParameter("@pageFailureCount", pageFailureCount),
+            new SugarParameter("@failureCode", "incomplete_results"),
+            new SugarParameter("@failureSummary", "One or more records failed during extraction; coverage was not advanced."),
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@jobId", jobId),
+            new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion),
+            new SugarParameter("@expectedCursor", expectedCursor));
+        return affected == 1;
+    }
+
     public async Task<bool> TryCompleteResultsAsync(
         long jobId,
         Guid leaseToken,
