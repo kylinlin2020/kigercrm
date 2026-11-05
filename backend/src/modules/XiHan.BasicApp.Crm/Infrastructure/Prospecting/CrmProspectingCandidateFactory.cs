@@ -202,6 +202,8 @@ public sealed class CrmProspectingCandidatePersistenceService
             ?? throw new InvalidOperationException("The provider execution checkpoint does not exist in the current tenant and Run.");
         if (!string.Equals(execution.CheckpointHash, checkpointHash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The provider execution checkpoint hash changed before projection.");
+        if (items.Count > execution.RawRecordCount)
+            throw new ArgumentException("A provider batch cannot project more records than its persisted checkpoint contains.", nameof(items));
         if (execution.State is "Succeeded" or "Failed")
             return execution.ProjectedRecordCount;
         if (execution.State is not ("Checkpointed" or "Projecting"))
