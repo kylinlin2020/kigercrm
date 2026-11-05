@@ -643,4 +643,18 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("code: 'sec_edgar'", frontend, StringComparison.Ordinal);
         Assert.Contains("configKeySuffix: 'UserAgent'", frontend, StringComparison.Ordinal);
     }
+    [Fact]
+    public void RunWorker_ShouldUseSharedCandidateFactoryForSyncAndFutureAsyncReconciliation()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var factory = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
+
+        Assert.Contains("CrmProspectingCandidateFactory.NormalizeEmail(envelope.Record)", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingCandidateFactory.NormalizeWebsiteHost(envelope.Record)", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingCandidateFactory.Create(", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingCandidateStatus.PendingReview", factory, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingCandidateStatus.Duplicate", factory, StringComparison.Ordinal);
+        Assert.Contains("Duplicate classification is supplied by the caller", factory, StringComparison.Ordinal);
+    }
+
 }
