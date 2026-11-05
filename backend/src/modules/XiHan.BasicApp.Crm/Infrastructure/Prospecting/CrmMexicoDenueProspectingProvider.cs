@@ -71,7 +71,7 @@ public sealed class CrmMexicoDenueProspectingProvider : ICrmProspectingProvider,
             var term = Uri.EscapeDataString(string.Join(" ", terms));
             var safeToken = Uri.EscapeDataString(token);
             var uri = new Uri($"https://{Host}{PathPrefix}{term}/00/{start}/{end}/{safeToken}");
-            var approvedEndpoint = new UriBuilder(uri) { Path = uri.AbsolutePath[..(uri.AbsolutePath.LastIndexOf('/') + 1)] }.Uri;
+            var approvedEndpoint = uri;
             using var message = new HttpRequestMessage(HttpMethod.Get, uri);
             message.Headers.Accept.ParseAdd("application/json");
             using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
