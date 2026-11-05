@@ -1,6 +1,7 @@
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Saas.Infrastructure.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.MultiTenancy;
