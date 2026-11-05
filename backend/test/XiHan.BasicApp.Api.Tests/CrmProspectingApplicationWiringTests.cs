@@ -79,6 +79,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("XiHan:CRM:Prospecting:EnableFakeProvider", registration, StringComparison.Ordinal);
         Assert.Contains("bool.TryParse(configuration[", registration, StringComparison.Ordinal);
         Assert.Contains("&& enableFakeProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableWorldBankProcurementProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmWorldBankProcurementProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("search.worldbank.org", registration, StringComparison.Ordinal);
         Assert.DoesNotContain("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();", registration, StringComparison.Ordinal);
     }
 
