@@ -353,9 +353,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                   FROM crm_prospecting_extraction_job AS pending_job
                   WHERE pending_job.tenant_id = @tenantId
                     AND pending_job.run_id = @runId
-                    AND pending_job.status IN (
-                        @submittingExtractionStatus, @pendingExtractionStatus, @runningExtractionStatus,
-                        @succeededExtractionStatus, @fetchingExtractionStatus, @needsReviewExtractionStatus
+                    AND pending_job.status NOT IN (
+                        @completedExtractionStatus, @failedExtractionStatus,
+                        @expiredExtractionStatus, @cancelledExtractionStatus
                     )
               )
             RETURNING run.basic_id AS "BasicId";
@@ -372,15 +372,10 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@succeededStatus", (int)CrmProspectingRunStatus.Succeeded),
             new SugarParameter("@partiallySucceededStatus", (int)CrmProspectingRunStatus.PartiallySucceeded),
             new SugarParameter("@failedStatus", (int)CrmProspectingRunStatus.Failed),
+            new SugarParameter("@completedExtractionStatus", CrmProspectingExtractionStatus.Completed.ToString()),
             new SugarParameter("@failedExtractionStatus", CrmProspectingExtractionStatus.Failed.ToString()),
             new SugarParameter("@expiredExtractionStatus", CrmProspectingExtractionStatus.Expired.ToString()),
             new SugarParameter("@cancelledExtractionStatus", CrmProspectingExtractionStatus.Cancelled.ToString()),
-            new SugarParameter("@submittingExtractionStatus", CrmProspectingExtractionStatus.Submitting.ToString()),
-            new SugarParameter("@pendingExtractionStatus", CrmProspectingExtractionStatus.Pending.ToString()),
-            new SugarParameter("@runningExtractionStatus", CrmProspectingExtractionStatus.Running.ToString()),
-            new SugarParameter("@succeededExtractionStatus", CrmProspectingExtractionStatus.Succeeded.ToString()),
-            new SugarParameter("@fetchingExtractionStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
-            new SugarParameter("@needsReviewExtractionStatus", CrmProspectingExtractionStatus.NeedsReview.ToString()),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion));
