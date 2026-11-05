@@ -66,7 +66,7 @@ public sealed class CrmWikidataProspectingProvider : ICrmProspectingProvider, ID
             }.Uri;
             using var message = new HttpRequestMessage(HttpMethod.Get, uri);
             message.Headers.Accept.ParseAdd("application/json");
-            message.Headers.UserAgent.ParseAdd("KigerCRM-Prospecting/1.0 (company discovery; contact: support@kin-power.com)");
+            message.Headers.UserAgent.ParseAdd("KigerCRM-Prospecting/1.0 (https://kin-power.com)");
 
             using var response = await _client.SendAsync(
                 message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
