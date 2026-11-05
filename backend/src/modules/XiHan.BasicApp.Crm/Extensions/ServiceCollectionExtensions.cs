@@ -216,6 +216,20 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmHunterDiscoverProspectingProvider>());
         }
+        // INEGI DENUE embeds the tenant token in the final URL path segment; keep this adapter
+        // tenant-scoped, fixed-host, redirect-disabled and opt-in. Never log request URIs.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableMexicoDenueProvider"], out var enableMexicoDenue)
+            && enableMexicoDenue)
+        {
+            services.AddScoped<CrmMexicoDenueProspectingProvider>(provider => new CrmMexicoDenueProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("www.inegi.org.mx"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmMexicoDenueProspectingProvider>());
+        }
         // FMCSA QCMobile is an official US carrier registry; its WebKey is tenant-encrypted.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFmcsaQcmobileProvider"], out var enableFmcsa)
             && enableFmcsa)
