@@ -12,7 +12,7 @@ public sealed class CrmUsCensusTradeProspectingProviderTests
     public async Task SearchAsync_RequiresKeyBeforeMakingRequest()
     {
         var handler = new StubHandler(_ => throw new InvalidOperationException("Network must not be called."));
-        using var provider = new CrmUsCensusTradeProspectingProvider(new HttpClient(handler), null);
+        using var provider = new CrmUsCensusTradeProspectingProvider(new HttpClient(handler), (string?)null);
         var result = await provider.SearchAsync(Request());
         Assert.Empty(result.Records);
         Assert.Equal(0, handler.CallCount);
