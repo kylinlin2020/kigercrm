@@ -185,10 +185,17 @@ public sealed class CrmKvkProspectingProvider : ICrmProspectingProvider, IDispos
            && value.TryGetInt32(out var parsed) ? parsed : null;
 
     private static string? Read(JsonElement element, string property)
-        => element.ValueKind == JsonValueKind.Object && element.TryGetProperty(property, out var value)
-           && value.ValueKind == JsonValueKind.String ? value.GetString()
-           : element.ValueKind == JsonValueKind.Object && element.TryGetProperty(property, out value)
-             && value.ValueKind is JsonValueKind.True or JsonValueKind.False ? value.ToString() : null;
+    {
+        if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(property, out var value))
+            return null;
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.True => "true",
+            JsonValueKind.False => "false",
+            _ => null
+        };
+    }
 
     private static string? ReadAddress(JsonElement item)
     {
