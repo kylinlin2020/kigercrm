@@ -39,6 +39,36 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
     }
 
     [Fact]
+    public void Repository_ShouldMaterializeProviderPlanFromImmutableRunSnapshotIdempotently()
+    {
+        var contract = typeof(ICrmProspectingRunProviderExecutionRepository).GetMethods()
+            .Select(method => method.Name).ToHashSet(StringComparer.Ordinal);
+        Assert.Contains(nameof(ICrmProspectingRunProviderExecutionRepository.EnsurePlanMaterializedAsync), contract);
+
+        var source = ReadRepository();
+        Assert.Contains("run.SnapshotProviderPlanJson", source, StringComparison.Ordinal);
+        Assert.Contains("run.StrategyVersion", source, StringComparison.Ordinal);
+        Assert.Contains("run.PayloadHash", source, StringComparison.Ordinal);
+        Assert.Contains("CreatePlanFingerprint", source, StringComparison.Ordinal);
+        Assert.Contains("A partially materialized provider plan was found", source, StringComparison.Ordinal);
+        Assert.Contains("refusing to mutate an immutable plan", source, StringComparison.Ordinal);
+        Assert.Contains("client.Ado.BeginTran()", source, StringComparison.Ordinal);
+        Assert.Contains("client.Ado.CommitTran()", source, StringComparison.Ordinal);
+        Assert.Contains("client.Ado.RollbackTran()", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProviderExecutionMutations_ShouldUseTheSameLockedRunFence()
+    {
+        var source = ReadRepository();
+        Assert.Contains("WITH locked_run AS MATERIALIZED", source, StringComparison.Ordinal);
+        Assert.Contains("FOR UPDATE", source, StringComparison.Ordinal);
+        Assert.Contains("EXISTS (SELECT 1 FROM locked_run)", source, StringComparison.Ordinal);
+        Assert.Contains("step.state = 'Queued'", source, StringComparison.Ordinal);
+        Assert.Contains("step.state = 'Started'", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Repository_ShouldRequireLiveRunFenceAndTransactionForCheckpointWrites()
     {
         var source = ReadRepository();
