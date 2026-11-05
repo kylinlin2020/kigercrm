@@ -85,12 +85,7 @@ public sealed class CrmUsaSpendingProspectingProvider : ICrmProspectingProvider,
 
         // Redirects are disabled by the typed-client registration. Fail closed if a custom
         // HttpClient handler nevertheless follows one or changes the destination.
-        if (response.RequestMessage?.RequestUri is not { } finalUri ||
-            !string.Equals(finalUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
-            !finalUri.IsDefaultPort ||
-            !string.IsNullOrEmpty(finalUri.UserInfo) ||
-            !string.Equals(finalUri.Host, Endpoint.Host, StringComparison.OrdinalIgnoreCase) ||
-            finalUri.AbsolutePath != Endpoint.AbsolutePath)
+        if (!CrmProspectingEndpointGuard.IsApprovedResponseUri(response.RequestMessage?.RequestUri, Endpoint))
         {
             throw new HttpRequestException("USAspending response came from an unapproved endpoint.");
         }
