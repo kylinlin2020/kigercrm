@@ -89,6 +89,29 @@
 | Provider Catalog / 统一运行时 | `provider-catalog.ts`、`provider-runtime.ts`、请求账本/缓存测试 | 目标端待核验目录元数据、来源权限、成本/配额、缓存隔离、请求账本和健康检查完整性 |
 | Provider Trade Runtime | `provider-trade-runtime.ts`、`market-trade-observations.ts` | 目标端待核验贸易观察值、来源修订、HS 分类版本、单位/币种转换与租户隔离 |
 
+## 4.1 Provider Catalog / Runtime 源能力验收矩阵（新增审计）
+
+本节依据源项目 `provider-catalog.ts` 与 `provider-runtime.ts` 的实际实现拆分，不把“Provider 类已迁移”误判为运行时能力已迁移。目标端逐项验收时必须记录代码位置、测试和运行证据；未完成项保持待验收。
+
+| 源项目运行时能力 | 源项目实现语义 | 目标端验收要求 |
+|---|---|---|
+| 统一 Provider Catalog | 统一列出 lead/trade Provider 与虚拟 `ai_search`；包含分类、来源等级、接入方式、能力、允许字段、逐字段权威等级、Key/成本/许可策略、缓存范围、限速策略、保留策略、状态与版本 | 对照目标端 Provider 注册、配置面板和 API 响应；不能只靠 DI 注册表推导来源能力。每个字段需有 authority/evidence 级别，避免把网页发现、AI 推断、官方登记和采购公告混为一谈 |
+| 操作权限与契约校验 | 执行前核对 catalog code 与 adapter ID、contract version、access mode、active 状态、操作能力（search/enrich/trade）及双方 capabilities 交集 | 目标端必须在执行入口做服务端校验；前端隐藏按钮或 Provider 默认关闭不能替代服务端策略校验 |
+| 租户凭证隔离 | 执行上下文要求 team/owner/run/shard/request/purpose；连接必须为 personal scope，且 provider/owner/team 与当前上下文完全一致；凭证解密失败按连接无效处理 | 目标端继续使用租户加密配置；补充跨租户、跨 owner、错误 Provider、禁用凭证和解密失败测试。不得把 Key 放入日志、请求指纹或普通错误文本 |
+| 统一请求账本与脱敏日志 | `runLogged` 为请求生成 fingerprint，记录 team/owner/provider/connection/run/shard/endpoint，并统一规范化异常、HTTP 状态、耗时、响应大小和错误码 | 对照目标端 Run/Provider 日志，确认每次外部请求可追踪且租户隔离；Key、Authorization、URL query/path 中的秘密必须脱敏；记录失败也不能泄漏原始响应秘密 |
+| 请求指纹与缓存隔离 | 指纹绑定 provider ID、adapter version、catalog policy version、endpoint 和规范化请求；trade cache key 另绑定 license scope | 目标端缓存必须按租户/许可范围/适配器版本隔离；不得跨租户共享有凭证或有许可限制的数据；变更查询参数或策略版本必须产生不同指纹 |
+| 并发请求合并 | Trade runtime 对相同 provider/version/request fingerprint/license scope 使用 single-flight，避免并发重复调用；失败会规范化并向 follower 传播 | 目标端需明确是否实现同请求合并；如未实现，必须有并发配额保护和重复请求成本测试，不得把“数据库去重”当作请求合并 |
+| 连接级速率预算 | Trade runtime 支持 max concurrent、minimum interval、requests/minute，并返回带 Retry-After 时间的可重试限流错误 | 目标端对所有 Provider 的并发/间隔/每分钟预算应可配置且按租户连接隔离；Provider 原生 403/429/503 语义须按来源文档分类，不能统一重试 |
+| 缓存命中与使用量语义 | Trade cache 命中返回 cache status，并将 requestCount/quotaUsed 归零；并发复用也标为 cache；缓存写失败降级为 partial_success 并给 warning | 目标端必须区分 live/cache、实际调用次数、配额消耗和缓存失败；不能把缓存结果记成新一次 API 成功调用 |
+| 独立操作面 | Search、Enrich、Trade、Health、Preflight 分别执行；域名补全有输入校验；trade 单独分页并校验 cursor | 目标端需明确是否具备独立的健康检查、预检、补全和贸易查询入口；不能把所有能力压缩为一次 SearchAsync 后宣称功能等价 |
+| 分页与覆盖完整性 | Search/Trade 使用 cursor 分页；cursor 长度限制；页面经字段 allowlist、authority 和 retention policy 规范化 | 目标端每个 Provider 必须证明分页终止、结果上限和 coverage incomplete 语义；达到页数/记录上限、被限流或异步提交时不能报告完整覆盖 |
+
+### 当前迁移控制结论
+
+- 源项目除了 37 个 Provider 注册项，还存在统一目录、执行策略、租户凭证校验、请求账本、指纹/缓存、并发预算、single-flight、健康检查、预检、联系人补全和贸易查询等独立运行时能力。
+- 当前目标端获客 Provider 的 `ICrmProspectingProvider.SearchAsync` 单次同步契约不足以表达源项目完整的 Search/Enrich/Trade/Health/Preflight 生命周期，也不足以表达 Comext 异步任务续取。不能以 23 个适配器源码数量代表整个自动获客能力完整迁移。
+- 本轮只补充源能力基线和验收矩阵，尚未声称上述目标端能力全部实现；后续应按矩阵逐项定位目标代码、补充测试和缺口实现，再更新迁移状态。
+
 ## 5. 本轮 SEC EDGAR 适配器范围
 
 - 固定调用 `https://www.sec.gov/files/company_tickers.json`，只访问 SEC 官方主机；进程内统一限速为每 150 ms 最多一次（约 6.7 req/s），低于 SEC 当前 10 req/s 上限。
