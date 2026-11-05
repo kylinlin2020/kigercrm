@@ -101,9 +101,10 @@ public sealed class CrmBraveSearchProspectingProvider : ICrmProspectingProvider,
                 || !web.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
                 throw new InvalidDataException("Brave Search response did not contain web.results.");
 
+            var more = default(JsonElement);
             var hasMoreFlag = root.TryGetProperty("query", out var queryMetadata)
                 && queryMetadata.ValueKind == JsonValueKind.Object
-                && queryMetadata.TryGetProperty("more_results_available", out var more)
+                && queryMetadata.TryGetProperty("more_results_available", out more)
                 && more.ValueKind is JsonValueKind.True or JsonValueKind.False;
             moreResults = hasMoreFlag ? more.GetBoolean() : results.GetArrayLength() >= PageSize;
             if (!hasMoreFlag && results.GetArrayLength() >= PageSize)
