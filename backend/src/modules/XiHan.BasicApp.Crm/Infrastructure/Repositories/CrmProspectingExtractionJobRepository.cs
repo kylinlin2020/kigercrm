@@ -178,7 +178,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
                 FROM crm_prospecting_extraction_job AS job
                 WHERE job.tenant_id = @tenantId
                   AND (
-                      job.status IN (@submittingStatus, @pendingStatus, @runningStatus, @fetchingStatus)
+                      job.status IN (@submittingStatus, @pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)
                   )
                   AND job.next_poll_at_utc <= clock_timestamp()
                   AND (job.expires_at_utc IS NULL OR job.expires_at_utc > clock_timestamp())
@@ -204,6 +204,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@submittingStatus", CrmProspectingExtractionStatus.Submitting.ToString()),
             new SugarParameter("@pendingStatus", CrmProspectingExtractionStatus.Pending.ToString()),
             new SugarParameter("@runningStatus", CrmProspectingExtractionStatus.Running.ToString()),
+            new SugarParameter("@succeededStatus", CrmProspectingExtractionStatus.Succeeded.ToString()),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
             new SugarParameter("@leaseOwner", leaseOwner),
             new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds),
@@ -229,7 +230,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
                 lease_token = NULL,
                 lease_expires_at_utc = NULL
             WHERE tenant_id = @tenantId
-              AND status IN (@pendingStatus, @runningStatus, @fetchingStatus)
+              AND status IN (@pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)
               AND expires_at_utc IS NOT NULL
               AND expires_at_utc <= clock_timestamp();
             """;
@@ -238,6 +239,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@tenantId", tenant.TenantId),
             new SugarParameter("@pendingStatus", CrmProspectingExtractionStatus.Pending.ToString()),
             new SugarParameter("@runningStatus", CrmProspectingExtractionStatus.Running.ToString()),
+            new SugarParameter("@succeededStatus", CrmProspectingExtractionStatus.Succeeded.ToString()),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()));
     }
 
