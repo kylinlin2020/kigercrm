@@ -1,0 +1,90 @@
+using XiHan.BasicApp.Crm.Domain.Prospecting;
+using Xunit;
+
+namespace XiHan.BasicApp.Api.Tests;
+
+public sealed class CrmProspectingDiagnosticSanitizerTests
+{
+    [Theory]
+    [InlineData("key=census-secret", "key=[REDACTED]")]
+    [InlineData("api_key=sam-secret", "api_key=[REDACTED]")]
+    [InlineData("apikey: kvk-secret", "apikey=[REDACTED]")]
+    [InlineData("X-Subscription-Token: brave-secret", "X-Subscription-Token=[REDACTED]")]
+    [InlineData("api_key=serpapi-secret", "api_key=[REDACTED]")]
+    [InlineData("Ocp-Apim-Subscription-Key: comtrade-secret", "Ocp-Apim-Subscription-Key=[REDACTED]")]
+    [InlineData("X-API-KEY: hunter-secret", "X-API-KEY=[REDACTED]")]
+    [InlineData("subscription_key: provider-secret", "subscription_key=[REDACTED]")]
+    [InlineData("client_secret=oauth-secret", "client_secret=[REDACTED]")]
+    public void Sanitize_RedactsProviderCredentials(string input, string expected)
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize(input, 500);
+
+        Assert.Equal(expected, result);
+        Assert.DoesNotContain("secret", result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Sanitize_RedactsDenueTokenFromUrlPath()
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize(
+            "DENUE request failed: https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/generadores/00/1/20/private-denue-token",
+            500);
+
+        Assert.Equal(
+            "DENUE request failed: https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/generadores/00/1/20/[REDACTED]",
+            result);
+        Assert.DoesNotContain("private-denue-token", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Sanitize_RemovesEntireUrlQueryAndFragment()
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize(
+            "Request failed: https://api.census.gov/data?key=private-value&time=2026-09#fragment",
+            500);
+
+        Assert.Equal("Request failed: https://api.census.gov/data", result);
+        Assert.DoesNotContain("private-value", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Sanitize_RedactsAuthorizationAndHonorsMaximumLength()
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize(
+            "Authorization: Bearer abc.def.ghi; api_key=private-value",
+            32);
+
+        Assert.True(result.Length <= 32);
+        Assert.DoesNotContain("abc.def.ghi", result, StringComparison.Ordinal);
+        Assert.DoesNotContain("private-value", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Sanitize_RemovesOpenFdaApiKeyFromQueryString()
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize(
+            "openFDA request failed: https://api.fda.gov/device/510k.json?search=device_name%3Apump&api_key=private-fda-key",
+            500);
+
+        Assert.Equal("openFDA request failed: https://api.fda.gov/device/510k.json", result);
+        Assert.DoesNotContain("private-fda-key", result, StringComparison.Ordinal);
+    }
+    [Fact]
+    public void Sanitize_RedactsFmcsaWebKey()
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize("FMCSA request failed: webKey=private-fmcsa-key", 500);
+
+        Assert.Equal("FMCSA request failed: webKey=[REDACTED]", result);
+        Assert.DoesNotContain("private-fmcsa-key", result, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void Sanitize_RedactsDenuePathToken()
+    {
+        const string token = "private-denue-token-123";
+        var value = "Request failed for https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/generators/00/1/20/" + token;
+        var sanitized = CrmProspectingDiagnosticSanitizer.Sanitize(value, 1000);
+        Assert.DoesNotContain(token, sanitized, StringComparison.Ordinal);
+    }
+}

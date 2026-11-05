@@ -98,6 +98,233 @@ An authorized sales order status command is now exposed through the CRM dynamic 
 - PartiallyShipped → Completed.
 - Completed and Cancelled are terminal states.
 
-The command requires Execute permission, runs inside a transactional unit of work, validates tenant-scoped order existence through the repository, enforces owner data access and field-level update permission, and rejects all unlisted transitions. Shipment quantities, partial-shipment records, inventory reservation and fulfillment integrations are intentionally not implied by changing the order status; those require dedicated domain records and workflows.
+The command requires Execute permission, runs inside a transactional unit of work, validates tenant-scoped order existence through the repository, enforces owner data access and field-level update permission, and rejects all unlisted transitions. Shipment quantities, partial-shipment records, inventory reservation and fulfillment integrations are not implied by status changes; they require dedicated domain records and workflows.
 
 Source-wiring tests were added. Concurrent state-change protection and runtime/database verification remain outstanding.
+
+## Quote and sales order detail query implementation
+
+The quote and sales order query services now expose separate header-detail and paged-line endpoints.
+
+- Header details include commercial totals, customer/contact/opportunity references, validity or order terms, notes, and conversion/source references where applicable.
+- Line endpoints require the parent quote/order to exist and be inside the caller's owner-data scope before querying child records.
+- Child lines are tenant-scoped through their repositories, filtered by parent ID, field-security guarded, paged, and sorted by line sort order.
+- Read permission is required for each detail/line operation.
+
+This avoids loading unbounded line collections into a single detail response. Source-wiring tests cover parent authorization, line scoping and field guards. Version revision, quote-to-order conversion, concurrency control, compilation and database execution remain pending.
+
+## Sales order source-quote uniqueness guard
+
+The sales-order header now has a tenant-scoped unique index over `TenantId + SourceQuoteId + IsDeleted`. Since `SourceQuoteId` is nullable, orders entered independently may leave it null; database engines supported by this project permit multiple null values in a unique index. For a non-null source quote, the index is a final database-level guard against creating more than one order from the same quote, including concurrent requests. The index does not replace application authorization, transaction boundaries, or quote status checks; accepted-quote conversion still needs to create the order and update the quote in one transaction. Existing databases need CodeFirst/index synchronization before this guard is active.
+
+## Shipment fulfillment persistence foundation
+
+The CRM module now includes tenant-scoped shipment headers and shipment-line quantity records.
+
+- Shipment headers reference a sales order and retain a unique tenant shipment number, status, shipment/delivery dates, carrier and tracking number.
+- Shipment lines reference sales-order lines and store fulfillment quantity at four decimal places. Sales-order lines maintain reserved and dispatched quantities separately.
+- A tenant-scoped unique index prevents duplicate references to the same sales-order line inside one shipment; an additional index supports lookup by order line for future cumulative-shipment validation.
+- Both entities are registered with CRM field-security metadata and use the existing SaaS tenant-aware repository base.
+- Initial statuses are Draft, Dispatched, Delivered and Cancelled.
+
+Shipment create, cancel, dispatch and delivery commands are implemented with a transactional order-line fulfillment ledger and automatic sales-order fulfillment status roll-up. Warehouse stock deduction and carrier integration remain out of scope. CodeFirst synchronization and runtime database validation remain pending.
+
+## Shipment query endpoints
+
+- Added paged shipment list query with keyword (shipment number, carrier, tracking number), sales-order, status and owner filters.
+- Added shipment detail query and paged shipment-line query.
+- Read permission, tenant-aware repository filtering, owner data scope and field-security query guards are applied.
+- Shipment-line reads first authorize access to the parent shipment, preventing direct line-ID/page access from bypassing parent record scope.
+- Shipment list/detail/line read APIs remain tenant-scoped and owner-authorized; write-side fulfillment rules are implemented in the transactional command described below.
+
+## Draft shipment creation command
+
+- Added a transactional Create shipment command with Create permission.
+- Validates the source sales order exists in the current tenant, is within the caller's owner data scope, and is Confirmed, Processing or PartiallyShipped.
+- Requires 1–500 unique sales-order line references; each line must belong to the selected order and each requested quantity must be positive, use at most four decimal places, and fit within the line's remaining quantity after existing reservations and dispatched quantities.
+- In the same UnitOfWork, increments each order line's reserved quantity before inserting the Draft header and shipment lines.
+- Each reservation update uses the order-line entity's persistent RowVersion optimistic lock, so concurrent draft creation cannot both reserve the same remaining quantity.
+- The shipment owner defaults to the source order owner and is checked against the caller's assignable data scope.
+
+The ledger does not deduct warehouse stock; it tracks customer-order fulfillment only. Dispatch and delivery are separate authorized state transitions.
+
+## Fulfillment state ownership hardening
+
+Manual sales-order status edits cannot set PartiallyShipped or Completed. These states are derived from the shipment dispatch workflow, not client-supplied status changes. Dispatch updates the order to PartiallyShipped or Completed based on all order-line shipped quantities.
+
+## Immutable quote revision command
+
+- Added a Create-authorized, transactional revision API for an existing quote.
+- Only Sent, Rejected or Expired source quotes can be revised. Draft, Accepted and Converted quotes are rejected.
+- A revision reuses the original quote number and commercial identity (customer, contact, opportunity, currency and owner), increments the version, and records PreviousVersionId.
+- The revised terms, dates, notes and full line set are supplied as a new draft; amounts are recalculated by the existing server-side quote creation domain service.
+- The tenant-scoped unique index on tenant + quote number + version remains the final duplicate-version guard. Concurrent revision attempts for the same source may race; one will be rejected by the database uniqueness constraint. A dedicated version allocator/locking strategy and runtime database verification remain outstanding.
+
+## Quote revision regression coverage
+
+Expanded source-wiring coverage for revision immutability and authorization: revisions build a new command from the source quote identity, create a new Draft header and newly persisted lines, and do not update the original quote record. The application endpoint checks source record visibility, assignable ownership and field-security creation permissions. Runtime behavior and concurrent same-version attempts still require database-backed tests; the tenant/quote/version unique index remains the final duplicate-version guard.
+
+- Shipment lifecycle regression coverage now verifies Draft cancellation, Dispatched quantity consumption and Delivered timestamp transitions; runtime database-backed concurrency tests remain outstanding.
+
+## Sales-order quote-line uniqueness guard
+
+Added a tenant-scoped unique index over sales order + source quote line + deletion state. Together with the existing unique source-quote index on sales-order headers, this prevents a quote line from being copied twice into the same converted order and prevents a second order from being linked to the same quote. Nullable source quote-line values are intended for manually created order lines; database-specific nullable unique-index behavior must be verified on the deployment database.
+
+
+## Existing-database index migration
+
+The sales-order source-quote and source-quote-line unique indexes are declared in entity metadata for new databases. Existing databases are not altered by CodeFirst, so PostgreSQL migration `5.9.4/5.9.4.sql` creates both indexes after checking for duplicate active source links. If duplicates exist, startup migration fails with an actionable exception instead of silently installing an incomplete uniqueness guarantee. PostgreSQL is the repository's supported migration dialect; other database engines require equivalent deployment migrations. The indexes allow multiple manually entered lines/orders with NULL source references under PostgreSQL NULL-distinct unique-index semantics.
+
+
+Migration hardening note: duplicate preflight groups by the complete unique-index key, including `IsDeleted`. This is intentional because the declared indexes include the soft-delete flag; multiple historical deleted rows with the same source reference would also prevent index creation and must be reported before migration.
+
+
+## Quote version uniqueness migration
+
+The 5.9.4 PostgreSQL upgrade also installs the entity-declared tenant + quote number + version + IsDeleted unique index for existing databases. It checks the complete key (including soft-deleted history) before index creation. This is the database-level final guard against concurrent revision attempts producing the same version. The migration is guarded for tenant databases where the quote table exists; non-PostgreSQL deployments need equivalent DDL.
+
+
+## Shipment fulfillment command implementation
+
+- Draft creation reserves the requested quantity on each sales-order line and checks the remaining balance: ordered quantity minus already reserved quantity minus dispatched quantity.
+- Reservation writes use the existing SqlSugar optimistic RowVersion update path inside the application UnitOfWork. A stale concurrent update raises a concurrency conflict; the transaction rolls back the entire shipment header, lines and earlier line reservations. Each order also increments `FulfillmentRevision` before reservation and on dispatch/lifecycle mutation, serializing competing shipment creation and order cancellation on the same order row.
+- Draft cancellation releases its exact reserved quantities in the same transaction. Dispatched shipments cannot be cancelled. Sales orders cannot be cancelled once any quantity is reserved or dispatched; draft shipments must first be cancelled to release reservations.
+- Dispatch is allowed only from Draft. It atomically moves each shipment line quantity from reserved to shipped, verifies the source order is still eligible, and updates the sales-order lifecycle to PartiallyShipped or Completed after reading all order lines.
+- Delivery is allowed only from Dispatched and records DeliveredDate. Repeated or out-of-order transitions are rejected.
+- The 5.9.5 PostgreSQL migration adds the order-level fulfillment revision and non-negative reserved/shipped columns and a database check that their sum never exceeds the ordered quantity. New databases receive the columns from entity metadata.
+- Source-wiring regression tests were updated for the ledger, order-level serialization and transitions. Sales-order line query DTOs expose reserved, shipped and remaining quantities. No backend build, automated test run, PostgreSQL migration run, or real-device verification has been observed yet. A concurrent multi-connection integration test remains a release gate.
+
+
+## Accepted quote to sales-order conversion
+
+The CRM quote application service now exposes `ConvertToSalesOrderAsync`:
+
+- Requires Execute permission, current-tenant quote lookup, owner-data-scope access and quote field-level update authorization.
+- Accepts only an `Accepted` quote with no existing converted-order reference.
+- Copies the quote header's customer/contact/opportunity, currency, commercial totals and owner snapshot into a Draft sales order.
+- Copies every quote line into a sales-order line, retaining the source quote-line ID and all quantity, price, discount, tax and calculated amount snapshots.
+- Links the sales order back to the source quote, then changes the quote to `Converted` and stores `ConvertedOrderId`.
+- The complete operation is enclosed in one transactional UnitOfWork. The tenant-scoped unique source-quote index is the database-level guard against concurrent duplicate conversion; a failed insert or optimistic quote update must roll back the order header and all lines.
+
+The sales-order number is deterministically generated from the source quote record ID (`SO-{quoteId}`) so separate accepted quote versions do not collide merely because they share a human quote number. The operation has source-wiring regression coverage only; PostgreSQL concurrency/rollback, compilation and frontend integration remain unverified.
+
+
+## Shipment creation experience
+
+The shipment management page now loads eligible sales orders (Confirmed, Processing, PartiallyShipped) and fetches the selected order's lines. Users can select multiple lines and enter a quantity per line. The page displays each line's currently available quantity (`ordered - reserved - shipped`) and performs a client-side positive-quantity, four-decimal and available-balance check before submitting one multi-line draft shipment. The backend remains authoritative and revalidates every line inside its transactional reservation workflow, including concurrency and ledger constraints. The selector fetches up to 100 eligible orders per status and up to 500 lines for the selected order; very large tenants/orders may require server-side searchable selectors and paging in a later iteration.
+
+
+## Quotation version history UI
+
+The quotation detail query now returns `PreviousVersionId` alongside the converted sales-order reference. The quote page displays the complete commercial line snapshot, terms, notes and conversion reference, and allows navigation to the previous quote version. Users with quote-create permission can start a new revision from Sent, Rejected or Expired quotes. The revision editor copies all source lines and allows editing descriptions, quantities, prices, discounts, tax rates, validity dates, terms and notes; the backend enforces the allowed source status and creates the next immutable version linked by `PreviousVersionId`. The frontend validates line quantities, decimal precision, prices, discount/tax ranges and date order before submission.
+
+
+## Direct sales-order creation
+
+Sales orders may now also be created directly without a source quotation. The transactional Create command:
+
+- Requires CRM Create permission and checks the selected customer's owner data scope.
+- Validates optional contact and opportunity tenant existence, customer relationship, and owner data scope.
+- Defaults the order owner from the customer when the caller does not supply one, then validates assignment scope.
+- Accepts 1–500 commercial lines and calculates quantity, unit price, discount, tax and totals on the server using the same four-decimal input and two-decimal money precision as quotations.
+- Creates the order in Draft state and inserts all line snapshots in the same UnitOfWork.
+- Applies field-security create checks to the order header and each line.
+
+The API contract, frontend API client, and sales-order management page direct-create form are wired. The form supports header terms, customer/contact/opportunity references, multi-line entry, line removal, client-side validation and an indicative total; authoritative totals remain server-calculated. The order-line detail modal now also loads the full order snapshot and displays customer PO, contact/opportunity references, payment/delivery terms, notes, subtotal, discount and tax totals. Runtime/API integration tests plus Windows/PostgreSQL acceptance remain outstanding. Order numbers are caller-supplied and protected by the existing tenant-scoped unique index; a tenant-aware number sequence is still a separate follow-up.
+
+
+The sales-order direct-create form now uses customer search backed by the CRM customer query API. After selecting a customer, contact and opportunity options are loaded from their respective query APIs filtered by that customer; the user no longer needs to manually type related-record IDs. The selector labels and error states are localized in zh-CN, en-US, zh-TW and ko-KR.
+
+
+### Shipment fulfillment regression guards
+
+Added source-level regression tests for the shipment/order quantity ledger: draft shipment creation acquires the order-level fulfillment revision, processes order lines in stable ID order, and reserves only unreserved/unshipped quantity; cancelling a draft shipment releases its reservations; dispatch consumes reservations into shipped quantities and derives the sales-order state as partially shipped or completed from all order lines. These tests are source-wiring guards and still require execution in the repository's normal .NET test environment.
+
+
+### Draft sales-order editing
+
+Draft orders now expose a dedicated update command guarded by the CRM update permission and a transaction. The command rechecks tenant/owner access for the order, customer, contact and opportunity, recalculates all line amounts and header totals on the server, and preserves existing line entity identity/audit metadata while applying edits. Editing is blocked once the order is no longer Draft or any line has reserved or shipped quantity. Positive submitted line IDs must belong to the current order; new manual lines use ID `0`, and omitted manual lines are soft-deleted only after fulfillment and shipment-history checks. Quotation-converted orders retain their accepted source line set and cannot add or remove lines. The frontend exposes the edit action only to users with the registered `crm_sales_orders.update` permission and only for draft orders. The edit form and backend command both guard fulfillment-locked lines. Localization is provided in zh-CN, en-US, zh-TW and ko-KR.
+
+
+### Quotation-derived order-line snapshot protection
+
+The draft edit command now distinguishes manually created order lines from lines copied from an accepted quotation by checking the persisted `SourceQuoteLineId` on each existing line (never trusting the client marker). Quote-derived product code, description, quantity, unit, unit price, discount, tax and sort order must remain identical to the stored quotation snapshot. Attempts to change any of these fields are rejected; the frontend marks all corresponding controls read-only and explains that commercial changes require a quotation revision/new order. This keeps the accepted quotation and the converted order auditable while still allowing permitted order-header edits. Regression guards cover the persisted source marker and snapshot field comparisons.
+
+For quote-converted orders, the accepted quotation's customer, contact, opportunity and currency context is also immutable during draft order editing. The command compares these values against the persisted order header; client input cannot reassign the order to another customer or currency while retaining the original quote link. Order-specific operational fields (such as PO number, payment/delivery terms and notes) remain editable where permitted.
+
+
+### Safe draft order-line add/remove
+
+Draft editing now supports adding and removing lines for manually created orders. New lines use ID `0` in the update payload and are created through the normal tenant-scoped repository + field-security path. Existing positive line IDs must belong to the selected order and be unique. Omitted existing manual lines are soft-deleted through the framework's `ISoftDeleteRepositoryBase` implementation, preserving deletion audit metadata and normal tenant/soft-delete filters; no direct SQL or physical delete is used.
+
+Removal is rejected if a line has any reserved or shipped quantity, or if it carries a persisted quotation source-line link. For orders converted from a quotation, both adding and removing lines are rejected; the accepted quotation snapshot remains a fixed set. The operation remains inside the draft-update unit of work, increments the order fulfillment revision before reading the line ledger, recalculates the header totals from the surviving active lines, and requires at least one resulting line. The edit UI exposes add/remove controls only for non-quotation orders and prevents removing the final remaining line. Regression guards cover the repository's audited soft-delete base and the service's add/remove safety checks.
+
+An additional referential-integrity guard checks shipment-line history before soft-deleting an order line. A line referenced by any shipment manifest is retained even when the shipment was later cancelled and its reserved quantity returned to zero; this preserves historical shipment references rather than relying only on the current reserved/shipped counters.
+
+
+### Order and shipment aggregate concurrency
+
+The order, order-line, shipment and shipment-line entities inherit `BasicAppFullAuditedEntity`, which in turn uses the framework's full-audited SqlSugar entity with the `Row_Version` column marked for update-version validation. The framework's single-entity repository `UpdateAsync(entity)` performs `ExecuteCommandWithOptLockAsync(true)` and translates stale-version failures into `ConcurrencyConflictException`. The `FulfillmentRevision` increment is therefore an aggregate-level versioned write, not merely an in-memory counter: concurrent shipment creation, cancellation, dispatch and draft-order edits that load the same order version cannot all commit. Order-line reservation/shipped-quantity writes and shipment-status writes also go through single-entity optimistic updates.
+
+Dispatch updates the order once to acquire the aggregate version before touching order lines, then reloads the order to obtain the new persisted `Row_Version` before the final lifecycle update. This avoids reusing the pre-lock version token on the second write. The transaction ensures a later stale shipment/order/line update rolls back earlier reservation or quantity mutations. Source-level guards cover the versioned entity hierarchy, all aggregate update paths and the dispatch reload ordering; database-level concurrency behavior still requires the Windows/PostgreSQL integration test pass.
+
+
+
+### Draft order aggregate row-version refresh
+
+Draft-order editing increments and persists the order-level fulfillment revision before reading or changing order lines. It now reloads the order immediately after that aggregate lock so the final header update uses the newly persisted `Row_Version`, rather than relying on the repository mutating the in-memory entity's concurrency token. A source-wiring regression guard verifies the lock-update → reload → line mutation → final header update sequence. This is a source-level guard only; actual optimistic concurrency behavior still requires the planned PostgreSQL integration test.
+
+
+### Shipment status transition boundaries
+
+Shipment status commands are intentionally non-idempotent state transitions: cancellation and dispatch are allowed only from Draft, while delivery confirmation is allowed only from Dispatched. Repeated dispatch, cancellation after dispatch, delivery before dispatch, and repeated delivery are rejected instead of silently replaying fulfillment mutations. A source-wiring regression guard covers these transition boundaries. Runtime/API and PostgreSQL transaction behavior remain part of the integration acceptance pass.
+
+
+### Legacy document-number uniqueness migration
+
+Migration 5.9.6 adds the tenant-scoped unique indexes already declared by the sales-order and shipment entity models: `(tenant_id, order_number, is_deleted)` and `(tenant_id, shipment_number, is_deleted)`. Before creating either index it checks for duplicate keys, including soft-deleted rows, and stops with an actionable error rather than silently modifying legacy data. The script uses `CREATE UNIQUE INDEX IF NOT EXISTS` and is safe to rerun after any duplicate cleanup. A source-level migration guard verifies the index definitions and preflight ordering. PostgreSQL execution remains part of deployment acceptance.
+
+### Permanent document-number uniqueness
+
+Migration 5.9.7 replaces the 5.9.6 unique indexes so soft deletion no longer participates in the unique key. Quotation numbers are unique by tenant, quote number and version; sales-order and shipment numbers are unique by tenant and document number. Historical rows, including soft-deleted rows, are checked before old indexes are dropped. Duplicate legacy keys stop the migration for explicit remediation. Entity CodeFirst annotations now match the permanent uniqueness policy. PostgreSQL migration execution remains part of deployment acceptance.
+
+
+### Optional shared numbering integration
+
+CRM quote, sales-order and shipment create DTOs now accept an optional `NumberingIdempotencyKey`. When supplied, the application service obtains the document number from the shared `INumberGenerator` using the stable rule codes `CRM_QUOTE`, `CRM_SALES_ORDER` and `CRM_SHIPMENT`; manual document-number fields remain supported when the key is omitted for backward compatibility. A generated number can therefore be requested without sending a manual number.
+
+The key must be generated once per logical number-allocation request and reused unchanged for retries. This protects the number allocation from duplicate consumption; it does **not** make the complete CRM create operation replay-idempotent. If a create request committed but its response was lost, a retry with the same key will recover the same number and the document unique index will reject a second document. A later enhancement should add a durable create-request-to-document mapping before promising full create replay semantics.
+
+Before enabling this mode, provision enabled numbering rules with the three stable rule codes in each intended tenant (or as global rules with tenant use enabled). If a rule is missing or unavailable, the create operation fails rather than silently falling back to a client-supplied number. Existing clients remain compatible because the new key is optional. Quote revisions retain the original quote number and increment the version; they do not allocate a new quote number. Quote-to-order conversion retains its existing deterministic source-quote-derived order number.
+
+The application services invoke the generator only after basic input and relationship checks, but the generator commits its allocation independently of the CRM unit of work. A later CRM persistence failure may leave an intentional number gap. Build, automated tests and PostgreSQL integration validation are still required before production enablement.
+
+
+The quote, sales-order and shipment creation screens now generate one client request key when a new create dialog is opened and retain that same key across failed submissions in the dialog. Successful creation clears the key; opening a fresh create dialog generates a new key. The screens no longer require users to type document numbers: numbers are allocated by the server. The API types and route tests cover forwarding the key. This is request-level retry support for number allocation; it does not replace the durable create replay mapping described above.
+
+
+## CRM 单据编号规则配置与重试边界
+
+报价、销售订单和发货单创建命令现在支持可选的服务端编号请求键。启用该字段时，服务端分别使用以下编号规则编码，并通过 SaaS 编号服务的 `NumberingScope.Auto` 解析规则：
+
+| 单据 | 规则编码 | 编号前缀建议 |
+| --- | --- | --- |
+| 报价 | `CRM_QUOTE` | `QT` |
+| 销售订单 | `CRM_SALES_ORDER` | `SO` |
+| 发货单 | `CRM_SHIPMENT` | `SHP` |
+
+### 首次部署配置
+
+编号规则由现有 SaaS「设置 → 编号规则」功能管理，不由 CRM 迁移脚本静默创建。每个实际使用 CRM 的租户都必须确保三条规则可解析且处于启用状态。推荐优先在当前租户上下文创建租户私有规则（Scope = Tenant）；若组织明确希望跨租户共享同一编号序列，可在平台上下文建立全局规则，并开启「允许租户使用」，再由 Auto 解析回退到该全局规则。不要同时为同一租户配置同编码的租户规则和全局规则后再假定全局序列会被使用：Auto 始终优先租户私有规则。
+
+建议初始格式为：日期格式 `yyyyMMdd`、流水位数 5 或 6、每日重置、分隔符 `-`、时区使用业务约定的 IANA/运行环境支持标识；前缀可按上表配置。正式启用前先用规则预览确认最终编号格式。规则一旦成功发号，格式字段会被冻结；变更编号格式应新建规则编码并安排业务切换，不应尝试直接改写已使用规则。
+
+若规则不存在、停用、全局规则未允许租户使用或规则解析失败，启用服务端编号的创建请求会失败，不会悄悄退回客户端手工编号。未提供 `NumberingIdempotencyKey` 的旧 API 调用仍保持手工编号兼容行为。
+
+### 幂等保证范围
+
+前端在打开新建窗口时生成请求键，并在同一次提交失败后的重试中复用该键。SaaS 编号服务将规则、请求租户、幂等键和请求指纹绑定；同键同参数可重放首次分配的编号，同键异参数会被拒绝。分配记录是 append-only 审计事实。
+
+这只保证**编号分配幂等**，不等同于 CRM 单据创建幂等。编号服务在独立事务中提交，随后 CRM 单据写入若失败，已分配编号不会回收，允许出现编号空洞。若 CRM 单据已成功提交但 HTTP 响应丢失，使用同一键重试时，当前实现仍可能因单号唯一约束而返回创建冲突，而不是读取并返回原单据。要实现完整创建重放，后续必须在 CRM 业务事务内持久化请求键与 payload fingerprint 到单据的映射，并在相同键同指纹时返回原单据、相同键不同指纹时拒绝；该映射必须与单据同事务提交，不能复用独立提交的编号 allocation 记录来冒充原子映射。
+
+当前源码测试覆盖服务端编号接线与规则编码，但尚未执行测试、构建或真实数据库验证。租户规则初始化、编号格式预览、并发重放及完整创建请求映射仍需在部署验收中验证/后续实现。

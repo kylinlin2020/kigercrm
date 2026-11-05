@@ -73,12 +73,14 @@ services:
       XiHan__AI__Rag__QdrantPort: '6334'
       XiHan__AI__Rag__QdrantHttps: 'false'
 
-      # 迁移执行权判据：AutoVersionUpdate 仅在 WorkerId == 1 的节点执行 UpdateScripts。
-      # 多副本部署时只能有一个节点为 1，其余必须改值（否则雪花 ID 重复）。
+      # Snowflake WorkerId 只用于分布式 ID 分片，不是数据库迁移主节点开关。
+      # 多副本部署时每个节点必须使用不同 WorkerId，避免雪花 ID 重复。
       XiHan__DistributedIds__SnowflakeId__WorkerId: '1'
-      # 已知限制：AutoVersionUpdate 把「已执行到哪个版本」记在 /app/version.txt，
-      # 容器重建即丢失，被判定为全新部署并跳过全部升级脚本。UpdateScripts 目前只有
-      # 一个空的 1.0.0.sql，故暂无实际影响；写入真实升级脚本前须先把该状态挪进数据库。
+      # 数据库迁移状态持久化在每个数据库的 SysVersion / SysMigrationHistory 中，
+      # 不依赖容器内 /app/version.txt；启动自动升级默认开启（XiHan:Upgrade:EnableAutoCheckOnStartup=true）。
+      # PostgreSQL UpdateScripts 会在启动时升级平台库及已配置的数据库隔离租户库；失败会中断启动。
+      # 新建数据库由 CodeFirst 建表并登记最新基线，不重放历史脚本。多副本发布仍须按
+      # docs/backend/upgrade.md 编排迁移节点、摘流与放流，不能把 WorkerId 当作迁移 leader。
     volumes:
       - ./backend/src/main/XiHan.BasicApp.WebHost/appsettings.Production.json:/app/appsettings.Production.json:ro
       - backend-uploads:/app/wwwroot/uploads

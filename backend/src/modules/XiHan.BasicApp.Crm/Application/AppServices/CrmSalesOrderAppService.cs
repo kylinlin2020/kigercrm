@@ -1,0 +1,491 @@
+using System.Security.Cryptography;
+using System.Text.Json;
+using XiHan.BasicApp.Crm.Application.Contracts;
+using XiHan.BasicApp.Crm.Application.Dtos;
+using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
+using XiHan.BasicApp.Crm.Domain.Permissions;
+using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Saas.Application.Contracts;
+using XiHan.BasicApp.Saas.Application.QueryServices;
+using XiHan.BasicApp.Saas.Domain.Enums;
+using XiHan.BasicApp.Saas.Application.Services;
+using XiHan.Framework.Application.Attributes;
+using XiHan.Framework.Authorization.AspNetCore;
+using XiHan.Framework.Uow.Attributes;
+
+namespace XiHan.BasicApp.Crm.Application.AppServices;
+
+/// <summary>Authorized sales order lifecycle commands.</summary>
+[DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services", Tag = "Sales Orders")]
+public sealed class CrmSalesOrderAppService(
+    ICrmSalesOrderRepository repository,
+    ICrmCreateRequestRepository createRequests,
+    ICrmSalesOrderLineRepository orderLines,
+    ICrmShipmentLineRepository shipmentLines,
+    ICrmCustomerRepository customers,
+    ICrmContactRepository contacts,
+    ICrmOpportunityRepository opportunities,
+    IFieldSecurityService fieldSecurity,
+    IUserDataScopeFilterService dataScope,
+    INumberGenerator numberGenerator)
+    : CrmApplicationService, ICrmSalesOrderAppService
+{
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Create)]
+    public async Task<CrmSalesOrderListItemDto> CreateAsync(CrmSalesOrderCreateDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        cancellationToken.ThrowIfCancellationRequested();
+        var requestKey = string.IsNullOrWhiteSpace(input.NumberingIdempotencyKey)
+            ? null
+            : NormalizeRequired(input.NumberingIdempotencyKey, 100, nameof(input.NumberingIdempotencyKey));
+        var number = requestKey is null
+            ? NormalizeRequired(input.OrderNumber, 40, nameof(input.OrderNumber))
+            : string.Empty;
+        var currency = NormalizeRequired(input.Currency, 3, nameof(input.Currency)).ToUpperInvariant();
+        if (currency.Length != 3 || currency.Any(c => c is < 'A' or > 'Z'))
+            throw new ArgumentException("Currency must be a three-letter alphabetic code.", nameof(input.Currency));
+        if (input.CustomerId <= 0) throw new ArgumentOutOfRangeException(nameof(input.CustomerId));
+        if (input.Lines is null || input.Lines.Count == 0 || input.Lines.Count > 500)
+            throw new ArgumentException("A sales order requires between 1 and 500 lines.", nameof(input.Lines));
+
+        var customer = await customers.GetByIdAsync(input.CustomerId, cancellationToken)
+            ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
+        var owner = input.OwnerUserId ?? customer.OwnerUserId;
+        if (input.ContactId.HasValue)
+        {
+            var contact = await contacts.GetByIdAsync(input.ContactId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Contact does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
+            if (contact.CustomerId != customer.BasicId)
+                throw new InvalidOperationException("Contact must belong to the selected customer.");
+        }
+        if (input.OpportunityId.HasValue)
+        {
+            var opportunity = await opportunities.GetByIdAsync(input.OpportunityId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Opportunity does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId, cancellationToken);
+            if (opportunity.CustomerId != customer.BasicId)
+                throw new InvalidOperationException("Opportunity must belong to the selected customer.");
+        }
+
+        var calculated = input.Lines.Select(CalculateLine).ToArray();
+        var customerPurchaseOrderNumber = NormalizeOptional(input.CustomerPurchaseOrderNumber, 100, nameof(input.CustomerPurchaseOrderNumber));
+        var paymentTerms = NormalizeOptional(input.PaymentTerms, 500, nameof(input.PaymentTerms));
+        var deliveryTerms = NormalizeOptional(input.DeliveryTerms, 500, nameof(input.DeliveryTerms));
+        string? creationRequestFingerprint = null;
+        if (requestKey is not null)
+        {
+            creationRequestFingerprint = CreateRequestFingerprint(
+                input, owner, currency, customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+
+            var existingRequest = await createRequests.GetByRequestKeyAsync("SALES_ORDER", requestKey, cancellationToken);
+            if (existingRequest is not null)
+            {
+                if (!existingRequest.DocumentId.HasValue || string.IsNullOrWhiteSpace(existingRequest.DocumentNumber))
+                    throw new InvalidOperationException("The sales-order request ledger contains an incomplete committed record; manual repair is required.");
+
+                var replayOrder = await repository.GetByIdAsync(existingRequest.DocumentId.Value, cancellationToken)
+                    ?? throw new InvalidOperationException("The sales order linked to this idempotency key no longer exists or is not visible.");
+                await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, replayOrder.OwnerUserId, cancellationToken);
+                if (!string.Equals(replayOrder.OrderNumber, existingRequest.DocumentNumber, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The sales-order request ledger does not match its linked document.");
+
+                // When owner was omitted, its effective value came from the customer at first creation.
+                // Recompute with the persisted owner so later customer reassignment does not break replay.
+                var replayFingerprint = CreateRequestFingerprint(
+                    input, input.OwnerUserId ?? replayOrder.OwnerUserId, currency,
+                    customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+                if (!string.Equals(existingRequest.PayloadHash, replayFingerprint, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The sales-order idempotency key was already used with a different create request.");
+                return ToListItem(replayOrder);
+            }
+
+            var allocation = await numberGenerator.GenerateAsync(
+                new NumberGenerateRequest(
+                    CrmNumberingRuleCodes.SalesOrder,
+                    NumberingScope.Auto,
+                    requestKey,
+                    "CRM_SALES_ORDER"),
+                cancellationToken);
+            number = NormalizeRequired(allocation.Numbers.Single(), 40, nameof(input.NumberingIdempotencyKey));
+
+            // Bridge requests created before the permanent ledger migration. Only a matching
+            // persisted fingerprint is safe to adopt as a ledger entry.
+            var existingOrder = await repository.GetByOrderNumberAsync(number, cancellationToken);
+            if (existingOrder is not null)
+            {
+                await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existingOrder.OwnerUserId, cancellationToken);
+                var legacyFingerprint = CreateRequestFingerprint(
+                    input, input.OwnerUserId ?? existingOrder.OwnerUserId, currency,
+                    customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+                if (existingOrder.CreationRequestFingerprint is null ||
+                    !string.Equals(existingOrder.CreationRequestFingerprint, legacyFingerprint, StringComparison.Ordinal))
+                    throw new InvalidOperationException("The sales-order idempotency key was already used with a different or unverifiable create request.");
+
+                await createRequests.AddAsync(new SysCrmCreateRequest
+                {
+                    DocumentType = "SALES_ORDER",
+                    RequestKey = requestKey,
+                    PayloadHash = legacyFingerprint,
+                    DocumentId = existingOrder.BasicId,
+                    DocumentNumber = existingOrder.OrderNumber
+                }, cancellationToken);
+                return ToListItem(existingOrder);
+            }
+        }
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, owner, cancellationToken);
+
+        var order = new SysCrmSalesOrder
+        {
+            OrderNumber = number,
+            CreationRequestFingerprint = creationRequestFingerprint,
+            CustomerId = customer.BasicId,
+            ContactId = input.ContactId,
+            OpportunityId = input.OpportunityId,
+            CustomerNameSnapshot = customer.Name,
+            Status = CrmSalesOrderStatus.Draft,
+            OrderDate = input.OrderDate == default ? DateTime.UtcNow : input.OrderDate,
+            Currency = currency,
+            Subtotal = calculated.Sum(x => x.LineSubtotal),
+            DiscountTotal = calculated.Sum(x => x.LineDiscount),
+            TaxTotal = calculated.Sum(x => x.LineTax),
+            GrandTotal = calculated.Sum(x => x.LineTotal),
+            OwnerUserId = owner,
+            CustomerPurchaseOrderNumber = customerPurchaseOrderNumber,
+            PaymentTerms = paymentTerms,
+            DeliveryTerms = deliveryTerms,
+            Notes = input.Notes
+        };
+        await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmSalesOrder), input, cancellationToken);
+        var saved = await repository.AddAsync(order, cancellationToken);
+        foreach (var line in calculated)
+        {
+            line.SalesOrderId = saved.BasicId;
+            await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmSalesOrderLine), line, cancellationToken);
+            await orderLines.AddAsync(line, cancellationToken);
+        }
+        if (requestKey is not null && creationRequestFingerprint is not null)
+        {
+            await createRequests.AddAsync(new SysCrmCreateRequest
+            {
+                DocumentType = "SALES_ORDER",
+                RequestKey = requestKey,
+                PayloadHash = creationRequestFingerprint,
+                DocumentId = saved.BasicId,
+                DocumentNumber = saved.OrderNumber
+            }, cancellationToken);
+        }
+        return ToListItem(saved);
+    }
+
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Update)]
+    public async Task<CrmSalesOrderListItemDto> UpdateDraftAsync(CrmSalesOrderUpdateDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (input.Id <= 0 || input.CustomerId <= 0) throw new ArgumentOutOfRangeException(nameof(input.Id));
+        if (input.Lines is null || input.Lines.Count == 0 || input.Lines.Count > 500)
+            throw new ArgumentException("A sales order requires between 1 and 500 lines.", nameof(input.Lines));
+        if (input.Lines.Any(x => x is null || x.Id < 0) ||
+            input.Lines.Where(x => x.Id > 0).Select(x => x.Id).Distinct().Count() != input.Lines.Count(x => x.Id > 0))
+            throw new ArgumentException("Existing order line IDs must be unique and new lines must use ID zero.", nameof(input.Lines));
+
+        var order = await repository.GetByIdAsync(input.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Sales order does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken);
+        if (order.Status != CrmSalesOrderStatus.Draft)
+            throw new InvalidOperationException("Only draft sales orders can be edited.");
+        if (order.SourceQuoteId.HasValue &&
+            (input.CustomerId != order.CustomerId || input.ContactId != order.ContactId || input.OpportunityId != order.OpportunityId))
+            throw new InvalidOperationException("Customer, contact and opportunity on a quotation-derived order are fixed to the accepted quotation snapshot.");
+        await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmSalesOrder), order.BasicId, input, cancellationToken);
+
+        // Serialize edits with shipment reservation/dispatch operations before reading the line ledger.
+        order.FulfillmentRevision++;
+        order = await repository.UpdateAsync(order, cancellationToken);
+        // Reload the persisted row-version token before the final order-header update.
+        order = await repository.GetByIdAsync(order.BasicId, cancellationToken)
+            ?? throw new InvalidOperationException("Sales order disappeared after its fulfillment lock was acquired.");
+        var existingLines = (await orderLines.ListForOrderAsync(order.BasicId, cancellationToken)).ToDictionary(x => x.BasicId);
+        if (input.Lines.Any(x => x.Id > 0 && !existingLines.ContainsKey(x.Id)))
+            throw new InvalidOperationException("An edited order line does not belong to the selected order.");
+        var submittedExistingIds = input.Lines.Where(x => x.Id > 0).Select(x => x.Id).ToHashSet();
+        var removedLines = existingLines.Values.Where(x => !submittedExistingIds.Contains(x.BasicId)).ToArray();
+        var addedLineCount = input.Lines.Count(x => x.Id == 0);
+        if (order.SourceQuoteId.HasValue && (removedLines.Length > 0 || addedLineCount > 0))
+            throw new InvalidOperationException("Quotation-derived order lines cannot be added or removed; revise the quotation and create a new order.");
+        if (removedLines.Any(x => x.ReservedQuantity > 0 || x.ShippedQuantity > 0))
+            throw new InvalidOperationException("An order line with reserved or shipped quantities cannot be removed.");
+        if (removedLines.Any(x => x.SourceQuoteLineId.HasValue))
+            throw new InvalidOperationException("Quotation-derived order lines cannot be removed.");
+        foreach (var removed in removedLines)
+        {
+            if (await shipmentLines.AnyForSalesOrderLineAsync(removed.BasicId, cancellationToken))
+                throw new InvalidOperationException("An order line referenced by shipment history cannot be removed, including lines from cancelled shipments.");
+        }
+
+        foreach (var lineInput in input.Lines)
+        {
+            if (lineInput.Id == 0)
+            {
+                var added = CalculateLine(new CrmSalesOrderLineCreateDto
+                {
+                    ProductCode = lineInput.ProductCode,
+                    Description = lineInput.Description,
+                    Quantity = lineInput.Quantity,
+                    Unit = lineInput.Unit,
+                    UnitPrice = lineInput.UnitPrice,
+                    DiscountRate = lineInput.DiscountRate,
+                    TaxRate = lineInput.TaxRate,
+                    SortOrder = lineInput.SortOrder
+                });
+                added.SalesOrderId = order.BasicId;
+                await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmSalesOrderLine), added, cancellationToken);
+                await orderLines.AddAsync(added, cancellationToken);
+                continue;
+            }
+
+            var existing = existingLines[lineInput.Id];
+            if (existing.SalesOrderId != order.BasicId)
+                throw new InvalidOperationException("An order line does not belong to the selected order.");
+            if (existing.ReservedQuantity > 0 || existing.ShippedQuantity > 0)
+                throw new InvalidOperationException("An order with reserved or shipped quantities cannot have its lines edited.");
+            if (existing.SourceQuoteLineId.HasValue &&
+                (existing.ProductCode != NormalizeOptional(lineInput.ProductCode, 100, nameof(lineInput.ProductCode)) ||
+                 existing.Description != NormalizeRequired(lineInput.Description, 500, nameof(lineInput.Description)) ||
+                 existing.Quantity != lineInput.Quantity ||
+                 existing.Unit != NormalizeOptional(lineInput.Unit, 30, nameof(lineInput.Unit)) ||
+                 existing.UnitPrice != lineInput.UnitPrice ||
+                 existing.DiscountRate != lineInput.DiscountRate ||
+                 existing.TaxRate != lineInput.TaxRate ||
+                 existing.SortOrder != lineInput.SortOrder))
+                throw new InvalidOperationException("Quotation-derived order lines are immutable; revise the quotation and create a new order if commercial lines must change.");
+            var calculated = CalculateLine(new CrmSalesOrderLineCreateDto
+            {
+                ProductCode = lineInput.ProductCode,
+                Description = lineInput.Description,
+                Quantity = lineInput.Quantity,
+                Unit = lineInput.Unit,
+                UnitPrice = lineInput.UnitPrice,
+                DiscountRate = lineInput.DiscountRate,
+                TaxRate = lineInput.TaxRate,
+                SortOrder = lineInput.SortOrder
+            });
+            existing.ProductCode = calculated.ProductCode;
+            existing.Description = calculated.Description;
+            existing.Quantity = calculated.Quantity;
+            existing.Unit = calculated.Unit;
+            existing.UnitPrice = calculated.UnitPrice;
+            existing.DiscountRate = calculated.DiscountRate;
+            existing.TaxRate = calculated.TaxRate;
+            existing.LineSubtotal = calculated.LineSubtotal;
+            existing.LineDiscount = calculated.LineDiscount;
+            existing.LineTax = calculated.LineTax;
+            existing.LineTotal = calculated.LineTotal;
+            existing.SortOrder = calculated.SortOrder;
+            await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmSalesOrderLine), existing.BasicId, lineInput, cancellationToken);
+            await orderLines.UpdateAsync(existing, cancellationToken);
+        }
+
+        foreach (var removed in removedLines)
+            await orderLines.SoftDeleteAsync(removed, cancellationToken);
+
+        var customer = await customers.GetByIdAsync(input.CustomerId, cancellationToken)
+            ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
+        if (input.ContactId.HasValue)
+        {
+            var contact = await contacts.GetByIdAsync(input.ContactId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Contact does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
+            if (contact.CustomerId != customer.BasicId)
+                throw new InvalidOperationException("Contact must belong to the selected customer.");
+        }
+        if (input.OpportunityId.HasValue)
+        {
+            var opportunity = await opportunities.GetByIdAsync(input.OpportunityId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Opportunity does not exist in the current tenant.");
+            await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId, cancellationToken);
+            if (opportunity.CustomerId != customer.BasicId)
+                throw new InvalidOperationException("Opportunity must belong to the selected customer.");
+        }
+
+        var currency = NormalizeRequired(input.Currency, 3, nameof(input.Currency)).ToUpperInvariant();
+        if (currency.Length != 3 || currency.Any(c => c is < 'A' or > 'Z'))
+            throw new ArgumentException("Currency must be a three-letter alphabetic code.", nameof(input.Currency));
+        if (order.SourceQuoteId.HasValue && !string.Equals(currency, order.Currency, StringComparison.Ordinal))
+            throw new InvalidOperationException("Currency on a quotation-derived order is fixed to the accepted quotation snapshot.");
+        var updatedLines = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
+        order.CustomerId = customer.BasicId;
+        order.CustomerNameSnapshot = customer.Name;
+        order.ContactId = input.ContactId;
+        order.OpportunityId = input.OpportunityId;
+        order.OrderDate = input.OrderDate == default ? order.OrderDate : input.OrderDate;
+        order.Currency = currency;
+        order.Subtotal = updatedLines.Sum(x => x.LineSubtotal);
+        order.DiscountTotal = updatedLines.Sum(x => x.LineDiscount);
+        order.TaxTotal = updatedLines.Sum(x => x.LineTax);
+        order.GrandTotal = updatedLines.Sum(x => x.LineTotal);
+        order.CustomerPurchaseOrderNumber = NormalizeOptional(input.CustomerPurchaseOrderNumber, 100, nameof(input.CustomerPurchaseOrderNumber));
+        order.PaymentTerms = NormalizeOptional(input.PaymentTerms, 500, nameof(input.PaymentTerms));
+        order.DeliveryTerms = NormalizeOptional(input.DeliveryTerms, 500, nameof(input.DeliveryTerms));
+        order.Notes = input.Notes;
+        var saved = await repository.UpdateAsync(order, cancellationToken);
+        return ToListItem(saved);
+    }
+
+    private static string CreateRequestFingerprint(
+        CrmSalesOrderCreateDto input,
+        long? ownerUserId,
+        string currency,
+        string? customerPurchaseOrderNumber,
+        string? paymentTerms,
+        string? deliveryTerms,
+        IReadOnlyList<SysCrmSalesOrderLine> lines)
+    {
+        var canonicalRequest = new
+        {
+            input.CustomerId,
+            input.ContactId,
+            input.OpportunityId,
+            input.OrderDate,
+            Currency = currency,
+            OwnerUserId = ownerUserId,
+            CustomerPurchaseOrderNumber = customerPurchaseOrderNumber,
+            PaymentTerms = paymentTerms,
+            DeliveryTerms = deliveryTerms,
+            input.Notes,
+            Lines = lines.Select(line => new
+            {
+                line.ProductCode,
+                line.Description,
+                line.Quantity,
+                line.Unit,
+                line.UnitPrice,
+                line.DiscountRate,
+                line.TaxRate,
+                line.LineSubtotal,
+                line.LineDiscount,
+                line.LineTax,
+                line.LineTotal,
+                line.SortOrder
+            }).ToArray()
+        };
+        return Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(canonicalRequest)));
+    }
+
+    private static SysCrmSalesOrderLine CalculateLine(CrmSalesOrderLineCreateDto input)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.Quantity <= 0 || input.UnitPrice < 0 || input.DiscountRate is < 0 or > 100 || input.TaxRate is < 0 or > 100 || input.SortOrder < 0)
+            throw new ArgumentOutOfRangeException(nameof(input), "Order line quantity, price, rates or sort order are invalid.");
+        var quantity = decimal.Round(input.Quantity, 4, MidpointRounding.AwayFromZero);
+        var unitPrice = decimal.Round(input.UnitPrice, 4, MidpointRounding.AwayFromZero);
+        var discountRate = decimal.Round(input.DiscountRate, 4, MidpointRounding.AwayFromZero);
+        var taxRate = decimal.Round(input.TaxRate, 4, MidpointRounding.AwayFromZero);
+        var subtotal = decimal.Round(quantity * unitPrice, 2, MidpointRounding.AwayFromZero);
+        var discount = decimal.Round(subtotal * discountRate / 100m, 2, MidpointRounding.AwayFromZero);
+        var tax = decimal.Round((subtotal - discount) * taxRate / 100m, 2, MidpointRounding.AwayFromZero);
+        return new SysCrmSalesOrderLine
+        {
+            ProductCode = NormalizeOptional(input.ProductCode, 100, nameof(input.ProductCode)),
+            Description = NormalizeRequired(input.Description, 500, nameof(input.Description)),
+            Quantity = quantity,
+            Unit = NormalizeOptional(input.Unit, 30, nameof(input.Unit)),
+            UnitPrice = unitPrice,
+            DiscountRate = discountRate,
+            TaxRate = taxRate,
+            LineSubtotal = subtotal,
+            LineDiscount = discount,
+            LineTax = tax,
+            LineTotal = subtotal - discount + tax,
+            SortOrder = input.SortOrder
+        };
+    }
+
+    private static string NormalizeRequired(string value, int maxLength, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
+        var normalized = value.Trim();
+        if (normalized.Length > maxLength) throw new ArgumentOutOfRangeException(parameterName);
+        return normalized;
+    }
+
+    private static string? NormalizeOptional(string? value, int maxLength, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return NormalizeRequired(value, maxLength, parameterName);
+    }
+
+    private static CrmSalesOrderListItemDto ToListItem(SysCrmSalesOrder saved) => new()
+    {
+        BasicId = saved.BasicId,
+        OrderNumber = saved.OrderNumber,
+        SourceQuoteId = saved.SourceQuoteId,
+        CustomerId = saved.CustomerId,
+        CustomerNameSnapshot = saved.CustomerNameSnapshot,
+        Status = (int)saved.Status,
+        OrderDate = saved.OrderDate,
+        Currency = saved.Currency,
+        GrandTotal = saved.GrandTotal,
+        OwnerUserId = saved.OwnerUserId,
+        CreatedTime = saved.CreatedTime
+    };
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmSalesOrderListItemDto> ChangeStatusAsync(CrmSalesOrderStatusUpdateDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.Id <= 0) throw new ArgumentOutOfRangeException(nameof(input.Id));
+        if (!Enum.IsDefined(typeof(CrmSalesOrderStatus), input.Status))
+            throw new ArgumentOutOfRangeException(nameof(input.Status));
+
+        var order = await repository.GetByIdAsync(input.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Sales order does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, order.OwnerUserId, cancellationToken);
+        await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmSalesOrder), input.Id, input, cancellationToken);
+
+        var target = (CrmSalesOrderStatus)input.Status;
+        var allowed = order.Status switch
+        {
+            CrmSalesOrderStatus.Draft => target is CrmSalesOrderStatus.Confirmed or CrmSalesOrderStatus.Cancelled,
+            CrmSalesOrderStatus.Confirmed => target is CrmSalesOrderStatus.Processing or CrmSalesOrderStatus.Cancelled,
+            // Fulfillment-derived states are written only by shipment workflows, never by manual status edits.
+            CrmSalesOrderStatus.Processing => false,
+            CrmSalesOrderStatus.PartiallyShipped => false,
+            _ => false
+        };
+        if (target == CrmSalesOrderStatus.Cancelled)
+        {
+            var lines = await orderLines.ListForOrderAsync(order.BasicId, cancellationToken);
+            if (lines.Any(line => line.ReservedQuantity > 0 || line.ShippedQuantity > 0))
+                throw new InvalidOperationException("Cancel all draft shipments before cancelling this sales order; reserved quantities must be released first.");
+        }
+        if (!allowed)
+            throw new InvalidOperationException($"Sales order status transition from {order.Status} to {target} is not allowed.");
+
+        order.Status = target;
+        order.FulfillmentRevision++;
+        var saved = await repository.UpdateAsync(order, cancellationToken);
+        return new CrmSalesOrderListItemDto
+        {
+            BasicId = saved.BasicId,
+            OrderNumber = saved.OrderNumber,
+            SourceQuoteId = saved.SourceQuoteId,
+            CustomerId = saved.CustomerId,
+            CustomerNameSnapshot = saved.CustomerNameSnapshot,
+            Status = (int)saved.Status,
+            OrderDate = saved.OrderDate,
+            Currency = saved.Currency,
+            GrandTotal = saved.GrandTotal,
+            OwnerUserId = saved.OwnerUserId,
+            CreatedTime = saved.CreatedTime
+        };
+    }
+}

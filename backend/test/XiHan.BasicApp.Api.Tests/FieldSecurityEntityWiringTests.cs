@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using XiHan.BasicApp.AI.Extensions;
 using XiHan.BasicApp.CodeGeneration.Extensions;
+using XiHan.BasicApp.Crm.Extensions;
 using XiHan.BasicApp.Printing.Extensions;
 using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.BasicApp.Saas.Domain.DomainServices;
@@ -31,6 +32,7 @@ public sealed partial class FieldSecurityEntityWiringTests
             .AddSaasFieldSecurityEntities()
             .AddAIFieldSecurityEntities()
             .AddCodeGenerationFieldSecurityEntities()
+            .AddCrmFieldSecurityEntities()
             .AddPrintingFieldSecurityEntities()
             .AddWorkflowFieldSecurityEntities();
         using var provider = services.BuildServiceProvider();
@@ -189,7 +191,7 @@ public sealed partial class FieldSecurityEntityWiringTests
 
                 var expected = method.Groups["kind"].Value == "Create" ? "EnsureCreatableAsync" : "EnsureUpdatableAsync";
                 var body = MethodBody(text, method.Index);
-                if (!body.Contains($"_fieldSecurity.{expected}(typeof({entity})", StringComparison.Ordinal))
+                if (!Regex.IsMatch(body, $@"_?fieldSecurity\.{expected}\(typeof\({entity}\)"))
                 {
                     missing.Add($"{file}：{method.Groups["name"].Value} 缺 {expected}(typeof({entity}), …)");
                 }
@@ -197,6 +199,104 @@ public sealed partial class FieldSecurityEntityWiringTests
         }
 
         Assert.True(missing.Count == 0, string.Join(Environment.NewLine, missing));
+    }
+
+    /// <summary>
+    /// CRM list and detail reads must both enforce the BasicApp owner/assignee data scope.
+    /// </summary>
+    [Fact]
+    public void CrmQueryServices_ShouldEnforceOwnerDataScopeOnListsAndDetails()
+    {
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["CrmCustomerQueryService.cs"] = "OwnerUserId",
+            ["CrmContactQueryService.cs"] = "OwnerUserId",
+            ["CrmLeadQueryService.cs"] = "OwnerUserId",
+            ["CrmOpportunityQueryService.cs"] = "OwnerUserId",
+            ["CrmActivityQueryService.cs"] = "OwnerUserId",
+            ["CrmTaskQueryService.cs"] = "AssigneeUserId"
+        };
+
+        foreach (var (file, ownerField) in expected)
+        {
+            var source = Sources.Value.SingleOrDefault(item => item.File == file).Text;
+            Assert.False(string.IsNullOrWhiteSpace(source), $"缺少 CRM 查询服务源码：{file}");
+            Assert.Contains("IUserDataScopeFilterService dataScope", source, StringComparison.Ordinal);
+            Assert.Contains("ApplyOwnerScopeAsync(dataScope", source, StringComparison.Ordinal);
+            Assert.Contains($"CanReadOwnedRecord(entity.{ownerField})", source, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>
+    /// CRM create/update commands must validate owner or assignee assignment exactly once.
+    /// This catches missing checks as well as duplicated checks that can cause unnecessary scope queries.
+    /// </summary>
+    [Fact]
+    public void CrmWriteEndpoints_ShouldEnforceAssignmentScopeExactlyOnce()
+    {
+        var ownerField = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["CrmCustomerAppService.cs"] = "OwnerUserId",
+            ["CrmContactAppService.cs"] = "OwnerUserId",
+            ["CrmLeadAppService.cs"] = "OwnerUserId",
+            ["CrmOpportunityAppService.cs"] = "OwnerUserId",
+            ["CrmActivityAppService.cs"] = "OwnerUserId",
+            ["CrmTaskAppService.cs"] = "AssigneeUserId"
+        };
+
+        var violations = new List<string>();
+        foreach (var (file, field) in ownerField)
+        {
+            var source = Sources.Value.SingleOrDefault(item => item.File == file).Text;
+            Assert.False(string.IsNullOrWhiteSpace(source), $"缺少 CRM 应用服务源码：{file}");
+            foreach (Match method in WriteMethod().Matches(source))
+            {
+                if (method.Groups["prefix"].Value.EndsWith("Status", StringComparison.Ordinal)) continue;
+                var body = MethodBody(source, method.Index);
+                var count = Regex.Matches(body,
+                    $@"CrmAssignmentAuthorization\.EnsureAssignableAsync\(dataScope, input\.{field}, cancellationToken\)").Count;
+                if (count != 1)
+                {
+                    violations.Add($"{file}：{method.Groups["name"].Value} 应恰好执行一次负责人范围检查，实际 {count} 次");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0, string.Join(Environment.NewLine, violations));
+    }
+
+    /// <summary>
+    /// Every CRM mutation must prove access to the existing record, not merely validate the requested new owner.
+    /// </summary>
+    [Fact]
+    public void CrmMutations_ShouldEnforceExistingRecordDataScope()
+    {
+        var expected = new Dictionary<string, (string Repository, string Owner, string[] Methods)>(StringComparer.Ordinal)
+        {
+            ["Customer"] = ("ICrmCustomerRepository records", "OwnerUserId", ["UpdateAsync", "DeleteAsync"]),
+            ["Contact"] = ("ICrmContactRepository records", "OwnerUserId", ["UpdateAsync", "DeleteAsync"]),
+            ["Lead"] = ("ICrmLeadRepository leads", "OwnerUserId", ["UpdateAsync", "ConvertAsync", "DeleteAsync"]),
+            ["Opportunity"] = ("ICrmOpportunityRepository records", "OwnerUserId", ["UpdateAsync", "DeleteAsync"]),
+            ["Activity"] = ("ICrmActivityRepository records", "OwnerUserId", ["UpdateAsync", "DeleteAsync"]),
+            ["Task"] = ("ICrmTaskRepository records", "AssigneeUserId", ["UpdateAsync", "ChangeStatusAsync", "DeleteAsync"])
+        };
+
+        foreach (var (module, contract) in expected)
+        {
+            var source = Sources.Value.Single(item => item.File == $"Crm{module}AppService.cs").Text;
+            Assert.Contains(contract.Repository, source, StringComparison.Ordinal);
+
+            foreach (var methodName in contract.Methods)
+            {
+                var signature = Regex.Match(source, $@"public async Task(?:<[^>]+>)?\s+{methodName}\(");
+                Assert.True(signature.Success, $"CRM {module}.{methodName} endpoint was not found.");
+                var body = MethodBody(source, signature.Index);
+                Assert.Contains(
+                    $"CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.{contract.Owner}, cancellationToken)",
+                    body,
+                    StringComparison.Ordinal);
+            }
+        }
     }
 
     private static FieldSecurityEntityOptions BuildOptions()
@@ -220,7 +320,7 @@ public sealed partial class FieldSecurityEntityWiringTests
         return next.Success ? text[start..next.Index] : text[start..];
     }
 
-    [GeneratedRegex(@"_fieldSecurity\.(?<method>\w+Async)\((?:[\w.]+,\s*)?typeof\((?<entity>\w+)\)")]
+    [GeneratedRegex(@"_?fieldSecurity\.(?<method>\w+Async)\((?:[\w.]+,\s*)?typeof\((?<entity>\w+)\)") ]
     private static partial Regex FieldSecurityCall();
 
     [GeneratedRegex(@"public async Task(?:<[^\n]*?>)? (?<name>\w+Async)\(\s*(?<prefix>\w+?)(?<kind>Create|Update|StatusUpdate)Dto \w+")]

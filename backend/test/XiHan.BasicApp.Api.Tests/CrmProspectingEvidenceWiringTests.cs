@@ -1,0 +1,209 @@
+namespace XiHan.BasicApp.Api.Tests;
+
+/// <summary>Source-level guards for immutable, tenant-scoped prospecting evidence metadata.</summary>
+public sealed class CrmProspectingEvidenceWiringTests
+{
+    [Fact]
+    public void EvidenceEntity_ShouldBeImmutableCreationOnlyAndStrictlyTenantScoped()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        Assert.Contains("BasicAppCreationEntity", entity, StringComparison.Ordinal);
+        Assert.Contains("IStrictMultiTenantEntity", entity, StringComparison.Ordinal);
+        Assert.Contains("FieldValueHash", entity, StringComparison.Ordinal);
+        Assert.DoesNotContain("BasicAppFullAuditedEntity", entity, StringComparison.Ordinal);
+        Assert.DoesNotContain("BusinessEmail", entity, StringComparison.Ordinal);
+        Assert.Contains(".Add<SysCrmProspectingEvidence>()", registration, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EvidenceMigration_ShouldBeTenantScopedAndRequireCandidateParent()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.18", "5.9.18.sql");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        Assert.Contains("IF to_regclass('crm_prospecting_candidate') IS NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("tenant_id bigint NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("FOREIGN KEY (tenant_id, candidate_id)", migration, StringComparison.Ordinal);
+        Assert.Contains("ux_crm_prosp_candidate_tenant_basic", migration, StringComparison.Ordinal);
+        Assert.Contains("(tenant_id, candidate_id, field_name)", migration, StringComparison.Ordinal);
+        Assert.Contains("(tenant_id, provider_code, retrieved_at_utc DESC)", migration, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void ScoreMigration_ShouldEnforceTenantCandidateRelationshipAndScoreBounds()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.19", "5.9.19.sql");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingScore.cs");
+
+        Assert.Contains("tenant_id bigint NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("FOREIGN KEY (tenant_id, candidate_id)", migration, StringComparison.Ordinal);
+        Assert.Contains("CHECK (total BETWEEN 0 AND 100)", migration, StringComparison.Ordinal);
+        Assert.Contains("CHECK (priority BETWEEN 0 AND 3)", migration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prosp_score_tenant_candidate_evaluated", migration, StringComparison.Ordinal);
+        Assert.Contains("ix_crm_prosp_score_tenant_version_priority", migration, StringComparison.Ordinal);
+        Assert.Contains("IStrictMultiTenantEntity", entity, StringComparison.Ordinal);
+        Assert.Contains("ReviewGatesJson", entity, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void ScoreIntegrityMigration_ShouldRejectComponentTotalsThatDoNotMatch()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.20", "5.9.20.sql");
+
+        Assert.Contains("ck_crm_prospecting_score_component_total", migration, StringComparison.Ordinal);
+        Assert.Contains("total <> identity_points + procurement_points + product_fit_points", migration, StringComparison.Ordinal);
+        Assert.Contains("RAISE EXCEPTION", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD CONSTRAINT", migration, StringComparison.Ordinal);
+        Assert.Contains("CHECK (", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EvidenceIdentityMigration_ShouldEnforceRetrySafeUniqueness()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
+
+        Assert.Contains("ux_crm_prosp_evidence_identity", migration, StringComparison.Ordinal);
+        Assert.Contains("CREATE UNIQUE INDEX", migration, StringComparison.Ordinal);
+        Assert.Contains("tenant_id", migration, StringComparison.Ordinal);
+        Assert.Contains("candidate_id", migration, StringComparison.Ordinal);
+        Assert.Contains("provider_record_id SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("source_url_hash IS NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN source_url_hash SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("field_name", migration, StringComparison.Ordinal);
+        Assert.Contains("source_url", migration, StringComparison.Ordinal);
+        Assert.Contains("raw_payload_hash SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("source_url_hash", migration, StringComparison.Ordinal);
+        Assert.Contains("digest(source_url", migration, StringComparison.Ordinal);
+        Assert.Contains("sha256", migration, StringComparison.Ordinal);
+        Assert.Contains("CREATE EXTENSION IF NOT EXISTS pgcrypto", migration, StringComparison.Ordinal);
+        Assert.Contains("HAVING COUNT(*) > 1", migration, StringComparison.Ordinal);
+        Assert.Contains("RAISE EXCEPTION", migration, StringComparison.Ordinal);
+        Assert.DoesNotContain("DELETE FROM crm_prospecting_evidence", migration, StringComparison.OrdinalIgnoreCase);
+        Assert.True(
+            migration.IndexOf("HAVING COUNT(*) > 1", StringComparison.Ordinal)
+            < migration.IndexOf("CREATE UNIQUE INDEX", StringComparison.Ordinal),
+            "Historical duplicate detection must run before the unique index is created.");
+    }
+
+    [Fact]
+    public void EvidenceIdentityMigration_ShouldTargetTheCodeFirstTableAndMatchFreshTenantSchema()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
+        var upgradeReadme = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "README.md");
+        var operations = Read("docs", "kiger", "PROSPECTING-WORKER-OPERATIONS.md");
+
+        Assert.Contains("TableName = \"Crm_Prospecting_Evidence\"", entity, StringComparison.Ordinal);
+        Assert.Contains("Length = 2000", entity, StringComparison.Ordinal);
+        Assert.Contains("Source_Url_Hash", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(SourceUrlHash)", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(ProviderRecordId)", entity, StringComparison.Ordinal);
+        Assert.Contains("nameof(RawPayloadHash)", entity, StringComparison.Ordinal);
+        Assert.Contains("true)]", entity, StringComparison.Ordinal);
+        Assert.Contains("source_url_hash, raw_payload_hash", migration, StringComparison.Ordinal);
+        Assert.DoesNotContain("field_name, source_url,", migration, StringComparison.Ordinal);
+        Assert.Contains("source_url_hash", migration, StringComparison.Ordinal);
+        Assert.Contains("to_regclass('crm_prospecting_evidence')", migration, StringComparison.Ordinal);
+
+        // Keep the fresh CodeFirst index and the upgrade index on the exact same identity tuple.
+        var identityProperties = new[]
+        {
+            "nameof(TenantId)", "nameof(CandidateId)", "nameof(ProviderCode)",
+            "nameof(ProviderRecordId)", "nameof(FieldName)", "nameof(SourceUrlHash)",
+            "nameof(RawPayloadHash)"
+        };
+        var identityIndex = entity.IndexOf("UX_{table}_EvidenceIdentity", StringComparison.Ordinal);
+        Assert.True(identityIndex >= 0, "The Evidence CodeFirst unique identity index must exist.");
+        var identityDeclaration = entity[identityIndex..entity.IndexOf("public sealed class", identityIndex, StringComparison.Ordinal)];
+        var previousPropertyPosition = -1;
+        foreach (var property in identityProperties)
+        {
+            var propertyPosition = identityDeclaration.IndexOf(property, StringComparison.Ordinal);
+            Assert.True(propertyPosition > previousPropertyPosition,
+                $"CodeFirst identity index must contain {property} in the migration key order.");
+            previousPropertyPosition = propertyPosition;
+        }
+
+        var migrationIdentity = migration.IndexOf(
+            "ON crm_prospecting_evidence (", StringComparison.Ordinal);
+        Assert.True(migrationIdentity >= 0, "The upgrade migration must create the Evidence identity index.");
+        var migrationKey = migration[migrationIdentity..migration.IndexOf(");", migrationIdentity, StringComparison.Ordinal)];
+        var migrationProperties = new[]
+        {
+            "tenant_id", "candidate_id", "provider_code", "provider_record_id",
+            "field_name", "source_url_hash", "raw_payload_hash"
+        };
+        previousPropertyPosition = -1;
+        foreach (var property in migrationProperties)
+        {
+            var propertyPosition = migrationKey.IndexOf(property, StringComparison.Ordinal);
+            Assert.True(propertyPosition > previousPropertyPosition,
+                $"Upgrade identity index must contain {property} in the CodeFirst key order.");
+            previousPropertyPosition = propertyPosition;
+        }
+        Assert.Contains("fresh-tenant CodeFirst", operations, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CodeFirst", upgradeReadme, StringComparison.Ordinal);
+        Assert.Contains("pgcrypto", upgradeReadme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EvidenceIdentityColumns_ShouldBeNonNullableAndFitPostgresBtreeIndexTupleBudget()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
+
+        Assert.Contains("ColumnName = \"Provider_Record_Id\", Length = 240, IsNullable = false", entity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Source_Url_Hash\", Length = 64, IsNullable = false", entity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Raw_Payload_Hash\", Length = 64, IsNullable = false", entity, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN provider_record_id SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN raw_payload_hash SET NOT NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN source_url_hash SET NOT NULL", migration, StringComparison.Ordinal);
+
+        // Worst-case UTF-8 payload bytes for indexed varchar columns, plus both bigint keys
+        // and a conservative tuple-overhead allowance, must stay below PostgreSQL's 8KB-page
+        // B-tree maximum index tuple size (approximately 2704 bytes).
+        const int indexedVarcharCharacters = 80 + 240 + 100 + 64 + 64;
+        const int tenantAndCandidateBytes = sizeof(long) * 2;
+        const int conservativeTupleOverheadBytes = 64;
+        var worstCaseTupleBytes = indexedVarcharCharacters * 4 + tenantAndCandidateBytes + conservativeTupleOverheadBytes;
+        Assert.True(worstCaseTupleBytes < 2704,
+            $"Evidence identity index could exceed PostgreSQL's B-tree tuple limit: {worstCaseTupleBytes} bytes.");
+    }
+
+    [Fact]
+    public void ProspectingWorker_EvidenceRepair_ShouldCompareTheFullIdentityTupleInsideATransaction()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        // The DB unique identity is (tenant, candidate, provider, provider record, field,
+        // source URL hash, raw payload hash). The worker compares the non-tenant/candidate
+        // components after loading evidence for one tenant-scoped candidate.
+        foreach (var member in new[]
+        {
+            "evidence.ProviderCode",
+            "evidence.ProviderRecordId",
+            "evidence.FieldName",
+            "evidence.SourceUrlHash",
+            "evidence.RawPayloadHash"
+        })
+        {
+            Assert.Contains(member, worker, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("var missingEvidence = expectedEvidence", worker, StringComparison.Ordinal);
+        Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", worker, StringComparison.Ordinal);
+        var begin = worker.IndexOf("Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", StringComparison.Ordinal);
+        var insert = worker.IndexOf("AddRangeAsync(missingEvidence, cancellationToken)", begin, StringComparison.Ordinal);
+        var commit = worker.IndexOf("repairUnitOfWork.CompleteAsync(cancellationToken)", insert, StringComparison.Ordinal);
+        Assert.True(begin >= 0 && insert > begin && commit > insert,
+            "Evidence repair must add missing rows and commit them within the same explicit transaction.");
+    }
+
+    private static string Read(params string[] segments) =>
+        File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
+
+    private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string filePath = "") =>
+        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
+}

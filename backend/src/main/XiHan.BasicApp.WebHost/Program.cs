@@ -28,6 +28,8 @@ try
 }
 catch (Exception ex)
 {
+    // 启动失败必须返回非零退出码，供 Windows 服务、容器与进程守护器正确识别并告警/重启。
+    Environment.ExitCode = 1;
     LogHelper.Error(ex, "应用异常");
     Log.Fatal(ex, "应用关闭");
 }
