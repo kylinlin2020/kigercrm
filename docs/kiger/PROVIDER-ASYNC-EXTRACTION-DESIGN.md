@@ -679,3 +679,16 @@ Added `CrmProspectingCandidatePersistenceService.PersistProviderBatchAndTransiti
 **Wiring status:** this primitive is now available through the registered persistence service, but the synchronous Run hosted worker has not yet been refactored to construct provider-scoped candidate batches and call it. Its existing path still performs candidate persistence and provider terminal transitions separately. Do not mark the synchronous atomicity gate complete until the worker uses this method, coverage advancement is reconciled after its commit, and PostgreSQL fault-injection tests prove the actual SqlSugar repositories enlist in the same transaction.
 
 **Validation:** source-only. No .NET compilation, test execution, PostgreSQL transaction/fault-injection test, or Windows build is claimed.
+
+## 11.43 Reject duplicate identities inside an atomic provider batch (2026-11-05)
+
+The atomic batch primitive now validates normalized record identities as a batch-wide invariant before each Candidate/Evidence/Score write:
+
+- The candidate Run and both provider codes must match the execution row.
+- The candidate ExternalId must exactly match the normalized identity derived from its raw record.
+- A batch-local ordinal identity set rejects repeated normalized external IDs before the second write can begin.
+- The source-contract test asserts the duplicate guard runs before `PersistCandidateOrRepairAsync`.
+
+This keeps `ProjectedRecordCount` meaningful as the number of distinct accepted provider records and avoids silently treating a malformed duplicate-containing batch as a clean provider projection. The guard is intentionally fail-closed: a caller must normalize/deduplicate and account for rejected rows in `failureCount` before retrying.
+
+Worker integration, durable post-commit coverage reconciliation, PostgreSQL fault-injection tests, and runtime validation remain outstanding. The current synchronous worker still uses the legacy per-candidate persistence path.
