@@ -629,3 +629,15 @@ The synchronous Run worker now uses the provider-execution checkpoint table in i
 5. Candidate/Evidence/Score projection uses the existing idempotent candidate identity and provenance-repair path. After projection, the worker advances Checkpointed -> Projecting -> Succeeded, or to Failed for incomplete/partial provider output. The state transition is fenced and transactional; a crash before that transition leaves the checkpoint available for another idempotent projection pass.
 
 **Remaining atomicity boundary:** candidate/evidence/score writes are currently committed by their existing persistence units before the provider-step terminal transition. They are idempotent and replayable, but are not yet committed in the same database transaction as Projecting -> Succeeded. The next hardening step is to make the projection batch and terminal step transition share a single transaction (or a durable per-record outbox protocol). Provider request-ledger coverage also remains a separate post-projection operation. These code changes have not yet been compiled or run against PostgreSQL; the acceptance suite and Windows real-machine build remain pending.
+
+
+## 11.40 Finalize provider-step outcomes for known failures and skips (2026-11-05)
+
+The synchronous Run worker now also closes the provider execution ledger for ordinary non-success paths:
+
+- A provider adapter that is not registered, or a provider skipped because its cooldown is active, transitions Queued -> Skipped in a transaction under the live Run fence.
+- A provider invocation that is cancelled, rate-limited, throws, or returns a malformed envelope transitions Started -> Failed after the corresponding request-ledger attempt is finalized.
+- If request-ledger finalization itself fails, the provider execution row is deliberately left Started; a later delivery will treat the external outcome as ambiguous and move it to NeedsReview rather than retrying blindly.
+- These transitions are tenant-scoped and fenced by the same Run lease token, fencing version, and database-clock expiry. Source-contract tests guard the failure/skip helper paths.
+
+This closes several previously stranded Queued/Started states. It does not change the remaining atomicity boundary: successful Candidate/Evidence/Score projection and provider-step Succeeded still use separate transactions, with idempotent checkpoint replay as the recovery mechanism.
