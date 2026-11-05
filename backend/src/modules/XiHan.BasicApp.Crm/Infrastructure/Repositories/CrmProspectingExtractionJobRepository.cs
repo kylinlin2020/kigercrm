@@ -179,11 +179,6 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
                 WHERE job.tenant_id = @tenantId
                   AND (
                       job.status IN (@submittingStatus, @pendingStatus, @runningStatus, @fetchingStatus)
-                      OR (
-                          job.status = @needsReviewStatus
-                          AND job.provider_extraction_id IS NOT NULL
-                          AND job.submitted_at_utc IS NOT NULL
-                      )
                   )
                   AND job.next_poll_at_utc <= clock_timestamp()
                   AND (job.expires_at_utc IS NULL OR job.expires_at_utc > clock_timestamp())
@@ -210,7 +205,6 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@pendingStatus", CrmProspectingExtractionStatus.Pending.ToString()),
             new SugarParameter("@runningStatus", CrmProspectingExtractionStatus.Running.ToString()),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
-            new SugarParameter("@needsReviewStatus", CrmProspectingExtractionStatus.NeedsReview.ToString()),
             new SugarParameter("@leaseOwner", leaseOwner),
             new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds),
             new SugarParameter("@batchSize", batchSize));
