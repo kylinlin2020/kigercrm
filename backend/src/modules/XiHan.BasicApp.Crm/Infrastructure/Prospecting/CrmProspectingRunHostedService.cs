@@ -155,13 +155,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 var executionStep = persistedPlan.Single(step =>
                     string.Equals(step.ProviderCode, providerCode, StringComparison.OrdinalIgnoreCase));
-                if (executionStep.State == "Queued")
-                {
-                    if (!await providerExecutions.TryStartAsync(
-                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
-                        throw new InvalidOperationException($"Provider execution step '{providerCode}' could not be started under the live Run lease.");
-                }
-                else if (executionStep.State is "Started" or "Checkpointed")
+                if (executionStep.State is "Started" or "Checkpointed")
                 {
                     // The previous process may have died after the external request or after
                     // receiving a response. Until response checkpoint replay is implemented,
@@ -237,6 +231,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 // The Started row is durable before the provider is allowed to perform network I/O.
                 // If ledger persistence fails, fail the Run rather than making an untracked request.
+                if (executionStep.State != "Queued" ||
+                    !await providerExecutions.TryStartAsync(
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
+                    throw new InvalidOperationException($"Provider execution step '{providerCode}' could not be started under the live Run lease.");
+
                 var attempt = await requestLedger.CreateStartedAsync(
                     run.BasicId, providerCode, requestKey, DateTimeOffset.UtcNow, cancellationToken);
                 var providerTimer = System.Diagnostics.Stopwatch.StartNew();
