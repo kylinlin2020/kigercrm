@@ -21,6 +21,7 @@ const definitions = [
   { code: 'brave', name: 'Brave Search', description: 'Brave Search API Token' },
   { code: 'serpapi', name: 'SerpApi', description: 'Google 搜索 API Key，可能产生调用费用' },
   { code: 'google_places', name: 'Google Places', description: 'Google Maps Platform API Key，需启用计费与 Places API' },
+  { code: 'open_fda_510k', name: 'openFDA 510(k)', description: '美国 FDA 医疗器械 510(k) 数据 API Key（可选；仅医疗器械行业活动调用）' },
   { code: 'sam_gov', name: 'SAM.gov', description: '美国联邦采购机会 API Key' },
   { code: 'un_comtrade', name: 'UN Comtrade', description: '贸易统计 API subscription key；公共预览接口可不填 Key' },
   { code: 'us_census', name: 'US Census Trade', description: '美国 Census API Key（免费申请）' },
