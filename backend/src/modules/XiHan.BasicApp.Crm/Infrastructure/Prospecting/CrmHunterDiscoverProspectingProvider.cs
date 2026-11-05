@@ -77,6 +77,23 @@ public sealed class CrmHunterDiscoverProspectingProvider : ICrmProspectingProvid
                 "Hunter Discover rate limit or temporary service throttle; retry after cooldown.",
                 (int)response.StatusCode, retryAt);
         }
+        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            var errorBody = await ReadBoundedAsync(response, cancellationToken);
+            var errorText = Encoding.UTF8.GetString(errorBody);
+            if (errorText.Contains("rate limit", StringComparison.OrdinalIgnoreCase)
+                || errorText.Contains("too many requests", StringComparison.OrdinalIgnoreCase))
+            {
+                var retryAt = response.Headers.RetryAfter?.Date
+                    ?? (response.Headers.RetryAfter?.Delta is { } delay ? DateTimeOffset.UtcNow + delay : DateTimeOffset.UtcNow.AddMinutes(5));
+                throw new CrmProspectingProviderRateLimitException(
+                    "Hunter Discover rate limit reached; retry after cooldown.",
+                    (int)response.StatusCode, retryAt);
+            }
+            throw new HttpRequestException(
+                "Hunter Discover access denied (403); verify Discover API plan eligibility and account permissions.",
+                null, response.StatusCode);
+        }
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"Hunter Discover returned HTTP {(int)response.StatusCode}; verify API access, plan eligibility and usage limits.",
