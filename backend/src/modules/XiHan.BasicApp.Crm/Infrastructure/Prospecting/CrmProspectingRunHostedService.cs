@@ -476,8 +476,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 var email = string.IsNullOrWhiteSpace(record.BusinessEmail) ? null : record.BusinessEmail.Trim();
                 if (email?.Length > 254) email = null;
                 var normalizedEmail = CrmProspectingCandidateFactory.NormalizeEmail(record);
-                var website = string.IsNullOrWhiteSpace(record.Website) ? null : record.Website.Trim();
-                if (website?.Length > 500) website = website[..500];
                 var websiteHost = CrmProspectingCandidateFactory.NormalizeWebsiteHost(record);
 
                 var candidateEmailDuplicate = normalizedEmail is not null && seenCandidateEmails.Contains(normalizedEmail);
