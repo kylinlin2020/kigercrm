@@ -34,7 +34,7 @@
 | 源项目来源 | 类别 / 认证 | 目标状态 | 后续工作 |
 |---|---|---|---|
 | Serper（Google） | 搜索 API；需用户 Key；按量/套餐 | 未迁移 | 搜索查询映射、游标、额度、成本与搜索结果证据 |
-| Brave Search | 搜索 API；需 Token | 未迁移 | 频率/额度管理、分页、来源链接与摘要证据 |
+| Brave Search | 搜索 API；需 Token/付费计划 | 已实现待验收 | 已新增 Web Search API Provider；租户加密 Token、国家定向、最多 2 页×20 条、尊重 more_results_available；结果仅作为网页发现证据 |
 | SerpApi（Google） | 搜索 API；需 Key；付费/有限免费额度 | 未迁移 | 默认关闭，Key 与成本控制，分页和失败分类 |
 | Google Places | 地图企业 API；需 Key/计费；受 Google 数据条款约束 | 未迁移 | FieldMask、分页、电话/网站字段来源、缓存与保留条款 |
 
@@ -116,6 +116,7 @@
 - `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
 - `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
 - `kvk`（新增；荷兰 KVK 官方 Handelsregister Zoeken API，租户 API Key 通过 `apikey` 请求头发送，最多 3 个关键词×每词 2 页 bounded fetch）
+- `brave`（新增；Brave Web Search API，租户订阅 Token 通过 `X-Subscription-Token` 请求头发送，最多 2 页×20 条，按 `more_results_available` 标记覆盖状态）
 - `ror`（新增；公开 ROR v2 organizations API，最多 3 个关键词、每个 20 条，研究机构身份记录，不作为一般商业公司库）
 - `wikidata`（新增；公开 Wikidata `wbsearchentities` API，最多 3 个关键词、每个 10 条，组织描述筛选，结果标记知识图谱线索）
 
@@ -189,6 +190,14 @@
 - 仅在目标市场明确包含 NL、NLD、Netherlands、Holland 或 Nederland 时调用；最多 3 个关键词、每词最多 2 页；若官方总数显示仍有未读取结果，则 `IsComplete=false`。
 - 输出 KVK 编号、登记名称、活跃状态、登记类型、分支号及地址摘要；不输出联系人、不推断采购意向，也不把登记信息自动写入正式 Lead。
 - 官方资料说明 Zoeken API 的搜索结果默认排除非活跃登记，最多 100 条/页；KVK API 订阅有固定月费和按次查询费用，费用与申请资格须由用户在 KVK Developer Portal 确认。来源：KVK Quickstart、Zoeken API 与订阅说明。
+
+## 4.4 Brave Search 网页发现 Provider（本轮新增）
+
+- 使用官方 Web Search API：`GET https://api.search.brave.com/res/v1/web/search`；API Token 通过 `X-Subscription-Token` 请求头发送，不进入 URL。Key 从当前租户加密 SaaS 配置读取：`CRM.Prospecting.Provider.brave.ApiKey`。
+- `EnableBraveSearchProvider` 默认关闭；显式启用后最多执行 2 页，每页最多 20 条，offset 从 0 开始递增；优先遵循响应 `query.more_results_available`，缺失该字段但返回满页时保守处理为可能不完整。
+- 根据已识别的目标市场映射 Brave `country` 参数；无法识别时会给出提示，不伪造国家映射。查询词由产品范围、理想客户画像、搜索目标与目标市场组合，限制在 API 的 600 字符范围内。
+- 只接受 HTTPS 搜索结果链接，应用 ExcludedDomains 排除域名，并按规范化 URL 去重。输出标题、摘要、来源 URL 与网站主机；`EvidenceType=web_search_result`，不把网页标题推断为已验证公司名称，也不提取/验证联系人。
+- Brave 官方文档规定 Token 通过 `X-Subscription-Token` 头传递，单页最多 20 条、offset 最大 9，并建议使用 `more_results_available` 判断是否继续分页。Search API 按请求计费，当前官方 Search 计划标价为每 1,000 次请求 5 美元并包含每月 5 美元免费额度；实际套餐与条款以账户页面为准。
 
 ## 5. 业务与安全边界
 
