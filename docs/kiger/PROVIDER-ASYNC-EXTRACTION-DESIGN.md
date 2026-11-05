@@ -416,3 +416,10 @@ The service is registered scoped alongside the CRM repositories. A source-wiring
 - Added `TryFailIncompleteResultsAsync`: in the same transaction as Candidate/Evidence/Score writes, it commits the final page counts, sets the extraction to `Failed` with a fixed safe failure code/summary, and releases the lease. Its SQL requires a live exact lease/fencing version, expected cursor match, and a positive cumulative failure count.
 - The page service selects `Completed` only when cumulative failures are zero; otherwise it commits the final page as `Failed`. This preserves successfully extracted candidates while ensuring partial results cannot advance coverage.
 - This terminal path is authored but not yet exercised against PostgreSQL; Run-level coverage finalization still needs to explicitly require every extraction job to be `Completed`.
+
+## 11.28 Run terminal-state gate against asynchronous extraction jobs (2026-11-05)
+
+- `CompleteFencedWithDatabaseClockAsync` now checks the tenant/run-scoped extraction-job table in the same conditional PostgreSQL UPDATE that performs the Run terminal transition.
+- A Run cannot become terminal while any extraction is `Submitting`, `Pending`, `Running`, `Succeeded` (provider succeeded but result pages not fetched), `FetchingResults`, or `NeedsReview`. This prevents early success and keeps uncertain jobs parked for human review.
+- Once every extraction is terminal, `Failed`, `Expired`, and `Cancelled` jobs contribute to the Run's aggregate failure count. The Run becomes `Succeeded` only when both synchronous failures and asynchronous terminal failures are zero; otherwise it becomes `PartiallySucceeded` when raw records exist, or `Failed` when none exist.
+- Added a source-level regression test for active-job blocking and terminal failure aggregation. This gate protects the Run final UPDATE; it does not yet implement async provider submission/poll/fetch scheduling or prove that request-ledger/Coverage finalization waits for all jobs. Job creation must be serialized under the Run lease before full async wiring, and PostgreSQL concurrency tests remain required.
