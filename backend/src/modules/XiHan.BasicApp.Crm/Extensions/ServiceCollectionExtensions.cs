@@ -174,6 +174,19 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmSamGovOpportunitiesProspectingProvider>());
         }
+        // Wikidata is a public knowledge graph. Keep results explicitly classified as discovery clues,
+        // not authoritative company registration or buyer-intent evidence.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableWikidataProvider"], out var enableWikidata)
+            && enableWikidata)
+        {
+            services.AddSingleton<CrmWikidataProspectingProvider>(provider => new CrmWikidataProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("www.wikidata.org"))
+                {
+                    Timeout = TimeSpan.FromSeconds(35)
+                }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmWikidataProspectingProvider>());
+        }
         // Companies House is the UK official company register. Search results are registry evidence,
         // not proof of buyer intent; the API key is read from the current tenant's encrypted configuration.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableCompaniesHouseProvider"], out var enableCompaniesHouse)
