@@ -136,7 +136,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
             var excludedDomains = ParseStringArray(run.SnapshotExcludedDomainsJson, "excluded domains", allowNull: true);
             var raw = new List<CrmProspectingRawEnvelope>();
-            var checkpointedSteps = new List<(long ExecutionId, string State)>();
+            var checkpointedSteps = new List<(long ExecutionId, string State, int FailureCount, bool IsComplete, int RecordCount)>();
             // Do not advance incremental coverage while provider records are only in memory.
             // Candidate/evidence persistence must finish first so a worker crash cannot skip data.
             var pendingCoverage = new List<(long AttemptId, string RequestKey, int ResultCount, string ResponseHash, long DurationMs)>();
@@ -178,14 +178,15 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     if (checkpointBytes != executionStep.CheckpointBytes ||
                         !string.Equals(checkpointHash, executionStep.CheckpointHash, StringComparison.Ordinal))
                         throw new InvalidOperationException($"Provider checkpoint integrity validation failed for '{providerCode}'.");
-                    var checkpointRecords = JsonSerializer.Deserialize<List<CrmProspectingRawRecord>>(checkpointJson)
+                    var checkpoint = JsonSerializer.Deserialize<CrmProspectingProviderResultCheckpoint>(checkpointJson)
                         ?? throw new InvalidOperationException($"Provider checkpoint payload is invalid for '{providerCode}'.");
-                    if (checkpointRecords.Count != executionStep.RawRecordCount ||
-                        checkpointRecords.Any(record => record is null))
+                    if (checkpoint.Records.Count != executionStep.RawRecordCount ||
+                        checkpoint.Records.Any(record => record is null) || checkpoint.FailureCount < 0)
                         throw new InvalidOperationException($"Provider checkpoint record count or shape is invalid for '{providerCode}'.");
-                    foreach (var checkpointRecord in checkpointRecords)
+                    foreach (var checkpointRecord in checkpoint.Records)
                         raw.Add(new CrmProspectingRawEnvelope(providerCode, checkpointRecord));
-                    checkpointedSteps.Add((executionStep.BasicId, executionStep.State));
+                    checkpointedSteps.Add((executionStep.BasicId, executionStep.State,
+                        checkpoint.FailureCount, checkpoint.IsComplete, checkpoint.Records.Count));
                     continue;
                 }
                 else if (executionStep.State == "Succeeded")
@@ -318,9 +319,12 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
-                var checkpointJson = JsonSerializer.Serialize(result.Records);
+                var checkpointPayload = new CrmProspectingProviderResultCheckpoint(
+                    result.Records, result.IsComplete, Math.Max(0, result.FailureCount));
+                var checkpointJson = JsonSerializer.Serialize(checkpointPayload);
                 var checkpointBytes = System.Text.Encoding.UTF8.GetByteCount(checkpointJson);
-                if (checkpointBytes > CrmProspectingRunProviderExecutionRepository.MaxCheckpointBytes)
+                const int maxProviderCheckpointBytes = 1_048_576;
+                if (checkpointBytes > maxProviderCheckpointBytes)
                 {
                     if (!await requestLedger.TryFinalizeAsync(
                         attempt.BasicId, "Failed", DateTimeOffset.UtcNow, providerTimer.ElapsedMilliseconds,
@@ -344,7 +348,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
                     checkpointJson, result.Records.Count, cancellationToken))
                     throw new InvalidOperationException($"Provider response checkpoint for '{providerCode}' could not be persisted under the live Run lease.");
-                checkpointedSteps.Add((executionStep.BasicId, "Checkpointed"));
+                checkpointedSteps.Add((executionStep.BasicId, "Checkpointed",
+                    Math.Max(0, result.FailureCount), result.IsComplete, result.Records.Count));
 
                 const int maxRawRecordsPerRun = 2000;
                 var remainingRawRecords = Math.Max(0, maxRawRecordsPerRun - raw.Count);
@@ -801,14 +806,23 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                             step.ExecutionId, run.BasicId, leaseToken, activeFencingVersion,
                             "Checkpointed", "Projecting", cancellationToken: cancellationToken))
                         throw new InvalidOperationException("A provider checkpoint could not enter Projecting under the live Run lease.");
-                    if (!await providerExecutions.TryTransitionAsync(
-                        step.ExecutionId, run.BasicId, leaseToken, activeFencingVersion,
-                        "Projecting", "Succeeded",
-                        projectedRecordCount: raw.Count(envelope => string.Equals(envelope.ProviderCode, plan.FirstOrDefault(code =>
-                            persistedPlan.Any(row => row.BasicId == step.ExecutionId && string.Equals(row.ProviderCode, code, StringComparison.OrdinalIgnoreCase))), StringComparison.OrdinalIgnoreCase)),
-                        failureCount: 0,
-                        cancellationToken: cancellationToken))
-                        throw new InvalidOperationException("A projected provider checkpoint could not be marked Succeeded.");
+                    var stepProviderCode = persistedPlan.Single(row => row.BasicId == step.ExecutionId).ProviderCode;
+                    var stepSucceeded = step.IsComplete && step.FailureCount == 0;
+                    var transitioned = stepSucceeded
+                        ? await providerExecutions.TryTransitionAsync(
+                            step.ExecutionId, run.BasicId, leaseToken, activeFencingVersion,
+                            "Projecting", "Succeeded",
+                            projectedRecordCount: step.RecordCount, failureCount: 0,
+                            cancellationToken: cancellationToken)
+                        : await providerExecutions.TryTransitionAsync(
+                            step.ExecutionId, run.BasicId, leaseToken, activeFencingVersion,
+                            "Projecting", "Failed",
+                            projectedRecordCount: step.RecordCount, failureCount: Math.Max(1, step.FailureCount),
+                            failureCode: "provider_partial_result",
+                            safeFailureSummary: "Provider returned an incomplete result or record-level failures.",
+                            cancellationToken: cancellationToken);
+                    if (!transitioned)
+                        throw new InvalidOperationException($"Projected provider checkpoint '{stepProviderCode}' could not reach its terminal state.");
                     await stepUnitOfWork.CompleteAsync(cancellationToken);
                 }
             }
