@@ -2,10 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace XiHan.BasicApp.Api.Tests;
 
-/// <summary>
-/// Source-level regression guards for fixed provider endpoints. These guards do not replace
-/// live socket/DNS tests, but prevent adapters from accepting alternate ports or URI user-info.
-/// </summary>
+/// <summary>Source-level wiring guards ensure every official adapter uses the shared URI policy.</summary>
 public sealed class CrmProspectingProviderEndpointGuardTests
 {
     [Theory]
@@ -14,17 +11,14 @@ public sealed class CrmProspectingProviderEndpointGuardTests
     [InlineData("CrmTedProspectingProvider.cs")]
     [InlineData("CrmUsaSpendingProspectingProvider.cs")]
     [InlineData("CrmGleifIdentityResolver.cs")]
-    public void FixedEndpointAdapters_ShouldRejectNonDefaultPortsAndUriUserInfo(string fileName)
+    public void FixedEndpointAdapters_ShouldUseSharedEndpointGuard(string fileName)
     {
         var source = Read(
             "backend", "src", "modules", "XiHan.BasicApp.Crm",
             "Infrastructure", "Prospecting", fileName);
 
-        Assert.Contains("!finalUri.IsDefaultPort", source, StringComparison.Ordinal);
-        Assert.Contains("!string.IsNullOrEmpty(finalUri.UserInfo)", source, StringComparison.Ordinal);
-        Assert.Contains("finalUri.Scheme, Uri.UriSchemeHttps", source, StringComparison.Ordinal);
-        Assert.Contains("finalUri.Host, Endpoint.Host", source, StringComparison.Ordinal);
-        Assert.Contains("finalUri.AbsolutePath, Endpoint.AbsolutePath", source, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingEndpointGuard.IsApprovedResponseUri", source, StringComparison.Ordinal);
+        Assert.Contains("private static readonly Uri Endpoint = new(\"https://", source, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>
