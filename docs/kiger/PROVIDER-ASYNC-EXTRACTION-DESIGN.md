@@ -388,3 +388,10 @@ The synchronous Run worker now delegates first-time Candidate persistence to `Cr
 The synchronous worker retains its existing exact unique-constraint recovery: after a Candidate identity race it reads the tenant-scoped winner and invokes the existing provenance repair path. Existing-Candidate repair, race recovery, optional GLEIF enrichment, and Run Coverage finalization are not yet moved into the shared service. The async page reconciler must call this same persistence service for new Candidates, but must additionally coordinate page-level cursor CAS and result accounting in the same UoW; the current method intentionally commits one Candidate at a time and is not yet the page transaction API.
 
 The service is registered scoped alongside the CRM repositories. A source-wiring regression check was added. Tests have not been compiled or executed; no PostgreSQL transaction behavior is claimed. Before enabling async result pages, add a batch/page persistence entry point that accepts the active UoW or transaction boundary and commits all page Candidates/Evidence/Scores together with cursor CAS.
+
+## 11.23 Opaque cursor transport validation (2026-11-05)
+
+- The extraction page validator now rejects control characters in any non-null opaque cursor (invalid_cursor) in addition to the existing 2,048-character bound.
+- This prevents newline/control-character injection into persisted cursor state and downstream diagnostics while preserving provider-specific printable cursor formats.
+- A regression test covers an embedded newline and confirms the invalid page cannot advance the cursor.
+- This is a boundary-hardening change only. It does not implement the async worker or the atomic Candidate/Evidence/Score + cursor transaction, and no test has been executed in this environment.
