@@ -58,7 +58,7 @@ public sealed class CrmUsCensusTradeProspectingProvider : ICrmProspectingProvide
         var period = DateTime.UtcNow.AddMonths(-2).ToString("yyyy-MM", CultureInfo.InvariantCulture);
         var query = new Dictionary<string, string>
         {
-            ["get"] = "CTY_NAME,CTY_CODE,ALL_VAL_MO,GEN_VAL_MO,CON_VAL_MO,E_COMMODITY,E_COMMODITY_LDESC",
+            ["get"] = "CTY_NAME,CTY_CODE,ALL_VAL_MO,E_COMMODITY,E_COMMODITY_LDESC",
             ["time"] = period,
             ["COMM_LVL"] = "HS2",
             ["key"] = apiKey
@@ -106,9 +106,8 @@ public sealed class CrmUsCensusTradeProspectingProvider : ICrmProspectingProvide
             var countryCode = Get("CTY_CODE");
             if (string.IsNullOrWhiteSpace(country) || string.IsNullOrWhiteSpace(countryCode)) continue;
             var allValue = Get("ALL_VAL_MO");
-            var generalValue = Get("GEN_VAL_MO");
             var id = $"USCENSUS:EXPORT:{period}:{countryCode}:{Get("E_COMMODITY")}";
-            var summary = $"U.S. exports to {country}; HS commodity {commodity}; month {period}; total value {allValue}; general imports/exports value {generalValue}";
+            var summary = $"U.S. exports to {country}; HS commodity {commodity}; month {period}; total value {allValue}";
             var canonical = $"https://api.census.gov/data/timeseries/intltrade/exports/hs?time={Uri.EscapeDataString(period)}&COMM_LVL=HS2";
             records.Add(new CrmProspectingRawRecord(
                 id,
