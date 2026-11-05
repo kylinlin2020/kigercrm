@@ -398,3 +398,9 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - 新增 `CrmProspectingExtractionStatusMapper`：未知远端状态一律转为 `NeedsReview`；Provider RetryAt 限制在 now+5 秒至 now+30 分钟，缺省为 1 分钟。
 - 新增 page validator 与 status mapper 单元测试代码，尚未执行。
 - Lease token 由 PostgreSQL `gen_random_uuid()` 生成，不再由可预测的 MD5 拼接生成。
+
+
+### 5.6 Lease 过期写入 fencing 补强
+
+- `TryTransitionAsync` 与 `TryAdvanceCursorAsync` 的 SQL 除 tenant/job/token/fencing version 外，额外要求 `lease_expires_at_utc > clock_timestamp()`。
+- 因此 Worker 即使保留旧 token，在租约过期后也不能继续改变状态或推进游标；若另一个 Worker 已领取，fencing version 也会阻止旧 Worker 写入。
