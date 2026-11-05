@@ -20,6 +20,18 @@ public sealed class CrmSamGovOpportunitiesProspectingProviderTests
     }
 
     [Fact]
+    public async Task SearchAsync_SkipsNonUsTargetMarkets()
+    {
+        var handler = new StubHandler(_ => throw new InvalidOperationException("Network must not be called."));
+        using var provider = new CrmSamGovOpportunitiesProspectingProvider(new HttpClient(handler), (string?)null);
+        var request = Request() with { TargetMarkets = "Nigeria" };
+        var result = await provider.SearchAsync(request);
+        Assert.Empty(result.Records);
+        Assert.Equal(0, handler.CallCount);
+        Assert.True(result.IsComplete);
+    }
+
+    [Fact]
     public async Task SearchAsync_MapsOfficialOpportunityAndBuyerEvidence()
     {
         var handler = new StubHandler(_ => Ok("""{"totalRecords":1,"limit":100,"offset":0,"opportunitiesData":[{"noticeId":"notice-123","title":"Supply of water pumps","solicitationNumber":"ABC-123","fullParentPathName":"DEPARTMENT OF ENERGY.WATER OFFICE","postedDate":"2026-10-20","responseDeadLine":"2026-11-20","type":"Solicitation","naicsCode":"333914"}]}"""));
