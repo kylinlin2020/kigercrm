@@ -74,7 +74,7 @@ public sealed class CrmOpenFda510kProspectingProviderTests
     }
 
     private static CrmProspectingProviderRequest Request(string product = "medical device imaging", string profile = "medical equipment manufacturers")
-        => new(1, "medical device", product, "US", profile == "medical equipment manufacturers" ? "medical device" : profile, "{}", []);
+        => new(1, "find", product, "US", profile == "medical equipment manufacturers" ? "medical device" : profile, "{}", []);
 
     private static HttpResponseMessage Ok(HttpRequestMessage request, string json)
         => new(HttpStatusCode.OK)
