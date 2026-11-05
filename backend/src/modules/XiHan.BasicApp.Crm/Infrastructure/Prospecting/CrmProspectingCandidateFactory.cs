@@ -191,8 +191,23 @@ public sealed class CrmProspectingCandidatePersistenceService
         foreach (var item in items)
             await PersistCandidateOrRepairAsync(item, cancellationToken);
 
-        var advanced = page.IsLastPage
-            ? await _extractionJobs.TryCompleteResultsAsync(
+        bool advanced;
+        if (page.IsLastPage && extraction.ResultFailureCount + page.FailureCount > 0)
+        {
+            advanced = await _extractionJobs.TryFailIncompleteResultsAsync(
+                extractionJobId,
+                extractionLeaseToken,
+                extractionFencingVersion,
+                page.IsLastPage,
+                page.IsComplete,
+                page.FailureCount,
+                items.Count,
+                expectedCursor,
+                cancellationToken);
+        }
+        else if (page.IsLastPage)
+        {
+            advanced = await _extractionJobs.TryCompleteResultsAsync(
                 extractionJobId,
                 extractionLeaseToken,
                 extractionFencingVersion,
@@ -201,8 +216,11 @@ public sealed class CrmProspectingCandidatePersistenceService
                 page.FailureCount,
                 cancellationToken,
                 persistedRecordCount: items.Count,
-                expectedCursor: expectedCursor)
-            : await _extractionJobs.TryAdvanceCursorAsync(
+                expectedCursor: expectedCursor);
+        }
+        else
+        {
+            advanced = await _extractionJobs.TryAdvanceCursorAsync(
                 extractionJobId,
                 extractionLeaseToken,
                 extractionFencingVersion,
@@ -211,6 +229,7 @@ public sealed class CrmProspectingCandidatePersistenceService
                 items.Count,
                 cancellationToken,
                 page.FailureCount);
+        }
         if (!advanced)
             throw new InvalidOperationException("The extraction cursor/lease changed before page commit; all page writes were rolled back.");
 
