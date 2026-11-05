@@ -18,6 +18,10 @@ public interface ICrmProspectingRunProviderExecutionRepository : ISaasRepository
     Task<bool> TrySaveCheckpointAsync(long executionId, long runId, Guid leaseToken, long fencingVersion,
         string checkpointJson, int rawRecordCount, CancellationToken cancellationToken = default);
 
+    /// <summary>Moves an interrupted Started/Checkpointed step to NeedsReview without repeating its external request.</summary>
+    Task<bool> TryMarkInterruptedNeedsReviewAsync(long executionId, long runId, Guid leaseToken, long fencingVersion,
+        string expectedState, string failureCode, string safeFailureSummary, CancellationToken cancellationToken = default);
+
     /// <summary>Conditionally advances a provider step under the exact live Run lease.</summary>
     Task<bool> TryTransitionAsync(long executionId, long runId, Guid leaseToken, long fencingVersion,
         string expectedState, string nextState, int? projectedRecordCount = null, int? failureCount = null,
