@@ -140,8 +140,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
                   AND (job.expires_at_utc IS NULL OR job.expires_at_utc > clock_timestamp())
                   AND (job.lease_expires_at_utc IS NULL OR job.lease_expires_at_utc <= clock_timestamp())
                 ORDER BY job.next_poll_at_utc, job.basic_id
-                FOR UPDATE SKIP LOCKED
                 LIMIT @batchSize
+                FOR UPDATE SKIP LOCKED
             )
             UPDATE crm_prospecting_extraction_job AS job
             SET lease_owner = @leaseOwner,
