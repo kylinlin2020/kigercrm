@@ -188,3 +188,25 @@ The async runtime remains disabled by default until all of the following are dem
 - A real .NET build/test and PostgreSQL integration run have been recorded; static code review alone is not acceptance.
 
 Until these gates pass, the async capability and persistence foundation must be described as **partial implementation**, not completed runtime parity.
+
+### 11.4 Source-level integration audit (2026-11-05)
+
+A direct read of the current `CrmProspectingRunHostedService` confirms four concrete integration constraints:
+
+1. Provider discovery currently resolves only `IEnumerable<ICrmProspectingProvider>` and indexes those synchronous implementations by `ProviderCode`. The async capability interface is not discovered or dispatched by the Run worker.
+2. The synchronous provider loop builds one in-memory `raw` collection. Candidate/Evidence/Score reconciliation happens after the provider loop, so an async extraction cannot safely be treated as a normal in-memory provider result while it is still pending.
+3. Coverage finalization iterates only the synchronous `pendingCoverage` collection after Candidate persistence. The Run then transitions to a terminal state through `CompleteFencedWithDatabaseClockAsync`. There is currently no durable “Run is waiting for async extraction” continuation boundary.
+4. Candidate/Evidence/Score persistence is already implemented as a short explicit transaction per Candidate, guarded by the live Run lease. This is useful reusable logic, but it is not yet a page-level transaction with extraction cursor compare-and-swap.
+
+Therefore the first worker implementation must not simply add async providers to the existing provider dictionary or return an empty provider result. It must introduce a durable provider execution outcome that distinguishes (a) synchronous completed results, (b) async extraction accepted/pending, and (c) failed/incomplete execution. The Run must not enter its terminal completion path while any required async extraction remains live or its results remain unfetched.
+
+Implementation order for the next slice:
+
+- Extract the existing Candidate/Evidence/Score reconciliation into a reusable service that accepts a bounded list of normalized envelopes and an existing Run lease identity; preserve current duplicate matching, provenance repair, conservative score creation, and short transaction behavior.
+- Add an async page persistence method that reuses that service but executes Candidate/Evidence/Score writes and extraction cursor compare-and-swap inside one shared UnitOfWork transaction. The extraction repository must use the same database connection/transaction; verify this explicitly rather than assuming separate repository calls share it.
+- Add a Run continuation state/queue contract so an accepted async extraction releases the current worker without completing the Run, and a later tenant-scoped worker resumes the same Run under a fresh Run lease. Persist enough state to reconstruct the immutable request and provider execution plan; never depend on the original in-memory request or queue message.
+- Dispatch providers by explicit capability registration, reject duplicate provider codes across sync/async interfaces, and keep async providers opt-in. Do not use provider-name heuristics.
+- Finalize the provider request ledger and Run coverage only after all pages are committed and every required provider outcome is complete. A page failure, cancellation, NeedsReview, expiry, limit hit, or cursor conflict leaves coverage unchanged.
+
+No production async provider or async worker should be enabled until this continuation and transaction boundary exists and has PostgreSQL-backed crash/replay tests.
+
