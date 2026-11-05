@@ -26,6 +26,7 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         DateTimeOffset? expiresAtUtc,
         CancellationToken cancellationToken = default);
 
+    [Obsolete("Direct acknowledged-job creation bypasses the durable Submitting intent and is disabled. Use CreateSubmissionIntentAsync followed by TryAcknowledgeSubmissionAsync.")]
     Task<SysCrmProspectingExtractionJob> CreateAsync(
         long runId,
         string providerCode,
