@@ -370,3 +370,12 @@ Implementation order:
 5. Add PostgreSQL integration tests for crash/replay, duplicate pages, cursor conflicts, tenant isolation, stale fencing, multi-page completion, cancellation, and coverage non-advancement before wiring async providers into production plans.
 
 Until these prerequisites are implemented and tested, the existing fail-closed async-provider selection guard must remain. This is a deliberate correctness gate, not a feature-complete async implementation.
+
+
+### 11.22 Shared Candidate mapping extracted as the first reconciliation seam
+
+The synchronous Run worker now delegates Candidate field normalization and entity construction to `CrmProspectingCandidateFactory`. The factory centralizes bounded source/title/company/contact/email/website/summary mapping, normalized email and website-host identity, and the PendingReview-versus-Duplicate status assignment. The caller still supplies duplicate evidence (existing Lead match, same-Run match, and cross-Run match) because those decisions require tenant-scoped repository queries and must not be guessed by a pure mapper.
+
+The synchronous worker uses the factory for both batch duplicate-query keys and per-record Candidate creation. This establishes a shared mapping seam that the future asynchronous page reconciler can call without copying the Candidate field policy. Candidate + Evidence + Score transaction ownership, unique-key race recovery, GLEIF enrichment, and Coverage finalization remain in the Run worker for now; this is an incremental extraction, not yet the full reusable persistence application service.
+
+Added focused factory tests for field bounds, normalization, duplicate classification, and required identity validation, plus a source-wiring regression check. These tests are authored but have not been compiled or executed. Next extraction step is to move the fenced Candidate/Evidence/Score UoW and provenance repair into a reusable application service while retaining the current sync behavior.
