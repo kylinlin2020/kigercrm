@@ -78,8 +78,26 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             ResultRecordCount = 0,
             FencingVersion = 0
         };
-        await AddAsync(entity);
-        return entity;
+        try
+        {
+            await AddAsync(entity);
+            return entity;
+        }
+        catch (SqlSugarException)
+        {
+            // A competing worker may have inserted the same tenant/run/provider/fingerprint.
+            // Re-read only that exact idempotency key; preserve the original error otherwise.
+            var raced = await CreateQueryable()
+                .Where(row => row.TenantId == tenant.TenantId
+                    && row.RunId == runId
+                    && row.ProviderCode == providerCode
+                    && row.RequestFingerprint == requestFingerprint.ToUpperInvariant())
+                .Take(2)
+                .ToListAsync(cancellationToken);
+            if (raced.Count == 1)
+                return raced[0];
+            throw;
+        }
     }
 
     public async Task<SysCrmProspectingExtractionJob?> GetByIdAsync(
@@ -178,25 +196,45 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
 
         var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for extraction job transitions.");
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Extraction job transitions require PostgreSQL.");
+        var nextPoll = nextPollAtUtc ?? DateTimeOffset.UtcNow;
+        var safeSummary = string.IsNullOrWhiteSpace(safeFailureSummary)
+            ? null
+            : "Provider extraction failed; details withheld.";
 
-        return await UpdateAsync(
-            _ => new SysCrmProspectingExtractionJob
-            {
-                Status = nextStatus.ToString(),
-                NextPollAtUtc = nextPollAtUtc ?? DateTimeOffset.UtcNow,
-                LastPolledAtUtc = lastPolledAtUtc,
-                FailureCode = failureCode,
-                FailureSummary = string.IsNullOrWhiteSpace(safeFailureSummary) ? null : "Provider extraction failed; details withheld.",
-                LeaseOwner = null,
-                LeaseToken = null,
-                LeaseExpiresAtUtc = null
-            },
-            row => row.TenantId == tenant.TenantId
-                && row.BasicId == jobId
-                && row.Status == expectedStatus.ToString()
-                && row.LeaseToken == leaseToken
-                && row.FencingVersion == fencingVersion,
-            cancellationToken);
+        const string sql = """
+            UPDATE crm_prospecting_extraction_job
+            SET status = @nextStatus,
+                next_poll_at_utc = @nextPollAtUtc,
+                last_polled_at_utc = COALESCE(@lastPolledAtUtc, last_polled_at_utc),
+                poll_attempt_count = poll_attempt_count + CASE WHEN @countPoll THEN 1 ELSE 0 END,
+                failure_code = @failureCode,
+                failure_summary = @failureSummary,
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at_utc = NULL
+            WHERE tenant_id = @tenantId
+              AND basic_id = @jobId
+              AND status = @expectedStatus
+              AND lease_token = @leaseToken
+              AND fencing_version = @fencingVersion;
+            """;
+        var affected = await client.Ado.ExecuteCommandAsync(
+            sql,
+            new SugarParameter("@nextStatus", nextStatus.ToString()),
+            new SugarParameter("@nextPollAtUtc", nextPoll),
+            new SugarParameter("@lastPolledAtUtc", lastPolledAtUtc),
+            new SugarParameter("@countPoll", lastPolledAtUtc is not null),
+            new SugarParameter("@failureCode", failureCode),
+            new SugarParameter("@failureSummary", safeSummary),
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@jobId", jobId),
+            new SugarParameter("@expectedStatus", expectedStatus.ToString()),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+        return affected == 1;
     }
 
     public async Task<bool> TryAdvanceCursorAsync(
