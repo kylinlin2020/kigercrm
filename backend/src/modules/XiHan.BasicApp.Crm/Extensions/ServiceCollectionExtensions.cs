@@ -213,6 +213,19 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmCompaniesHouseProspectingProvider>());
         }
+        // Brave Search uses a tenant subscription token. Search results are unverified web-discovery evidence.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableBraveSearchProvider"], out var enableBraveSearch)
+            && enableBraveSearch)
+        {
+            services.AddScoped<CrmBraveSearchProspectingProvider>(provider => new CrmBraveSearchProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.search.brave.com"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmBraveSearchProspectingProvider>());
+        }
         // Netherlands KVK is the official Dutch Business Register. It requires a tenant API key
         // and an active subscription; registration evidence is not buyer intent.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableKvkProvider"], out var enableKvk)
