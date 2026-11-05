@@ -1,6 +1,6 @@
 # Provider asynchronous extraction and runtime parity design
 
-Status: design baseline; implementation not yet present. Branch: `kiger-dev`.
+Status: durable domain/persistence foundation implemented; end-to-end worker orchestration and provider adapter remain pending. Branch: `kiger-dev`.
 Scope: Eurostat Comext and any future provider whose API returns an extraction/job identifier before data is ready.
 
 ## 1. Why this is a separate runtime capability
@@ -15,7 +15,7 @@ Keep the existing `ICrmProspectingProvider` unchanged for synchronous adapters. 
 
 - `ICrmProspectingAsyncExtractionProvider`: provider code plus submit, poll, and fetch operations.
 - `CrmProspectingExtractionSubmission`: provider extraction ID, accepted timestamp, optional provider expiry, bounded poll-after hint, and opaque provider cursor metadata.
-- `CrmProspectingExtractionStatus`: Pending, Running, Succeeded, Failed, Expired, Cancelled, Unknown.
+- `CrmProspectingExtractionStatus`: Submitting, Pending, Running, Succeeded, FetchingResults, Completed, Failed, Expired, Cancelled, NeedsReview. Remote provider statuses are normalized separately; unknown values map to `NeedsReview`.
 - `CrmProspectingExtractionPollResult`: normalized status, bounded retry hint, safe failure classification, and optional result cursor.
 - `CrmProspectingExtractionPage`: records, next cursor, page completeness, provider-reported total when trustworthy, and safe warnings.
 
@@ -31,8 +31,9 @@ Add a tenant-scoped entity/table with at least:
 | RunId | Owning prospecting Run |
 | ProviderCode | Stable provider code |
 | RequestFingerprint | Canonical query-scope idempotency |
-| ProviderExtractionId | Opaque provider job ID; encrypt if provider policy or sensitivity requires |
-| Status | Internal lifecycle state |
+| SubmissionIdempotencyKey | Stable local key persisted before remote submission |
+| ProviderExtractionId | Nullable opaque provider job ID; encrypt if provider policy or sensitivity requires |
+| Status | Internal lifecycle state, including pre-submit `Submitting` |
 | SubmittedAtUtc / LastPolledAtUtc | Lifecycle timestamps |
 | NextPollAtUtc | Due scheduling |
 | ExpiresAtUtc | Provider or internal expiry bound |
@@ -48,18 +49,19 @@ Required unique key: tenant + run + provider + request fingerprint. Add indexes 
 
 Allowed transitions:
 
-- Submitted -> Pending or Running
-- Pending -> Running, Succeeded, Failed, Expired, Cancelled
-- Running -> Running, Succeeded, Failed, Expired, Cancelled
-- Succeeded -> FetchingResults
-- FetchingResults -> FetchingResults or Completed
+- Submitting -> Pending, NeedsReview, or Failed
+- Pending -> Running, Succeeded, Failed, Expired, Cancelled, or NeedsReview
+- Running -> Succeeded, Failed, Expired, Cancelled, or NeedsReview
+- Succeeded -> FetchingResults, Failed, or Expired
+- FetchingResults -> FetchingResults, Completed, Failed, or Expired
+- NeedsReview may be explicitly resumed to Pending/Running or resolved to a terminal state
 - Failed / Expired / Cancelled / Completed are terminal
 
 Unknown provider status is not success: retain a safe Unknown/NeedsReview state, cap retries, and do not advance coverage. Provider status regression must not move a terminal row back to a live state.
 
 ## 5. Worker and recovery behavior
 
-1. Submit only after the normal Run lease and request-ledger Started row are durable.
+1. Persist a local `Submitting` intent and request-ledger Started row before provider network I/O; submission must use the persisted idempotency key.
 2. Persist the provider extraction ID and next poll time before acknowledging the submission step.
 3. A scheduler enqueues due extraction IDs; workers claim rows with tenant scope, lease token, and monotonically increasing fencing version.
 4. Poll only when due. Respect provider Retry-After and a bounded exponential backoff with jitter; enforce a maximum poll count and absolute expiry.
@@ -236,3 +238,22 @@ Added `CrmProspectingProviderRegistry` as a single validation point:
 
 Contract tests cover normalization, separate capability maps, cross-contract duplicates, blank codes, and length limits. This is registration hardening only: the Run worker still dispatches synchronous providers; asynchronous submit/poll/page execution and Run continuation are not yet wired.
 
+
+
+### 11.7 Integration blockers confirmed during worker review
+
+A fresh review of `CrmProspectingRunHostedService` confirms that it still resolves and dispatches only the synchronous `ICrmProspectingProvider` map. The async capability registry is constructed, but its async registrations are not yet consumed by a scheduler or extraction worker. Therefore an async-only provider selected in a Run is not executable today.
+
+The existing synchronous worker also owns a substantial reconciliation path: exact provider/external-ID deduplication, cross-Run identity/email/domain matching, duplicate-lead matching, provenance repair, Candidate/Evidence/Score transactional persistence, optional GLEIF exact-identity enrichment, and the final request-ledger/Coverage commit. The async path must reuse this behavior rather than create a weaker second implementation.
+
+The next implementation slice must be delivered in this order:
+
+1. Extract a reusable candidate-page reconciliation application service from the synchronous worker without changing its existing behavior. Keep GLEIF enrichment separately bounded and outside the page transaction where appropriate.
+2. Add an extraction-job worker and due-work recovery. Establish tenant context before resolving tenant configuration or provider services; claim jobs using the existing PostgreSQL lease/fencing API.
+3. For every fetched page, validate the page, then persist Candidate/Evidence/Score and call `TryAdvanceCursorAsync` inside the same explicit UnitOfWork transaction. A failed/stale cursor compare must roll back all page writes.
+4. Make replay safe: if the transaction committed, the cursor must have committed with it; if it rolled back, the page must be fetched again. Candidate/evidence/score identity constraints remain the final idempotency boundary.
+5. Add a durable Run continuation design before wiring async submission into the Run path. The current Run lifecycle has no explicit waiting-for-extraction state, and the Run worker must not mark success or advance coverage while async work is pending. Preserve immutable Run snapshot inputs and resume under a fresh Run lease.
+6. Finalize request-ledger attempts and advance Coverage only after all synchronous and asynchronous providers for the Run have completed fully and durably. Any failed, partial, truncated, expired, cancelled, or NeedsReview extraction must leave coverage unchanged.
+7. Add crash/replay, tenant-isolation, stale-lease, duplicate-delivery, multi-page, cancellation, and coverage-invariant tests before enabling any async provider.
+
+No async adapter should be enabled until these orchestration and PostgreSQL transaction tests exist. This checkpoint is a code-review finding, not a claim that async execution is complete.
