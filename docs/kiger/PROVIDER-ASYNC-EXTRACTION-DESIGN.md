@@ -440,3 +440,10 @@ The service is registered scoped alongside the CRM repositories. A source-wiring
 - Page persistence now requires `candidateItems.Count + page.FailureCount == page.Records.Count`. Each fetched source record must be accounted for exactly once as a persisted candidate item or an explicitly declared record failure.
 - This closes a silent-loss path where an adapter/mapping layer could omit one or more records from `items` while reporting zero failures; the extraction could otherwise advance its cursor or complete successfully despite records never reaching Candidate/Evidence/Score persistence.
 - The existing one-to-one identity mapping still rejects duplicate candidate mappings and candidates not present in the fetched page. Runtime and PostgreSQL transaction tests remain outstanding.
+
+### 11.31 Run-plan preflight for unsupported asynchronous providers (2026-11-05)
+
+The Run worker now inspects the complete immutable provider plan before creating its in-memory result buffer, starting provider request-ledger attempts, or invoking any provider adapter. If the plan contains an async-only provider, the Run fails closed before any synchronous provider in that same plan can perform network I/O. This prevents a mixed sync/async plan from executing earlier synchronous providers and then discarding their in-memory results when the worker reaches an unsupported async provider.
+
+This is a safety improvement only. It does **not** add durable Run waiting/resume, async submit/poll/fetch processing, or extraction completion recovery. Async-only providers remain unavailable to Run orchestration until those end-to-end pieces are implemented. The source-level guard test has been added but has not been executed.
+
