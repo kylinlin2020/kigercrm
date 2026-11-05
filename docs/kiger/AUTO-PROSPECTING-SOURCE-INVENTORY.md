@@ -411,3 +411,27 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - 新增独立契约测试源，覆盖 Provider 错配、空值/控制字符/超长 ID、无效过期时间、负数或过长 PollAfter、错误或超长 metadata。
 - **重要边界：** 当前尚无异步提交协调器调用该 Validator，尚无生产异步 Provider，不能把这项基础校验记为异步数据源已接通。未来协调器必须先校验 acknowledgement，再调用 `TryAcknowledgeSubmissionAsync`；无效 acknowledgement 不得成为可轮询的远端任务。
 - 测试源码尚未执行；.NET 编译、单测、PostgreSQL 联调及 Windows 原生验收仍未完成。
+
+
+## 5.7 源仓库全量 Git Tree 交叉盘点（2026-11-05）
+
+本次不再只检索 `lead-providers.ts` 等单个文件，而是读取源仓库 `hongshuoguo2-cloud/haituo-crm` 的递归 Git Tree：共 602 个路径，其中按 provider/prospect/lead/trade/search/enrich/source 关键词筛出 145 个相关路径。该数字是文件路径盘点结果，不等于 145 个 Provider，也不代表全部均应逐文件复制；必须按业务能力和数据契约迁移。
+
+除已登记的 Provider 适配器外，源端还存在以下必须单独核对的能力族，不能因 Provider 文件迁移数量较多就判定全功能完成：
+
+1. **Provider Runtime / 执行策略**：`provider-runtime.ts`、`provider-contract.ts`、`provider-http-client.ts`、`provider-network-security.ts`、`provider-request-logging.ts`、`provider-response-cache.ts`、`provider-catalog.ts`、`provider-trade-runtime-test.ts`。目标端已有部分固定 Host HTTP handler、request ledger、registry 和 sanitizer，但通用执行网关、可复用响应缓存、完整目录元数据、成本/预算策略仍未完整对齐。
+2. **Lead 搜索与数据源扩展**：`ai-search-provider.ts`、`assisted-source-providers.ts`、`public-company-providers.ts`、`tracking-provider.ts`、`trade-providers.ts`、`public-procurement-providers.ts`、`eu-ted-provider.ts`、`uk-contracts-finder-provider.ts`、`world-bank-procurement-provider.ts`、`sec-edgar-provider.ts` 等。已有适配器需要逐项核对字段映射、地理范围、分页、完整性、授权和限额；不能只按文件名判定一一对应。
+3. **搜索规划与多轮搜索**：`prospect-search-planner.ts`、`prospect-super-search.ts`、`prospect-execution-kernel.ts`、`prospect-provider-dispatcher.ts`。目标端当前有 Run/Provider plan 和基础执行，但 Super Search 任务/轮次、收敛判断、成本完整性、执行 Kernel 的等价能力仍需专项审计。
+4. **Deep Mining / 图谱**：`prospect-deep-mining.ts`。目标端尚无完整深挖任务、关系边和持久化状态的等价工作流。
+5. **网站发现与联系人丰富**：`prospect-ai-website-discovery.ts`、`prospect-website-discovery.ts`、`prospect-contact-enrichment.ts`。目标端目前不应宣称一般网站发现和商业联系人丰富已完整迁移；付费联系人数据需单独的 Key、配额、费用和人工审批。
+6. **候选人生命周期与质量闭环**：`prospect-candidate-pipeline.ts`、`prospect-candidate-actions.ts`、`prospect-qualification.ts`、`prospect-qualification-workflow.ts`、`prospect-verification.ts`、`prospect-outcome-feedback.ts`、`prospect-customer-conversion.ts`、`prospect-lead-conversion.ts`。目标端已有候选人审核、重复筛选、评分和转化部分能力，但仍须逐个比对资格审查、核验、反馈回流和状态动作。
+7. **Coverage / 调度 / 队列 / 实时事件**：`prospect-coverage-memory.ts`、`prospect-scheduler.ts`、`prospect-schedules.ts`、`prospect-queue-coordinator.ts`、`prospect-live-events.ts`、`prospect-worker.ts`、`prospect-worker-service.ts`。目标端有 Request Ledger、Coverage checkpoint、Redis Run Worker 和 lease recovery；但 Schedule 实体/界面、Coverage memory 的完整语义、Live Events 和通用 Queue Coordinator 仍需核对。
+8. **市场贸易观察**：`market-trade-observations.ts`、`un-comtrade-provider.ts`、`us-census-trade-provider.ts`、`eurostat-comext-provider.ts`。目标端已有 UN Comtrade、US Census 的基础适配器；Comext 仍被异步提取架构阻断，贸易观察的身份去重/租户可见性/Upsert 需要独立验收。
+9. **来源原始记录 / 身份权威**：`prospect-source-raw.ts`、`prospect-identity-authority-profiles.ts`、`prospect-identity-bootstrap.ts`。目标端已建立 Evidence 行，但完整 Source Observation 原始记录、身份权威配置与 Bootstrap 等价能力尚未证明。
+10. **Outreach / 外联资格**：`prospect-outreach.ts`、`prospect-outreach-eligibility.ts`。必须保留“资格与草稿可迁移、实际外发需人工审批”的边界；不能把源端外联模块迁移等同于自动发送许可。
+
+### 当前结论
+
+- 源仓库相关路径总量已完成一次完整 Tree 盘点；之前仅在 `lead-providers.ts` 搜索 DENUE/FMCSA 的结论只能说明该文件未命中，不能说明源仓库没有对应能力。
+- 上述缺口是后续多任务的正式工作清单。逐项完成后应更新目标端对应实现、独立测试、DI/前端/权限接线和迁移状态；纯文档或源码存在不算运行验收。
+- 下一优先级：先完成 Candidate/Evidence/Score 公共修复/分页事务边界，再并行推进 Super Search/Deep Mining、Website Discovery/Contact Enrichment、Schedule/Coverage Memory 的能力映射和独立切片。
