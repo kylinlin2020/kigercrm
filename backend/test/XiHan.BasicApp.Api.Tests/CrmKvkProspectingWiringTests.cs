@@ -26,7 +26,7 @@ public sealed class CrmKvkProspectingWiringTests
 
     private static string FindRepositoryRoot()
     {
-        var current = new DirectoryInfo(Directory.GetCurrentDirectory());
+        DirectoryInfo? current = new DirectoryInfo(Directory.GetCurrentDirectory());
         while (current is not null)
         {
             if (File.Exists(Path.Combine(current.FullName, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs")))
