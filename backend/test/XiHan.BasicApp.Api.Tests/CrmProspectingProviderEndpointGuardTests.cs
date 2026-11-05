@@ -41,4 +41,16 @@ public sealed class CrmProspectingProviderEndpointGuardTests
 
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
+    [Fact]
+    public void ProspectingWorker_ShouldSanitizeProviderFailureDiagnostics()
+    {
+        var source = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs")));
+
+        Assert.Contains("CrmProspectingDiagnosticSanitizer.Sanitize(ex.Message, 500)", source, StringComparison.Ordinal);
+        Assert.Contains("failure type {FailureType}", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Logger.LogWarning(ex,", source, StringComparison.Ordinal);
+    }
+
 }
