@@ -85,6 +85,9 @@ async function save(item: ProviderCredential) {
         sort: 500,
       }
       await configApi.update(input)
+      if (item.record.status !== EnableStatus.Enabled) {
+        await configApi.updateStatus({ basicId: item.record.basicId, status: EnableStatus.Enabled, remark: '启用获客数据源凭证配置值' })
+      }
     }
     else {
       const input: ConfigCreateDto = {
@@ -96,12 +99,12 @@ async function save(item: ProviderCredential) {
         dataType: ConfigDataType.String,
         isEncrypted: true,
         sort: 500,
-        status: EnableStatus.Disabled,
+        status: EnableStatus.Enabled,
       }
       await configApi.create(input)
     }
     item.value = ''
-    toast.success(`${item.name} 凭证已加密保存。数据源仍保持关闭，需单独启用。`)
+    toast.success(`${item.name} 凭证已加密保存；是否执行数据源仍由部署开关和获客策略控制。`)
     await load()
   }
   catch (error) {
