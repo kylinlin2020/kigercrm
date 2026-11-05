@@ -662,3 +662,20 @@ A follow-up review of the live synchronous worker confirms the exact remaining c
 6. Add PostgreSQL integration tests with forced failures at Candidate insert, Evidence insert, Score insert, terminal transition, and post-commit coverage update. Assert all-or-nothing behavior for the batch, exact counters, stable replay, and no duplicate provider invocation.
 
 Until this gate is implemented and exercised against PostgreSQL, the current checkpoint/replay path is a meaningful recovery improvement but remains a multi-transaction projection protocol. No build, test-suite, or PostgreSQL execution is claimed by this source review. The Windows pull/build checkpoint remains pending.
+
+## 11.42 Atomic provider-batch persistence primitive added (2026-11-05)
+
+Added `CrmProspectingCandidatePersistenceService.PersistProviderBatchAndTransitionAsync` as a shared transactional persistence primitive:
+
+- Opens one transactional UnitOfWork and acquires the live Run lease fence before writes.
+- Loads the provider execution row within the tenant-scoped Run and verifies the caller-supplied SHA-256 against the persisted checkpoint hash.
+- Accepts only Checkpointed/Projecting rows; transitions Checkpointed -> Projecting inside the transaction.
+- Validates every item belongs to the same Run/provider and that its external identity matches the normalized raw record.
+- Reuses the existing idempotent Candidate/Evidence/Score persistence-and-repair routine for each item inside the batch UnitOfWork.
+- Commits Projecting -> Succeeded or Projecting -> Failed in that same UnitOfWork. Any thrown persistence or transition error prevents UnitOfWork completion and rolls the batch back.
+- A replay that finds the same checkpoint hash already terminal returns the persisted projected count without rewriting Candidate/Evidence/Score.
+- Added a source-contract test for the checkpoint identity check, shared transaction boundary, and terminal transitions.
+
+**Wiring status:** this primitive is now available through the registered persistence service, but the synchronous Run hosted worker has not yet been refactored to construct provider-scoped candidate batches and call it. Its existing path still performs candidate persistence and provider terminal transitions separately. Do not mark the synchronous atomicity gate complete until the worker uses this method, coverage advancement is reconciled after its commit, and PostgreSQL fault-injection tests prove the actual SqlSugar repositories enlist in the same transaction.
+
+**Validation:** source-only. No .NET compilation, test execution, PostgreSQL transaction/fault-injection test, or Windows build is claimed.
