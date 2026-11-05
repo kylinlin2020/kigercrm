@@ -377,10 +377,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 if (!await providerExecutions.TrySaveCheckpointAsync(
                     executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
-                    checkpointJson, checkpointRecords.Length, cancellationToken))
+                    checkpointJson, checkpointRecords.Count, cancellationToken))
                     throw new InvalidOperationException($"Provider response checkpoint for '{providerCode}' could not be persisted under the live Run lease.");
                 checkpointedSteps.Add((executionStep.BasicId, "Checkpointed",
-                    checkpointFailureCount, result.IsComplete, checkpointRecords.Length));
+                    checkpointFailureCount, result.IsComplete, checkpointRecords.Count));
 
                 var providerCanAdvanceCoverage = result.IsComplete && result.FailureCount == 0 &&
                     result.Records.Count <= remainingRawRecords;
@@ -556,6 +556,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             // last poll and gives CancelRequested precedence over success.
             const int cancellationPollInterval = 25;
             var gleifLookups = 0;
+            var providerProjectionFailures = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var identityResolver = scope.ServiceProvider.GetService<ICrmProspectingIdentityResolver>();
             const int maxGleifLookupsPerRun = 20;
             for (var recordIndex = 0; recordIndex < raw.Count; recordIndex++)
@@ -605,6 +606,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (string.IsNullOrWhiteSpace(companyName))
                 {
                     failures++;
+                    providerProjectionFailures[providerCode] = providerProjectionFailures.GetValueOrDefault(providerCode) + 1;
                     AddBoundedWarning(warnings, $"Provider {providerCode} returned a record without company name/title.");
                     continue;
                 }
@@ -836,7 +838,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                             "Checkpointed", "Projecting", cancellationToken: cancellationToken))
                         throw new InvalidOperationException("A provider checkpoint could not enter Projecting under the live Run lease.");
                     var stepProviderCode = persistedPlan.Single(row => row.BasicId == step.ExecutionId).ProviderCode;
-                    var stepSucceeded = step.IsComplete && step.FailureCount == 0;
+                    var projectionFailures = providerProjectionFailures.GetValueOrDefault(stepProviderCode);
+                    var stepFailureCount = step.FailureCount + projectionFailures +
+                        (!step.IsComplete && step.FailureCount == 0 ? 1 : 0);
+                    var stepSucceeded = step.IsComplete && stepFailureCount == 0;
                     var transitioned = stepSucceeded
                         ? await providerExecutions.TryTransitionAsync(
                             step.ExecutionId, run.BasicId, leaseToken, activeFencingVersion,
@@ -846,9 +851,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         : await providerExecutions.TryTransitionAsync(
                             step.ExecutionId, run.BasicId, leaseToken, activeFencingVersion,
                             "Projecting", "Failed",
-                            projectedRecordCount: step.RecordCount, failureCount: Math.Max(1, step.FailureCount),
+                            projectedRecordCount: step.RecordCount, failureCount: Math.Max(1, stepFailureCount),
                             failureCode: "provider_partial_result",
-                            safeFailureSummary: "Provider returned an incomplete result or record-level failures.",
+                            safeFailureSummary: "Provider returned an incomplete result or one or more records could not be projected.",
                             cancellationToken: cancellationToken);
                     if (!transitioned)
                         throw new InvalidOperationException($"Projected provider checkpoint '{stepProviderCode}' could not reach its terminal state.");
