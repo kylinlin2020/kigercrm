@@ -581,7 +581,7 @@ This is schema foundation only. It does not yet create or materialize execution 
 Implemented the first repository boundary for the 5.9.36 execution-checkpoint table:
 
 - `ICrmProspectingRunProviderExecutionRepository` exposes tenant-scoped Run reads, conditional step start, checkpoint save, and explicit state transitions.
-- `CrmProspectingRunProviderExecutionRepository` validates PostgreSQL, current tenant, Run/execution identity, exact parent Run lease token and fencing version, and DB-clock lease expiry for mutations.
+- `CrmProspectingRunProviderExecutionRepository` validates PostgreSQL, current tenant, Run/execution identity, exact parent Run lease token and fencing version, and DB-clock lease expiry for mutations. Checkpoint and transition writes acquire a parent-Run row lock (`FOR UPDATE`) inside the caller transaction so lease takeover cannot race a child checkpoint commit.
 - `TrySaveCheckpointAsync` requires an active caller transaction, validates JSON, enforces a 1 MiB UTF-8 payload ceiling, computes SHA-256 server-side, and permits only a single Started -> Checkpointed write when no prior checkpoint exists.
 - Step transitions are allow-listed; terminal transitions require the caller transaction and set the terminal timestamp. Succeeded requires a projected count and zero failures.
 - Repository is explicitly registered in CRM service collection.
