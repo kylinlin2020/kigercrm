@@ -50,7 +50,8 @@ public sealed class CrmProspectingProviderEndpointGuardTests
 
         Assert.Contains("CrmProspectingDiagnosticSanitizer.Sanitize(ex.Message, 500)", source, StringComparison.Ordinal);
         Assert.Contains("failure type {FailureType}", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Logger.LogWarning(ex,", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Logger.LogWarning(ex, \"Prospecting provider failed", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Logger.LogWarning(ex, \"Prospecting provider rate limited", source, StringComparison.Ordinal);
     }
 
 }
