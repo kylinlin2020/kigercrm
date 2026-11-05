@@ -221,3 +221,22 @@ The request ledger, coverage checkpoint and lease lifecycle are no longer "not i
 - The handler disables system proxy use and automatic redirects. For each new TCP connection it resolves the approved hostname, rejects the entire DNS answer set if any address is outside the conservative public-unicast policy, then connects the socket directly to a validated IP address. This avoids a second DNS lookup between validation and TCP connection. HTTPS certificate/SNI validation remains handled by the original request hostname in `HttpClient`.
 - Added source-level tests for IPv4/IPv6 public-address classification, IPv4-mapped IPv6 rejection, handler configuration and all five DI registrations.
 - Scope limits: this does not add arbitrary URL fetching, redirect following, per-tenant concurrency/rate budgets, or PostgreSQL integration coverage. The IPv4 policy is a maintained CIDR denylist, not a complete generated copy of the IANA special-purpose registry; IPv6 is restricted to the global-unicast 2000::/3 range with selected special-use exclusions. The DNS resolver/socket path and actual TLS handshake have not been executed here. The new tests have not been run; no .NET build/test, live provider call, or Windows acceptance is claimed.
+
+
+### Full-source-tree cross-check added (2026-11-05)
+
+The source repository was checked through its recursive Git tree (602 total paths; 145 keyword-related paths across provider/prospect/lead/trade/search/enrichment/source). This expands the audit beyond the previously discussed lead-provider adapters. The detailed path/capability register is in `AUTO-PROSPECTING-SOURCE-INVENTORY.md` §5.7.
+
+The following feature families must remain marked **not fully migrated / not runtime-proven** until a function-by-function comparison and acceptance evidence exist:
+
+- Super Search and search-planning rounds/convergence/cost completeness.
+- Deep Mining task state and relationship-edge graph.
+- General AI-assisted website discovery and commercial contact enrichment.
+- Candidate qualification, verification, outcome feedback, and complete candidate lifecycle actions.
+- Schedule/Scheduler, Coverage Memory, queue coordination, and live events.
+- Source raw observation and identity-authority bootstrap/profile configuration.
+- Complete provider runtime/catalog/cache/trade execution policy.
+- Outreach eligibility and execution workflow (with human approval still mandatory for all external sends).
+- Full market-trade observation semantics and Eurostat Comext async extraction.
+
+This source-tree inventory is a path-based discovery result, not a claim that every source file is a separate product feature or must be copied verbatim. Each family requires behavior mapping, target architecture fit, tenant/security review, independent tests, UI/API wiring where applicable, and runtime validation. The existing CRM remains the system of record; no duplicate CRM subsystem is to be introduced.
