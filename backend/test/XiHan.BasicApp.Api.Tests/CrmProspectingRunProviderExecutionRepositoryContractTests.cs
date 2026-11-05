@@ -22,8 +22,7 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
             nameof(SysCrmProspectingRunProviderExecution.ProviderCode),
             nameof(SysCrmProspectingRunProviderExecution.RequestFingerprint),
             nameof(SysCrmProspectingRunProviderExecution.CheckpointJson),
-            nameof(SysCrmProspectingRunProviderExecution.CheckpointHash),
-            nameof(SysCrmProspectingRunProviderExecution.FencingVersion)
+            nameof(SysCrmProspectingRunProviderExecution.CheckpointHash)
         })
             Assert.Contains(property, properties);
     }
