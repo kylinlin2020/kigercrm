@@ -657,4 +657,20 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Duplicate classification is supplied by the caller", factory, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RunWorker_ShouldDelegateCandidateEvidenceScoreTransactionToSharedPersistenceService()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var factory = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+
+        Assert.Contains("GetRequiredService<CrmProspectingCandidatePersistenceService>()", worker, StringComparison.Ordinal);
+        Assert.Contains(".PersistNewAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("TryLockLeaseForWriteAsync(candidate.RunId, leaseToken, fencingVersion", factory, StringComparison.Ordinal);
+        Assert.Contains("AddRangeAsync(evidenceRows, cancellationToken)", factory, StringComparison.Ordinal);
+        Assert.Contains("_scores.AddAsync(scoreSnapshot, cancellationToken)", factory, StringComparison.Ordinal);
+        Assert.Contains("await unitOfWork.CompleteAsync(cancellationToken)", factory, StringComparison.Ordinal);
+        Assert.Contains("AddScoped<CrmProspectingCandidatePersistenceService>()", registration, StringComparison.Ordinal);
+    }
+
 }
