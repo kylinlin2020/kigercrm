@@ -88,7 +88,7 @@
 |---|---|---|---|
 | Apollo.io | 商业企业/联系人数据；需 Key/付费 | 暂缓接入（API 内部使用许可门槛） | API Terms 当前可见版本（2024-08-13）仅授予 internal business purposes，禁止第三方访问、转授权/分发或未获授权集成；Apollo 2026 ToS 允许订阅期内把 Business Contact Information 纳入自有 CRM/工作流，但仍限内部业务使用且禁止向第三方提供数据/API。只有确认该部署仅供本企业授权员工/承包商内部使用、无外部客户访问/转售/数据共享，并核对当前订单/主服务协议与 API 条款一致后，才可开发并启用；否则须先取得书面许可。默认关闭，Key 必须租户加密保存，严格额度/成本预算。
 | People Data Labs（PDL） | 商业企业/人员数据；需 Key/付费 | 暂缓接入（数据再提供/终端用户访问许可门槛） | PDL Subscription Agreement 禁止转售、再许可或使第三方获得 Data；禁止构建可让 End Users 程序化访问实质性 PDL 数据集/功能的竞争产品，并对 Solution Provider 规定下游条款传递义务。仅在确认本部署为本企业内部 CRM、无外部终端用户访问/数据再分发，并取得适用订阅计划及 Acceptable Data Use Policy 的书面确认后评估；否则须签订明确授权的 Solution Provider/数据许可协议。默认关闭。
-| Hunter.io | 域名邮箱发现/验证；需 Key/额度 | 已完成条款初审，待适配器 | 2026-08 Content Policy 明确允许合法 B2B prospecting、专业身份联系及 CRM enrichment；禁止垃圾邮件、无相关性的自动群发、B2C 联系和未经书面授权的数据转售/第三方披露。可优先实现 Domain Search/Email Finder/Verifier 的受控补全；必须保留 public/inferred email 类型、来源 URL、crawl/verification 时间与置信信息，支持退订/抑制名单、数据最小化和删除；不自动发送邮件。API Key 租户加密、按套餐 credits/rate limit 设预算。上线前仍需核对用户实际套餐条款及适用地区法律。
+| Hunter.io | 域名邮箱发现/验证；需 Key/额度 | 已实现待验收 | 新增 `hunter` Discover Provider：POST `/v2/discover`，租户加密 API Key，单次最多 100 家企业；只保存企业域名/名称和邮箱数量统计，不拉取/保存联系人邮箱，不使用 Premium-only offset 分页；满页标记 incomplete。2026-08 Content Policy 允许合法 B2B prospecting/CRM enrichment，但禁止垃圾邮件、无相关性的自动群发、B2C 联系和未经书面授权的数据转售/第三方披露；后续 Domain Search/Email Finder/Verifier 需单独预算与个人数据合规。
 
 ### F. AI 辅助搜索与人工辅助入口
 
@@ -322,3 +322,14 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - 不将供应商个人联系人数据用于 AI 模型训练；不得把供应商数据向未授权租户或外部客户开放。
 - 外发邮件和网站发布继续要求人工审批；供应商邮箱验证成功不等于获得发送许可。
 - 许可未通过时，保留来源台账和前端凭证入口可以，但 Provider 必须不存在或保持不可执行状态。
+
+
+### Hunter Discover Provider 实现记录（2026-11-05）
+
+- 新增 `CrmHunterDiscoverProspectingProvider`、独立契约测试、DI opt-in 注册及默认关闭配置。
+- 通过当前租户加密配置 `CRM.Prospecting.Provider.hunter.ApiKey` 读取 Key；API 使用 POST `https://api.hunter.io/v2/discover?api_key=...`。
+- 搜索使用活动 ICP、产品范围、目标市场和搜索目标组成自然语言 query；固定最多 100 条单页，不依赖 Premium 才能使用的 offset 分页。
+- 只保存公司名称、域名、网站和邮箱数量统计；不会在 Discover 阶段暴露或保存个人邮箱/联系人，也不会触发 Hunter Sequences 或 CRM 自动外联。
+- 过滤无效域名和租户排除域名；固定 host、HTTPS、响应 8 MB 上限、429/503 cooldown；诊断脱敏器已覆盖 `api_key` 查询参数。
+- 返回满 100 条或 meta 仍显示更多结果时，必须将 coverage 标记 incomplete。
+- 当前源码和测试已提交，尚未运行 .NET build/test 或真实 Hunter API 冒烟；API Discover 权限/套餐、调用限额和最终用户数据使用范围需由实际 Hunter 账号确认。
