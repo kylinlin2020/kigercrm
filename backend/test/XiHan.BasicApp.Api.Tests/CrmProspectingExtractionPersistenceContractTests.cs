@@ -19,6 +19,8 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
             .Select(method => method.Name)
             .ToHashSet(StringComparer.Ordinal);
 
+        Assert.Contains("CreateSubmissionIntentAsync", methods);
+        Assert.Contains("TryAcknowledgeSubmissionAsync", methods);
         Assert.Contains("CreateAsync", methods);
         Assert.Contains("GetByIdAsync", methods);
         Assert.Contains("ClaimDueAsync", methods);
@@ -49,6 +51,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.TenantId), properties);
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.RunId), properties);
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.RequestFingerprint), properties);
+        Assert.Contains(nameof(SysCrmProspectingExtractionJob.SubmissionIdempotencyKey), properties);
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.ProviderExtractionId), properties);
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.NextPollAtUtc), properties);
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.ResultCursor), properties);
