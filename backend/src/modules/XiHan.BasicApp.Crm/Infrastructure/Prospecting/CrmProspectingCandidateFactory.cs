@@ -184,10 +184,32 @@ public sealed class CrmProspectingCandidatePersistenceService
             items.Count > page.Records.Count)
             throw new ArgumentOutOfRangeException(nameof(items));
 
+        var extraction = await _extractionJobs.GetByIdAsync(extractionJobId, cancellationToken)
+            ?? throw new InvalidOperationException("The extraction job does not exist in the current tenant.");
+        if (!string.Equals(extraction.Status, CrmProspectingExtractionStatus.FetchingResults.ToString(), StringComparison.Ordinal) ||
+            extraction.LeaseToken != extractionLeaseToken ||
+            extraction.FencingVersion != extractionFencingVersion ||
+            !string.Equals(extraction.ResultCursor, expectedCursor, StringComparison.Ordinal))
+            throw new InvalidOperationException("The extraction lease, lifecycle state, or expected cursor changed before page persistence.");
+
         var pageIdentities = page.Records
             .Select(CrmProspectingRecordIdentity.NormalizeExternalId)
             .ToHashSet(StringComparer.Ordinal);
         var itemIdentities = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var item in items)
+        {
+            if (item is null || item.Candidate is null || item.Envelope is null || item.Envelope.Record is null)
+                throw new ArgumentException("Every extraction candidate page item must contain a candidate and raw record.", nameof(items));
+            var identity = CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record);
+            if (!pageIdentities.Contains(identity) || !itemIdentities.Add(identity))
+                throw new ArgumentException("Candidate page items must map one-to-one to distinct records in the fetched page.", nameof(items));
+            if (item.Candidate.RunId != extraction.RunId ||
+                !string.Equals(item.Candidate.ProviderCode, extraction.ProviderCode, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(item.Envelope.ProviderCode, extraction.ProviderCode, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(item.Candidate.ExternalId, identity, StringComparison.Ordinal))
+                throw new ArgumentException("Candidate, provider envelope, extraction job, and normalized record identity must agree.", nameof(items));
+        }
+
         foreach (var item in items)
             await PersistCandidateOrRepairAsync(item, cancellationToken);
 
