@@ -69,7 +69,8 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         bool isComplete,
         int failureCount,
         CancellationToken cancellationToken = default,
-        int persistedRecordCount = 0);
+        int persistedRecordCount = 0,
+        string? expectedCursor = null);
 
     Task<bool> TryTransitionAsync(
         long jobId,
