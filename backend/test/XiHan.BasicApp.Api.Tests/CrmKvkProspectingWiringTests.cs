@@ -81,4 +81,19 @@ public sealed class CrmKvkProspectingWiringTests
         Assert.Contains("ConfigType.Tenant", credentials, StringComparison.Ordinal);
         Assert.Contains("isEncrypted: true", credentials, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void FranceCompanySearch_ShouldUseOfficialEndpointAndExplicitOptInRegistration()
+    {
+        var root = FindRepositoryRoot();
+        var provider = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmFranceCompanySearchProspectingProvider.cs"));
+        var registration = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        var settings = File.ReadAllText(Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json"));
+
+        Assert.Contains("recherche-entreprises.api.gouv.fr/search", provider, StringComparison.Ordinal);
+        Assert.Contains("official_company_registry", provider, StringComparison.Ordinal);
+        Assert.Contains("EnableFranceCompanySearchProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("recherche-entreprises.api.gouv.fr", registration, StringComparison.Ordinal);
+        Assert.Contains("\"EnableFranceCompanySearchProvider\": false", settings, StringComparison.Ordinal);
+    }
 }
