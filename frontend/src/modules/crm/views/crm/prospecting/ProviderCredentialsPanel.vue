@@ -27,7 +27,7 @@ const definitions = [
   { code: 'us_census', name: 'US Census Trade', description: '美国 Census API Key（免费申请）' },
   { code: 'apollo', name: 'Apollo.io', description: '商业联系人数据 API Key，需确认套餐与隐私条款' },
   { code: 'people_data_labs', name: 'People Data Labs', description: '企业/人员数据 API Key，需确认额度与隐私条款' },
-  { code: 'hunter', name: 'Hunter.io', description: '域名邮箱发现 API Key；不会触发自动外联' },
+  { code: 'hunter', name: 'Hunter.io', description: 'Hunter Discover 企业发现 API Key；仅发现企业，不获取联系人邮箱或自动外联' },
   { code: 'open_corporates', name: 'OpenCorporates', description: '企业登记聚合 API Key / 许可凭证' },
   { code: 'kvk', name: 'Netherlands KVK', description: '荷兰商会企业登记 API Key / 订阅凭证' },
   { code: 'companies_house', name: 'UK Companies House', description: '英国公司注册处 API Key（HTTP Basic 用户名凭证）' },
