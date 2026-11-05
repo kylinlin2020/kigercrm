@@ -124,7 +124,7 @@ public sealed class CrmSecEdgarProspectingProvider : ICrmProspectingProvider, ID
             var sourceUrl = $"https://www.sec.gov/edgar/browse/?CIK={stableCik}&owner=exclude";
             records.Add(new CrmProspectingRawRecord(
                 $"SEC:CIK:{stableCik}", "SEC EDGAR", Limit(title, 500), Limit(title, 200),
-                null, null, null, $"SEC registrant directory record; CIK {stableCik}; ticker {normalizedTicker}.")
+                null, null, null, $"SEC ticker/CIK association record; CIK {stableCik}; ticker {normalizedTicker}. This file does not cover every SEC filer or private company.")
             {
                 SourceUrl = sourceUrl,
                 RetrievedAtUtc = retrievedAt,
@@ -138,7 +138,7 @@ public sealed class CrmSecEdgarProspectingProvider : ICrmProspectingProvider, ID
         if (truncated)
             warnings.Add($"SEC EDGAR matched at least {MaxRecords} companies; the adapter stopped at its bounded result limit.");
         if (records.Count == 0)
-            warnings.Add("SEC EDGAR returned no matching company-ticker records; it is a US registrant identity source, not a general business directory.");
+            warnings.Add("SEC EDGAR returned no matching company-ticker records; this file is a ticker/CIK association list, not a complete register of all US companies or private businesses.");
         return new CrmProspectingProviderResult(records, 0, warnings) { IsComplete = !truncated };
     }
 
