@@ -308,3 +308,9 @@ This guard prevents local state from claiming a remote job exists when no remote
 Migration `5.9.34` initially modeled `NeedsReview` only as an uncertain submission with no remote ID. That is insufficient for an acknowledged extraction whose remote status becomes unknown or inconsistent: operators must retain the provider extraction ID for authoritative inspection, and an explicit recovery may resume polling only when that identity exists. Migration `5.9.35` replaces the submission-acknowledgement check constraint so `NeedsReview` supports both valid shapes: (a) no remote ID and no submitted timestamp for uncertain submission, or (b) a non-empty remote ID paired with a submitted timestamp for an acknowledged remote job. `Submitting` still requires both fields to be null; all other lifecycle states still require both to be present.
 
 This is a forward-only compatibility migration; it does not rewrite existing job states or infer missing provider IDs. PostgreSQL migration execution and both NeedsReview persistence cases still require integration tests.
+
+### 11.14 Due-work recovery for acknowledged NeedsReview jobs
+
+The repository transition policy allows an operator-controlled `NeedsReview -> Pending/Running` recovery only when a provider extraction ID is already persisted. The due-job claim query now also admits a `NeedsReview` row only when both `provider_extraction_id` and `submitted_at_utc` are present. This makes acknowledged remote jobs recoverable for inspection/re-polling while keeping uncertain submissions (no remote ID) out of automatic retry. The claim leaves the lifecycle status unchanged; the future consumer must explicitly distinguish a claimed review row from ordinary Pending/Running work and must not submit it again.
+
+No extraction consumer is registered yet, so this is repository-level recovery eligibility only, not an operational poller. A PostgreSQL integration test must verify both shapes and competing worker claims.
