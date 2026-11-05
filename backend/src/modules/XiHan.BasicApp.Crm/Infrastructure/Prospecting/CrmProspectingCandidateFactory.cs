@@ -222,8 +222,6 @@ public sealed class CrmProspectingCandidatePersistenceService
         var checkpointIdentities = persistedCheckpoint.Records
             .Select(CrmProspectingRecordIdentity.NormalizeExternalId)
             .ToHashSet(StringComparer.Ordinal);
-        if (checkpointIdentities.Count != persistedCheckpoint.Records.Count)
-            throw new InvalidOperationException("The persisted provider checkpoint contains duplicate normalized record identities.");
         if (execution.State is "Succeeded" or "Failed")
             return execution.ProjectedRecordCount;
         if (execution.State is not ("Checkpointed" or "Projecting"))
