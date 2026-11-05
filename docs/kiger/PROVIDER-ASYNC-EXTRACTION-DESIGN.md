@@ -352,3 +352,21 @@ The method is a persistence primitive, not yet a running heartbeat. The future E
 ### 11.20 Cursor persistence boundary validation
 
 The repository cursor CAS now independently rejects a non-null cursor that is blank or equal to the expected cursor, and bounds each persisted page count to the page validator's 100-record maximum. This protects the durable cursor from accidental replay loops and oversized accounting even if a future caller bypasses the page validator. A null next cursor remains available for a final page; the worker must still validate the page's final/complete markers and zero failure count before calling the completion operation. Cursor CAS continues to require the same transaction as candidate/evidence persistence and the live tenant-scoped fenced lease.
+
+
+### 11.21 Run continuation and candidate-page reconciliation are hard prerequisites
+
+A code-path review of `CrmProspectingRunHostedService` confirms that the synchronous Run currently owns the only complete candidate reconciliation pipeline. It performs, in order: tenant-scoped Lead duplicate lookup; exact provider/external identity dedupe; cross-Run Candidate/email/website dedupe; bounded Candidate normalization; fenced short-transaction Candidate + Evidence + Score insertion; unique-key race recovery with provenance repair; optional GLEIF exact-identity enrichment; and only then finalizes provider request-ledger coverage. The async extraction worker must reuse this pipeline rather than create a second, weaker Candidate insertion path.
+
+The existing Run lifecycle currently has no durable waiting/continuation state: `Queued`, `Running`, terminal success/failure, and cancellation. Therefore the Run must not be completed after submitting an async extraction or while any extraction job is Pending, Running, Succeeded-but-not-fetched, FetchingResults, or NeedsReview. Before enabling async providers in a Run plan, add an explicit non-terminal waiting state (or an equivalently durable continuation record), persist the immutable Run snapshot and outstanding extraction IDs, and resume through a fresh Run lease after every required extraction reaches an accepted terminal outcome.
+
+For each fetched page, one PostgreSQL transaction must include: Candidate identity reconciliation/insertion; Evidence and Score persistence; cursor compare-and-swap; and durable result-record accounting. The page cursor must never advance if any candidate/provenance write fails. Duplicate delivery must be idempotent through the existing unique identity key and provenance repair behavior. Only after every required extraction has reached Completed may the Run finalize provider request-ledger attempts and incremental Coverage. Failed, partial, truncated, expired, cancelled, or NeedsReview extraction outcomes must not advance coverage. A CancelRequested Run must stop new submissions, request remote cancellation where supported, and preserve an auditable non-success terminal result if remote cancellation is unavailable or uncertain.
+
+Implementation order:
+1. Extract the existing sync Candidate/Evidence/Score reconciliation into a reusable application service without changing its semantics; keep the sync Run path using that service.
+2. Add the Run waiting/continuation persistence and recovery contract, including cancellation and multi-instance fencing.
+3. Add the async Extraction Worker with tenant scope, lease heartbeat, lost-lease cancellation, and Submit/Poll/Fetch/Cancel handling.
+4. Reuse the reconciliation service for each page and commit its writes with cursor CAS in one UoW.
+5. Add PostgreSQL integration tests for crash/replay, duplicate pages, cursor conflicts, tenant isolation, stale fencing, multi-page completion, cancellation, and coverage non-advancement before wiring async providers into production plans.
+
+Until these prerequisites are implemented and tested, the existing fail-closed async-provider selection guard must remain. This is a deliberate correctness gate, not a feature-complete async implementation.
