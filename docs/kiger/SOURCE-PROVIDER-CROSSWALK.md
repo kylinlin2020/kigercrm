@@ -106,6 +106,19 @@
 | 独立操作面 | Search、Enrich、Trade、Health、Preflight 分别执行；域名补全有输入校验；trade 单独分页并校验 cursor | 目标端需明确是否具备独立的健康检查、预检、补全和贸易查询入口；不能把所有能力压缩为一次 SearchAsync 后宣称功能等价 |
 | 分页与覆盖完整性 | Search/Trade 使用 cursor 分页；cursor 长度限制；页面经字段 allowlist、authority 和 retention policy 规范化 | 目标端每个 Provider 必须证明分页终止、结果上限和 coverage incomplete 语义；达到页数/记录上限、被限流或异步提交时不能报告完整覆盖 |
 
+### 源端运行时符号级证据（2026-11-05 复核）
+
+本轮重新读取源仓库以下真实文件，而非仅依据文件名推断能力：
+
+- `backend/src/provider-runtime.ts`：导出 `assertProviderOperationPolicy`、`executeProviderPreflight`、`executeProviderSearch`、`executeProviderHealth`、`executeProviderEnrich`、`executeProviderTradeQuery`；实现 Provider 操作策略校验、Search/Trade cursor 长度限制、请求 fingerprint、统一请求日志、Trade cache、连接级预算与并发请求复用。
+- `backend/src/lead-providers.ts`：Provider contract 明确支持 `health()`；部分来源提供 `enrich()`，如 Hunter；不能把仅有 `search()` 的适配器视为具备补全能力。
+- `backend/src/provider-catalog.ts`：`createDefaultProviderCatalog()` 生成目录，并把来源能力、分类和缓存/速率策略作为运行时元数据；目录并非单纯的 DI 列表。
+- `backend/src/prospect-search-planner.ts`：导出 `planProspectSearchRound`、`enhanceProspectSearchRoundPlan`、`validateProspectSearchQueryPlan`、查询计划 fingerprint 与 provider-resolved query fingerprint；规划结果包含 coverage gaps 和 query cells。
+- `backend/src/prospect-super-search.ts`：维护多轮 mission/round 状态、轮次统计、成本完整性、收敛判断、深挖任务和轮次完成事件；包含 `prospectSuperSearchConvergenceReason` 等状态推进逻辑。
+- `backend/src/market-trade-observations.ts`：导出贸易观察记录 identity、upsert、可见性过滤和应用逻辑，说明 Trade Provider 之外还存在持久化与租户可见性业务层。
+
+据此，目标端逐项验收不能只检查 Provider 类和 DI 注册。至少要分别证明：服务端 operation policy、health/preflight/enrich 独立入口、请求 fingerprint/ledger、Trade cache 与 single-flight、连接预算、Super Search 查询计划版本化/恢复/收敛、Deep Mining 状态同步，以及 Trade observation 的身份去重和租户可见性。未找到目标端代码或测试证据时保持“待核验”，不因源端已确认而推断目标端已实现。
+
 ### SSRF / DNS 特殊用途地址回归审计（2026-11-05）
 
 - 复核目标端 `CrmProspectingHttpHandlerFactory.IsPublicAddress` 与 `CrmProspectingEndpointGuardTests` 时发现：测试已明确要求拒绝 `192.175.48.0/24`（AS112 特殊用途地址），但生产 IPv4 deny-list 漏掉该网段，形成“测试期望与实际实现不一致”的防护缺口。
