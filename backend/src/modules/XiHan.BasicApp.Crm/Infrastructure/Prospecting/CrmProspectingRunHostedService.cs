@@ -153,6 +153,42 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     break;
                 await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
 
+                var executionStep = persistedPlan.Single(step =>
+                    string.Equals(step.ProviderCode, providerCode, StringComparison.OrdinalIgnoreCase));
+                if (executionStep.State == "Queued")
+                {
+                    if (!await providerExecutions.TryStartAsync(
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
+                        throw new InvalidOperationException($"Provider execution step '{providerCode}' could not be started under the live Run lease.");
+                }
+                else if (executionStep.State is "Started" or "Checkpointed")
+                {
+                    // The previous process may have died after the external request or after
+                    // receiving a response. Until response checkpoint replay is implemented,
+                    // neither state is safe to invoke again: preserve the evidence for review.
+                    if (!await providerExecutions.TryMarkInterruptedNeedsReviewAsync(
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                        executionStep.State, "provider_execution_interrupted",
+                        executionStep.State == "Started"
+                            ? "Worker restarted while provider outcome was ambiguous; automatic re-invocation was blocked."
+                            : "A durable response checkpoint exists but replay/projection is not yet available; automatic re-invocation was blocked.",
+                        cancellationToken))
+                        throw new InvalidOperationException($"Interrupted provider execution step '{providerCode}' could not be fenced into NeedsReview.");
+                    failures++;
+                    AddBoundedWarning(warnings, $"{providerCode}: interrupted provider execution requires review; no duplicate external request was issued.");
+                    continue;
+                }
+                else if (executionStep.State == "Succeeded")
+                {
+                    continue;
+                }
+                else
+                {
+                    failures++;
+                    AddBoundedWarning(warnings, $"{providerCode}: provider execution is in terminal state '{executionStep.State}' and was not re-invoked.");
+                    continue;
+                }
+
                 if (!providers.TryGetValue(providerCode, out var provider))
                 {
                     // Async adapters are registered as a separate capability, but this Run worker
