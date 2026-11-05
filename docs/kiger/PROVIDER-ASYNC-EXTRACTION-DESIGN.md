@@ -210,3 +210,16 @@ Implementation order for the next slice:
 
 No production async provider or async worker should be enabled until this continuation and transaction boundary exists and has PostgreSQL-backed crash/replay tests.
 
+### 11.5 Close the direct-create bypass (2026-11-05)
+
+A source audit found that the legacy repository `CreateAsync` API could still insert an already-acknowledged extraction row with a remote ID, bypassing the durable local `Submitting` intent. Although no production async provider currently uses this path, leaving it callable would preserve an unsafe integration route.
+
+The method is now marked obsolete on the repository contract and its implementation fails closed with `NotSupportedException`. The only supported sequence is:
+
+1. `CreateSubmissionIntentAsync` persists the tenant-scoped local intent.
+2. Claim the intent and call Submit with its persisted `SubmissionIdempotencyKey`.
+3. `TryAcknowledgeSubmissionAsync` records the remote ID only under the exact live lease and fencing version.
+4. Ambiguous submissions without provider idempotency/lookup support are parked for review; never call the disabled direct-create path.
+
+The persistence contract test now asserts the direct-create API is obsolete. This is a safety hardening slice, not evidence of a working async worker; no build or test execution is claimed.
+
