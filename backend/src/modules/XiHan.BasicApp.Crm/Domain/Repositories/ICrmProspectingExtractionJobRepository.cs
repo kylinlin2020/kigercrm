@@ -95,5 +95,6 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         string? expectedCursor,
         string? nextCursor,
         int persistedRecordCount,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        int pageFailureCount = 0);
 }
