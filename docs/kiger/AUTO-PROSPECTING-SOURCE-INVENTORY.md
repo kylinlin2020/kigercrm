@@ -141,7 +141,7 @@
 
 - 前端通过现有系统配置 API 写入 `CRM_PROSPECTING_PROVIDER` 配置组，按当前租户保存，配置项标记 `ConfigType.Tenant` 与 `isEncrypted=true`，由现有 SaaS 配置密文保护机制加密保存。
 - 列表仅使用 `hasCurrentValue` 显示是否已配置；不读取或回显密钥明文。
-- 修改时留空表示不覆盖；提供显式清除动作。
+- 修改时留空表示不覆盖；显式清除通过删除旧租户密钥行并重建启用状态的加密空值 tombstone，防止误回退到平台级 Key（加密配置的普通空值更新语义是保留旧密钥）。
 - 新建凭证配置默认 Disabled；保存凭证不等于启用 Provider，不会自动触发外部调用。
 - 该面板完成的是安全录入与密文存储入口。各 Provider 从租户/系统配置动态取密钥、凭证轮换后热更新以及租户隔离读取，仍需逐项接入并测试；在此之前不能把“前端已可录入”计作“数据源已可运行”。
 
@@ -151,7 +151,7 @@
 
 - UN Comtrade：`EnableUnComtradeProvider` 显式开启；无 Key 时调用官方 public preview（500 行上限），提供订阅 Key 时切换到 `/data/v1/get`。目标市场只支持适配器内明确映射的 M49 Reporter 国家；不支持的国家返回清晰 warning，不猜测代码。
 - US Census：`EnableUsCensusTradeProvider` 与 API Key 同时满足才注册；默认关闭。Key 从部署配置 `XiHan:CRM:Prospecting:Providers:UsCensus:ApiKey` 读取，必须通过环境变量/密钥管理系统注入，不能提交真实 Key。
-- **租户凭证链路已接通（待测试）：**两个 Provider 均为 Scoped，后台 Worker 先切换到 Run 的 Tenant Scope，再解析 `ISaasConfigurationService`；分别读取 `CRM.Prospecting.Provider.un_comtrade.ApiKey` 与 `CRM.Prospecting.Provider.us_census.ApiKey`，复用 SaaS 的加密配置解密与租户优先级/缓存逻辑。Comtrade Key 通过 `Ocp-Apim-Subscription-Key` 请求头发送；Census 按官方要求使用 `key` 查询参数。真实多租户隔离、Data Protection 密钥环和请求诊断脱敏仍待实机验收。
+- **租户凭证链路已接通（待测试）：**两个 Provider 均为 Scoped，后台 Worker 先切换到 Run 的 Tenant Scope，再解析 `ISaasConfigurationService`；分别读取 `CRM.Prospecting.Provider.un_comtrade.ApiKey` 与 `CRM.Prospecting.Provider.us_census.ApiKey`，复用 SaaS 的加密配置解密与租户优先级/缓存逻辑。Comtrade Key 通过 `Ocp-Apim-Subscription-Key` 请求头发送；Census 按官方要求使用 `key` 查询参数。真实多租户隔离、Data Protection 密钥环和 Census 查询参数在 HTTP 诊断日志中的脱敏仍待实机验收。
 
 ## 5. 业务与安全边界
 
