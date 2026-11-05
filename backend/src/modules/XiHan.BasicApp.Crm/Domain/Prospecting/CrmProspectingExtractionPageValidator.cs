@@ -122,7 +122,7 @@ public static class CrmProspectingExtractionPageValidator
         return true;
     }
 
-    public static bool CanAdvanceCursor(
+    public static bool CanCommitPage(
         CrmProspectingExtractionPage page,
         string? currentCursor)
     {
