@@ -319,8 +319,11 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
+                var checkpointRecords = result.Records.Where(record => record is not null).ToArray();
+                var checkpointFailureCount = Math.Max(0, result.FailureCount) +
+                    Math.Max(0, result.Records.Count - checkpointRecords.Length);
                 var checkpointPayload = new CrmProspectingProviderResultCheckpoint(
-                    result.Records, result.IsComplete, Math.Max(0, result.FailureCount));
+                    checkpointRecords, result.IsComplete, checkpointFailureCount);
                 var checkpointJson = JsonSerializer.Serialize(checkpointPayload);
                 var checkpointBytes = System.Text.Encoding.UTF8.GetByteCount(checkpointJson);
                 const int maxProviderCheckpointBytes = 1_048_576;
@@ -346,10 +349,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 if (!await providerExecutions.TrySaveCheckpointAsync(
                     executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
-                    checkpointJson, result.Records.Count, cancellationToken))
+                    checkpointJson, checkpointRecords.Length, cancellationToken))
                     throw new InvalidOperationException($"Provider response checkpoint for '{providerCode}' could not be persisted under the live Run lease.");
                 checkpointedSteps.Add((executionStep.BasicId, "Checkpointed",
-                    Math.Max(0, result.FailureCount), result.IsComplete, result.Records.Count));
+                    checkpointFailureCount, result.IsComplete, checkpointRecords.Length));
 
                 const int maxRawRecordsPerRun = 2000;
                 var remainingRawRecords = Math.Max(0, maxRawRecordsPerRun - raw.Count);
