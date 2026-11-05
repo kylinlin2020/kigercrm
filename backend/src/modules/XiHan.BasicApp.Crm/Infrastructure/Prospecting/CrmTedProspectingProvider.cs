@@ -82,12 +82,7 @@ public sealed class CrmTedProspectingProvider : ICrmProspectingProvider, IDispos
                 HttpCompletionOption.ResponseHeadersRead,
                 cancellationToken);
 
-            if (response.RequestMessage?.RequestUri is not { } finalUri ||
-                !string.Equals(finalUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
-            !finalUri.IsDefaultPort ||
-            !string.IsNullOrEmpty(finalUri.UserInfo) ||
-                !string.Equals(finalUri.Host, Endpoint.Host, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(finalUri.AbsolutePath, Endpoint.AbsolutePath, StringComparison.Ordinal))
+            if (!CrmProspectingEndpointGuard.IsApprovedResponseUri(response.RequestMessage?.RequestUri, Endpoint))
                 throw new HttpRequestException("TED response came from an unapproved endpoint.");
 
             if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.ServiceUnavailable)
