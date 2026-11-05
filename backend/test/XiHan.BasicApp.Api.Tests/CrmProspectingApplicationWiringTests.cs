@@ -92,6 +92,27 @@ public sealed class CrmProspectingApplicationWiringTests
     }
 
     [Fact]
+    public void TradeProviders_ShouldResolveEncryptedCredentialsInsideTheCurrentTenantScope()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var comtrade = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUnComtradeProspectingProvider.cs");
+        var census = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUsCensusTradeProspectingProvider.cs");
+        var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
+
+        Assert.Contains("services.AddScoped<CrmUnComtradeProspectingProvider>", registration, StringComparison.Ordinal);
+        Assert.Contains("services.AddScoped<CrmUsCensusTradeProspectingProvider>", registration, StringComparison.Ordinal);
+        Assert.Contains("ISaasConfigurationService", registration, StringComparison.Ordinal);
+        Assert.Contains("ICurrentTenant>().Change(message.TenantId)", worker, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.un_comtrade.ApiKey", comtrade, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.us_census.ApiKey", census, StringComparison.Ordinal);
+        Assert.Contains("Ocp-Apim-Subscription-Key", comtrade, StringComparison.Ordinal);
+        Assert.Contains("ConfigType.Tenant", frontend, StringComparison.Ordinal);
+        Assert.Contains("isEncrypted: true", frontend, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.${item.code}.ApiKey", frontend, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProspectingRunRepository_ShouldUseConditionalClaimAndRecoverInterruptedStates()
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingRunRepository.cs");
