@@ -402,3 +402,10 @@ The service is registered scoped alongside the CRM repositories. A source-wiring
 - For an existing Candidate, the service adds only missing Evidence identities and creates the initial Score snapshot only when no score exists. It does not rewrite Candidate review, duplicate, conversion, or ownership state.
 - Evidence reconciliation, score repair, new Candidate creation, and the page cursor/status CAS remain inside the same page transaction. The extraction lease is the page-level fence; a stale cursor/lease still aborts the whole transaction.
 - This improves idempotent reconciliation for repeated identities but does not replace end-to-end concurrency tests or worker orchestration. Unique-identity races across independently scheduled writers still require PostgreSQL integration coverage before production enablement.
+
+## 11.26 Cumulative failures across extraction pages (2026-11-05)
+
+- Added `result_failure_count` to the durable extraction job with migration 5.9.35 and a non-negative database constraint.
+- Every non-final page transaction increments the cumulative failure count alongside the cursor and persisted-record count. The final-page transaction may complete only when the cumulative count plus the current page failures is zero; the SQL condition enforces this even if application state is stale.
+- The page validator now rejects failure counts larger than the number of records in that page. Thus a clean final page cannot erase failures reported by an earlier page, and the extraction cannot be marked Completed (or later qualify for coverage finalization) after a partial result set.
+- The new schema change is authored but has not been applied to a PostgreSQL database. Worker-level coverage gating and real database tests remain pending.
