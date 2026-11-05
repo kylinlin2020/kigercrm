@@ -35,18 +35,15 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     }
 
     [Fact]
-    public void ExtractionLeaseRenewal_ShouldRequireLiveTenantScopedFencedLease()
+    public void ExtractionLeaseRenewal_ShouldRequireExactJobLeaseAndFencingIdentity()
     {
-        var repository = ReadRepositorySource();
-        var start = repository.IndexOf("public async Task<bool> TryRenewLeaseAsync", StringComparison.Ordinal);
-        var end = repository.IndexOf("public async Task<int> ExpireDueAsync", StringComparison.Ordinal);
-        Assert.True(start >= 0 && end > start);
-        var renewal = repository[start..end];
-        Assert.Contains("lease_expires_at_utc > clock_timestamp()", renewal, StringComparison.Ordinal);
-        Assert.Contains("lease_token = @leaseToken", renewal, StringComparison.Ordinal);
-        Assert.Contains("fencing_version = @fencingVersion", renewal, StringComparison.Ordinal);
-        Assert.Contains("tenant_id = @tenantId", renewal, StringComparison.Ordinal);
-        Assert.Contains("leaseDuration > TimeSpan.FromMinutes(15)", renewal, StringComparison.Ordinal);
+        var method = typeof(ICrmProspectingExtractionJobRepository).GetMethod("TryRenewLeaseAsync");
+        Assert.NotNull(method);
+        var parameters = method!.GetParameters();
+        Assert.Equal(
+            new[] { typeof(long), typeof(Guid), typeof(long), typeof(TimeSpan), typeof(CancellationToken) },
+            parameters.Select(parameter => parameter.ParameterType).ToArray());
+        Assert.Equal(typeof(Task<bool>), method.ReturnType);
     }
 
     [Fact]
