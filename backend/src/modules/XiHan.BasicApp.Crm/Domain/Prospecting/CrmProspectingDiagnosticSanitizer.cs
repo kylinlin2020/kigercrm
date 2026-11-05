@@ -24,6 +24,6 @@ public static partial class CrmProspectingDiagnosticSanitizer
     [GeneratedRegex(@"(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+")]
     private static partial Regex AuthorizationSecret();
 
-    [GeneratedRegex(@"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|client_secret)\s*[:=]\s*[""']?[^\s&,""']+")]
+    [GeneratedRegex(@"(?i)\b(ocp[-_]?apim[-_]?subscription[-_]?key|subscription[_-]?key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|secret|password|client_secret|key)\s*[:=]\s*[""']?[^\s&,""']+")]
     private static partial Regex NamedSecret();
 }
