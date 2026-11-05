@@ -81,7 +81,7 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
     }
 
     [Fact]
-    public void Repository_ShouldRequireLiveRunFenceAndTransactionForCheckpointWrites()
+    public void Repository_ShouldOwnCheckpointTransactionAndFenceWrites()
     {
         var source = ReadRepository();
         Assert.Contains("run.lease_token = @leaseToken", source, StringComparison.Ordinal);
@@ -89,9 +89,27 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
         Assert.Contains("run.lease_expires_at > clock_timestamp()", source, StringComparison.Ordinal);
         Assert.Contains("FOR UPDATE", source, StringComparison.Ordinal);
         Assert.Contains("step.tenant_id = @tenantId", source, StringComparison.Ordinal);
-        Assert.Contains("client.Ado.Transaction is null", source, StringComparison.Ordinal);
-        Assert.Contains("SHA256.HashData(bytes)", source, StringComparison.Ordinal);
+        var checkpointMethod = source.Substring(source.IndexOf("TrySaveCheckpointAsync", StringComparison.Ordinal),
+            source.IndexOf("TryMarkInterruptedNeedsReviewAsync", StringComparison.Ordinal) -
+            source.IndexOf("TrySaveCheckpointAsync", StringComparison.Ordinal));
+        Assert.Contains("client.Ado.BeginTran()", checkpointMethod, StringComparison.Ordinal);
+        Assert.Contains("client.Ado.CommitTran()", checkpointMethod, StringComparison.Ordinal);
+        Assert.Contains("client.Ado.RollbackTran()", checkpointMethod, StringComparison.Ordinal);
+        Assert.Contains("SHA256.HashData(bytes)", checkpointMethod, StringComparison.Ordinal);
         Assert.Contains("MaxCheckpointBytes = 1_048_576", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RunWorker_ShouldPersistVerifyAndReplayBoundedProviderCheckpoints()
+    {
+        var worker = ReadWorker();
+        Assert.Contains("TrySaveCheckpointAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingProviderResultCheckpoint", worker, StringComparison.Ordinal);
+        Assert.Contains("checkpointHash", worker, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.Deserialize<CrmProspectingProviderResultCheckpoint>", worker, StringComparison.Ordinal);
+        Assert.Contains("executionStep.State is \"Checkpointed\" or \"Projecting\"", worker, StringComparison.Ordinal);
+        Assert.Contains("\"Projecting\", \"Succeeded\"", worker, StringComparison.Ordinal);
+        Assert.Contains("maxProviderCheckpointBytes = 1_048_576", worker, StringComparison.Ordinal);
     }
 
     private static string ReadWorker()
