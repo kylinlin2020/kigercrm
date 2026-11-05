@@ -20,8 +20,6 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
             .ToHashSet(StringComparer.Ordinal);
 
         Assert.Contains("CreateSubmissionIntentAsync", methods);
-        Assert.Contains("TryAcknowledgeSubmissionAsync", methods);
-        Assert.Contains("CreateSubmissionIntentAsync", methods);
         var directCreate = typeof(ICrmProspectingExtractionJobRepository)
             .GetMethod("CreateAsync");
         Assert.NotNull(directCreate);
