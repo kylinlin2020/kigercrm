@@ -15,7 +15,6 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolver clientResolver)
     : SaasRepository<SysCrmProspectingExtractionJob>(clientResolver), ICrmProspectingExtractionJobRepository
 {
-    private const int MaxMetadataLength = 4000;
     private const int MaxCursorLength = 2048;
     private const int MaxFailureSummaryLength = 1000;
 
@@ -27,7 +26,6 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         DateTimeOffset submittedAtUtc,
         DateTimeOffset nextPollAtUtc,
         DateTimeOffset? expiresAtUtc,
-        string? safeMetadataJson,
         CancellationToken cancellationToken = default)
     {
         if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
@@ -43,8 +41,6 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             throw new ArgumentOutOfRangeException(nameof(expiresAtUtc));
         if (nextPollAtUtc < submittedAtUtc)
             throw new ArgumentOutOfRangeException(nameof(nextPollAtUtc));
-        if (safeMetadataJson is { Length: > MaxMetadataLength })
-            throw new ArgumentOutOfRangeException(nameof(safeMetadataJson));
         cancellationToken.ThrowIfCancellationRequested();
 
         var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
@@ -73,7 +69,6 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             SubmittedAtUtc = submittedAtUtc,
             NextPollAtUtc = nextPollAtUtc,
             ExpiresAtUtc = expiresAtUtc,
-            SafeMetadataJson = safeMetadataJson,
             PollAttemptCount = 0,
             ResultRecordCount = 0,
             FencingVersion = 0
@@ -220,8 +215,10 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             throw new InvalidOperationException("The requested extraction lifecycle transition is not allowed.");
         if (safeFailureSummary is { Length: > MaxFailureSummaryLength })
             safeFailureSummary = safeFailureSummary[..MaxFailureSummaryLength];
-        if (failureCode is { Length: > 80 })
-            failureCode = failureCode[..80];
+        failureCode = failureCode is not null && failureCode.Length <= 80
+            && failureCode.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-' or '.')
+                ? failureCode
+                : (failureCode is null ? null : "provider_error");
         cancellationToken.ThrowIfCancellationRequested();
 
         var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
