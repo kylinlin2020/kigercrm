@@ -11,6 +11,7 @@ public static partial class CrmProspectingDiagnosticSanitizer
         if (string.IsNullOrWhiteSpace(value) || maxLength == 0) return string.Empty;
 
         var sanitized = string.Concat(value.Select(character => char.IsControl(character) ? ' ' : character));
+        sanitized = DenuePathSecret().Replace(sanitized, "$1[REDACTED]");
         sanitized = UrlSensitiveSuffix().Replace(sanitized, "$1");
         sanitized = AuthorizationSecret().Replace(sanitized, "$1 [REDACTED]");
         sanitized = NamedSecret().Replace(sanitized, "$1=[REDACTED]");
