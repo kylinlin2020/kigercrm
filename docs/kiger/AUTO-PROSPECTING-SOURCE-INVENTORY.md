@@ -59,7 +59,7 @@
 | 源项目来源 | 类别 / 覆盖 | 目标状态 | 后续工作 |
 |---|---|---|---|
 | EU TED | 欧盟官方招标公告 | 已实现待验收 | 完整分页、公告阶段/买方字段、地区与时间覆盖验收 |
-| World Bank Procurement | 世界银行采购项目 | 未迁移 | 迁移官方接口、项目/采购包分页与采购方证据 |
+| World Bank Procurement | 世界银行官方采购公告；公开接口 | 已实现待验收 | 已新增真实适配器与 opt-in DI、契约测试；当前单页上限 20，若有更多结果明确标记 coverage incomplete；下一步扩展可靠续页/日期覆盖并做真实 API 冒烟 |
 | USAspending | 美国联邦合同/支出 | 已实现待验收 | 完整分页、金额/机构字段、真实 API 冒烟 |
 | UK Find a Tender | 英国官方招标公告 | 已实现待验收 | 游标续页、公告/买方字段和限流验收 |
 | UK Contracts Finder | 英国公共采购公告 | 已实现待验收 | 游标续页、公告阶段、买方与联系字段验证 |
@@ -101,13 +101,13 @@
 
 ## 3. 目标端当前已确认的真实 Provider 源码
 
-截至本台账日期，目标 `kiger-dev` 已确认存在以下真实适配器/解析器：
+截至本台账日期（本轮提交后），目标 `kiger-dev` 已确认存在以下真实适配器/解析器：
 
 - `usaspending_awards`
 - `uk_find_tender`
 - `uk_contracts_finder`
 - `eu_ted`
-- `gleif`（身份解析/补充，不应错误计作通用搜客来源）
+- `gleif`（身份解析/补充，不应错误计作通用搜客来源）\n- `world_bank_procurement`（新增；公开采购公告适配器，单页 bounded fetch，存在后续页时标记不完整）
 
 它们均为**已实现待验收**，不是“运行已通过”。Fake Provider 不计入真实来源数量。
 
