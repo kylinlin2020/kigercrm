@@ -122,6 +122,8 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
         Assert.Contains("maxProviderCheckpointBytes = 1_048_576", worker, StringComparison.Ordinal);
         Assert.Contains("TryTransitionAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("providerProjectionFailures", worker, StringComparison.Ordinal);
+        Assert.Contains("MarkProviderStepFailedAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("MarkProviderStepSkippedAsync", worker, StringComparison.Ordinal);
         Assert.Contains("estimatedRawJsonBytes + replayRecordBytes + 1 > maxRawJsonBytes", worker, StringComparison.Ordinal);
     }
 
