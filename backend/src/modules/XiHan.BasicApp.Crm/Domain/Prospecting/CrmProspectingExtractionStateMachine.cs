@@ -20,6 +20,11 @@ public static class CrmProspectingExtractionStateMachine
 
         return current switch
         {
+            CrmProspectingExtractionStatus.Submitting =>
+                next is CrmProspectingExtractionStatus.Pending
+                    or CrmProspectingExtractionStatus.NeedsReview
+                    or CrmProspectingExtractionStatus.Failed,
+
             CrmProspectingExtractionStatus.Pending =>
                 next is CrmProspectingExtractionStatus.Running
                     or CrmProspectingExtractionStatus.Succeeded
