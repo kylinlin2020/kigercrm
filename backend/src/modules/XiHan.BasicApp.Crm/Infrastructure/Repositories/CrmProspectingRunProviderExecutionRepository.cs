@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using SqlSugar;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Repositories;
@@ -76,6 +77,8 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
     {
         ValidateIdentity(executionId, runId, leaseToken, fencingVersion);
         ArgumentNullException.ThrowIfNull(checkpointJson);
+        try { using var document = JsonDocument.Parse(checkpointJson); }
+        catch (JsonException ex) { throw new ArgumentException("Provider checkpoint must be valid JSON.", nameof(checkpointJson), ex); }
         if (rawRecordCount < 0) throw new ArgumentOutOfRangeException(nameof(rawRecordCount));
         var bytes = Encoding.UTF8.GetBytes(checkpointJson);
         if (bytes.Length is 0 or > MaxCheckpointBytes)
