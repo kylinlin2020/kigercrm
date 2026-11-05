@@ -84,6 +84,19 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmUsaSpendingProspectingProvider>());
         }
+        // World Bank procurement notices are public data. The fixed official endpoint is
+        // opt-in and uses the same DNS-pinned, redirect-disabled outbound boundary.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableWorldBankProcurementProvider"], out var enableWorldBankProvider)
+            && enableWorldBankProvider)
+        {
+            services.AddSingleton<CrmWorldBankProcurementProvider>(provider => new CrmWorldBankProcurementProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("search.worldbank.org"))
+                {
+                    Timeout = TimeSpan.FromSeconds(25)
+                }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmWorldBankProcurementProvider>());
+        }
         // Official UK procurement notices are public OCDS data. The adapter is opt-in and
         // uses a fixed endpoint with redirects disabled.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFindTenderProvider"], out var enableFindTenderProvider)
