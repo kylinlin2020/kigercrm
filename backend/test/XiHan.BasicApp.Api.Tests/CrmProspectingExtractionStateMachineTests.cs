@@ -5,7 +5,7 @@ namespace XiHan.BasicApp.Api.Tests;
 public sealed class CrmProspectingExtractionStateMachineTests
 {
     [Theory]
-    [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.Pending, true)]
+    [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.Pending, false)]
     [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.NeedsReview, true)]
     [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.Failed, true)]
     [InlineData(CrmProspectingExtractionStatus.Submitting, CrmProspectingExtractionStatus.Succeeded, false)]
@@ -27,6 +27,12 @@ public sealed class CrmProspectingExtractionStateMachineTests
         CrmProspectingExtractionStatus next,
         bool expected)
         => Assert.Equal(expected, CrmProspectingExtractionStateMachine.CanTransition(current, next));
+
+    [Fact]
+    public void SubmittingToPending_ShouldRequireAcknowledgementPersistenceBoundary()
+        => Assert.False(CrmProspectingExtractionStateMachine.CanTransition(
+            CrmProspectingExtractionStatus.Submitting,
+            CrmProspectingExtractionStatus.Pending));
 
     [Theory]
     [InlineData(false, true, 0, false)]
