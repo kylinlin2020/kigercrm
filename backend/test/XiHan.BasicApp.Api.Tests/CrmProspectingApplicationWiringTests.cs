@@ -781,12 +781,17 @@ public sealed class CrmProspectingApplicationWiringTests
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingExtractionJob.cs");
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.35", "5.9.35.sql");
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs");
+        var persistence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
 
         Assert.Contains("Result_Failure_Count", entity, StringComparison.Ordinal);
         Assert.Contains("result_failure_count integer NOT NULL DEFAULT 0", migration, StringComparison.Ordinal);
         Assert.Contains("result_failure_count = result_failure_count + @pageFailureCount", repository, StringComparison.Ordinal);
         Assert.Contains("result_failure_count + @failureCount = 0", repository, StringComparison.Ordinal);
         Assert.Contains("new SugarParameter(\"@pageFailureCount\", pageFailureCount)", repository, StringComparison.Ordinal);
+        Assert.Contains("TryFailIncompleteResultsAsync", repository, StringComparison.Ordinal);
+        Assert.Contains("result_failure_count + @pageFailureCount > 0", repository, StringComparison.Ordinal);
+        Assert.Contains("TryFailIncompleteResultsAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("extraction.ResultFailureCount + page.FailureCount > 0", persistence, StringComparison.Ordinal);
     }
 
 }
