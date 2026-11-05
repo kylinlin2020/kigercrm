@@ -58,6 +58,15 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
     }
 
     [Fact]
+    public void RunWorker_ShouldLoadProviderCodesFromPersistedPlanRows()
+    {
+        var worker = ReadWorker();
+        Assert.Contains("EnsurePlanMaterializedAsync", worker, StringComparison.Ordinal);
+        Assert.Contains("persistedPlan.OrderBy(step => step.PlanOrdinal)", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("ParseStringArray(run.SnapshotProviderPlanJson, \"provider plan\")", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProviderExecutionMutations_ShouldUseTheSameLockedRunFence()
     {
         var source = ReadRepository();
@@ -80,6 +89,16 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
         Assert.Contains("client.Ado.Transaction is null", source, StringComparison.Ordinal);
         Assert.Contains("SHA256.HashData(bytes)", source, StringComparison.Ordinal);
         Assert.Contains("MaxCheckpointBytes = 1_048_576", source, StringComparison.Ordinal);
+    }
+
+    private static string ReadWorker()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "backend", "src")))
+            directory = directory.Parent;
+        Assert.NotNull(directory);
+        return File.ReadAllText(Path.Combine(directory!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs"));
     }
 
     private static string ReadRepository()
