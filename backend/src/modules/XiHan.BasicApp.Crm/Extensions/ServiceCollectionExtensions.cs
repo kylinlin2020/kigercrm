@@ -2,7 +2,6 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.Extensions.Configuration;
-using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
@@ -78,11 +77,7 @@ public static class ServiceCollectionExtensions
             && enableUsaSpendingProvider)
         {
             services.AddSingleton<CrmUsaSpendingProspectingProvider>(provider => new CrmUsaSpendingProspectingProvider(
-                new HttpClient(new SocketsHttpHandler
-                {
-                    AllowAutoRedirect = false,
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-                })
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.usaspending.gov"))
                 {
                     Timeout = TimeSpan.FromSeconds(25)
                 }));
@@ -95,11 +90,7 @@ public static class ServiceCollectionExtensions
             && enableFindTenderProvider)
         {
             services.AddSingleton<CrmFindTenderProspectingProvider>(provider => new CrmFindTenderProspectingProvider(
-                new HttpClient(new SocketsHttpHandler
-                {
-                    AllowAutoRedirect = false,
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-                })
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("www.find-tender.service.gov.uk"))
                 {
                     Timeout = TimeSpan.FromSeconds(30)
                 }));
@@ -112,11 +103,7 @@ public static class ServiceCollectionExtensions
             && enableContractsFinderProvider)
         {
             services.AddSingleton<CrmContractsFinderProspectingProvider>(provider => new CrmContractsFinderProspectingProvider(
-                new HttpClient(new SocketsHttpHandler
-                {
-                    AllowAutoRedirect = false,
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-                })
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("www.contractsfinder.service.gov.uk"))
                 {
                     Timeout = TimeSpan.FromSeconds(30)
                 }));
@@ -129,11 +116,7 @@ public static class ServiceCollectionExtensions
             && enableTedProvider)
         {
             services.AddSingleton<CrmTedProspectingProvider>(provider => new CrmTedProspectingProvider(
-                new HttpClient(new SocketsHttpHandler
-                {
-                    AllowAutoRedirect = false,
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-                })
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.ted.europa.eu"))
                 {
                     Timeout = TimeSpan.FromSeconds(30)
                 }));
@@ -146,11 +129,7 @@ public static class ServiceCollectionExtensions
             && enableGleifIdentityResolver)
         {
             services.AddSingleton<CrmGleifIdentityResolver>(provider => new CrmGleifIdentityResolver(
-                new HttpClient(new SocketsHttpHandler
-                {
-                    AllowAutoRedirect = false,
-                    PooledConnectionLifetime = TimeSpan.FromMinutes(5)
-                })
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.gleif.org"))
                 {
                     Timeout = TimeSpan.FromSeconds(20)
                 }));
