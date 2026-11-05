@@ -187,6 +187,19 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmOpenFda510kProspectingProvider>());
         }
+        // SEC EDGAR uses a descriptive Fair Access User-Agent (system name + contact email), not an API key.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableSecEdgarProvider"], out var enableSecEdgar)
+            && enableSecEdgar)
+        {
+            services.AddScoped<CrmSecEdgarProspectingProvider>(provider => new CrmSecEdgarProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("www.sec.gov"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmSecEdgarProspectingProvider>());
+        }
         // Hunter Discover is limited to professional B2B company discovery; it does not reveal or email contacts.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableHunterDiscoverProvider"], out var enableHunterDiscover)
             && enableHunterDiscover)
