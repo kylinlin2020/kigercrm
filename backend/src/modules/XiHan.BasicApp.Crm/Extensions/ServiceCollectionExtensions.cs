@@ -213,6 +213,32 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmCompaniesHouseProspectingProvider>());
         }
+        // Serper Google Search: API key is tenant-scoped and sent in X-API-KEY.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableSerperProvider"], out var enableSerper)
+            && enableSerper)
+        {
+            services.AddScoped<CrmSerperSearchProspectingProvider>(provider => new CrmSerperSearchProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("google.serper.dev"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmSerperSearchProspectingProvider>());
+        }
+        // SerpApi Google Search: its API contract places api_key in the query string.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableSerpApiProvider"], out var enableSerpApi)
+            && enableSerpApi)
+        {
+            services.AddScoped<CrmSerpApiProspectingProvider>(provider => new CrmSerpApiProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("serpapi.com"))
+                {
+                    Timeout = TimeSpan.FromSeconds(35)
+                },
+                provider.GetRequiredService<ISaasConfigurationService>()));
+            services.AddScoped<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmSerpApiProspectingProvider>());
+        }
         // Brave Search uses a tenant subscription token. Search results are unverified web-discovery evidence.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableBraveSearchProvider"], out var enableBraveSearch)
             && enableBraveSearch)
