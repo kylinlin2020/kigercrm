@@ -98,3 +98,21 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("unitOfWork.CompleteAsync", method, StringComparison.Ordinal);
         Assert.Contains("_providerExecutions", source, StringComparison.Ordinal);
     }
+    [Fact]
+    public void AtomicProviderBatch_ShouldRejectDuplicateNormalizedRecordIdentitiesBeforePersistence()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs"));
+        var methodStart = source.IndexOf("PersistProviderBatchAndTransitionAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("PersistPageAndAdvanceAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+        Assert.Contains("new HashSet<string>(StringComparer.Ordinal)", method, StringComparison.Ordinal);
+        Assert.Contains("if (!batchIdentities.Add(normalizedIdentity))", method, StringComparison.Ordinal);
+        Assert.True(method.IndexOf("if (!batchIdentities.Add(normalizedIdentity))", StringComparison.Ordinal) <
+            method.IndexOf("await PersistCandidateOrRepairAsync(item, cancellationToken)", StringComparison.Ordinal));
+    }
