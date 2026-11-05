@@ -741,4 +741,32 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("PageSize = 20", provider, StringComparison.Ordinal);
         Assert.Contains("IsComplete = complete", provider, StringComparison.Ordinal);
     }
+    [Fact]
+    public void AsyncExtractionPagePersistence_ShouldCommitCandidatesEvidenceScoresAndCursorAtomically()
+    {
+        var persistence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs");
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingExtractionJobRepository.cs");
+
+        Assert.Contains("PersistPageAndAdvanceAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("isTransactional: true", persistence, StringComparison.Ordinal);
+        Assert.Contains("_candidates.AddAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("_evidence.AddRangeAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("_scores.AddAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("TryAdvanceCursorAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("TryCompleteResultsAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRecordIdentity.NormalizeExternalId", persistence, StringComparison.Ordinal);
+        Assert.Contains("if (!advanced)", persistence, StringComparison.Ordinal);
+
+        var completionStart = repository.IndexOf("public async Task<bool> TryCompleteResultsAsync", StringComparison.Ordinal);
+        var transitionStart = repository.IndexOf("public async Task<bool> TryTransitionAsync", completionStart, StringComparison.Ordinal);
+        Assert.True(completionStart >= 0 && transitionStart > completionStart);
+        var completion = repository[completionStart..transitionStart];
+        Assert.Contains("client.Ado.Transaction is null", completion, StringComparison.Ordinal);
+        Assert.Contains("result_record_count = result_record_count + @persistedRecordCount", completion, StringComparison.Ordinal);
+        Assert.Contains("result_cursor IS NOT DISTINCT FROM @expectedCursor", completion, StringComparison.Ordinal);
+        Assert.Contains("lease_expires_at_utc > clock_timestamp()", completion, StringComparison.Ordinal);
+        Assert.Contains("int persistedRecordCount = 0", contract, StringComparison.Ordinal);
+    }
+
 }
