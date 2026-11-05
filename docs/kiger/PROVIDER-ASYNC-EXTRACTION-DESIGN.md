@@ -432,3 +432,5 @@ The service is registered scoped alongside the CRM repositories. A source-wiring
 - Every candidate page item must map to one distinct normalized external identity present in the fetched page. Candidate Run ID, candidate/provider envelope codes, and candidate External ID must agree with the Extraction Job and raw record.
 - This closes a prior validation gap: the page identity sets existed but were not used, so an incorrectly paired candidate/envelope could have been persisted under the wrong provider identity. Page cursor/fencing CAS remains the final in-transaction authority; preflight checks do not replace it.
 - Added source-level regression assertions. Runtime and PostgreSQL transaction tests remain outstanding.
+
+- The page persistence method explicitly opens a new transactional UnitOfWork before reading the job and writing candidates/evidence/scores; cursor advancement or final status CAS and `CompleteAsync` remain inside that transaction. Any failed identity, lease, or cursor check disposes the uncompleted UoW and rolls the page back.
