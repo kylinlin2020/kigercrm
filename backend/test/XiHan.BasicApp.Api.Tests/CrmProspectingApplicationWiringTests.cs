@@ -82,6 +82,12 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("EnableWorldBankProcurementProvider", registration, StringComparison.Ordinal);
         Assert.Contains("CrmWorldBankProcurementProvider", registration, StringComparison.Ordinal);
         Assert.Contains("search.worldbank.org", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableUnComtradeProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmUnComtradeProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("comtradeapi.un.org", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableUsCensusTradeProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmUsCensusTradeProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("api.census.gov", registration, StringComparison.Ordinal);
         Assert.DoesNotContain("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();", registration, StringComparison.Ordinal);
     }
 
