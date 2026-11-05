@@ -184,17 +184,23 @@ public sealed class CrmProspectingCandidatePersistenceService
             items.Count > page.Records.Count)
             throw new ArgumentOutOfRangeException(nameof(items));
 
-        var pageIdentities = page.Records.Select(record => record.ExternalId).ToHashSet(StringComparer.Ordinal);
+        var pageIdentities = page.Records
+            .Select(CrmProspectingRecordIdentity.NormalizeExternalId)
+            .ToHashSet(StringComparer.Ordinal);
         var itemIdentities = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in items)
         {
             if (item is null || item.Candidate is null || item.Envelope is null ||
+                item.Envelope.Record is null ||
                 item.Candidate.RunId <= 0 ||
                 string.IsNullOrWhiteSpace(item.Candidate.ProviderCode) ||
                 !string.Equals(item.Candidate.ProviderCode, item.Envelope.ProviderCode, StringComparison.Ordinal) ||
-                !string.Equals(item.Candidate.ExternalId, item.Envelope.Record.ExternalId, StringComparison.Ordinal) ||
-                !pageIdentities.Contains(item.Envelope.Record.ExternalId) ||
-                !itemIdentities.Add(item.Envelope.Record.ExternalId))
+                !page.Records.Contains(item.Envelope.Record) ||
+                !string.Equals(
+                    item.Candidate.ExternalId,
+                    CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record),
+                    StringComparison.Ordinal) ||
+                !itemIdentities.Add(CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record)))
                 throw new ArgumentException("Candidate page items must map one-to-one to unique records in the validated provider page.", nameof(items));
         }
 
