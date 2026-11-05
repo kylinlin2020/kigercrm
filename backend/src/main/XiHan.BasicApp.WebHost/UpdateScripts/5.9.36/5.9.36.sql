@@ -46,7 +46,9 @@ BEGIN
             ),
             CONSTRAINT ck_crm_prospecting_run_provider_execution_checkpoint_shape CHECK (
                 (checkpoint_json IS NULL AND checkpoint_hash IS NULL AND checkpoint_bytes = 0)
-                OR (checkpoint_json IS NOT NULL AND checkpoint_hash IS NOT NULL AND checkpoint_bytes > 0)
+                OR (checkpoint_json IS NOT NULL AND checkpoint_hash IS NOT NULL
+                    AND checkpoint_bytes BETWEEN 1 AND 1048576
+                    AND checkpoint_bytes = octet_length(checkpoint_json))
             )
         );
 
