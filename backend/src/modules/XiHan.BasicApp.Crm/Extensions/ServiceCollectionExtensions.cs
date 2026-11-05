@@ -187,6 +187,19 @@ public static class ServiceCollectionExtensions
             services.AddScoped<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmOpenFda510kProspectingProvider>());
         }
+        // NPPES is a public US healthcare registry. Restrict discovery to organization Type 2 records.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableNppesProvider"], out var enableNppes)
+            && enableNppes)
+        {
+            services.AddSingleton<CrmNppesOrganizationProspectingProvider>(_ =>
+                new CrmNppesOrganizationProspectingProvider(
+                    new HttpClient(CrmProspectingHttpHandlerFactory.Create("npiregistry.cms.hhs.gov"))
+                    {
+                        Timeout = TimeSpan.FromSeconds(45)
+                    }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmNppesOrganizationProspectingProvider>());
+        }
         // Wikidata is a public knowledge graph. Keep results explicitly classified as discovery clues,
         // not authoritative company registration or buyer-intent evidence.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableWikidataProvider"], out var enableWikidata)
