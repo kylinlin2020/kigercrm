@@ -223,3 +223,16 @@ The method is now marked obsolete on the repository contract and its implementat
 
 The persistence contract test now asserts the direct-create API is obsolete. This is a safety hardening slice, not evidence of a working async worker; no build or test execution is claimed.
 
+### 11.6 Explicit provider capability registration (2026-11-05)
+
+The synchronous Run worker previously grouped provider registrations by code and silently selected the first registration. That behavior is unsafe once asynchronous extraction providers coexist: duplicate codes across the synchronous and asynchronous contracts could route a Run to an arbitrary adapter.
+
+Added `CrmProspectingProviderRegistry` as a single validation point:
+- Normalizes provider codes using trim + invariant lowercase.
+- Rejects null registrations, blank codes, codes longer than 80 characters, and duplicate codes.
+- Detects collisions across both `ICrmProspectingProvider` and `ICrmProspectingAsyncExtractionProvider`.
+- Keeps synchronous and asynchronous capability maps separate; it does not infer capability from provider names.
+- The existing Run worker now builds this registry before dispatch and fails closed on ambiguous registrations.
+
+Contract tests cover normalization, separate capability maps, cross-contract duplicates, blank codes, and length limits. This is registration hardening only: the Run worker still dispatches synchronous providers; asynchronous submit/poll/page execution and Run continuation are not yet wired.
+
