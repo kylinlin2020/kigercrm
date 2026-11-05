@@ -84,6 +84,30 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmUsaSpendingProspectingProvider>());
         }
+        // Brazil PNCP public procurement API is enabled only by explicit configuration.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableBrazilPncpProvider"], out var enableBrazilPncp)
+            && enableBrazilPncp)
+        {
+            services.AddSingleton<CrmBrazilPncpProspectingProvider>(provider => new CrmBrazilPncpProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("pncp.gov.br"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmBrazilPncpProspectingProvider>());
+        }
+        // GeBIZ award dataset is public data.gov.sg content; it is explicitly opt-in.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableSingaporeGebizProvider"], out var enableSingaporeGebiz)
+            && enableSingaporeGebiz)
+        {
+            services.AddSingleton<CrmSingaporeGebizProspectingProvider>(provider => new CrmSingaporeGebizProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("data.gov.sg"))
+                {
+                    Timeout = TimeSpan.FromSeconds(25)
+                }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmSingaporeGebizProspectingProvider>());
+        }
         // World Bank procurement notices are public data. The fixed official endpoint is
         // opt-in and uses the same DNS-pinned, redirect-disabled outbound boundary.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableWorldBankProcurementProvider"], out var enableWorldBankProvider)
