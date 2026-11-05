@@ -34,6 +34,8 @@ public sealed class CrmProspectingExtractionSubmissionValidatorTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("job\r\nforged")]
+    [InlineData(" leading-space")]
+    [InlineData("trailing-space ")]
     public void TryValidate_RejectsInvalidOpaqueExtractionIds(string extractionId)
     {
         Assert.False(CrmProspectingExtractionSubmissionValidator.TryValidate(
@@ -91,7 +93,7 @@ public sealed class CrmProspectingExtractionSubmissionValidatorTests
     [Fact]
     public void TryValidate_AcceptsMetadataAtPersistenceColumnLimit()
     {
-        var metadata = "{\\"x\\":1}" + new string(' ', 
+        var metadata = "{\"x\":1}" + new string(' ', 
             CrmProspectingExtractionSubmissionValidator.MaxSafeMetadataJsonLength - 7);
         var submission = Submission() with { SafeMetadataJson = metadata };
 
