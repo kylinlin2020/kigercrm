@@ -93,6 +93,7 @@ public sealed class CrmProspectingCandidatePersistenceService
     private readonly XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingEvidenceRepository _evidence;
     private readonly XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingScoreRepository _scores;
     private readonly XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingExtractionJobRepository _extractionJobs;
+    private readonly XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingRunProviderExecutionRepository _providerExecutions;
 
     public CrmProspectingCandidatePersistenceService(
         XiHan.Framework.Uow.IUnitOfWorkManager unitOfWorkManager,
@@ -100,7 +101,8 @@ public sealed class CrmProspectingCandidatePersistenceService
         XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingCandidateRepository candidates,
         XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingEvidenceRepository evidence,
         XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingScoreRepository scores,
-        XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingExtractionJobRepository extractionJobs)
+        XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingExtractionJobRepository extractionJobs,
+        XiHan.BasicApp.Crm.Domain.Repositories.ICrmProspectingRunProviderExecutionRepository providerExecutions)
     {
         _unitOfWorkManager = unitOfWorkManager;
         _runs = runs;
@@ -108,6 +110,7 @@ public sealed class CrmProspectingCandidatePersistenceService
         _evidence = evidence;
         _scores = scores;
         _extractionJobs = extractionJobs;
+        _providerExecutions = providerExecutions;
     }
 
     public async Task<SysCrmProspectingCandidate> PersistNewAsync(
@@ -223,7 +226,7 @@ public sealed class CrmProspectingCandidatePersistenceService
             await PersistCandidateOrRepairAsync(item, cancellationToken);
         }
 
-        var effectiveFailures = failureCount + Math.Max(0, execution.RawRecordCount - items.Count - failureCount);
+        var effectiveFailures = Math.Max(failureCount, Math.Max(0, execution.RawRecordCount - items.Count));
         var succeeded = isComplete && effectiveFailures == 0;
         var transitioned = succeeded
             ? await _providerExecutions.TryTransitionAsync(
