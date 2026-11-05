@@ -841,4 +841,17 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("durable Run orchestration", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void AsyncProviderRegistry_ShouldRejectUnsafeOrAmbiguousCapabilities()
+    {
+        var registry = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingProviderRegistry.cs");
+        Assert.Contains("provider.SupportsIdempotentSubmission", registry, StringComparison.Ordinal);
+        Assert.Contains("must explicitly support provider-documented idempotent submission before registration", registry, StringComparison.Ordinal);
+        Assert.Contains("var allCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)", registry, StringComparison.Ordinal);
+        Assert.Contains("if (!allCodes.Add(code))", registry, StringComparison.Ordinal);
+        Assert.Contains("NormalizeCode(provider.ProviderCode)", registry, StringComparison.Ordinal);
+        Assert.Contains("synchronous.Add(code, provider)", registry, StringComparison.Ordinal);
+        Assert.Contains("asynchronous.Add(code, provider)", registry, StringComparison.Ordinal);
+    }
+
 }
