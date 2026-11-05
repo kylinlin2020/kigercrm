@@ -48,6 +48,14 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         int batchSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Renews only the exact still-live lease; an expired lease cannot be resurrected.</summary>
+    Task<bool> TryRenewLeaseAsync(
+        long jobId,
+        Guid leaseToken,
+        long fencingVersion,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Marks provider jobs expired by database time and releases any stale lease.</summary>
     Task<int> ExpireDueAsync(CancellationToken cancellationToken = default);
 
