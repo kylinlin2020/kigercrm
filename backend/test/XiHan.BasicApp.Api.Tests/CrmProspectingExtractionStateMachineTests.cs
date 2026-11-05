@@ -43,6 +43,16 @@ public sealed class CrmProspectingExtractionStateMachineTests
         => Assert.False(CrmProspectingExtractionStateMachine.CanCompleteResults(
             CrmProspectingExtractionStatus.Running, true, true, 0));
 
+
+    [Fact]
+    public void AsyncSubmitContract_ShouldRequireStableIdempotencyKey()
+    {
+        var submit = typeof(ICrmProspectingAsyncExtractionProvider).GetMethod(
+            nameof(ICrmProspectingAsyncExtractionProvider.SubmitExtractionAsync));
+        Assert.NotNull(submit);
+        Assert.Contains(submit!.GetParameters(), parameter => parameter.ParameterType == typeof(Guid));
+    }
+
     [Fact]
     public void SynchronousProviderContract_ShouldRemainIndependent()
     {
