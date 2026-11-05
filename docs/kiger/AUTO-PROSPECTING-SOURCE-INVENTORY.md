@@ -45,7 +45,7 @@
 | GLEIF | 全球 LEI 法人身份 | 已实现待验收 | 核验精确 LEI/名称查询、匹配置信度和冲突处理 |
 | Wikidata | 全球知识图谱实体发现；公开 API、无需 Key | 已实现待验收 | 新增低频 `wbsearchentities` 关键词发现 Provider；最多 3 个关键词×10 条；仅保留组织描述线索；上限命中标记 incomplete；不等同企业注册或采购意向 |
 | OpenCorporates | 多国企业登记聚合；需 API Key，商业使用许可有严格限制 | 暂缓接入（许可门槛） | 2026-11-05 已核实 Self-serve API 条款：默认 internal-use 仅限本企业员工/承包商，不得向第三方披露 API 数据，也不得让第三方可用的产品/服务依赖该 API；restricted_for_marketing 数据不得用于营销/广告。商业 CRM / 多租户 SaaS 场景必须先取得明确允许该部署形态及获客用途的书面许可/非 share-alike 商业许可，并确认署名、数据留存与 jurisdiction restrictions；未确认前不开发、不调用。
-| Companies House | 英国官方企业登记；需租户 API Key（HTTP Basic 用户名） | 已实现待验收 | 已新增真实公司搜索 Provider；仅英国目标市场调用，最多 2 页，超限标记 coverage incomplete；公司登记不等同采购意向 |
+| Companies House | 英国官方企业登记；需租户 API Key（HTTP Basic 用户名） | 已实现待验收 | 已新增真实公司搜索 Provider；仅英国目标市场调用，最多 2 页，超限标记 coverage incomplete；公司登记不等同采购意向 |\n| SEC EDGAR | 美国 SEC 官方公司/股票代码目录；免费，但必须提供 Fair Access User-Agent 联系邮箱 | 已实现待验收 | 新增 `sec_edgar` Provider：固定读取 `www.sec.gov/files/company_tickers.json`；仅美国目标市场；租户加密配置保存系统名+联系邮箱（不是 API Key）；最多 100 条；只作为 CIK/Ticker 公司身份线索，不含联系人或采购意向 |
 | Netherlands KVK | 荷兰官方企业登记；订阅/Key | 已实现待验收 | 已新增真实 Zoeken API Provider；租户加密 Key、仅 NL 市场调用、最多 3 个关键词×每词 2 页；搜索结果只作为企业登记证据 |
 | France company search（fr_company_search） | 法国政府开放企业目录；免 Key | 已实现待验收 | 已新增官方 Recherche d’Entreprises API Provider；限法国市场、SIREN/SIRET 企业身份字段、最多 3 词×2 页 |
 | ROR | 全球研究机构标识；公开 REST API、无需 Key | 已实现待验收 | 新增真实 v2 organizations 查询 Provider；最多 3 个关键词×每词 20 条；记录研究机构类型/国家/网站；上限命中标记 incomplete；不作为普通公司库 |
@@ -88,7 +88,7 @@
 |---|---|---|---|
 | Apollo.io | 商业企业/联系人数据；需 Key/付费 | 暂缓接入（API 内部使用许可门槛） | API Terms 当前可见版本（2024-08-13）仅授予 internal business purposes，禁止第三方访问、转授权/分发或未获授权集成；Apollo 2026 ToS 允许订阅期内把 Business Contact Information 纳入自有 CRM/工作流，但仍限内部业务使用且禁止向第三方提供数据/API。只有确认该部署仅供本企业授权员工/承包商内部使用、无外部客户访问/转售/数据共享，并核对当前订单/主服务协议与 API 条款一致后，才可开发并启用；否则须先取得书面许可。默认关闭，Key 必须租户加密保存，严格额度/成本预算。
 | People Data Labs（PDL） | 商业企业/人员数据；需 Key/付费 | 暂缓接入（数据再提供/终端用户访问许可门槛） | PDL Subscription Agreement 禁止转售、再许可或使第三方获得 Data；禁止构建可让 End Users 程序化访问实质性 PDL 数据集/功能的竞争产品，并对 Solution Provider 规定下游条款传递义务。仅在确认本部署为本企业内部 CRM、无外部终端用户访问/数据再分发，并取得适用订阅计划及 Acceptable Data Use Policy 的书面确认后评估；否则须签订明确授权的 Solution Provider/数据许可协议。默认关闭。
-| Hunter.io | 域名邮箱发现/验证；需 Key/额度 | 已实现待验收 | 新增 `hunter` Discover Provider：POST `/v2/discover`，租户加密 API Key，单次最多 100 家企业；只保存企业域名/名称和邮箱数量统计，不拉取/保存联系人邮箱，不使用 Premium-only offset 分页；满页标记 incomplete。2026-08 Content Policy 允许合法 B2B prospecting/CRM enrichment，但禁止垃圾邮件、无相关性的自动群发、B2C 联系和未经书面授权的数据转售/第三方披露；后续 Domain Search/Email Finder/Verifier 需单独预算与个人数据合规。
+| Hunter.io | 域名邮箱发现/验证；需 Key/额度 | 已实现待验收 | 新增 `hunter` Discover Provider：POST `/v2/discover?limit=100`，Key 通过 `X-API-KEY` header 发送；单次最多 100 家企业；只保存企业域名/名称和邮箱数量统计，不拉取/保存联系人邮箱，不使用 Premium offset 分页。官方文档：403 为请求频率限制（cooldown），429 为账户使用额度超限（不可重试直到额度恢复/套餐调整）；满页标记 incomplete。2026-08 Content Policy 允许合法 B2B prospecting/CRM enrichment，但禁止垃圾邮件、无相关性的自动群发、B2C 联系和未经书面授权的数据转售/第三方披露。
 
 ### F. AI 辅助搜索与人工辅助入口
 
@@ -101,7 +101,7 @@
 
 ## 3. 目标端当前已确认的真实 Provider 源码
 
-截至本台账日期（本轮提交后），目标 `kiger-dev` 已确认存在以下真实适配器/解析器：
+截至本台账日期（本轮提交后），目标 `kiger-dev` 已确认存在以下真实适配器/解析器（均为源码存在、待运行验收）：
 
 - `usaspending_awards`
 - `uk_find_tender`
@@ -115,7 +115,7 @@
 - `us_census_trade`（新增；需要 Census API Key，从当前租户加密配置读取）
 - `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
 - `open_fda_510k`（新增；openFDA 510(k) 医疗器械监管记录，租户 API Key 可选；仅美国医疗器械行业活动可调用，最多 3 页×100 条）
-- `nppes`（新增；CMS NPPES v2.1 Type 2 组织名录；仅美国医疗行业活动可调用，最多 2 关键词×2 页×200 条；不采集个人 Type 1）
+- `nppes`（新增；CMS NPPES v2.1 Type 2 组织名录；仅美国医疗行业活动可调用，最多 2 关键词×2 页×200 条；不采集个人 Type 1）\n- `sec_edgar`（新增；SEC EDGAR 官方 company_tickers.json；仅美国目标市场，Fair Access User-Agent，CIK/Ticker 身份线索，最多 100 条）
 - `hunter`（新增；Hunter Discover B2B 企业发现，租户 Key，单页最多 100 家；仅记录公司域名/名称和邮箱数量，不拉取联系人邮箱）
 - `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
 - `kvk`（新增；荷兰 KVK 官方 Handelsregister Zoeken API，租户 API Key 通过 `apikey` 请求头发送，最多 3 个关键词×每词 2 页 bounded fetch）
