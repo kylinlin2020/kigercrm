@@ -1,10 +1,10 @@
-using System.Globalization;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
+using XiHan.BasicApp.Saas.Application.Services;
 
 namespace XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 
@@ -19,16 +19,24 @@ public sealed class CrmFmcsaQcmobileProspectingProvider : ICrmProspectingProvide
     private const string PathPrefix = "/qc/services/carriers/name/";
     private const int MaxResponseBytes = 4 * 1024 * 1024;
     private readonly HttpClient _httpClient;
-    private readonly string _webKey;
+    private readonly Func<CancellationToken, Task<string?>> _webKeyFactory;
 
-    public CrmFmcsaQcmobileProspectingProvider(HttpClient httpClient, string webKey)
+    public CrmFmcsaQcmobileProspectingProvider(HttpClient httpClient, string? webKey)
+        : this(httpClient, _ => Task.FromResult(string.IsNullOrWhiteSpace(webKey) ? null : webKey.Trim())) { }
+
+    public CrmFmcsaQcmobileProspectingProvider(HttpClient httpClient, ISaasConfigurationService configuration)
+        : this(httpClient, cancellationToken => configuration.GetStringAsync(
+            "CRM.Prospecting.Provider.fmcsa_qcmobile.WebKey", cancellationToken: cancellationToken))
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+    }
+
+    private CrmFmcsaQcmobileProspectingProvider(
+        HttpClient httpClient,
+        Func<CancellationToken, Task<string?>> webKeyFactory)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _webKey = string.IsNullOrWhiteSpace(webKey)
-            ? throw new ArgumentException("FMCSA WebKey is required.", nameof(webKey))
-            : webKey.Trim();
-        if (_webKey.Length > 512 || _webKey.Any(char.IsControl))
-            throw new ArgumentException("FMCSA WebKey is invalid.", nameof(webKey));
+        _webKeyFactory = webKeyFactory ?? throw new ArgumentNullException(nameof(webKeyFactory));
     }
 
     public string ProviderCode => "fmcsa_qcmobile";
@@ -52,9 +60,17 @@ public sealed class CrmFmcsaQcmobileProspectingProvider : ICrmProspectingProvide
                 ["FMCSA QCMobile requires a carrier, logistics or company keyword."])
                 { IsComplete = false };
 
+        var webKey = await _webKeyFactory(cancellationToken);
+        if (string.IsNullOrWhiteSpace(webKey))
+            return new CrmProspectingProviderResult([], 1,
+                ["FMCSA QCMobile requires a tenant WebKey. Configure it in the provider credentials panel."])
+                { IsComplete = false };
+        if (webKey.Length > 512 || webKey.Any(char.IsControl))
+            throw new InvalidOperationException("FMCSA WebKey configuration is invalid.");
+
         var query = string.Join(" ", terms);
         var requestUri = new UriBuilder(new Uri(new Uri("https://" + Host), PathPrefix + Uri.EscapeDataString(query)));
-        requestUri.Query = "webKey=" + Uri.EscapeDataString(_webKey);
+        requestUri.Query = "webKey=" + Uri.EscapeDataString(webKey.Trim());
         using var message = new HttpRequestMessage(HttpMethod.Get, requestUri.Uri);
         message.Headers.Accept.ParseAdd("application/json");
 
