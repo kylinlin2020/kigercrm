@@ -111,8 +111,6 @@ public sealed class CrmSecEdgarProspectingProvider : ICrmProspectingProvider, ID
 
             var normalizedTitle = Normalize(title);
             var normalizedTicker = ticker.Trim().ToUpperInvariant();
-            if (request.ExcludedDomains.Any(domain => normalizedTitle.Contains(Normalize(domain), StringComparison.Ordinal)))
-                continue;
             var matched = terms.Any(term => normalizedTitle.Contains(term, StringComparison.Ordinal)
                 || normalizedTicker.Equals(term, StringComparison.OrdinalIgnoreCase));
             if (!matched) continue;
