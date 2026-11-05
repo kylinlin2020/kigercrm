@@ -35,4 +35,24 @@ public sealed class CrmKvkProspectingWiringTests
         }
         throw new DirectoryNotFoundException("Could not locate the KIGER CRM repository root.");
     }
+
+    [Fact]
+    public void BraveSearchProvider_ShouldUseTenantEncryptedTokenAndExplicitOptInRegistration()
+    {
+        var root = FindRepositoryRoot();
+        var provider = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmBraveSearchProspectingProvider.cs"));
+        var registration = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        var settings = File.ReadAllText(Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json"));
+        var credentials = File.ReadAllText(Path.Combine(root, "frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue"));
+
+        Assert.Contains("CRM.Prospecting.Provider.brave.ApiKey", provider, StringComparison.Ordinal);
+        Assert.Contains("X-Subscription-Token", provider, StringComparison.Ordinal);
+        Assert.Contains("EnableBraveSearchProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmBraveSearchProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("api.search.brave.com", registration, StringComparison.Ordinal);
+        Assert.Contains("\"EnableBraveSearchProvider\": false", settings, StringComparison.Ordinal);
+        Assert.Contains("code: 'brave'", credentials, StringComparison.Ordinal);
+        Assert.Contains("ConfigType.Tenant", credentials, StringComparison.Ordinal);
+        Assert.Contains("isEncrypted: true", credentials, StringComparison.Ordinal);
+    }
 }
