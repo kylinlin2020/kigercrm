@@ -41,7 +41,7 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         long jobId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Atomically claims due jobs using PostgreSQL SKIP LOCKED and increments fencing; NeedsReview is eligible only when a remote extraction ID and submitted timestamp are already persisted.</summary>
+    /// <summary>Atomically claims due executable jobs using PostgreSQL SKIP LOCKED and increments fencing. NeedsReview is deliberately excluded from automatic claims and requires an explicit human review/requeue action.</summary>
     Task<IReadOnlyList<SysCrmProspectingExtractionJob>> ClaimDueAsync(
         string leaseOwner,
         TimeSpan leaseDuration,
