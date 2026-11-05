@@ -62,7 +62,6 @@ public sealed class CrmNppesOrganizationProspectingProvider : ICrmProspectingPro
 
         foreach (var term in terms)
         {
-            var processed = 0;
             for (var page = 0; page < MaxPagesPerTerm; page++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -143,7 +142,6 @@ public sealed class CrmNppesOrganizationProspectingProvider : ICrmProspectingPro
                     });
                 }
 
-                processed += results.GetArrayLength();
                 if (results.GetArrayLength() < PageSize) break;
                 if (page == MaxPagesPerTerm - 1)
                 {
