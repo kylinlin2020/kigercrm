@@ -100,6 +100,7 @@ public sealed class CrmFmcsaQcmobileProspectingProvider : ICrmProspectingProvide
 
         var records = new List<CrmProspectingRawRecord>();
         var warnings = new List<string>();
+        var isComplete = content.GetArrayLength() <= 100;
         var retrievedAt = DateTimeOffset.UtcNow;
         foreach (var item in content.EnumerateArray())
         {
@@ -158,7 +159,9 @@ public sealed class CrmFmcsaQcmobileProspectingProvider : ICrmProspectingProvide
             if (records.Count >= 100) break;
         }
 
-        return new CrmProspectingProviderResult(records, 0, warnings) { IsComplete = true };
+        if (!isComplete)
+            warnings.Add("FMCSA returned more than 100 carrier rows; the bounded result set is incomplete.");
+        return new CrmProspectingProviderResult(records, 0, warnings) { IsComplete = isComplete };
     }
 
     private static bool IsUnitedStates(string value)
