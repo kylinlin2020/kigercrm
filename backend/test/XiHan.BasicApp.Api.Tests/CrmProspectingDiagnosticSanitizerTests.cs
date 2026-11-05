@@ -12,6 +12,7 @@ public sealed class CrmProspectingDiagnosticSanitizerTests
     [InlineData("X-Subscription-Token: brave-secret", "X-Subscription-Token=[REDACTED]")]
     [InlineData("api_key=serpapi-secret", "api_key=[REDACTED]")]
     [InlineData("Ocp-Apim-Subscription-Key: comtrade-secret", "Ocp-Apim-Subscription-Key=[REDACTED]")]
+    [InlineData("X-API-KEY: hunter-secret", "X-API-KEY=[REDACTED]")]
     [InlineData("subscription_key: provider-secret", "subscription_key=[REDACTED]")]
     [InlineData("client_secret=oauth-secret", "client_secret=[REDACTED]")]
     public void Sanitize_RedactsProviderCredentials(string input, string expected)
