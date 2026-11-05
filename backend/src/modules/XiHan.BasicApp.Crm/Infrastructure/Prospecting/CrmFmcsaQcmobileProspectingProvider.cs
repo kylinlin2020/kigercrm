@@ -14,7 +14,6 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 /// </summary>
 public sealed class CrmFmcsaQcmobileProspectingProvider : ICrmProspectingProvider, IDisposable
 {
-    private static readonly Uri ApprovedEndpoint = new("https://mobile.fmcsa.dot.gov/qc/services/carriers/name/UPS");
     private const string Host = "mobile.fmcsa.dot.gov";
     private const string PathPrefix = "/qc/services/carriers/name/";
     private const int MaxResponseBytes = 4 * 1024 * 1024;
