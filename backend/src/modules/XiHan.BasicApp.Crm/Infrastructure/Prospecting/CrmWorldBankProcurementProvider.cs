@@ -218,7 +218,7 @@ public sealed class CrmWorldBankProcurementProvider : ICrmProspectingProvider, I
             : null;
 
     private static string? NormalizeEmail(string? value)
-        => !string.IsNullOrWhiteSpace(value) && value.Contains('@', StringComparison.Ordinal)
+        => !string.IsNullOrWhiteSpace(value) && value.Contains('@')
             ? value.Trim()
             : null;
 
