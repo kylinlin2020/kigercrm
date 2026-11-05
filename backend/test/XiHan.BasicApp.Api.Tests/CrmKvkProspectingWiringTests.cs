@@ -1,0 +1,38 @@
+using Xunit;
+
+namespace XiHan.BasicApp.Api.Tests;
+
+public sealed class CrmKvkProspectingWiringTests
+{
+    [Fact]
+    public void KvkProvider_ShouldUseTenantEncryptedCredentialAndExplicitOptInRegistration()
+    {
+        var root = FindRepositoryRoot();
+        var provider = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmKvkProspectingProvider.cs"));
+        var registration = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        var settings = File.ReadAllText(Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json"));
+        var credentials = File.ReadAllText(Path.Combine(root, "frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue"));
+
+        Assert.Contains("CRM.Prospecting.Provider.kvk.ApiKey", provider, StringComparison.Ordinal);
+        Assert.Contains("request.Headers.Add(\"apikey\", apiKey.Trim())", provider, StringComparison.Ordinal);
+        Assert.Contains("EnableKvkProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmKvkProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("api.kvk.nl", registration, StringComparison.Ordinal);
+        Assert.Contains("\"EnableKvkProvider\": false", settings, StringComparison.Ordinal);
+        Assert.Contains("code: 'kvk'", credentials, StringComparison.Ordinal);
+        Assert.Contains("ConfigType.Tenant", credentials, StringComparison.Ordinal);
+        Assert.Contains("isEncrypted: true", credentials, StringComparison.Ordinal);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var current = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (current is not null)
+        {
+            if (File.Exists(Path.Combine(current.FullName, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs")))
+                return current.FullName;
+            current = current.Parent;
+        }
+        throw new DirectoryNotFoundException("Could not locate the KIGER CRM repository root.");
+    }
+}
