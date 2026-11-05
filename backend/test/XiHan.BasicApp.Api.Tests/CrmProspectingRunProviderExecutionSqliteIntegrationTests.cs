@@ -74,7 +74,7 @@ public sealed class CrmProspectingRunProviderExecutionSqliteIntegrationTests : I
                 AttemptCount = 1,
                 CheckpointJson = "{\"records\":[]}",
                 CheckpointHash = new string('B', 64),
-                CheckpointBytes = 15,
+                CheckpointBytes = 14,
                 RawRecordCount = 0,
                 ProjectedRecordCount = 0,
                 FailureCount = 0
@@ -90,7 +90,7 @@ public sealed class CrmProspectingRunProviderExecutionSqliteIntegrationTests : I
             Assert.Equal("Checkpointed", persisted.State);
             Assert.Equal("{\"records\":[]}", persisted.CheckpointJson);
             Assert.Equal(new string('B', 64), persisted.CheckpointHash);
-            Assert.Equal(15, persisted.CheckpointBytes);
+            Assert.Equal(14, persisted.CheckpointBytes);
         }
 
         using (_tenant.Change(TenantId + 1))
