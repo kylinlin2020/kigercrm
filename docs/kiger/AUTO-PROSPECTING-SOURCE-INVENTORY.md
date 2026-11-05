@@ -76,7 +76,7 @@
 |---|---|---|---|
 | UN Comtrade | 官方国际商品贸易统计 | 已实现待验收 | 已新增公开预览（无 Key，最多 500 行）与订阅 Key 数据 API 两种模式；按目标市场 Reporter 取数，结果标记为聚合贸易信号，不视为具体进口商；需验证配额、分类与月份覆盖 |
 | US Census International Trade | 美国官方进出口统计 | 已实现待验收 | 已新增 HS2 出口贸易统计适配器，Key 必填，默认关闭；从当前租户加密配置读取 Key，并按 target market 国家过滤目的地；需验收变量/分类/时间覆盖 |
-| Eurostat Comext | 欧盟官方商品贸易统计 | 未迁移 | 数据集版本、Reporter/Partner/商品编码和修订 |
+| Eurostat Comext | 欧盟官方商品贸易统计；免费 SDMX API | API 与维度已核实，待适配器 | 已确认 DS-045409 与 Comext 专用 API base；维度为 freq/reporter/partner/product/flow/time_period/indicators；必须过滤到很小的 reporter/partner/HS 产品/月份集合；大查询触发异步作业，当前 Provider contract 尚无异步 job 状态/结果续取能力 |
 | China Customs Statistics | 中国海关统计入口 | 需拆分确认 | 核验接口可用性、许可、数据粒度及是否聚合统计 |
 | ImportYeti | 美国提单/进口商发现 | 需拆分确认 | 确认是否有正式 API、许可和自动化访问边界；禁止绕过访问控制 |
 | EU EPREL | 欧盟能源标签产品登记 | 需拆分确认 | 作为产品/合规信号源，明确能否可靠反查企业 |
@@ -128,6 +128,15 @@
 - 配置按租户隔离；密钥加密保存、不回显；付费来源默认关闭。
 - 统一分页/游标、结果完整性、失败类别、重试时间、配额/成本元数据、请求账本。
 - 所有外部请求走统一安全执行边界；固定官方 API 端点必须 allowlist、DNS/IP pinning、禁自动重定向、响应大小上限和超时。
+
+### Eurostat Comext 接口核验（2026-11-05）
+
+- DS 前缀 Comext 数据集必须使用专用 API base：`https://ec.europa.eu/eurostat/api/comext/dissemination`，不能误用普通 Eurostat dissemination base。
+- 已确认候选数据集 `DS-045409`（EU trade since 1988 by HS2-4-6 and CN8），维度顺序/名称包含 `freq`、`reporter`、`partner`、`product`、`flow`、`time_period`、`indicators`。
+- 官方约束元数据示例显示 reporter 33 个、partner 282 个、product 40,321 个、time_period 468 个；未限制商品/伙伴/月份的请求会巨大。
+- 官方同步/异步阈值：估算低于 500,000 cells 通常同步返回；500,000 至 5,000,000 可能异步；超过 5,000,000 会被拒绝。官方建议单次只发一个提取请求，不并行轰击服务。
+- 后续适配器必须优先把产品限定到发电机/水泵相关 HS2/HS6/CN 编码、Reporter 限定目标 EU 国家、Partner 限定世界或必要贸易伙伴、月份限定近期窗口，并只取价值指标；商品编码与 flow 代码需在实际请求前从官方 codelist/数据约束中逐项核实。
+- 当前 Provider contract 是单次同步 `SearchAsync`，没有异步 extraction key/status/data continuation；在未扩展通用运行时之前，不接入可能返回异步 SOAP 状态的宽查询，避免把“已提交后台任务”误判为数据结果。
 
 ### P0-B：官方采购与贸易信号
 - 补齐 World Bank Procurement、SAM.gov、PNCP、GeBIZ。
