@@ -24,6 +24,19 @@ public sealed class CrmProspectingDiagnosticSanitizerTests
     }
 
     [Fact]
+    public void Sanitize_RedactsDenueTokenFromUrlPath()
+    {
+        var result = CrmProspectingDiagnosticSanitizer.Sanitize(
+            "DENUE request failed: https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/generadores/00/1/20/private-denue-token",
+            500);
+
+        Assert.Equal(
+            "DENUE request failed: https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/generadores/00/1/20/[REDACTED]",
+            result);
+        Assert.DoesNotContain("private-denue-token", result, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Sanitize_RemovesEntireUrlQueryAndFragment()
     {
         var result = CrmProspectingDiagnosticSanitizer.Sanitize(
