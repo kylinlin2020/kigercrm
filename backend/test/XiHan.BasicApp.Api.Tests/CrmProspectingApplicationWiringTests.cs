@@ -756,6 +756,10 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("TryAdvanceCursorAsync", persistence, StringComparison.Ordinal);
         Assert.Contains("TryCompleteResultsAsync", persistence, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRecordIdentity.NormalizeExternalId", persistence, StringComparison.Ordinal);
+        Assert.Contains("PersistCandidateOrRepairAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("_candidates.GetByIdentityAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("_evidence.GetByCandidateAsync", persistence, StringComparison.Ordinal);
+        Assert.Contains("human review/conversion state is never rewritten", persistence, StringComparison.Ordinal);
         Assert.Contains("if (!advanced)", persistence, StringComparison.Ordinal);
 
         var completionStart = repository.IndexOf("public async Task<bool> TryCompleteResultsAsync", StringComparison.Ordinal);
