@@ -353,13 +353,13 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
             var leadRepository = scope.ServiceProvider.GetRequiredService<ICrmLeadRepository>();
             var duplicateEmails = raw
-                .Select(envelope => NormalizeCandidateEmail(envelope.Record))
+                .Select(envelope => CrmProspectingCandidateFactory.NormalizeEmail(envelope.Record))
                 .Where(value => value is not null)
                 .Select(value => value!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             var duplicateWebsiteHosts = raw
-                .Select(envelope => NormalizeCandidateWebsiteHost(envelope.Record))
+                .Select(envelope => CrmProspectingCandidateFactory.NormalizeWebsiteHost(envelope.Record))
                 .Where(value => value is not null)
                 .Select(value => value!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -475,10 +475,10 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 var email = string.IsNullOrWhiteSpace(record.BusinessEmail) ? null : record.BusinessEmail.Trim();
                 if (email?.Length > 254) email = null;
-                var normalizedEmail = CrmLeadDuplicateMatcher.NormalizeEmail(email);
+                var normalizedEmail = CrmProspectingCandidateFactory.NormalizeEmail(record);
                 var website = string.IsNullOrWhiteSpace(record.Website) ? null : record.Website.Trim();
                 if (website?.Length > 500) website = website[..500];
-                var websiteHost = CrmLeadDuplicateMatcher.NormalizeDomain(website);
+                var websiteHost = CrmProspectingCandidateFactory.NormalizeWebsiteHost(record);
 
                 var candidateEmailDuplicate = normalizedEmail is not null && seenCandidateEmails.Contains(normalizedEmail);
                 var candidateWebsiteDuplicate = websiteHost is not null && seenCandidateWebsites.Contains(websiteHost);
@@ -497,38 +497,27 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     .ThenByDescending(match => match.WebsiteMatch)
                     .FirstOrDefault();
 
-                var source = record.Source?.Trim();
-                var title = record.Title?.Trim();
-                var contactName = record.ContactName?.Trim();
-                var summary = record.Summary?.Trim();
-                var candidate = new XiHan.BasicApp.Crm.Domain.Entities.SysCrmProspectingCandidate
-                {
-                    RunId = run.BasicId,
-                    ProviderCode = providerCode,
-                    ExternalId = externalId,
-                    Source = string.IsNullOrWhiteSpace(source) ? null : source[..Math.Min(source.Length, 200)],
-                    Title = string.IsNullOrWhiteSpace(title) ? null : title[..Math.Min(title.Length, 300)],
-                    CompanyName = companyName,
-                    ContactName = string.IsNullOrWhiteSpace(contactName) ? null : contactName[..Math.Min(contactName.Length, 200)],
-                    BusinessEmail = email,
-                    NormalizedEmail = normalizedEmail,
-                    Website = website,
-                    WebsiteHost = websiteHost,
-                    Summary = string.IsNullOrWhiteSpace(summary) ? null : summary[..Math.Min(summary.Length, 5000)],
-                    Status = duplicate is null && !candidateEmailDuplicate && !candidateWebsiteDuplicate &&
-                        !crossRunIdentityDuplicate && !crossRunEmailDuplicate && !crossRunWebsiteDuplicate
-                        ? CrmProspectingCandidateStatus.PendingReview
-                        : CrmProspectingCandidateStatus.Duplicate,
-                    DuplicateLeadId = duplicate?.Lead.BasicId,
-                    DuplicateReason = duplicate is not null
-                        ? duplicate.EmailMatch && duplicate.WebsiteMatch ? "Email and website match an existing lead"
-                        : duplicate.EmailMatch ? "Email matches an existing lead" : "Website domain matches an existing lead"
-                        : candidateEmailDuplicate ? "Email matches another candidate in this run"
-                        : candidateWebsiteDuplicate ? "Website domain matches another candidate in this run"
-                        : crossRunIdentityDuplicate ? "Provider notice identity already exists in an earlier Run"
-                        : crossRunEmailDuplicate ? "Email matches a candidate in an earlier Run"
-                        : crossRunWebsiteDuplicate ? "Website domain matches a candidate in an earlier Run" : null
-                };
+                var duplicateReason = duplicate is not null
+                    ? duplicate.EmailMatch && duplicate.WebsiteMatch ? "Email and website match an existing lead"
+                    : duplicate.EmailMatch ? "Email matches an existing lead" : "Website domain matches an existing lead"
+                    : candidateEmailDuplicate ? "Email matches another candidate in this run"
+                    : candidateWebsiteDuplicate ? "Website domain matches another candidate in this run"
+                    : crossRunIdentityDuplicate ? "Provider notice identity already exists in an earlier Run"
+                    : crossRunEmailDuplicate ? "Email matches a candidate in an earlier Run"
+                    : crossRunWebsiteDuplicate ? "Website domain matches a candidate in an earlier Run" : null;
+                var isDuplicate = duplicate is not null || candidateEmailDuplicate || candidateWebsiteDuplicate ||
+                    crossRunIdentityDuplicate || crossRunEmailDuplicate || crossRunWebsiteDuplicate;
+                var candidate = CrmProspectingCandidateFactory.Create(
+                    run.BasicId,
+                    providerCode,
+                    record,
+                    externalId,
+                    companyName,
+                    normalizedEmail,
+                    websiteHost,
+                    isDuplicate,
+                    duplicate?.Lead.BasicId,
+                    duplicateReason);
                 // The background worker is not an HTTP request and must not rely on MVC/AOP
                 // UnitOfWork interception. Use an explicit short transaction for the candidate
                 // and its provenance rows; provider network calls stay outside this transaction.
@@ -1136,19 +1125,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         return true;
     }
 
-    private static string? NormalizeCandidateEmail(CrmProspectingRawRecord record)
-    {
-        var email = string.IsNullOrWhiteSpace(record.BusinessEmail) ? null : record.BusinessEmail.Trim();
-        if (email?.Length > 254) email = null;
-        return CrmLeadDuplicateMatcher.NormalizeEmail(email);
-    }
 
-    private static string? NormalizeCandidateWebsiteHost(CrmProspectingRawRecord record)
-    {
-        var website = string.IsNullOrWhiteSpace(record.Website) ? null : record.Website.Trim();
-        if (website?.Length > 500) website = website[..500];
-        return CrmLeadDuplicateMatcher.NormalizeDomain(website);
-    }
 
     private static IDynamicServiceConfig BuildConfig(IOptions<XiHanBackgroundServiceOptions> options)
     {
