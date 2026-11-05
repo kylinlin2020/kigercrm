@@ -134,8 +134,10 @@ public enum CrmProspectingExtractionStatus
     Pending = 0,
     Running = 1,
     Succeeded = 2,
-    Failed = 3,
-    Expired = 4,
-    Cancelled = 5,
-    NeedsReview = 6
+    FetchingResults = 3,
+    Completed = 4,
+    Failed = 5,
+    Expired = 6,
+    Cancelled = 7,
+    NeedsReview = 8
 }
