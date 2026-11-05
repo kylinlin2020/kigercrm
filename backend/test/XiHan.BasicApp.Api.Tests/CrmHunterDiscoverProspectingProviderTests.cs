@@ -62,17 +62,20 @@ public sealed class CrmHunterDiscoverProspectingProviderTests
     }
 
     [Fact]
-    public async Task SearchAsync_Propagates429Cooldown()
+    public async Task SearchAsync_Propagates503Cooldown()
     {
         var handler = new StubHandler((request, _) =>
         {
-            var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests) { RequestMessage = request };
+            var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = request };
             response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromMinutes(3));
             return response;
         });
         using var provider = new CrmHunterDiscoverProspectingProvider(new HttpClient(handler), "key");
 
-        await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() => provider.SearchAsync(Request()));
+        var exception = await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() => provider.SearchAsync(Request()));
+        Assert.Equal((int)HttpStatusCode.ServiceUnavailable, exception.HttpStatus);
+        Assert.NotNull(exception.RetryAfterAt);
+        Assert.Equal(1, handler.CallCount);
     }
 
     [Fact]
