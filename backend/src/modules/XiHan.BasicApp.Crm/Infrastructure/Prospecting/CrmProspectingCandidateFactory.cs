@@ -203,8 +203,27 @@ public sealed class CrmProspectingCandidatePersistenceService
             ?? throw new InvalidOperationException("The provider execution checkpoint does not exist in the current tenant and Run.");
         if (!string.Equals(execution.CheckpointHash, checkpointHash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The provider execution checkpoint hash changed before projection.");
+        if (string.IsNullOrWhiteSpace(execution.CheckpointJson) ||
+            execution.CheckpointBytes != System.Text.Encoding.UTF8.GetByteCount(execution.CheckpointJson))
+            throw new InvalidOperationException("The persisted provider checkpoint is missing or its byte count is invalid.");
+        var persistedCheckpointHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(execution.CheckpointJson)));
+        if (!string.Equals(persistedCheckpointHash, execution.CheckpointHash, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The persisted provider checkpoint failed its SHA-256 integrity check.");
+        var persistedCheckpoint = System.Text.Json.JsonSerializer.Deserialize<CrmProspectingProviderResultCheckpoint>(
+            execution.CheckpointJson)
+            ?? throw new InvalidOperationException("The persisted provider checkpoint payload is invalid.");
+        if (persistedCheckpoint.Records is null ||
+            persistedCheckpoint.Records.Count != execution.RawRecordCount ||
+            persistedCheckpoint.FailureCount < 0)
+            throw new InvalidOperationException("The persisted provider checkpoint record count or shape is invalid.");
         if (items.Count > execution.RawRecordCount)
             throw new ArgumentException("A provider batch cannot project more records than its persisted checkpoint contains.", nameof(items));
+        var checkpointIdentities = persistedCheckpoint.Records
+            .Select(CrmProspectingRecordIdentity.NormalizeExternalId)
+            .ToHashSet(StringComparer.Ordinal);
+        if (checkpointIdentities.Count != persistedCheckpoint.Records.Count)
+            throw new InvalidOperationException("The persisted provider checkpoint contains duplicate normalized record identities.");
         if (execution.State is "Succeeded" or "Failed")
             return execution.ProjectedRecordCount;
         if (execution.State is not ("Checkpointed" or "Projecting"))
