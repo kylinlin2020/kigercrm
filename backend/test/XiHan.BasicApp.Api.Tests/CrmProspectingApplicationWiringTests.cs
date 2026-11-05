@@ -90,6 +90,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("api.census.gov", registration, StringComparison.Ordinal);
         Assert.Contains("EnableSamGovProvider", registration, StringComparison.Ordinal);
         Assert.Contains("EnableWikidataProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableRorProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmRorProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("api.ror.org", registration, StringComparison.Ordinal);
         Assert.Contains("CrmWikidataProspectingProvider", registration, StringComparison.Ordinal);
         Assert.Contains("www.wikidata.org", registration, StringComparison.Ordinal);
         Assert.Contains("CrmSamGovOpportunitiesProspectingProvider", registration, StringComparison.Ordinal);
