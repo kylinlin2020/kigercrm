@@ -15,7 +15,6 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         DateTimeOffset submittedAtUtc,
         DateTimeOffset nextPollAtUtc,
         DateTimeOffset? expiresAtUtc,
-        string? safeMetadataJson,
         CancellationToken cancellationToken = default);
 
     Task<SysCrmProspectingExtractionJob?> GetByIdAsync(
