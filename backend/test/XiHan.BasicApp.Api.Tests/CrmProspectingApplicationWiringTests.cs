@@ -88,6 +88,9 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("EnableUsCensusTradeProvider", registration, StringComparison.Ordinal);
         Assert.Contains("CrmUsCensusTradeProspectingProvider", registration, StringComparison.Ordinal);
         Assert.Contains("api.census.gov", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableSamGovProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmSamGovOpportunitiesProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("api.sam.gov", registration, StringComparison.Ordinal);
         Assert.DoesNotContain("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();", registration, StringComparison.Ordinal);
     }
 
@@ -98,6 +101,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
         var comtrade = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUnComtradeProspectingProvider.cs");
         var census = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUsCensusTradeProspectingProvider.cs");
+        var samGov = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmSamGovOpportunitiesProspectingProvider.cs");
         var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
 
         Assert.Contains("services.AddScoped<CrmUnComtradeProspectingProvider>", registration, StringComparison.Ordinal);
@@ -106,6 +110,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("ICurrentTenant>().Change(message.TenantId)", worker, StringComparison.Ordinal);
         Assert.Contains("CRM.Prospecting.Provider.un_comtrade.ApiKey", comtrade, StringComparison.Ordinal);
         Assert.Contains("CRM.Prospecting.Provider.us_census.ApiKey", census, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.sam_gov.ApiKey", samGov, StringComparison.Ordinal);
         Assert.Contains("Ocp-Apim-Subscription-Key", comtrade, StringComparison.Ordinal);
         Assert.Contains("ConfigType.Tenant", frontend, StringComparison.Ordinal);
         Assert.Contains("isEncrypted: true", frontend, StringComparison.Ordinal);
