@@ -32,10 +32,10 @@ public sealed class CrmProspectingExtractionStateMachineTests
     public void CanCompleteResults_ShouldRequireFullyPersistableFinalPage(
         bool isLastPage, bool isComplete, int failureCount, bool expected)
         => Assert.Equal(expected, CrmProspectingExtractionStateMachine.CanCompleteResults(
-            CrmProspectingExtractionStatus.Succeeded, isLastPage, isComplete, failureCount));
+            CrmProspectingExtractionStatus.FetchingResults, isLastPage, isComplete, failureCount));
 
     [Fact]
-    public void CanCompleteResults_ShouldRejectCompletionBeforeProviderSucceeds()
+    public void CanCompleteResults_ShouldRejectCompletionBeforeResultFetching()
         => Assert.False(CrmProspectingExtractionStateMachine.CanCompleteResults(
             CrmProspectingExtractionStatus.Running, true, true, 0));
 
