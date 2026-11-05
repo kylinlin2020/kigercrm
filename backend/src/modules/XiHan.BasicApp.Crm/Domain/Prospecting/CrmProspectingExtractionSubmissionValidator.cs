@@ -9,7 +9,7 @@ namespace XiHan.BasicApp.Crm.Domain.Prospecting;
 public static class CrmProspectingExtractionSubmissionValidator
 {
     public const int MaxProviderExtractionIdLength = 512;
-    public const int MaxSafeMetadataJsonLength = 4096;
+    public const int MaxSafeMetadataJsonLength = 4000;
     public const int MaxPollAfterSeconds = 86400;
 
     public static bool TryValidate(
@@ -38,7 +38,8 @@ public static class CrmProspectingExtractionSubmissionValidator
         var extractionId = submission.Extraction.ProviderExtractionId;
         if (string.IsNullOrWhiteSpace(extractionId) ||
             extractionId.Length > MaxProviderExtractionIdLength ||
-            extractionId.Any(char.IsControl))
+            extractionId.Any(char.IsControl) ||
+            !string.Equals(extractionId, extractionId.Trim(), StringComparison.Ordinal))
         {
             failureCode = "invalid_provider_extraction_id";
             return false;
