@@ -588,3 +588,18 @@ Implemented the first repository boundary for the 5.9.36 execution-checkpoint ta
 - Source-level contract tests cover strict tenant entity identity, repository operations, lease fencing, transaction requirement, payload bound, and hash generation.
 
 Important limitations: this repository does not yet materialize provider plan rows, provide an atomic batch insert, read/verify stored checkpoint hashes on recovery, persist Candidate/Evidence/Score projection with the step transition, or resume the Run worker. It also has not been compiled or executed against PostgreSQL. The synchronous worker remains unchanged and async providers remain fail-closed. The next step is safe immutable plan materialization and a PostgreSQL-backed repository test suite before any worker integration.
+
+
+## 11.37 Immutable provider-plan materialization and recovery source (2026-11-05)
+
+The five implementation tracks are being advanced together. This increment adds the durable plan layer and its first acceptance coverage:
+
+1. **Snapshot -> execution rows:** `EnsurePlanMaterializedAsync` locks the exact live Run row and reads only `SnapshotProviderPlanJson`, `StrategyVersion`, and `PayloadHash`. It creates ordered tenant-scoped execution rows in one transaction.
+2. **Idempotent initialization:** the parent Run row lock serializes concurrent materializers. An existing complete plan is returned unchanged; a partial or mismatching plan fails closed rather than being repaired or rewritten.
+3. **Version and fingerprint:** `PlanVersion` is the immutable Run's `StrategyVersion`. Each provider fingerprint is SHA-256 over a versioned canonical tuple of Run payload hash, plan version, and normalized provider code. The unique database key remains tenant + Run + plan version + provider code.
+4. **Recovery source:** the Run hosted worker now obtains provider codes and ordering from persisted execution rows on every delivery, rather than reparsing the snapshot as its execution list or reading mutable Strategy/Campaign configuration. The snapshot is used only by the repository to validate/materialize the immutable plan.
+5. **PostgreSQL gate:** migration 5.9.36 now enforces the 1 MiB checkpoint quota and exact UTF-8 byte count at the database boundary. Added `backend/scripts/acceptance/Test-ProspectingProviderExecutionPostgres.sql` to test unique provider-plan identity, valid state constraints, and oversized checkpoint rejection against a disposable PostgreSQL database. SQLite mapping/tenant-scope integration coverage and source-contract guards were also added.
+
+The repository checkpoint writes use a materialized parent-Run `FOR UPDATE` CTE referenced by the child update, so the lock is not merely declarative. A prior source review found and corrected an early CTE wiring defect in `TryStartAsync` and `TryTransitionAsync`.
+
+**Still not complete / not claimed:** provider-result checkpoint replay, automatic reconciliation of ambiguous Started rows, Candidate/Evidence/Score projection atomic with terminal provider-step state, and the async extraction worker remain separate gates. The current Run worker reads its immutable plan from persisted rows, but does not yet drive every provider execution state transition. The PostgreSQL acceptance SQL and test suite have been authored but not run; Windows pull/build and real PostgreSQL concurrency acceptance remain pending. Async-only adapters stay fail-closed.
