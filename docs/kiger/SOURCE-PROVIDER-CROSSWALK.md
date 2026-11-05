@@ -79,7 +79,7 @@
 
 - 固定调用 `https://www.sec.gov/files/company_tickers.json`，只访问 SEC 官方主机；进程内统一限速为每 150 ms 最多一次（约 6.7 req/s），低于 SEC 当前 10 req/s 上限。
 - 需要用户填写 SEC Fair Access User-Agent（系统名称 + 联系邮箱），不是 API Key；保存到租户加密配置 `CRM.Prospecting.Provider.sec_edgar.UserAgent`。
-- 仅美国目标市场运行；公司名称/股票代码与活动 ICP/产品/行业关键词做本地匹配；最多输出 100 条。
+- 仅美国目标市场运行；公司名称/股票代码与活动 ICP/产品/行业关键词做本地匹配；最多输出 100 条；SEC 官方说明 ticker/CIK 关联文件不保证完整准确或覆盖全部申报主体，因此不得当作全美企业名录。
 - 记录 CIK、Ticker、官方 SEC browse URL、检索时间、原始记录 SHA-256；证据类型 `us_sec_company_directory`。
 - 不抓取联系人、不把 SEC 登记/上市记录解释为采购意向、不自动写入正式客户。
 - `EnableSecEdgarProvider=false` 默认关闭。
