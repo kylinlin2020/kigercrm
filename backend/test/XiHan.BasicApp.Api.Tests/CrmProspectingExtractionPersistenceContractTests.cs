@@ -29,6 +29,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("ClaimDueAsync", methods);
         Assert.Contains("ExpireDueAsync", methods);
         Assert.Contains("TryTransitionAsync", methods);
+        Assert.Contains("TryCompleteResultsAsync", methods);
         Assert.Contains("TryAdvanceCursorAsync", methods);
     }
 
