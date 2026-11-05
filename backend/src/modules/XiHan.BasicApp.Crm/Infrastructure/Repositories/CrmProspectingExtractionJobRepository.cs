@@ -18,6 +18,94 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
     private const int MaxCursorLength = 2048;
     private const int MaxFailureSummaryLength = 1000;
 
+    public async Task<SysCrmProspectingExtractionJob> CreateSubmissionIntentAsync(
+        long runId, string providerCode, string requestFingerprint, DateTimeOffset nextAttemptAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(requestFingerprint);
+        providerCode = providerCode.Trim().ToLowerInvariant();
+        if (providerCode.Length > 80) throw new ArgumentOutOfRangeException(nameof(providerCode));
+        if (requestFingerprint.Length != 64 || !requestFingerprint.All(Uri.IsHexDigit))
+            throw new ArgumentException("Request fingerprint must be a 64-character SHA-256 hex digest.", nameof(requestFingerprint));
+        cancellationToken.ThrowIfCancellationRequested();
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for extraction intent creation.");
+        var fingerprint = requestFingerprint.ToUpperInvariant();
+        var existing = await CreateQueryable()
+            .Where(row => row.TenantId == tenant.TenantId && row.RunId == runId
+                && row.ProviderCode == providerCode && row.RequestFingerprint == fingerprint)
+            .Take(2).ToListAsync(cancellationToken);
+        if (existing.Count > 1)
+            throw new InvalidOperationException("The tenant contains duplicate extraction intents for one Run/provider/fingerprint.");
+        if (existing.Count == 1) return existing[0];
+
+        var entity = new SysCrmProspectingExtractionJob
+        {
+            TenantId = tenant.TenantId, RunId = runId, ProviderCode = providerCode,
+            RequestFingerprint = fingerprint, SubmissionIdempotencyKey = Guid.NewGuid(),
+            ProviderExtractionId = null, Status = CrmProspectingExtractionStatus.Submitting.ToString(),
+            SubmittedAtUtc = null, NextPollAtUtc = nextAttemptAtUtc, PollAttemptCount = 0,
+            ResultRecordCount = 0, FencingVersion = 0
+        };
+        try { await AddAsync(entity); return entity; }
+        catch (SqlSugarException)
+        {
+            var raced = await CreateQueryable()
+                .Where(row => row.TenantId == tenant.TenantId && row.RunId == runId
+                    && row.ProviderCode == providerCode && row.RequestFingerprint == fingerprint)
+                .Take(2).ToListAsync(cancellationToken);
+            if (raced.Count == 1) return raced[0];
+            throw;
+        }
+    }
+
+    public async Task<bool> TryAcknowledgeSubmissionAsync(
+        long jobId, Guid leaseToken, long fencingVersion, string providerExtractionId,
+        DateTimeOffset submittedAtUtc, DateTimeOffset nextPollAtUtc, DateTimeOffset? expiresAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerExtractionId);
+        if (providerExtractionId.Length > 512) throw new ArgumentOutOfRangeException(nameof(providerExtractionId));
+        if (expiresAtUtc is not null && expiresAtUtc <= submittedAtUtc)
+            throw new ArgumentOutOfRangeException(nameof(expiresAtUtc));
+        if (nextPollAtUtc < submittedAtUtc) throw new ArgumentOutOfRangeException(nameof(nextPollAtUtc));
+        cancellationToken.ThrowIfCancellationRequested();
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for extraction acknowledgement.");
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Extraction acknowledgement requires PostgreSQL.");
+
+        const string sql = """
+            UPDATE crm_prospecting_extraction_job
+            SET provider_extraction_id = @providerExtractionId,
+                status = @pendingStatus, submitted_at_utc = @submittedAtUtc,
+                next_poll_at_utc = @nextPollAtUtc, expires_at_utc = @expiresAtUtc,
+                lease_owner = NULL, lease_token = NULL, lease_expires_at_utc = NULL
+            WHERE tenant_id = @tenantId AND basic_id = @jobId
+              AND status = @submittingStatus AND provider_extraction_id IS NULL
+              AND lease_token = @leaseToken AND fencing_version = @fencingVersion
+              AND lease_expires_at_utc > clock_timestamp();
+            """;
+        var affected = await client.Ado.ExecuteCommandAsync(sql,
+            new SugarParameter("@providerExtractionId", providerExtractionId),
+            new SugarParameter("@pendingStatus", CrmProspectingExtractionStatus.Pending.ToString()),
+            new SugarParameter("@submittedAtUtc", submittedAtUtc),
+            new SugarParameter("@nextPollAtUtc", nextPollAtUtc),
+            new SugarParameter("@expiresAtUtc", expiresAtUtc),
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@jobId", jobId),
+            new SugarParameter("@submittingStatus", CrmProspectingExtractionStatus.Submitting.ToString()),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+        return affected == 1;
+    }
+
     public async Task<SysCrmProspectingExtractionJob> CreateAsync(
         long runId,
         string providerCode,
@@ -64,6 +152,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             RunId = runId,
             ProviderCode = providerCode,
             RequestFingerprint = requestFingerprint.ToUpperInvariant(),
+            SubmissionIdempotencyKey = Guid.NewGuid(),
             ProviderExtractionId = providerExtractionId,
             Status = CrmProspectingExtractionStatus.Pending.ToString(),
             SubmittedAtUtc = submittedAtUtc,
@@ -135,7 +224,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
                 SELECT job.basic_id
                 FROM crm_prospecting_extraction_job AS job
                 WHERE job.tenant_id = @tenantId
-                  AND job.status IN (@pendingStatus, @runningStatus, @fetchingStatus)
+                  AND job.status IN (@submittingStatus, @pendingStatus, @runningStatus, @fetchingStatus)
                   AND job.next_poll_at_utc <= clock_timestamp()
                   AND (job.expires_at_utc IS NULL OR job.expires_at_utc > clock_timestamp())
                   AND (job.lease_expires_at_utc IS NULL OR job.lease_expires_at_utc <= clock_timestamp())
@@ -157,6 +246,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         var rows = await client.Ado.SqlQueryAsync<SysCrmProspectingExtractionJob>(
             sql,
             new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@submittingStatus", CrmProspectingExtractionStatus.Submitting.ToString()),
             new SugarParameter("@pendingStatus", CrmProspectingExtractionStatus.Pending.ToString()),
             new SugarParameter("@runningStatus", CrmProspectingExtractionStatus.Running.ToString()),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
