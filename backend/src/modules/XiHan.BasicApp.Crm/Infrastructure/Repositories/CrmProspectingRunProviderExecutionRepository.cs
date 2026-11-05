@@ -147,7 +147,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
 
     private static string CreatePlanFingerprint(string payloadHash, int planVersion, string providerCode)
     {
-        var canonical = $"kiger-provider-plan-v1\\n{payloadHash.ToUpperInvariant()}\\n{planVersion}\\n{providerCode}";
+        var canonical = $"kiger-provider-plan-v1\n{payloadHash.ToUpperInvariant()}\n{planVersion}\n{providerCode}";
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
