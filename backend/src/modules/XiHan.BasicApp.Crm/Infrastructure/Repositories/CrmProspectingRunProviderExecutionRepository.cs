@@ -41,6 +41,17 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
         cancellationToken.ThrowIfCancellationRequested();
         var (client, tenantId) = GetPostgresTenant();
         const string sql = """
+            WITH locked_run AS MATERIALIZED (
+                SELECT run.basic_id
+                FROM crm_prospecting_run AS run
+                WHERE run.tenant_id = @tenantId
+                  AND run.basic_id = @runId
+                  AND run.status = @runningStatus
+                  AND run.lease_token = @leaseToken
+                  AND run.fencing_version = @fencingVersion
+                  AND run.lease_expires_at > clock_timestamp()
+                FOR UPDATE
+            )
             UPDATE crm_prospecting_run_provider_execution AS step
             SET state = 'Started',
                 attempt_count = step.attempt_count + 1,
@@ -176,15 +187,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
               AND step.basic_id = @executionId
               AND step.run_id = @runId
               AND step.state = @expectedState
-              AND EXISTS (
-                  SELECT 1 FROM crm_prospecting_run AS run
-                  WHERE run.tenant_id = @tenantId
-                    AND run.basic_id = @runId
-                    AND run.status = @runningStatus
-                    AND run.lease_token = @leaseToken
-                    AND run.fencing_version = @fencingVersion
-                    AND run.lease_expires_at > clock_timestamp()
-              );
+              AND EXISTS (SELECT 1 FROM locked_run);
             """;
         var terminal = nextState is "Succeeded" or "Failed" or "NeedsReview" or "Skipped";
         return await client.Ado.ExecuteCommandAsync(sql,
