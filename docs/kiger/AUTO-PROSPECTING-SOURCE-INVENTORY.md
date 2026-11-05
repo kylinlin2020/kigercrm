@@ -63,7 +63,7 @@
 | USAspending | 美国联邦合同/支出 | 已实现待验收 | 完整分页、金额/机构字段、真实 API 冒烟 |
 | UK Find a Tender | 英国官方招标公告 | 已实现待验收 | 游标续页、公告/买方字段和限流验收 |
 | UK Contracts Finder | 英国公共采购公告 | 已实现待验收 | 游标续页、公告阶段、买方与联系字段验证 |
-| SAM.gov opportunities | 美国联邦招标机会；通常需 API Key | 未迁移 | Key/权限/额度、机会与采购机构字段 |
+| SAM.gov opportunities | 美国联邦招标机会；需 API Key | 已实现待验收 | 已新增官方 v2 Opportunities 搜索适配器；按最近 30 天窗口、最多 3 页；租户密钥从加密 SaaS 配置读取；需验收真实 Key 权限、额度、分页和字段映射 |
 | Brazil PNCP | 巴西国家公共采购门户；公开接口 | 已实现待验收 | 已新增真实适配器、国家匹配、最多 5 页 bounded fetch、证据映射和契约测试；超过页数标记不完整 |
 | Singapore GeBIZ | data.gov.sg GeBIZ 已授标数据集 | 已实现待验收 | 已新增真实适配器、国家匹配、最多 5 页 bounded fetch；明确为历史授标记录而非开放招标；契约测试待运行 |
 | CanadaBuys | 加拿大联邦采购 | 需拆分确认 | 源项目为 assisted source，确认可自动 API 与人工辅助边界 |
@@ -109,7 +109,8 @@
 - `eu_ted`
 - `gleif`（身份解析/补充，不应错误计作通用搜客来源）\n- `world_bank_procurement`（新增；公开采购公告适配器，单页 bounded fetch，存在后续页时标记不完整）\n- `brazil_pncp`（新增；巴西官方采购 API，最多 5 页 bounded fetch）\n- `singapore_gebiz`（新增；新加坡政府授标开放数据集，最多 5 页 bounded fetch）
 - `un_comtrade`（新增；公开预览无 Key，或使用订阅 Key 的官方贸易统计 API）
-- `us_census_trade`（新增；需要 Census API Key，当前只从受保护部署配置读取）
+- `us_census_trade`（新增；需要 Census API Key，从当前租户加密配置读取）
+- `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
 
 它们均为**已实现待验收**，不是“运行已通过”。Fake Provider 不计入真实来源数量。
 
@@ -150,7 +151,8 @@
 ### 本轮新增贸易数据源接入说明
 
 - UN Comtrade：`EnableUnComtradeProvider` 显式开启；无 Key 时调用官方 public preview（500 行上限），提供订阅 Key 时切换到 `/data/v1/get`。目标市场只支持适配器内明确映射的 M49 Reporter 国家；不支持的国家返回清晰 warning，不猜测代码。
-- US Census：`EnableUsCensusTradeProvider` 与 API Key 同时满足才注册；默认关闭。Key 从部署配置 `XiHan:CRM:Prospecting:Providers:UsCensus:ApiKey` 读取，必须通过环境变量/密钥管理系统注入，不能提交真实 Key。
+- US Census：`EnableUsCensusTradeProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取；只请求官方 HS 出口数据集的有效字段。官方 API 要求 Key 作为 `key` 查询参数，需在 HTTP 诊断中脱敏。
+- SAM.gov：`EnableSamGovProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 `api_key` 查询参数发送；请求窗口限制为 30 天、最多 3 页，达到页数上限会标记 coverage incomplete。
 - **租户凭证链路已接通（待测试）：**两个 Provider 均为 Scoped，后台 Worker 先切换到 Run 的 Tenant Scope，再解析 `ISaasConfigurationService`；分别读取 `CRM.Prospecting.Provider.un_comtrade.ApiKey` 与 `CRM.Prospecting.Provider.us_census.ApiKey`，复用 SaaS 的加密配置解密与租户优先级/缓存逻辑。Comtrade Key 通过 `Ocp-Apim-Subscription-Key` 请求头发送；Census 按官方要求使用 `key` 查询参数。真实多租户隔离、Data Protection 密钥环和 Census 查询参数在 HTTP 诊断日志中的脱敏仍待实机验收。
 
 ## 5. 业务与安全边界
