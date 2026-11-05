@@ -30,7 +30,7 @@ public sealed class CrmUnComtradeProspectingProviderTests
         using var provider = new CrmUnComtradeProspectingProvider(new HttpClient(handler), "test-key");
         await provider.SearchAsync(Request("Nigeria"));
         Assert.Contains("/data/v1/get/", handler.RequestUri, StringComparison.Ordinal);
-        Assert.Contains("subscription-key=test-key", handler.RequestUri, StringComparison.Ordinal);
+        Assert.Equal("test-key", handler.SubscriptionKey);
     }
 
     [Fact]
@@ -57,10 +57,12 @@ public sealed class CrmUnComtradeProspectingProviderTests
     {
         public int CallCount { get; private set; }
         public string RequestUri { get; private set; } = "";
+        public string? SubscriptionKey { get; private set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             CallCount++;
             RequestUri = request.RequestUri?.ToString() ?? "";
+            SubscriptionKey = request.Headers.TryGetValues("Ocp-Apim-Subscription-Key", out var values) ? values.Single() : null;
             return Task.FromResult(factory(request));
         }
     }
