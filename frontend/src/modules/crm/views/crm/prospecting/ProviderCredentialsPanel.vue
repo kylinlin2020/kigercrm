@@ -130,6 +130,9 @@ async function clear(item: ProviderCredential) {
       sort: 500,
     }
     await configApi.update(input)
+    if (item.record.status !== EnableStatus.Enabled) {
+      await configApi.updateStatus({ basicId: item.record.basicId, status: EnableStatus.Enabled, remark: '清空获客数据源凭证并阻止回退到平台密钥' })
+    }
     item.value = ''
     toast.success(`${item.name} 凭证已清除`)
     await load()
