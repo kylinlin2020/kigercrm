@@ -48,7 +48,7 @@
 | Companies House | 英国官方企业登记；需租户 API Key（HTTP Basic 用户名） | 已实现待验收 | 已新增真实公司搜索 Provider；仅英国目标市场调用，最多 2 页，超限标记 coverage incomplete；公司登记不等同采购意向 |
 | Netherlands KVK | 荷兰官方企业登记；订阅/Key | 未迁移 | 订阅开关、成本、名称与编号精确查询 |
 | France company search（fr_company_search） | 法国企业公开登记入口 | 未迁移 | 确认真实 API 端点、数据许可和覆盖字段 |
-| ROR | 全球研究机构标识 | 未迁移 | 作为机构身份/机构客户辅助源，不误作普通公司库 |
+| ROR | 全球研究机构标识；公开 REST API、无需 Key | 已实现待验收 | 新增真实 v2 organizations 查询 Provider；最多 3 个关键词×每词 20 条；记录研究机构类型/国家/网站；上限命中标记 incomplete；不作为普通公司库 |
 | US NPPES | 美国医疗机构/从业者名录 | 未迁移 | 行业专用来源，明确个人数据边界 |
 | FDA 510(k) | 美国医疗器械上市前通告记录 | 未迁移 | 行业专用产品/企业信号，不等同于企业注册 |
 | Mexico DENUE | 墨西哥经济单位目录 | 需拆分确认 | 源项目归入公开/采购来源模块，核对接口和目标用途 |
@@ -116,6 +116,7 @@
 - `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
 - `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
 - `wikidata`（新增；公开 Wikidata `wbsearchentities` API，最多 3 个关键词、每个 10 条，组织描述筛选，结果标记知识图谱线索）
+- `ror`（新增；公开 ROR v2 organizations API，最多 3 个关键词、每个 20 条，研究机构身份记录，不作为一般商业公司库）
 - `wikidata`（新增；公开 Wikidata `wbsearchentities` API，最多 3 个关键词、每个 10 条，组织描述筛选，结果标记知识图谱线索）
 
 它们均为**已实现待验收**，不是“运行已通过”。Fake Provider 不计入真实来源数量。
@@ -159,6 +160,7 @@
 - UN Comtrade：`EnableUnComtradeProvider` 显式开启；无 Key 时调用官方 public preview（500 行上限），提供订阅 Key 时切换到 `/data/v1/get`。目标市场只支持适配器内明确映射的 M49 Reporter 国家；不支持的国家返回清晰 warning，不猜测代码。
 - US Census：`EnableUsCensusTradeProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取；只请求官方 HS 出口数据集的有效字段。官方 API 要求 Key 作为 `key` 查询参数，需在 HTTP 诊断中脱敏。
 - SAM.gov：`EnableSamGovProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 `api_key` 查询参数发送；请求窗口限制为 30 天、最多 3 页，达到页数上限会标记 coverage incomplete。
+- ROR：`EnableRorProvider` 显式开启；默认关闭，无需 API Key。使用官方 `GET /v2/organizations?query=...&page=1`；每次关键词只取第 1 页（最多 20 条），最多 3 个关键词；`metadata.number_of_results` 大于 20 时标记 coverage incomplete。只用于高校、科研机构、研究设施等机构身份辅助；不应把 ROR 覆盖不足误判为企业不存在，也不能把研究机构记录当成一般采购商。
 - Wikidata：`EnableWikidataProvider` 显式开启；默认关闭。无需 API Key；通过官方 MediaWiki `wbsearchentities` 搜索接口查询最多 3 个关键词，每个关键词最多 10 条，发送明确 User-Agent；仅保留描述中出现 company、manufacturer、supplier、distributor、organization 等组织线索的实体，单词条命中 10 条上限即标记 coverage incomplete。该来源是知识图谱发现线索，可能存在过期、误分类和描述语言偏差，必须人工核验。
 - Wikidata：`EnableWikidataProvider` 显式开启；默认关闭。无需 API Key；通过官方 MediaWiki `wbsearchentities` 搜索接口查询最多 3 个关键词，每个关键词最多 10 条，发送明确 User-Agent；仅保留描述中出现 company、manufacturer、supplier、distributor、organization 等组织线索的实体，单词条命中 10 条上限即标记 coverage incomplete。该来源是知识图谱发现线索，可能存在过期、误分类和描述语言偏差，必须人工核验。
 - Companies House：`EnableCompaniesHouseProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 HTTP Basic 用户名发送（密码为空）；只在目标市场明确包含 UK/GB/United Kingdom 等英国标识时调用，搜索结果是公司登记证据而非采购意向，最多 2 页并标记未覆盖的后续结果。
