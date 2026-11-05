@@ -44,7 +44,7 @@
 |---|---|---|---|
 | GLEIF | 全球 LEI 法人身份 | 已实现待验收 | 核验精确 LEI/名称查询、匹配置信度和冲突处理 |
 | Wikidata | 全球知识图谱实体发现；公开 API、无需 Key | 已实现待验收 | 新增低频 `wbsearchentities` 关键词发现 Provider；最多 3 个关键词×10 条；仅保留组织描述线索；上限命中标记 incomplete；不等同企业注册或采购意向 |
-| OpenCorporates | 多国企业登记聚合；需核对许可/Key | 未迁移 | API 许可、覆盖国家、Key、字段权威等级 |
+| OpenCorporates | 多国企业登记聚合；需 API Key，商业使用许可有严格限制 | 暂缓接入（许可门槛） | 2026-11-05 已核实 Self-serve API 条款：默认 internal-use 仅限本企业员工/承包商，不得向第三方披露 API 数据，也不得让第三方可用的产品/服务依赖该 API；restricted_for_marketing 数据不得用于营销/广告。商业 CRM / 多租户 SaaS 场景必须先取得明确允许该部署形态及获客用途的书面许可/非 share-alike 商业许可，并确认署名、数据留存与 jurisdiction restrictions；未确认前不开发、不调用。
 | Companies House | 英国官方企业登记；需租户 API Key（HTTP Basic 用户名） | 已实现待验收 | 已新增真实公司搜索 Provider；仅英国目标市场调用，最多 2 页，超限标记 coverage incomplete；公司登记不等同采购意向 |
 | Netherlands KVK | 荷兰官方企业登记；订阅/Key | 已实现待验收 | 已新增真实 Zoeken API Provider；租户加密 Key、仅 NL 市场调用、最多 3 个关键词×每词 2 页；搜索结果只作为企业登记证据 |
 | France company search（fr_company_search） | 法国政府开放企业目录；免 Key | 已实现待验收 | 已新增官方 Recherche d’Entreprises API Provider；限法国市场、SIREN/SIRET 企业身份字段、最多 3 词×2 页 |
