@@ -518,4 +518,22 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("open_fda_510k", frontend, StringComparison.Ordinal);
         Assert.Contains("isEncrypted: true", frontend, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void NppesProvider_ShouldBeOptInAndRestrictedToOrganizationRecords()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmNppesOrganizationProspectingProvider.cs");
+        var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
+
+        Assert.Contains("EnableNppesProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmNppesOrganizationProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("npiregistry.cms.hhs.gov", registration, StringComparison.Ordinal);
+        Assert.Contains("\"EnableNppesProvider\": false", settings, StringComparison.Ordinal);
+        Assert.Contains("\"enumeration_type\"] = \"NPI-2\"", provider, StringComparison.Ordinal);
+        Assert.Contains("IsHealthcareCampaign", provider, StringComparison.Ordinal);
+        Assert.Contains("IsUnitedStatesTarget", provider, StringComparison.Ordinal);
+        Assert.Contains("us_healthcare_organization_registry", provider, StringComparison.Ordinal);
+        Assert.Contains("NPI issuance does not establish licensure or credentialing", provider, StringComparison.Ordinal);
+    }
 }
