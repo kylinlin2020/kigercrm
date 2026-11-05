@@ -61,7 +61,7 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
             ["reporterCode"] = reporter,
             ["partnerCode"] = "0",
             ["period"] = (DateTime.UtcNow.Year - 1).ToString(CultureInfo.InvariantCulture),
-            ["flowCode"] = "X",
+            ["flowCode"] = "M",
             ["cmdCode"] = "TOTAL",
             ["maxRecords"] = MaxRecords.ToString(CultureInfo.InvariantCulture)
         };
@@ -115,7 +115,7 @@ public sealed class CrmUnComtradeProspectingProvider : ICrmProspectingProvider, 
             records.Add(new CrmProspectingRawRecord(
                 id,
                 "UN Comtrade",
-                Limit($"Trade signal: {reporterName} {flow.ToLowerInvariant()} activity for {request.ProductScope}", 500),
+                Limit($"Trade signal: {reporterName} {flow.ToLowerInvariant()} demand for {request.ProductScope}", 500),
                 null,
                 null,
                 null,
