@@ -13,6 +13,7 @@ type ProviderCredential = {
   configKey: string
   configured: boolean
   value: string
+  inputPlaceholder?: string
   record?: ConfigListItemDto
 }
 
@@ -27,6 +28,7 @@ const definitions = [
   { code: 'us_census', name: 'US Census Trade', description: '美国 Census API Key（免费申请）' },
   { code: 'apollo', name: 'Apollo.io', description: '商业联系人数据 API Key，需确认套餐与隐私条款' },
   { code: 'people_data_labs', name: 'People Data Labs', description: '企业/人员数据 API Key，需确认额度与隐私条款' },
+  { code: 'sec_edgar', name: 'SEC EDGAR', description: '美国 SEC 官方公司目录；需填写系统名称 + 联系邮箱作为 Fair Access User-Agent，不是 API Key', configKeySuffix: 'UserAgent', inputPlaceholder: '例如：KigerCRM admin@example.com' },
   { code: 'hunter', name: 'Hunter.io', description: 'Hunter Discover 企业发现 API Key；仅发现企业，不获取联系人邮箱或自动外联' },
   { code: 'open_corporates', name: 'OpenCorporates', description: '企业登记聚合 API Key / 许可凭证' },
   { code: 'kvk', name: 'Netherlands KVK', description: '荷兰商会企业登记 API Key / 订阅凭证' },
@@ -49,10 +51,11 @@ async function load() {
       ?? (page as unknown as { data?: ConfigListItemDto[] }).data
       ?? []
     credentials.value = definitions.map(item => {
-      const record = rows.find(row => row.configKey === `CRM.Prospecting.Provider.${item.code}.ApiKey`)
+      const configKey = `CRM.Prospecting.Provider.${item.code}.${'configKeySuffix' in item ? item.configKeySuffix : 'ApiKey'}`
+      const record = rows.find(row => row.configKey === configKey)
       return {
         ...item,
-        configKey: `CRM.Prospecting.Provider.${item.code}.ApiKey`,
+        configKey,
         configured: Boolean(record?.hasCurrentValue),
         value: '',
         record,
@@ -179,8 +182,8 @@ onMounted(load)
             type="password"
             autocomplete="new-password"
             spellcheck="false"
-            :placeholder="item.configured ? '已配置；输入新 Key 可轮换' : '输入 API Key / Token'"
-            :aria-label="`${item.name} API Key`"
+            :placeholder="item.configured ? '已配置；输入新值可轮换' : (item.inputPlaceholder || '输入 API Key / Token')"
+            :aria-label="`${item.name} 凭证`"
           >
           <button type="button" :disabled="saving || !item.value.trim()" @click="save(item)">保存</button>
           <button v-if="item.configured" type="button" class="danger-button" :disabled="saving" @click="clear(item)">清除</button>
