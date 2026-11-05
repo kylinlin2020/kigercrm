@@ -70,13 +70,31 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
         if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
         ArgumentException.ThrowIfNullOrWhiteSpace(providerExtractionId);
-        if (providerExtractionId.Length > 512) throw new ArgumentOutOfRangeException(nameof(providerExtractionId));
+        if (providerExtractionId.Length > CrmProspectingExtractionSubmissionValidator.MaxProviderExtractionIdLength)
+            throw new ArgumentOutOfRangeException(nameof(providerExtractionId));
         if (expiresAtUtc is not null && expiresAtUtc <= submittedAtUtc)
             throw new ArgumentOutOfRangeException(nameof(expiresAtUtc));
         if (nextPollAtUtc < submittedAtUtc) throw new ArgumentOutOfRangeException(nameof(nextPollAtUtc));
         cancellationToken.ThrowIfCancellationRequested();
         var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for extraction acknowledgement.");
+
+        // Validate at the persistence boundary too: callers cannot accidentally bypass the
+        // adapter-level validation and persist a mismatched/unsafe remote acknowledgement.
+        var intent = await CreateQueryable()
+            .Where(row => row.TenantId == tenant.TenantId && row.BasicId == jobId)
+            .Take(1).ToListAsync(cancellationToken);
+        if (intent.Count != 1)
+            return false;
+        var submission = new CrmProspectingExtractionSubmission(
+            new CrmProspectingExtractionReference(intent[0].ProviderCode, providerExtractionId),
+            submittedAtUtc, expiresAtUtc, nextPollAtUtc - submittedAtUtc, null);
+        if (!CrmProspectingExtractionSubmissionValidator.TryValidate(
+                submission, intent[0].ProviderCode, out var validationFailure))
+            throw new ArgumentException(
+                $"Provider extraction acknowledgement failed validation: {validationFailure}.",
+                nameof(providerExtractionId));
+
         var client = DbClient;
         if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
             throw new NotSupportedException("Extraction acknowledgement requires PostgreSQL.");
