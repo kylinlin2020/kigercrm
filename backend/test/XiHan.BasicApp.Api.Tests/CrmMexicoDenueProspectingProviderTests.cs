@@ -42,6 +42,28 @@ public sealed class CrmMexicoDenueProspectingProviderTests
     }
 
     [Fact]
+    public async Task SearchAsync_AcceptsMexicoCountryCode()
+    {
+        var handler = new StubHandler((request, _) => JsonResponse(request, "[]"));
+        using var provider = new CrmMexicoDenueProspectingProvider(new HttpClient(handler), "token");
+        var result = await provider.SearchAsync(Request("MX"));
+        Assert.Equal(1, handler.CallCount);
+        Assert.True(result.IsComplete);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Maps503ToCooldown()
+    {
+        var handler = new StubHandler((request, _) => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+        {
+            RequestMessage = request,
+            Content = new StringContent("{}", Encoding.UTF8, "application/json")
+        });
+        using var provider = new CrmMexicoDenueProspectingProvider(new HttpClient(handler), "token");
+        await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() => provider.SearchAsync(Request("Mexico")));
+    }
+
+    [Fact]
     public async Task SearchAsync_RequiresTenantToken()
     {
         var handler = new StubHandler((_, _) => throw new InvalidOperationException("Network must not be called."));
