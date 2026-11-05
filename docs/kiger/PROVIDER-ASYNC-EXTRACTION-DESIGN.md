@@ -536,3 +536,26 @@ The tests must use two independent PostgreSQL connections for competing claims a
 7. Only then enable Eurostat Comext or another async production adapter.
 
 This section is a design gate, not a claim that Run continuation or the async worker has been implemented.
+
+
+## 11.34 Provider result checkpoint is distinct from request ledger (2026-11-05)
+
+A code-path review of `CrmProspectingRunHostedService` confirms that the existing Provider Request Ledger is not a Run execution checkpoint:
+
+- The request attempt is persisted before provider network I/O, but it records request lifecycle/diagnostics and coverage metadata, not the complete provider result set.
+- Provider results are accumulated in the worker's in-memory `raw` list. The serialized raw payload is bounded and written only after the provider loop has completed.
+- Candidate/Evidence/Score persistence follows that collection phase. A process interruption between provider return and durable candidate persistence can therefore lose returned records.
+- Startup recovery can requeue queued Runs and recover interrupted request attempts, but it cannot reconstruct a completed provider response from the request ledger.
+
+Consequently, do not infer provider completion from a successful request-ledger attempt and do not use that ledger as the sole replay checkpoint. A durable checkpoint design must persist a bounded, tenant-scoped provider result batch (or persist normalized candidate/evidence rows immediately) before marking that provider execution complete. The checkpoint identity must include Run, provider, immutable request fingerprint, and execution-plan version; writes must be fenced by the active Run lease and idempotent under duplicate delivery.
+
+Required recovery semantics:
+
+1. Provider response received but checkpoint not committed: treat the execution as uncertain; retry only where provider idempotency/rate and freshness policy permit.
+2. Checkpoint committed but candidate projection incomplete: resume projection from the committed checkpoint without calling the provider again.
+3. Candidate/evidence/score projection committed: mark the provider step complete in the same transaction, or use an equivalent transactional outbox/step ledger protocol.
+4. Never advance Coverage merely because the HTTP request succeeded; Coverage may advance only after the full result checkpoint has been projected and all required candidate/evidence writes have committed.
+5. Enforce per-provider and per-Run payload quotas, page/batch bounds, retention/cleanup, and redaction. Do not persist unbounded raw response bodies or credentials.
+6. Recovery must use the immutable Run snapshot and provider-plan version, not current UI settings or a newly computed plan.
+
+This is a confirmed implementation gap, not a claim that a checkpoint store or replay worker already exists. The synchronous Run worker remains single-pass/in-memory for provider results; async provider execution must remain fail-closed until the checkpoint and continuation protocol is implemented and PostgreSQL-tested.
