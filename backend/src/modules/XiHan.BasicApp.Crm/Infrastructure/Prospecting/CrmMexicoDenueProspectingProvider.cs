@@ -135,7 +135,7 @@ public sealed class CrmMexicoDenueProspectingProvider : ICrmProspectingProvider,
     }
 
     private static bool IsMexico(string value)
-        => Regex.IsMatch(value ?? string.Empty, @"\b(mexico|méxico)\b|墨西哥", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        => Regex.IsMatch(value ?? string.Empty, @"\b(mexico|méxico|mx)\b|墨西哥", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private static List<string> ExtractKeywords(CrmProspectingProviderRequest request)
         => new[] { request.ProductScope, request.SearchObjective, request.IdealCustomerProfile }
