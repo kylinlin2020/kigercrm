@@ -673,4 +673,28 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("AddScoped<CrmProspectingCandidatePersistenceService>()", registration, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CandidatePersistenceService_ShouldRemainProviderIoFreeAndFenceEveryNewCandidateTransaction()
+    {
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        var serviceStart = service.IndexOf("public sealed class CrmProspectingCandidatePersistenceService", StringComparison.Ordinal);
+        Assert.True(serviceStart >= 0);
+        var persistence = service[serviceStart..];
+
+        Assert.Contains("Guid leaseToken", persistence, StringComparison.Ordinal);
+        Assert.Contains("long fencingVersion", persistence, StringComparison.Ordinal);
+        Assert.Contains("TryLockLeaseForWriteAsync(candidate.RunId, leaseToken, fencingVersion", persistence, StringComparison.Ordinal);
+        Assert.Contains("Begin(", persistence, StringComparison.Ordinal);
+        Assert.Contains("isTransactional: true", persistence, StringComparison.Ordinal);
+        Assert.Contains("_candidates.AddAsync(candidate, cancellationToken)", persistence, StringComparison.Ordinal);
+        Assert.Contains("_evidence.AddRangeAsync(evidenceRows, cancellationToken)", persistence, StringComparison.Ordinal);
+        Assert.Contains("_scores.AddAsync(scoreSnapshot, cancellationToken)", persistence, StringComparison.Ordinal);
+        Assert.Contains("await unitOfWork.CompleteAsync(cancellationToken)", persistence, StringComparison.Ordinal);
+        Assert.DoesNotContain("HttpClient", persistence, StringComparison.Ordinal);
+        Assert.Contains("catch (Exception ex) when (IsCandidateIdentityUniqueViolation(ex))", worker, StringComparison.Ordinal);
+        Assert.Contains("RepairCandidateProvenanceAsync(", worker, StringComparison.Ordinal);
+    }
+
 }
