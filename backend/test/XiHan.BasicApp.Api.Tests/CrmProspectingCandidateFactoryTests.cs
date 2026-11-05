@@ -31,7 +31,7 @@ public sealed class CrmProspectingCandidateFactoryTests
             duplicateLeadId: null,
             duplicateReason: null);
 
-        Assert.Equal(42, candidate.RunId);
+        Assert.Equal(42L, candidate.RunId);
         Assert.Equal("provider", candidate.ProviderCode);
         Assert.Equal("external-1", candidate.ExternalId);
         Assert.Equal("Official source", candidate.Source);
@@ -67,7 +67,7 @@ public sealed class CrmProspectingCandidateFactoryTests
             duplicateReason: "Email matches an existing lead");
 
         Assert.Equal(CrmProspectingCandidateStatus.Duplicate, candidate.Status);
-        Assert.Equal(123, candidate.DuplicateLeadId);
+        Assert.Equal(123L, candidate.DuplicateLeadId);
         Assert.Equal("Email matches an existing lead", candidate.DuplicateReason);
     }
 
