@@ -184,6 +184,9 @@ public sealed class CrmProspectingCandidatePersistenceService
             items.Count > page.Records.Count)
             throw new ArgumentOutOfRangeException(nameof(items));
 
+        using var unitOfWork = _unitOfWorkManager.Begin(
+            new XiHan.Framework.Uow.Options.XiHanUnitOfWorkOptions(isTransactional: true),
+            requiresNew: true);
         var extraction = await _extractionJobs.GetByIdAsync(extractionJobId, cancellationToken)
             ?? throw new InvalidOperationException("The extraction job does not exist in the current tenant.");
         if (!string.Equals(extraction.Status, CrmProspectingExtractionStatus.FetchingResults.ToString(), StringComparison.Ordinal) ||
