@@ -25,7 +25,7 @@ public sealed class CrmFmcsaQcmobileProspectingProviderTests
     public async Task SearchAsync_RequiresTenantWebKeyBeforeNetworkCall()
     {
         var handler = new StubHandler((_, _) => throw new InvalidOperationException("Unexpected API call."));
-        using var provider = new CrmFmcsaQcmobileProspectingProvider(new HttpClient(handler), null);
+        using var provider = new CrmFmcsaQcmobileProspectingProvider(new HttpClient(handler), (string?)null);
 
         var result = await provider.SearchAsync(Request());
 
