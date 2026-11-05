@@ -315,6 +315,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         var client = DbClient;
         if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
             throw new NotSupportedException("Extraction completion requires PostgreSQL.");
+        if (client.Ado.Transaction is null)
+            throw new InvalidOperationException("Final-page completion must share a transaction with result/evidence persistence.");
 
         const string sql = """
             UPDATE crm_prospecting_extraction_job
