@@ -45,6 +45,7 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
         Assert.Contains("run.lease_token = @leaseToken", source, StringComparison.Ordinal);
         Assert.Contains("run.fencing_version = @fencingVersion", source, StringComparison.Ordinal);
         Assert.Contains("run.lease_expires_at > clock_timestamp()", source, StringComparison.Ordinal);
+        Assert.Contains("FOR UPDATE", source, StringComparison.Ordinal);
         Assert.Contains("step.tenant_id = @tenantId", source, StringComparison.Ordinal);
         Assert.Contains("client.Ado.Transaction is null", source, StringComparison.Ordinal);
         Assert.Contains("SHA256.HashData(bytes)", source, StringComparison.Ordinal);
