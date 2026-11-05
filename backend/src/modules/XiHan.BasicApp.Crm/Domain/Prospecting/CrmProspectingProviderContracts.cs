@@ -80,6 +80,7 @@ public interface ICrmProspectingAsyncExtractionProvider
     /// <summary>Submit one bounded extraction request and return its durable provider-side job identity.</summary>
     Task<CrmProspectingExtractionSubmission> SubmitExtractionAsync(
         CrmProspectingProviderRequest request,
+        Guid submissionIdempotencyKey,
         CancellationToken cancellationToken = default);
 
     /// <summary>Read the remote job state. Unknown provider states must map to NeedsReview, never Succeeded.</summary>
@@ -131,15 +132,17 @@ public sealed record CrmProspectingExtractionPage(
 /// <summary>Provider-independent extraction lifecycle states.</summary>
 public enum CrmProspectingExtractionStatus
 {
-    Pending = 0,
-    Running = 1,
-    Succeeded = 2,
-    FetchingResults = 3,
-    Completed = 4,
-    Failed = 5,
-    Expired = 6,
-    Cancelled = 7,
-    NeedsReview = 8
+    /// <summary>Local durable intent exists; remote submission has not yet been acknowledged.</summary>
+    Submitting = 0,
+    Pending = 1,
+    Running = 2,
+    Succeeded = 3,
+    FetchingResults = 4,
+    Completed = 5,
+    Failed = 6,
+    Expired = 7,
+    Cancelled = 8,
+    NeedsReview = 9
 }
 
 
