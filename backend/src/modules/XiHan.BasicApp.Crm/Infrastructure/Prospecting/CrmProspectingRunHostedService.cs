@@ -131,6 +131,14 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
                 if (!providers.TryGetValue(providerCode, out var provider))
                 {
+                    // Async adapters are registered as a separate capability, but this Run worker
+                    // currently executes only synchronous providers. Fail closed instead of counting
+                    // an unexecuted async provider as an ordinary provider outage and completing a
+                    // misleading partial Run. The durable extraction worker must own this path first.
+                    if (providerRegistry.Asynchronous.ContainsKey(providerCode))
+                        throw new InvalidOperationException(
+                            $"Provider '{providerCode}' requires the asynchronous extraction worker, which is not yet wired to Run orchestration.");
+
                     failures++;
                     AddBoundedWarning(warnings, $"Provider is not registered: {providerCode}");
                     continue;
