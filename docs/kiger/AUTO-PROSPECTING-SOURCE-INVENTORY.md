@@ -36,7 +36,7 @@
 | Serper（Google） | 搜索 API；需租户 Key；按 credits 计费 | 已实现待验收 | 已新增 Google organic search Provider；租户加密 Key、X-API-KEY Header、最多 20 条/次；满页标记覆盖不完整 |
 | Brave Search | 搜索 API；需 Token/付费计划 | 已实现待验收 | 已新增 Web Search API Provider；租户加密 Token、国家定向、最多 2 页×20 条、尊重 more_results_available；结果仅作为网页发现证据 |
 | SerpApi（Google） | 搜索 API；需租户 Key；免费/付费额度 | 已实现待验收 | 已新增 Google Search Provider；租户加密 Key、受限两页分页；API 要求 key 在 query string，诊断必须脱敏 |
-| Google Places | Places API (New) Text Search；需启用 Billing + API Key/OAuth；按 FieldMask SKU 计费 | 已完成接口核验，待适配器 | 2026-11-05 核验 `POST https://places.googleapis.com/v1/places:searchText`；必须显式设置 `X-Goog-FieldMask`，建议首轮仅取 `places.id,places.displayName,places.formattedAddress,places.websiteUri,places.internationalPhoneNumber,nextPageToken`（website/phone 会触发 Enterprise SKU）；pageSize 最大 20，跨页总上限 60；所有分页请求除 pageToken/pageSize 外参数保持一致。需在实现前确认 Google Places 数据使用、展示、缓存/存储限制；默认关闭、租户 Key、调用预算和逐字段成本提示。
+| Google Places | Places API (New) Text Search；需启用 Billing + API Key/OAuth；按 FieldMask SKU 计费 | 暂缓接入（持久化许可/架构门槛） | 已核验新版 POST、FieldMask、20 条/页、跨页最多 60 条；但 Google Places 内容不得超出政策例外范围预取/缓存/持久化，只有 Place ID 明确豁免。当前获客 Provider contract 会把结果持久化为 CRM 线索证据，直接保存名称/地址/网站/电话存在条款风险；不能简单做适配器后写入 CRM。须先设计仅保存 Place ID、按需实时取数并在合规 UI 中展示（含 Google attribution/Terms/Privacy），或取得 Google 明确书面许可；在此之前不开发、不调用。
 
 ### B. 官方企业身份、注册和行业名录
 
@@ -49,7 +49,7 @@
 | Netherlands KVK | 荷兰官方企业登记；订阅/Key | 已实现待验收 | 已新增真实 Zoeken API Provider；租户加密 Key、仅 NL 市场调用、最多 3 个关键词×每词 2 页；搜索结果只作为企业登记证据 |
 | France company search（fr_company_search） | 法国政府开放企业目录；免 Key | 已实现待验收 | 已新增官方 Recherche d’Entreprises API Provider；限法国市场、SIREN/SIRET 企业身份字段、最多 3 词×2 页 |
 | ROR | 全球研究机构标识；公开 REST API、无需 Key | 已实现待验收 | 新增真实 v2 organizations 查询 Provider；最多 3 个关键词×每词 20 条；记录研究机构类型/国家/网站；上限命中标记 incomplete；不作为普通公司库 |
-| US NPPES | CMS NPPES/NPI Registry；免费公开 API/全量 DDS 文件 | 已完成接口可行性核验，待适配器 | NPI 记录可包含个人从业者及组织；只在医疗行业 ICP 明确匹配时启用，优先组织 NPI Type 2，默认排除个人 Type 1；不能把 NPI 当作执照/资质背书。Registry UI 对查询量限流且最多显示前 2100 条，批量检索应评估 DDS 下载而非高频 API；实现前确认 API 技术文档的精确分页/频控。
+| US NPPES | CMS NPPES/NPI Registry；免费公开 API/全量 DDS 文件 | 已实现待验收 | 新增 `nppes` Provider：仅美国目标市场、医疗行业活动、强制 `enumeration_type=NPI-2`；最多 2 个关键词×2 页×200 条，满页上限标记 incomplete；不采集 NPI-1 个人记录、不把 NPI 当作执照/资质背书。CMS 对每小时查询实施限流，未公开具体额度；批量场景必须评估官方 DDS 文件，不以 API 高频扫库。
 | FDA 510(k) | openFDA Device 510(k) Clearances；公开 API，无 Key 可用（常规使用建议申请 Key） | 已实现待验收 | 已新增 `open_fda_510k` Provider；仅美国目标市场且活动明确涉及 medical device/medical equipment 时运行；租户加密 Key 可选；每关键词最多 3 页×100 条，超限标记 incomplete；提取申请人、器械名称、K 编号、决定日期和产品代码；结果仅为医疗器械监管证据，不等同采购意向或普通企业注册。
 | Mexico DENUE | 墨西哥经济单位目录 | 需拆分确认 | 源项目归入公开/采购来源模块，核对接口和目标用途 |
 | US FMCSA QCMobile | 美国运输承运商记录 | 需拆分确认 | 明确行业范围、可用 API 与字段含义 |
@@ -115,6 +115,7 @@
 - `us_census_trade`（新增；需要 Census API Key，从当前租户加密配置读取）
 - `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
 - `open_fda_510k`（新增；openFDA 510(k) 医疗器械监管记录，租户 API Key 可选；仅美国医疗器械行业活动可调用，最多 3 页×100 条）
+- `nppes`（新增；CMS NPPES v2.1 Type 2 组织名录；仅美国医疗行业活动可调用，最多 2 关键词×2 页×200 条；不采集个人 Type 1）
 - `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
 - `kvk`（新增；荷兰 KVK 官方 Handelsregister Zoeken API，租户 API Key 通过 `apikey` 请求头发送，最多 3 个关键词×每词 2 页 bounded fetch）
 - `brave`（新增；Brave Web Search API，租户订阅 Token 通过 `X-Subscription-Token` 请求头发送，最多 2 页×20 条，按 `more_results_available` 标记覆盖状态）
@@ -146,7 +147,7 @@
 - 每个来源都要能输出采购方/贸易主体的证据语义，不能把统计聚合数据直接当成具体进口商。
 
 ### P0-C：官方企业身份与注册
-- Companies House 已有真实 Provider 源码，进入来源级测试与实机验收；继续补齐 KVK、OpenCorporates、Wikidata、法国企业名录、ROR、NPPES 等；FDA 510(k) 已有适配器源码，待运行验收。
+- Companies House 已有真实 Provider 源码，进入来源级测试与实机验收；继续补齐 KVK、OpenCorporates、Wikidata、法国企业名录、ROR 等；NPPES 与 FDA 510(k) 已有适配器源码，待运行验收。
 - 为每个来源标注适用行业、国家覆盖和权威等级；身份冲突不得静默覆盖。
 
 ### P0-D：通用发现与商业补全
@@ -283,3 +284,16 @@
 - 按器械名称关键词查询，最多 3 个关键词×3 页×100 条；稳定键为 K 编号；保留 applicant/device/product code/decision date；证据类型 `medical_device_regulatory_record`。
 - 不把 510(k) 清关记录解释成采购意向；不自动创建 CRM Lead、不自动发送邮件。
 - 当前状态为源码已实现待运行验收；尚未执行 .NET 构建、单元测试或真实 openFDA API 冒烟。
+
+
+### NPPES Type 2 Provider 实现记录（2026-11-05）
+
+- 新增 `CrmNppesOrganizationProspectingProvider`、独立契约测试、DI opt-in 注册及默认关闭配置。
+- 仅使用 CMS NPPES API v2.1；固定 `npiregistry.cms.hhs.gov` host；不需要 API Key。
+- 只在美国目标市场且活动明确涉及医疗/健康/临床/医院/诊断/牙科/药房/实验室等领域时执行；查询强制 `enumeration_type=NPI-2`，过滤响应中的非 Type 2 记录。
+- 每个 Run 最多 2 个关键词×2 页×200 条，页满到达边界即标记 coverage incomplete；不会把受限结果标记为完整。
+- 输出 NPI、机构名称、主 taxonomy、官方记录 URL、更新时间与 SHA-256 摘要；不提取/存储个人 NPI-1 记录，不把 NPI 颁发解释为执照或资质认证。
+- CMS Registry 自 2024-06-25 起限制每小时查询量，未公布固定额度；批量检索须使用 CMS DDS 下载文件，不得通过 API 高频抓取。
+- 当前源码与测试待运行验收；尚未执行 .NET build/test 或真实 NPPES API 冒烟。
+
+Google Places 的接口和数据政策边界也已再次核验：官方政策明确 Place ID 可长期保存，但其他 Places 内容受缓存/存储限制。当前 CRM Provider 会持久化搜索结果，因此先不接入该来源，避免把名称、地址等受限内容写入 CRM。若未来实现 Place ID-only 存储 + 按需实时展示（并提供要求的 Google attribution/Terms/Privacy），再评估启用。
