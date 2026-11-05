@@ -297,13 +297,16 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         bool isComplete,
         int failureCount,
         CancellationToken cancellationToken = default,
-        int persistedRecordCount = 0)
+        int persistedRecordCount = 0,
+        string? expectedCursor = null)
     {
         if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
         if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
         if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
         if (persistedRecordCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
             throw new ArgumentOutOfRangeException(nameof(persistedRecordCount));
+        if (expectedCursor is { Length: > MaxCursorLength } || (expectedCursor is not null && expectedCursor.Any(char.IsControl)))
+            throw new ArgumentOutOfRangeException(nameof(expectedCursor));
         if (!CrmProspectingExtractionStateMachine.CanCompleteResults(
                 CrmProspectingExtractionStatus.FetchingResults, isLastPage, isComplete, failureCount))
             throw new InvalidOperationException(
@@ -332,6 +335,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
               AND status = @fetchingStatus
               AND lease_token = @leaseToken
               AND fencing_version = @fencingVersion
+              AND result_cursor IS NOT DISTINCT FROM @expectedCursor
               AND lease_expires_at_utc > clock_timestamp();
             """;
         var affected = await client.Ado.ExecuteCommandAsync(
@@ -342,7 +346,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@jobId", jobId),
             new SugarParameter("@fetchingStatus", CrmProspectingExtractionStatus.FetchingResults.ToString()),
             new SugarParameter("@leaseToken", leaseToken),
-            new SugarParameter("@fencingVersion", fencingVersion));
+            new SugarParameter("@fencingVersion", fencingVersion),
+            new SugarParameter("@expectedCursor", expectedCursor));
         return affected == 1;
     }
 
