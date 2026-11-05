@@ -328,7 +328,7 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 ### Hunter Discover Provider 实现记录（2026-11-05）
 
 - 新增 `CrmHunterDiscoverProspectingProvider`、独立契约测试、DI opt-in 注册及默认关闭配置。
-- 通过当前租户加密配置 `CRM.Prospecting.Provider.hunter.ApiKey` 读取 Key；API 使用 POST `https://api.hunter.io/v2/discover?api_key=...`。
+- 通过当前租户加密配置 `CRM.Prospecting.Provider.hunter.ApiKey` 读取 Key；API 使用 POST `https://api.hunter.io/v2/discover?limit=100`，Key 通过 `X-API-KEY` header 发送，不进入 URL。
 - 搜索使用活动 ICP、产品范围、目标市场和搜索目标组成自然语言 query；固定最多 100 条单页，不依赖 Premium 才能使用的 offset 分页。
 - 只保存公司名称、域名、网站和邮箱数量统计；不会在 Discover 阶段暴露或保存个人邮箱/联系人，也不会触发 Hunter Sequences 或 CRM 自动外联。
 - 过滤无效域名和租户排除域名；固定 host、HTTPS、响应 8 MB 上限、429/503 cooldown；诊断脱敏器已覆盖 `api_key` 查询参数。
