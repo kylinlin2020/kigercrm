@@ -118,6 +118,16 @@
 
 新增阻断项：在实现 Comext 前，先设计独立租户级 Provider Job 实体/仓储/状态机，包含 Run/Provider 关联、Extraction ID、NextPollAt、ExpiresAt、幂等轮询、取消与恢复；并以向后兼容方式扩展 Health/Preflight/Enrich/Trade 操作面。不得把异步 SUBMITTED/PROCESSING 当作空成功结果。以上是静态代码复核，尚未执行构建或运行测试。
 
+补充核验 Run Worker 的覆盖率提交顺序与截断边界：
+
+- Worker 仅在 `IsComplete == true`、`FailureCount == 0` 且记录数/单条记录大小/总 JSON 大小均未超过上限时，才把 Provider Request Attempt 放入待提交 coverage 列表。
+- 对不完整分页、记录级失败、Run 记录数上限或无效/超大记录，先以 Failed 状态结束该次请求账本，不推进 incremental coverage；返回记录仍可在保留上限内进入后续候选处理。
+- coverage checkpoint 只有在候选/证据持久化完成后才提交，避免 Worker 在数据尚未落库时先推进 checkpoint 导致漏数。
+- Worker 对有 checkpoint 的来源回退 48 小时重叠窗口，并通过 `CoverageSinceUtc` 传递给支持增量扫描的 Provider。
+
+以上逻辑是目标端当前已存在的正向实现，可作为后续 Provider adapter 的统一验收标准。注意这仍不解决源端多页 Provider 的 continuation orchestration：当前 Provider contract 每次只返回一个 `SearchAsync` 结果，分页 Provider 必须在 adapter 内完整续页，或等待未来引入可持久化 continuation/Job contract。
+
+
 ### 源端运行时符号级证据（2026-11-05 复核）
 
 本轮重新读取源仓库以下真实文件，而非仅依据文件名推断能力：
