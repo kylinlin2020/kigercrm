@@ -554,4 +554,22 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("one page only", provider, StringComparison.Ordinal);
         Assert.Contains("code: 'hunter'", frontend, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void SecEdgarProvider_ShouldBeOptInAndUseFairAccessUserAgent()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmSecEdgarProspectingProvider.cs");
+        var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
+        var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
+
+        Assert.Contains("EnableSecEdgarProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmSecEdgarProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("www.sec.gov", registration, StringComparison.Ordinal);
+        Assert.Contains("\"EnableSecEdgarProvider\": false", settings, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.sec_edgar.UserAgent", provider, StringComparison.Ordinal);
+        Assert.Contains("us_sec_company_directory", provider, StringComparison.Ordinal);
+        Assert.Contains("code: 'sec_edgar'", frontend, StringComparison.Ordinal);
+        Assert.Contains("configKeySuffix: 'UserAgent'", frontend, StringComparison.Ordinal);
+    }
 }
