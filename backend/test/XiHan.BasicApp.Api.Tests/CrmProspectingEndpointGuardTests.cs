@@ -45,3 +45,49 @@ public sealed class CrmProspectingEndpointGuardTests
             invalidApprovedEndpoint));
     }
 }
+
+public sealed class CrmProspectingSafeHttpHandlerTests
+{
+    [Theory]
+    [InlineData("8.8.8.8", true)]
+    [InlineData("1.1.1.1", true)]
+    [InlineData("2001:4860:4860::8888", true)]
+    [InlineData("10.0.0.1", false)]
+    [InlineData("100.64.0.1", false)]
+    [InlineData("127.0.0.1", false)]
+    [InlineData("169.254.1.1", false)]
+    [InlineData("172.31.255.255", false)]
+    [InlineData("192.168.1.1", false)]
+    [InlineData("198.19.0.1", false)]
+    [InlineData("224.0.0.1", false)]
+    [InlineData("240.0.0.1", false)]
+    [InlineData("192.0.2.1", false)]
+    [InlineData("2001:db8::1", false)]
+    [InlineData("fc00::1", false)]
+    [InlineData("fe80::1", false)]
+    [InlineData("::1", false)]
+    [InlineData("ff02::1", false)]
+    [InlineData("::ffff:127.0.0.1", false)]
+    public void IsPublicAddress_ShouldApplyConservativePublicUnicastPolicy(string value, bool expected)
+    {
+        Assert.Equal(expected,
+            CrmProspectingHttpHandlerFactory.IsPublicAddress(System.Net.IPAddress.Parse(value)));
+    }
+
+    [Fact]
+    public void Create_ShouldDisableRedirectsAndSystemProxyAndInstallPinnedConnector()
+    {
+        using var handler = CrmProspectingHttpHandlerFactory.Create("api.example.gov");
+
+        Assert.False(handler.AllowAutoRedirect);
+        Assert.False(handler.UseProxy);
+        Assert.NotNull(handler.ConnectCallback);
+    }
+
+    [Fact]
+    public void Create_ShouldRequireAnApprovedHost()
+    {
+        Assert.Throws<ArgumentException>(() => CrmProspectingHttpHandlerFactory.Create());
+        Assert.Throws<ArgumentException>(() => CrmProspectingHttpHandlerFactory.Create(" "));
+    }
+}
