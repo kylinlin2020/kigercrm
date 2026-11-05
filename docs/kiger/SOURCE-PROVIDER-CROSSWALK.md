@@ -179,3 +179,12 @@ The target branch now has an optional `ICrmProspectingAsyncExtractionProvider` c
 A pure `CrmProspectingExtractionStateMachine` rejects terminal-state regression and only permits result completion from FetchingResults when the final page is complete and has zero record failures. Contract/state tests were added but have not been executed.
 
 This is contract-level migration only. There is no extraction-job persistence, scheduler/recovery worker, result-page persistence, PostgreSQL migration, or Comext adapter yet. Do not count this capability as full source runtime parity.
+
+
+## 2026-11-05 — Durable extraction job persistence layer
+
+The target branch now includes a strict-tenant extraction-job entity and PostgreSQL repository. The repository supports idempotent tenant/run/provider/fingerprint creation, tenant-scoped reads, due-job claiming with `FOR UPDATE SKIP LOCKED`, database-clock leases, per-job lease tokens, fencing increments, expiry recovery, guarded state transitions, and cursor advancement guarded by the expected cursor and active PostgreSQL transaction.
+
+Migration `5.9.33` creates the durable table and indexes. CRM entity metadata and DI registrations are included. Contract tests cover strict tenant scope, repository operations, lifecycle/provider-status separation, and required persistence fields.
+
+This is persistence groundwork only. No worker currently consumes the repository; no provider submission/poll/fetch orchestration, candidate/evidence page persistence, transaction-level cursor integration test, coverage advancement, or Comext adapter is complete. No build/test/DB execution is claimed.
