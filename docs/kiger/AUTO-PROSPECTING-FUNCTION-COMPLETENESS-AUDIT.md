@@ -240,3 +240,8 @@ The following feature families must remain marked **not fully migrated / not run
 - Full market-trade observation semantics and Eurostat Comext async extraction.
 
 This source-tree inventory is a path-based discovery result, not a claim that every source file is a separate product feature or must be copied verbatim. Each family requires behavior mapping, target architecture fit, tenant/security review, independent tests, UI/API wiring where applicable, and runtime validation. The existing CRM remains the system of record; no duplicate CRM subsystem is to be introduced.
+
+
+### DENUE / FMCSA source-location correction (2026-11-05)
+
+A repository-wide source check corrected an earlier narrow-file-search conclusion: both `mexico_denue` and `fmcsa_qcmobile` are implemented in the source repository's `backend/src/public-procurement-providers.ts`. They are still missing from the target adapter set. DENUE places its API Token in the path; FMCSA places its WebKey in a query parameter. Both must be migrated with strict fixed-host/path enforcement and end-to-end secret redaction. See `AUTO-PROSPECTING-SOURCE-INVENTORY.md` §5.8. The absence of these names in `lead-providers.ts` was not evidence that the source repository lacked them.
