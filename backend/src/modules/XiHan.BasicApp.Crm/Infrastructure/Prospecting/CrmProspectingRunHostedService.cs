@@ -141,6 +141,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             // Candidate/evidence persistence must finish first so a worker crash cannot skip data.
             var pendingCoverage = new List<(long AttemptId, string RequestKey, int ResultCount, string ResponseHash, long DurationMs)>();
             long estimatedRawJsonBytes = 2; // JSON array delimiters
+            const int maxRawRecordsPerRun = 2000;
             const long maxRawJsonBytes = 5_000_000;
             const long maxRawRecordJsonBytes = 64_000;
             var failures = 0;
@@ -180,13 +181,27 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         throw new InvalidOperationException($"Provider checkpoint integrity validation failed for '{providerCode}'.");
                     var checkpoint = JsonSerializer.Deserialize<CrmProspectingProviderResultCheckpoint>(checkpointJson)
                         ?? throw new InvalidOperationException($"Provider checkpoint payload is invalid for '{providerCode}'.");
-                    if (checkpoint.Records.Count != executionStep.RawRecordCount ||
+                    if (checkpoint.Records is null || checkpoint.Records.Count != executionStep.RawRecordCount ||
                         checkpoint.Records.Any(record => record is null) || checkpoint.FailureCount < 0)
                         throw new InvalidOperationException($"Provider checkpoint record count or shape is invalid for '{providerCode}'.");
+                    var replayFailures = checkpoint.FailureCount;
+                    var replayedRecordCount = 0;
                     foreach (var checkpointRecord in checkpoint.Records)
+                    {
+                        if (raw.Count >= maxRawRecordsPerRun ||
+                            !IsWithinRawRecordLimits(checkpointRecord, out var replayRecordBytes) ||
+                            replayRecordBytes > maxRawRecordJsonBytes ||
+                            estimatedRawJsonBytes + replayRecordBytes + 1 > maxRawJsonBytes)
+                        {
+                            replayFailures++;
+                            continue;
+                        }
                         raw.Add(new CrmProspectingRawEnvelope(providerCode, checkpointRecord));
+                        estimatedRawJsonBytes += replayRecordBytes + 1;
+                        replayedRecordCount++;
+                    }
                     checkpointedSteps.Add((executionStep.BasicId, executionStep.State,
-                        checkpoint.FailureCount, checkpoint.IsComplete, checkpoint.Records.Count));
+                        replayFailures, checkpoint.IsComplete, replayedRecordCount));
                     continue;
                 }
                 else if (executionStep.State == "Succeeded")
@@ -354,7 +369,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 checkpointedSteps.Add((executionStep.BasicId, "Checkpointed",
                     checkpointFailureCount, result.IsComplete, checkpointRecords.Length));
 
-                const int maxRawRecordsPerRun = 2000;
                 var remainingRawRecords = Math.Max(0, maxRawRecordsPerRun - raw.Count);
                 var providerCanAdvanceCoverage = result.IsComplete && result.FailureCount == 0 &&
                     result.Records.Count <= remainingRawRecords;
