@@ -697,4 +697,25 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("RepairCandidateProvenanceAsync(", worker, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void FmcsaQcmobileProvider_ShouldBeOptInTenantKeyedAndBounded()
+    {
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmFmcsaQcmobileProspectingProvider.cs");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
+        var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
+        var sanitizer = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingDiagnosticSanitizer.cs");
+
+        Assert.Contains("mobile.fmcsa.dot.gov", provider, StringComparison.Ordinal);
+        Assert.Contains("/qc/services/carriers/name/", provider, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.fmcsa_qcmobile.WebKey", provider, StringComparison.Ordinal);
+        Assert.Contains("MaxResponseBytes = 4 * 1024 * 1024", provider, StringComparison.Ordinal);
+        Assert.Contains("HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable", provider, StringComparison.Ordinal);
+        Assert.Contains("EnableFmcsaQcmobileProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingHttpHandlerFactory.Create(\"mobile.fmcsa.dot.gov\")", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableFmcsaQCMobileProvider", settings, StringComparison.Ordinal);
+        Assert.Contains("code: 'fmcsa_qcmobile'", frontend, StringComparison.Ordinal);
+        Assert.Contains("web[_-]?key", sanitizer, StringComparison.Ordinal);
+    }
+
 }
