@@ -447,3 +447,8 @@ The Run worker now inspects the complete immutable provider plan before creating
 
 This is a safety improvement only. It does **not** add durable Run waiting/resume, async submit/poll/fetch processing, or extraction completion recovery. Async-only providers remain unavailable to Run orchestration until those end-to-end pieces are implemented. The source-level guard test has been added but has not been executed.
 
+### 11.32 Async provider registration contract guard (2026-11-05)
+
+The provider registry enforces a single normalized provider code across synchronous and asynchronous capabilities, rejects blank/overlong codes, and refuses to register an asynchronous adapter unless it explicitly declares provider-documented idempotent submission support. This is required because a durable Submitting intent may be reclaimed after a process crash or an ambiguous network timeout; without provider-side idempotency or authoritative recovery by the stable key, retrying could create duplicate remote extraction jobs.
+
+A source-level regression assertion now protects these registry invariants. This remains a registration-time safety contract, not a substitute for the still-missing extraction worker or Run continuation.
