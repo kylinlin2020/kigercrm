@@ -122,19 +122,18 @@ public sealed class CrmFmcsaQcmobileProspectingProvider : ICrmProspectingProvide
             var dbaName = ReadString(carrier, "dbaName");
             var allowedToOperate = ReadString(carrier, "allowedToOperate");
             var statusCode = ReadString(carrier, "statusCode");
-            var country = ReadString(carrier, "phyCountry") ?? "United States";
             var city = ReadString(carrier, "phyCity");
             var state = ReadString(carrier, "phyState");
             var street = ReadString(carrier, "phyStreet");
             var phone = ReadString(carrier, "telephone");
             var email = ReadString(carrier, "emailAddress");
-            var contact = string.IsNullOrWhiteSpace(email) ? phone : email;
             var description = string.Join("; ", new[]
             {
                 string.IsNullOrWhiteSpace(dbaName) ? null : "DBA: " + dbaName,
                 string.IsNullOrWhiteSpace(allowedToOperate) ? null : "Allowed to operate: " + allowedToOperate,
                 string.IsNullOrWhiteSpace(statusCode) ? null : "Status: " + statusCode,
-                string.Join(" ", new[] { street, city, state }.Where(value => !string.IsNullOrWhiteSpace(value)))
+                string.Join(" ", new[] { street, city, state }.Where(value => !string.IsNullOrWhiteSpace(value))),
+                string.IsNullOrWhiteSpace(phone) ? null : "Phone: " + phone
             }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
             var sourceUrl = "https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=USDOT&query_string="
