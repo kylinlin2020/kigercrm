@@ -24,7 +24,7 @@ public static class CrmProspectingExtractionPageValidator
             return false;
         }
 
-        if (page.FailureCount < 0 || page.Records.Count > MaxRecordsPerPage)
+        if (page.FailureCount < 0 || page.FailureCount > page.Records.Count || page.Records.Count > MaxRecordsPerPage)
         {
             failureCode = "page_limit_exceeded";
             return false;
