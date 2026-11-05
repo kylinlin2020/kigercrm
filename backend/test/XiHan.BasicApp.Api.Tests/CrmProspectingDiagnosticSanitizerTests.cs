@@ -8,6 +8,7 @@ public sealed class CrmProspectingDiagnosticSanitizerTests
     [Theory]
     [InlineData("key=census-secret", "key=[REDACTED]")]
     [InlineData("api_key=sam-secret", "api_key=[REDACTED]")]
+    [InlineData("apikey: kvk-secret", "apikey=[REDACTED]")]
     [InlineData("Ocp-Apim-Subscription-Key: comtrade-secret", "Ocp-Apim-Subscription-Key=[REDACTED]")]
     [InlineData("subscription_key: provider-secret", "subscription_key=[REDACTED]")]
     [InlineData("client_secret=oauth-secret", "client_secret=[REDACTED]")]
