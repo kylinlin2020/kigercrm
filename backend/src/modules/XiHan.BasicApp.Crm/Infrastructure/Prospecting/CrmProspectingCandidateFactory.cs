@@ -189,66 +189,7 @@ public sealed class CrmProspectingCandidatePersistenceService
             .ToHashSet(StringComparer.Ordinal);
         var itemIdentities = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in items)
-        {
-            if (item is null || item.Candidate is null || item.Envelope is null ||
-                item.Envelope.Record is null ||
-                item.Candidate.RunId <= 0 ||
-                string.IsNullOrWhiteSpace(item.Candidate.ProviderCode) ||
-                !string.Equals(item.Candidate.ProviderCode, item.Envelope.ProviderCode, StringComparison.Ordinal) ||
-                !page.Records.Contains(item.Envelope.Record) ||
-                !string.Equals(
-                    item.Candidate.ExternalId,
-                    CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record),
-                    StringComparison.Ordinal) ||
-                !itemIdentities.Add(CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record)))
-                throw new ArgumentException("Candidate page items must map one-to-one to unique records in the validated provider page.", nameof(items));
-        }
-
-        using var unitOfWork = _unitOfWorkManager.Begin(
-            new XiHan.Framework.Uow.Options.XiHanUnitOfWorkOptions(isTransactional: true),
-            requiresNew: true);
-
-        var extraction = await _extractionJobs.GetByIdAsync(extractionJobId, cancellationToken)
-            ?? throw new InvalidOperationException("The extraction job does not exist in the current tenant.");
-        if (!string.Equals(extraction.Status, CrmProspectingExtractionStatus.FetchingResults.ToString(), StringComparison.Ordinal) ||
-            extraction.FencingVersion != extractionFencingVersion ||
-            extraction.LeaseToken != extractionLeaseToken ||
-            !string.Equals(extraction.ResultCursor, expectedCursor, StringComparison.Ordinal))
-            throw new InvalidOperationException("The extraction lease or expected cursor is stale.");
-        if (items.Any(item => item.Candidate.RunId != extraction.RunId ||
-            !string.Equals(item.Candidate.ProviderCode, extraction.ProviderCode, StringComparison.Ordinal)))
-            throw new ArgumentException("Candidate page items do not belong to the extraction Run/provider.", nameof(items));
-
-        foreach (var item in items)
-        {
-            var inserted = await _candidates.AddAsync(item.Candidate, cancellationToken);
-            var evidenceRows = CrmProspectingEvidenceFactory.Create(
-                inserted.BasicId, item.Envelope, DateTimeOffset.UtcNow);
-            if (evidenceRows.Count > 0)
-                await _evidence.AddRangeAsync(evidenceRows, cancellationToken);
-
-            var scoreInput = new CrmProspectingScoreInput(
-                HasVerifiableOrganization: false,
-                HasDirectProcurementSignal: false,
-                HasDirectProductFit: false,
-                HasTargetMarketFit: false,
-                PublishedAtUtc: item.Envelope.Record.PublishedAtUtc?.ToUniversalTime(),
-                HasTraceablePrimaryEvidence: evidenceRows.Any(evidence =>
-                    (evidence.EvidenceType is "direct" or "registry") &&
-                    evidence.VerificationStatus == "unverified" &&
-                    !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
-                HasPublicBusinessContact: !string.IsNullOrWhiteSpace(inserted.BusinessEmail),
-                IsKnownDuplicate: inserted.Status == CrmProspectingCandidateStatus.Duplicate,
-                IsRestrictedOrUnsafeSource: false);
-            var evaluatedAtUtc = DateTimeOffset.UtcNow;
-            var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
-            var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(
-                inserted.BasicId,
-                scoreResult,
-                evidenceRows,
-                $"initial:{inserted.BasicId}:{scoreResult.ScorecardVersion}");
-            await _scores.AddAsync(scoreSnapshot, cancellationToken);
-        }
+            await PersistCandidateOrRepairAsync(item, cancellationToken);
 
         var advanced = page.IsLastPage
             ? await _extractionJobs.TryCompleteResultsAsync(
@@ -274,6 +215,88 @@ public sealed class CrmProspectingCandidatePersistenceService
 
         await unitOfWork.CompleteAsync(cancellationToken);
         return items.Count;
+    }
+
+    /// <summary>
+    /// Idempotently persists a page candidate. Existing same-Run identities receive only missing
+    /// immutable evidence and a missing initial score; human review/conversion state is never rewritten.
+    /// Caller owns the surrounding page transaction and extraction lease fence.
+    /// </summary>
+    private async Task PersistCandidateOrRepairAsync(
+        CrmProspectingCandidatePageItem item,
+        CancellationToken cancellationToken)
+    {
+        var candidate = item.Candidate;
+        var envelope = item.Envelope;
+        var externalId = CrmProspectingRecordIdentity.NormalizeExternalId(envelope.Record);
+        var existing = await _candidates.GetByIdentityAsync(
+            candidate.RunId, candidate.ProviderCode, externalId, cancellationToken);
+        var target = existing ?? await _candidates.AddAsync(candidate, cancellationToken);
+
+        var expectedEvidence = CrmProspectingEvidenceFactory.Create(
+            target.BasicId, envelope, DateTimeOffset.UtcNow);
+        var persistedEvidence = existing is null
+            ? Array.Empty<SysCrmProspectingEvidence>()
+            : await _evidence.GetByCandidateAsync(target.BasicId, cancellationToken);
+        var persistedKeys = persistedEvidence.Select(evidence => (
+                evidence.ProviderCode,
+                evidence.ProviderRecordId,
+                evidence.FieldName,
+                evidence.SourceUrlHash,
+                evidence.RawPayloadHash))
+            .ToHashSet();
+        var missingEvidence = expectedEvidence
+            .Where(evidence => !persistedKeys.Contains((
+                evidence.ProviderCode,
+                evidence.ProviderRecordId,
+                evidence.FieldName,
+                evidence.SourceUrlHash,
+                evidence.RawPayloadHash)))
+            .ToArray();
+        if (missingEvidence.Length > 0)
+            await _evidence.AddRangeAsync(missingEvidence, cancellationToken);
+
+        var existingScores = existing is null
+            ? Array.Empty<SysCrmProspectingScore>()
+            : (await _scores.GetLatestByCandidateAsync(target.BasicId, 1, cancellationToken)).ToArray();
+        if (existingScores.Length > 0) return;
+
+        var completeEvidence = persistedEvidence.Concat(missingEvidence).ToArray();
+        var scoreEvidence = completeEvidence
+            .OrderByDescending(evidence =>
+                (evidence.EvidenceType is "direct" or "registry") &&
+                !string.IsNullOrWhiteSpace(evidence.SourceUrlHash))
+            .ThenBy(evidence => evidence.ProviderCode, StringComparer.Ordinal)
+            .ThenBy(evidence => evidence.ProviderRecordId, StringComparer.Ordinal)
+            .ThenBy(evidence => evidence.FieldName, StringComparer.Ordinal)
+            .ThenBy(evidence => evidence.SourceUrlHash, StringComparer.Ordinal)
+            .ThenBy(evidence => evidence.RawPayloadHash, StringComparer.Ordinal)
+            .Take(32)
+            .ToArray();
+        var evaluatedAtUtc = DateTimeOffset.UtcNow;
+        var scoreInput = new CrmProspectingScoreInput(
+            HasVerifiableOrganization: false,
+            HasDirectProcurementSignal: false,
+            HasDirectProductFit: false,
+            HasTargetMarketFit: false,
+            PublishedAtUtc: completeEvidence
+                .Where(evidence => evidence.PublishedAtUtc.HasValue)
+                .Select(evidence => evidence.PublishedAtUtc)
+                .Max(),
+            HasTraceablePrimaryEvidence: completeEvidence.Any(evidence =>
+                (evidence.EvidenceType is "direct" or "registry") &&
+                evidence.VerificationStatus == "unverified" &&
+                !string.IsNullOrWhiteSpace(evidence.SourceUrlHash)),
+            HasPublicBusinessContact: !string.IsNullOrWhiteSpace(target.BusinessEmail),
+            IsKnownDuplicate: target.Status == CrmProspectingCandidateStatus.Duplicate,
+            IsRestrictedOrUnsafeSource: false);
+        var scoreResult = CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc);
+        var scoreSnapshot = CrmProspectingScoreSnapshotFactory.Create(
+            target.BasicId,
+            scoreResult,
+            scoreEvidence,
+            $"initial:{target.BasicId}:{scoreResult.ScorecardVersion}");
+        await _scores.AddAsync(scoreSnapshot, cancellationToken);
     }
 
 }
