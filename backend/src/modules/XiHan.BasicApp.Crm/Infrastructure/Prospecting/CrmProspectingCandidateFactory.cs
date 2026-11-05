@@ -1,6 +1,7 @@
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
+using XiHan.BasicApp.Crm.Domain.Services;
 
 namespace XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 
