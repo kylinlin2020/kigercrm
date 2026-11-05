@@ -161,6 +161,90 @@ public sealed class CrmProspectingCandidatePersistenceService
         return inserted;
     }
     /// <summary>
+    /// Persists one provider checkpoint's Candidate/Evidence/Score projection and its terminal
+    /// provider-execution state in the same ambient transaction. This is the atomic batch boundary
+    /// for checkpoint-driven workers; callers must supply the checkpoint's verified SHA-256.
+    /// </summary>
+    public async Task<int> PersistProviderBatchAndTransitionAsync(
+        long runId,
+        long executionId,
+        Guid runLeaseToken,
+        long runFencingVersion,
+        string checkpointHash,
+        IReadOnlyList<CrmProspectingCandidatePageItem> items,
+        int failureCount,
+        bool isComplete,
+        CancellationToken cancellationToken)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (executionId <= 0) throw new ArgumentOutOfRangeException(nameof(executionId));
+        if (runLeaseToken == Guid.Empty) throw new ArgumentException("Run lease token is required.", nameof(runLeaseToken));
+        if (runFencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(runFencingVersion));
+        if (string.IsNullOrWhiteSpace(checkpointHash) || checkpointHash.Length != 64 ||
+            checkpointHash.Any(character => !Uri.IsHexDigit(character)))
+            throw new ArgumentException("A SHA-256 checkpoint hash is required.", nameof(checkpointHash));
+        ArgumentNullException.ThrowIfNull(items);
+        if (failureCount < 0) throw new ArgumentOutOfRangeException(nameof(failureCount));
+        if (items.Count > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
+            throw new ArgumentOutOfRangeException(nameof(items));
+
+        using var unitOfWork = _unitOfWorkManager.Begin(
+            new XiHan.Framework.Uow.Options.XiHanUnitOfWorkOptions(isTransactional: true),
+            requiresNew: true);
+        if (!await _runs.TryLockLeaseForWriteAsync(runId, runLeaseToken, runFencingVersion, cancellationToken))
+            throw new InvalidOperationException("The Run lease expired or was superseded before provider batch projection.");
+
+        var execution = (await _providerExecutions.GetByRunAsync(runId, cancellationToken))
+            .SingleOrDefault(step => step.BasicId == executionId)
+            ?? throw new InvalidOperationException("The provider execution checkpoint does not exist in the current tenant and Run.");
+        if (!string.Equals(execution.CheckpointHash, checkpointHash, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The provider execution checkpoint hash changed before projection.");
+        if (execution.State is "Succeeded" or "Failed")
+            return execution.ProjectedRecordCount;
+        if (execution.State is not ("Checkpointed" or "Projecting"))
+            throw new InvalidOperationException("Only a verified Checkpointed/Projecting provider batch can be persisted.");
+
+        if (execution.State == "Checkpointed" &&
+            !await _providerExecutions.TryTransitionAsync(
+                executionId, runId, runLeaseToken, runFencingVersion,
+                "Checkpointed", "Projecting", cancellationToken: cancellationToken))
+            throw new InvalidOperationException("The provider checkpoint could not enter Projecting under the live Run lease.");
+
+        foreach (var item in items)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (item?.Candidate is null || item.Envelope?.Record is null ||
+                item.Candidate.RunId != runId ||
+                !string.Equals(item.Candidate.ProviderCode, execution.ProviderCode, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(item.Envelope.ProviderCode, execution.ProviderCode, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(item.Candidate.ExternalId,
+                    CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record), StringComparison.Ordinal))
+                throw new ArgumentException("Every projection item must match the checkpoint Run, provider, and normalized record identity.", nameof(items));
+            await PersistCandidateOrRepairAsync(item, cancellationToken);
+        }
+
+        var effectiveFailures = failureCount + Math.Max(0, execution.RawRecordCount - items.Count - failureCount);
+        var succeeded = isComplete && effectiveFailures == 0;
+        var transitioned = succeeded
+            ? await _providerExecutions.TryTransitionAsync(
+                executionId, runId, runLeaseToken, runFencingVersion,
+                "Projecting", "Succeeded", projectedRecordCount: items.Count, failureCount: 0,
+                cancellationToken: cancellationToken)
+            : await _providerExecutions.TryTransitionAsync(
+                executionId, runId, runLeaseToken, runFencingVersion,
+                "Projecting", "Failed", projectedRecordCount: items.Count,
+                failureCount: Math.Max(1, effectiveFailures),
+                failureCode: "provider_partial_result",
+                safeFailureSummary: "Provider checkpoint projection was incomplete or contained rejected records.",
+                cancellationToken: cancellationToken);
+        if (!transitioned)
+            throw new InvalidOperationException("The provider batch terminal state could not be committed under the live Run lease.");
+
+        await unitOfWork.CompleteAsync(cancellationToken);
+        return items.Count;
+    }
+
+    /// <summary>
     /// Persists one validated extraction page and advances its cursor (or completes the final page)
     /// in the same PostgreSQL transaction. A failed fencing/CAS update throws so the entire page rolls back.
     /// </summary>
