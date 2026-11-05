@@ -290,3 +290,9 @@ Added `CrmProspectingExtractionSubmissionValidator` as an adapter-neutral valida
 The validator does not treat an extraction ID as a URL, does not make a network request, and does not prove that the remote job exists. The future submission coordinator must invoke it before `TryAcknowledgeSubmissionAsync`; invalid acknowledgements must be recorded as sanitized failures/NeedsReview and must not be persisted as a pollable remote job. Contract tests cover provider mismatch, identifier bounds/control characters, expiry, retry hints, and metadata shape/size.
 
 This is a validation primitive plus unexecuted test source. The async coordinator is still not wired, so no runtime path currently consumes the validator and no build/test result is claimed.
+
+### 11.11 Persistence-boundary acknowledgement validation
+
+The acknowledgement validator is now enforced inside `CrmProspectingExtractionJobRepository.TryAcknowledgeSubmissionAsync`, not only left as an adapter convention. The repository loads the tenant-scoped immutable intent to obtain its expected provider code, constructs the normalized acknowledgement, and rejects it before the conditional lease/fencing update if provider identity, opaque ID, expiry, or poll interval is invalid. The atomic PostgreSQL update still requires the exact tenant/job/status/lease token/fencing version and an unexpired database-clock lease.
+
+The safe-metadata validator limit is aligned to the entity column's 4,000-character storage limit. The current repository acknowledgement method does not persist provider metadata; the coordinator must not add metadata persistence without applying the same bound and safe-field policy. Tests now cover leading/trailing whitespace in IDs and the exact metadata boundary. Source-only; no .NET build, tests, or PostgreSQL execution has been run.
