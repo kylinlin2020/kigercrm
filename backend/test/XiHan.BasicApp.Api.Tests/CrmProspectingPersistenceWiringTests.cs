@@ -830,3 +830,13 @@ public sealed class CrmProspectingPersistenceWiringTests
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
 }
+    [Fact]
+    public void ProviderBatchPersistence_ShouldHaveItsFencedExecutionRepositoryRegistered()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var persistence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
+        Assert.Contains("AddScoped<ICrmProspectingRunProviderExecutionRepository, CrmProspectingRunProviderExecutionRepository>()", registration, StringComparison.Ordinal);
+        Assert.Contains("AddScoped<CrmProspectingCandidatePersistenceService>()", registration, StringComparison.Ordinal);
+        Assert.Contains("ICrmProspectingRunProviderExecutionRepository providerExecutions", persistence, StringComparison.Ordinal);
+        Assert.Contains("PersistProviderBatchAndTransitionAsync", persistence, StringComparison.Ordinal);
+    }
