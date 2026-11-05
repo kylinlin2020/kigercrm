@@ -454,3 +454,12 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - 4 MB 响应上限；429/503 走限流 cooldown；异常摘要不拼接请求 URI；诊断脱敏器新增 `webKey` 名称识别。
 - DI 显式 opt-in，appsettings 默认关闭；新增源码接线/安全回归检查和 WebKey 脱敏测试。
 - **尚未完成：**该 Provider 尚未执行编译、单测或真实 FMCSA API 冒烟；Key 有效性、FMCSA 套餐/权限、字段质量、服务端分页边界仍需账号级验收。首版不是完整承运商数据库同步，不允许据此推断全美承运商覆盖。
+
+
+## 5.10 Mexico INEGI DENUE target adapter (2026-11-05)
+
+- Added the official Mexico DENUE business-directory adapter using the source endpoint shape and fields: activity, legal/trade name, address, phone, email, website and stable DENUE ID.
+- Tenant API token is read from encrypted tenant config `CRM.Prospecting.Provider.mexico_denue.ApiKey`; the front-end credential panel exposes the input and never echoes the secret.
+- The token is part of the URL path. The adapter uses a fixed INEGI host, redirect-disabled outbound handler, response-URI validation, generic diagnostics, 8 MB response cap, 20-record pages and the 1,000-position API ceiling. Diagnostics sanitize DENUE path credentials.
+- Provider remains opt-in and Mexico-only. The result cap / API ceiling marks coverage incomplete rather than claiming exhaustive results.
+- Unit and source-wiring regression tests have been authored; they have not been executed. Real-token API validation and Windows/PostgreSQL acceptance remain outstanding.
