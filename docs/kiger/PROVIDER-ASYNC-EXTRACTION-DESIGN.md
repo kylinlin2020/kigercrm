@@ -434,3 +434,9 @@ The service is registered scoped alongside the CRM repositories. A source-wiring
 - Added source-level regression assertions. Runtime and PostgreSQL transaction tests remain outstanding.
 
 - The page persistence method explicitly opens a new transactional UnitOfWork before reading the job and writing candidates/evidence/scores; cursor advancement or final status CAS and `CompleteAsync` remain inside that transaction. Any failed identity, lease, or cursor check disposes the uncompleted UoW and rolls the page back.
+
+## 11.30 Async page record accounting (2026-11-05)
+
+- Page persistence now requires `candidateItems.Count + page.FailureCount == page.Records.Count`. Each fetched source record must be accounted for exactly once as a persisted candidate item or an explicitly declared record failure.
+- This closes a silent-loss path where an adapter/mapping layer could omit one or more records from `items` while reporting zero failures; the extraction could otherwise advance its cursor or complete successfully despite records never reaching Candidate/Evidence/Score persistence.
+- The existing one-to-one identity mapping still rejects duplicate candidate mappings and candidates not present in the fetched page. Runtime and PostgreSQL transaction tests remain outstanding.
