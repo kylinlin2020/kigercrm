@@ -603,3 +603,16 @@ The five implementation tracks are being advanced together. This increment adds 
 The repository checkpoint writes use a materialized parent-Run `FOR UPDATE` CTE referenced by the child update, so the lock is not merely declarative. A prior source review found and corrected an early CTE wiring defect in `TryStartAsync` and `TryTransitionAsync`.
 
 **Still not complete / not claimed:** provider-result checkpoint replay, automatic reconciliation of ambiguous Started rows, Candidate/Evidence/Score projection atomic with terminal provider-step state, and the async extraction worker remain separate gates. The current Run worker reads its immutable plan from persisted rows, but does not yet drive every provider execution state transition. The PostgreSQL acceptance SQL and test suite have been authored but not run; Windows pull/build and real PostgreSQL concurrency acceptance remain pending. Async-only adapters stay fail-closed.
+
+
+## 11.38 Interrupted provider execution is now fail-closed (2026-11-05)
+
+Added a narrow recovery guard to the synchronous Run worker:
+
+- A queued provider step is changed to Started only immediately before its request-ledger attempt is created and external provider invocation may begin. Unknown providers and active cooldown skips therefore remain Queued.
+- If a later delivery finds a step still in Started, the worker treats the external outcome as ambiguous and conditionally changes it to NeedsReview under the exact live Run lease. It does not issue the provider request again.
+- If a Checkpointed step is found, the worker also moves it to NeedsReview rather than invoking the provider again, because checkpoint hash verification, deserialization, and candidate projection replay are not yet wired.
+- The reconciliation repository method owns a transaction, locks the parent Run row with a referenced FOR UPDATE CTE, and checks tenant, Run ID, lease token, fencing version, and DB-clock lease expiry before changing the child state.
+- Contract tests now assert the recovery API, state allow-list, worker guard, and no-reinvocation behavior.
+
+This is deliberately conservative and is not the finished checkpoint protocol. A normally completed provider invocation still does not yet atomically checkpoint its response, project Candidate/Evidence/Score, and mark the step Succeeded. The full response-replay and projection transaction remain outstanding; do not interpret NeedsReview reconciliation as successful recovery or as proof that every provider execution row reaches a terminal success state. Build/tests and PostgreSQL concurrency acceptance remain unrun.
