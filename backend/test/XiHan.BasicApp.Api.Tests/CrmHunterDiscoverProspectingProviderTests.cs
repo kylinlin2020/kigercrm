@@ -38,7 +38,9 @@ public sealed class CrmHunterDiscoverProspectingProviderTests
         Assert.Equal("commercial_company_discovery", record.EvidenceType);
         Assert.Contains("no email addresses were revealed", record.Summary!, StringComparison.Ordinal);
         Assert.Equal("POST", handler.Method);
-        Assert.Contains("api_key=hunter-secret", handler.RequestUri, StringComparison.Ordinal);
+        Assert.DoesNotContain("hunter-secret", handler.RequestUri, StringComparison.Ordinal);
+        Assert.DoesNotContain("api_key", handler.RequestUri, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("hunter-secret", handler.ApiKeyHeader);
         Assert.Contains("\"query\":", handler.Body, StringComparison.Ordinal);
         Assert.True(result.IsComplete);
     }
@@ -74,19 +76,32 @@ public sealed class CrmHunterDiscoverProspectingProviderTests
     }
 
     [Fact]
-    public async Task SearchAsync_DoesNotTreatMissingDiscoverPlanAsRetryableQuota()
+    public async Task SearchAsync_Treats403AsRequestRateLimit()
     {
         var handler = new StubHandler((request, _) => new HttpResponseMessage(HttpStatusCode.Forbidden)
         {
             RequestMessage = request,
-            Content = new StringContent("""{"errors":[{"code":"no_discover_access","details":"Discover is not included in this plan."}]}""", Encoding.UTF8, "application/json")
+            Content = new StringContent("""{"errors":[{"details":"rate limit"}]}""", Encoding.UTF8, "application/json")
+        });
+        using var provider = new CrmHunterDiscoverProspectingProvider(new HttpClient(handler), "key");
+
+        await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() => provider.SearchAsync(Request()));
+        Assert.Equal(1, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Treats429AsUsageQuotaExhaustionWithoutRetryCooldown()
+    {
+        var handler = new StubHandler((request, _) => new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+        {
+            RequestMessage = request,
+            Content = new StringContent("""{"errors":[{"details":"usage limit reached"}]}""", Encoding.UTF8, "application/json")
         });
         using var provider = new CrmHunterDiscoverProspectingProvider(new HttpClient(handler), "key");
 
         var exception = await Assert.ThrowsAsync<HttpRequestException>(() => provider.SearchAsync(Request()));
-
-        Assert.Contains("plan eligibility", exception.Message, StringComparison.Ordinal);
-        Assert.Equal(1, handler.CallCount);
+        Assert.Contains("usage quota is exhausted", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.TooManyRequests, exception.StatusCode);
     }
 
     private static CrmProspectingProviderRequest Request()
@@ -105,6 +120,7 @@ public sealed class CrmHunterDiscoverProspectingProviderTests
         public int CallCount { get; private set; }
         public string Method { get; private set; } = "";
         public string RequestUri { get; private set; } = "";
+        public string ApiKeyHeader { get; private set; } = "";
         public string Body { get; private set; } = "";
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -112,6 +128,7 @@ public sealed class CrmHunterDiscoverProspectingProviderTests
             CallCount++;
             Method = request.Method.Method;
             RequestUri = request.RequestUri?.ToString() ?? "";
+            ApiKeyHeader = request.Headers.TryGetValues("X-API-KEY", out var values) ? values.Single() : "";
             Body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
             return factory(request, CallCount);
         }
