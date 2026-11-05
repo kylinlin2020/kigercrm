@@ -46,7 +46,7 @@
 | Wikidata | 全球知识图谱实体发现；公开 API、无需 Key | 已实现待验收 | 新增低频 `wbsearchentities` 关键词发现 Provider；最多 3 个关键词×10 条；仅保留组织描述线索；上限命中标记 incomplete；不等同企业注册或采购意向 |
 | OpenCorporates | 多国企业登记聚合；需核对许可/Key | 未迁移 | API 许可、覆盖国家、Key、字段权威等级 |
 | Companies House | 英国官方企业登记；需租户 API Key（HTTP Basic 用户名） | 已实现待验收 | 已新增真实公司搜索 Provider；仅英国目标市场调用，最多 2 页，超限标记 coverage incomplete；公司登记不等同采购意向 |
-| Netherlands KVK | 荷兰官方企业登记；订阅/Key | 未迁移 | 订阅开关、成本、名称与编号精确查询 |
+| Netherlands KVK | 荷兰官方企业登记；订阅/Key | 已实现待验收 | 已新增真实 Zoeken API Provider；租户加密 Key、仅 NL 市场调用、最多 3 个关键词×每词 2 页；搜索结果只作为企业登记证据 |
 | France company search（fr_company_search） | 法国企业公开登记入口 | 未迁移 | 确认真实 API 端点、数据许可和覆盖字段 |
 | ROR | 全球研究机构标识；公开 REST API、无需 Key | 已实现待验收 | 新增真实 v2 organizations 查询 Provider；最多 3 个关键词×每词 20 条；记录研究机构类型/国家/网站；上限命中标记 incomplete；不作为普通公司库 |
 | US NPPES | 美国医疗机构/从业者名录 | 未迁移 | 行业专用来源，明确个人数据边界 |
@@ -115,7 +115,7 @@
 - `us_census_trade`（新增；需要 Census API Key，从当前租户加密配置读取）
 - `sam_gov`（新增；SAM.gov 官方 Opportunities v2，需租户 API Key，最多 3 页 bounded fetch）
 - `companies_house`（新增；英国官方公司登记搜索，租户 API Key 通过 HTTP Basic 认证，最多 2 页 bounded fetch）
-- `wikidata`（新增；公开 Wikidata `wbsearchentities` API，最多 3 个关键词、每个 10 条，组织描述筛选，结果标记知识图谱线索）
+- `kvk`（新增；荷兰 KVK 官方 Handelsregister Zoeken API，租户 API Key 通过 `apikey` 请求头发送，最多 3 个关键词×每词 2 页 bounded fetch）
 - `ror`（新增；公开 ROR v2 organizations API，最多 3 个关键词、每个 20 条，研究机构身份记录，不作为一般商业公司库）
 - `wikidata`（新增；公开 Wikidata `wbsearchentities` API，最多 3 个关键词、每个 10 条，组织描述筛选，结果标记知识图谱线索）
 
@@ -181,6 +181,14 @@
 - 仅在目标市场明确包含 UK、GB、United Kingdom、Great Britain 或英国组成地区时调用。
 - 输出公司编号、名称、登记状态、公司类型、登记地址摘要及官方公司详情 URL；不推断采购意向、不生成联系人或邮箱。
 - 达到两页上限仍有更多匹配项时，`IsComplete=false` 并返回 warning。官方 API 每应用默认限额为 5 分钟 600 次，Provider 仍按小页数 bounded fetch 控制单次任务。
+
+## 4.3 Netherlands KVK 企业登记 Provider（本轮新增）
+
+- 使用官方 `GET https://api.kvk.nl/api/v2/zoeken`（Handelsregister Zoeken）；按 `naam` 搜索产品/行业关键词，使用 `pagina` 与 `resultatenPerPagina` 分页，每页最多 100 条。
+- 需要 KVK Developer Portal 审批的 API subscription 与租户 API Key；按官方 Quickstart 使用 `apikey` 请求头，不把 Key 放入 URL。Key 从当前租户加密 SaaS 配置读取：`CRM.Prospecting.Provider.kvk.ApiKey`。
+- 仅在目标市场明确包含 NL、NLD、Netherlands、Holland 或 Nederland 时调用；最多 3 个关键词、每词最多 2 页；若官方总数显示仍有未读取结果，则 `IsComplete=false`。
+- 输出 KVK 编号、登记名称、活跃状态、登记类型、分支号及地址摘要；不输出联系人、不推断采购意向，也不把登记信息自动写入正式 Lead。
+- 官方资料说明 Zoeken API 的搜索结果默认排除非活跃登记，最多 100 条/页；KVK API 订阅有固定月费和按次查询费用，费用与申请资格须由用户在 KVK Developer Portal 确认。来源：KVK Quickstart、Zoeken API 与订阅说明。
 
 ## 5. 业务与安全边界
 
