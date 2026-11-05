@@ -33,6 +33,7 @@ const definitions = [
   { code: 'open_corporates', name: 'OpenCorporates', description: '企业登记聚合 API Key / 许可凭证' },
   { code: 'kvk', name: 'Netherlands KVK', description: '荷兰商会企业登记 API Key / 订阅凭证' },
   { code: 'companies_house', name: 'UK Companies House', description: '英国公司注册处 API Key（HTTP Basic 用户名凭证）' },
+  { code: 'mexico_denue', name: 'Mexico INEGI DENUE', description: '墨西哥 INEGI 官方企业名录 Token（URL 路径凭证；租户加密保存）' },
   { code: 'fmcsa_qcmobile', name: 'US FMCSA QCMobile', description: '美国承运商登记查询 WebKey（租户加密保存；只用于美国承运商数据检索）', configKeySuffix: 'WebKey', inputPlaceholder: '输入 FMCSA WebKey' },
 ] as const
 
