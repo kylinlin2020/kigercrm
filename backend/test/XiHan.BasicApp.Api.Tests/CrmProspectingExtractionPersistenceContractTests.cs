@@ -75,7 +75,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.LeaseToken), properties);
         Assert.Contains(nameof(SysCrmProspectingExtractionJob.FencingVersion), properties);
     }
-}
+
     [Fact]
     public void CandidatePersistence_ShouldExposeAtomicProviderBatchAndTerminalTransitionBoundary()
     {
@@ -116,3 +116,24 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.True(method.IndexOf("if (!batchIdentities.Add(normalizedIdentity))", StringComparison.Ordinal) <
             method.IndexOf("await PersistCandidateOrRepairAsync(item, cancellationToken)", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void AtomicProviderBatch_ShouldVerifyCheckpointBytesHashAndRecordMembership()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs"));
+        var methodStart = source.IndexOf("PersistProviderBatchAndTransitionAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("PersistPageAndAdvanceAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+        Assert.Contains("execution.CheckpointBytes != System.Text.Encoding.UTF8.GetByteCount(execution.CheckpointJson)", method, StringComparison.Ordinal);
+        Assert.Contains("SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(execution.CheckpointJson))", method, StringComparison.Ordinal);
+        Assert.Contains("persistedCheckpoint.Records.Count != execution.RawRecordCount", method, StringComparison.Ordinal);
+        Assert.Contains("if (!checkpointIdentities.Contains(normalizedIdentity))", method, StringComparison.Ordinal);
+    }
+
+}
