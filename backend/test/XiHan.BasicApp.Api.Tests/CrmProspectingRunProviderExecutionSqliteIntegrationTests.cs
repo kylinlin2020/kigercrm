@@ -97,7 +97,26 @@ public sealed class CrmProspectingRunProviderExecutionSqliteIntegrationTests : I
             Assert.Empty(await _repository.GetByRunAsync(7123));
     }
 
-    private static long ScopeId(ProbeCurrentTenant tenant) => tenant.Current?.TenantId ?? 0;
+    private static long ScopeId(ProbeCurrentTenant tenant) => tenant.Id ?? 0;
+
+    private sealed class ProbeCurrentTenant : ICurrentTenant
+    {
+        public bool IsAvailable => Id is > 0;
+        public long? Id { get; private set; }
+        public string? Name { get; private set; }
+
+        public IDisposable Change(long? id, string? name = null)
+        {
+            var (previousId, previousName) = (Id, Name);
+            (Id, Name) = (id, name);
+            return new Restore(() => (Id, Name) = (previousId, previousName));
+        }
+
+        private sealed class Restore(Action restore) : IDisposable
+        {
+            public void Dispose() => restore();
+        }
+    }
 
     public void Dispose()
     {
