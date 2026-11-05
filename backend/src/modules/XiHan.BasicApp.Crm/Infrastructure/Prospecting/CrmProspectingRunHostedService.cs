@@ -287,6 +287,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         failureCode: "operation_cancelled", failureSummary: "Provider request was cancelled.",
                         cancellationToken: CancellationToken.None))
                         throw new InvalidOperationException("The cancelled provider request ledger attempt could not be finalized.");
+                    await MarkProviderStepFailedAsync(scope.ServiceProvider, providerExecutions,
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                        "operation_cancelled", "Provider request was cancelled.", CancellationToken.None);
                     throw;
                 }
                 catch (CrmProspectingProviderRateLimitException ex)
@@ -298,6 +301,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         failureSummary: CrmProspectingDiagnosticSanitizer.Sanitize(ex.Message, 500), retryAfterAt: ex.RetryAfterAt,
                         cancellationToken: CancellationToken.None))
                         throw new InvalidOperationException("The rate-limited provider request ledger attempt could not be finalized.", ex);
+                    await MarkProviderStepFailedAsync(scope.ServiceProvider, providerExecutions,
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                        "provider_rate_limited", "Provider rate limit was reached.", CancellationToken.None);
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: provider rate limit (HTTP {ex.HttpStatus}); retry after {ex.RetryAfterAt?.ToString("O") ?? "provider cooldown"}.");
                     Logger.LogWarning("Prospecting provider rate limited for Run {RunId}, provider {Provider}, HTTP {StatusCode}", run.BasicId, providerCode, ex.HttpStatus);
@@ -316,6 +322,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         failureSummary: $"Provider invocation failed ({ex.GetType().Name}).",
                         cancellationToken: CancellationToken.None))
                         throw new InvalidOperationException("The failed provider request ledger attempt could not be finalized.", ex);
+                    await MarkProviderStepFailedAsync(scope.ServiceProvider, providerExecutions,
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                        "provider_invocation_failed", "Provider invocation failed.", CancellationToken.None);
                     failures++;
                     // Exception messages can echo request URLs, query credentials or remote payloads.
                     // Keep persisted Run warnings to a stable classification, not untrusted text.
@@ -332,6 +341,9 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                         failureCode: "malformed_result", failureSummary: "Provider returned an empty or malformed result envelope.",
                         cancellationToken: CancellationToken.None))
                         throw new InvalidOperationException("The malformed provider request ledger attempt could not be finalized.");
+                    await MarkProviderStepFailedAsync(scope.ServiceProvider, providerExecutions,
+                        executionStep.BasicId, run.BasicId, leaseToken, activeFencingVersion,
+                        "malformed_result", "Provider returned an empty or malformed result envelope.", CancellationToken.None);
                     failures++;
                     AddBoundedWarning(warnings, $"{providerCode}: provider returned an empty or malformed result envelope.");
                     continue;
@@ -1272,6 +1284,31 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         return true;
     }
 
+
+
+    private static async Task MarkProviderStepFailedAsync(
+        IServiceProvider serviceProvider,
+        ICrmProspectingRunProviderExecutionRepository repository,
+        long executionId,
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        string failureCode,
+        string safeFailureSummary,
+        CancellationToken cancellationToken)
+    {
+        using var unitOfWork = serviceProvider.GetRequiredService<IUnitOfWorkManager>()
+            .Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+        if (!await repository.TryTransitionAsync(
+            executionId, runId, leaseToken, fencingVersion,
+            "Started", "Failed",
+            failureCount: 1,
+            failureCode: failureCode,
+            safeFailureSummary: safeFailureSummary,
+            cancellationToken: cancellationToken))
+            throw new InvalidOperationException("The failed provider execution step could not be finalized under the live Run lease.");
+        await unitOfWork.CompleteAsync(cancellationToken);
+    }
 
 
     private static IDynamicServiceConfig BuildConfig(IOptions<XiHanBackgroundServiceOptions> options)
