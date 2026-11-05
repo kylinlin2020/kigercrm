@@ -574,3 +574,17 @@ Added the first persistence foundation on `kiger-dev`:
 - Database constraints validate state names, lifecycle completion timestamp shape, non-negative counters, fingerprint/hash shape, and checkpoint metadata consistency.
 
 This is schema foundation only. It does not yet create or materialize execution rows, implement a repository, enforce the application-level checkpoint byte quota, persist provider results, project candidates, or resume Runs. Do not change the Run worker to consume this table until repository transitions are transactional and fenced by the live Run lease, the migration is exercised against PostgreSQL, and synchronous crash/replay tests pass. Existing Request Ledger semantics remain unchanged.
+
+
+## 11.36 Fenced provider-execution repository foundation (2026-11-05)
+
+Implemented the first repository boundary for the 5.9.36 execution-checkpoint table:
+
+- `ICrmProspectingRunProviderExecutionRepository` exposes tenant-scoped Run reads, conditional step start, checkpoint save, and explicit state transitions.
+- `CrmProspectingRunProviderExecutionRepository` validates PostgreSQL, current tenant, Run/execution identity, exact parent Run lease token and fencing version, and DB-clock lease expiry for mutations.
+- `TrySaveCheckpointAsync` requires an active caller transaction, validates JSON, enforces a 1 MiB UTF-8 payload ceiling, computes SHA-256 server-side, and permits only a single Started -> Checkpointed write when no prior checkpoint exists.
+- Step transitions are allow-listed; terminal transitions require the caller transaction and set the terminal timestamp. Succeeded requires a projected count and zero failures.
+- Repository is explicitly registered in CRM service collection.
+- Source-level contract tests cover strict tenant entity identity, repository operations, lease fencing, transaction requirement, payload bound, and hash generation.
+
+Important limitations: this repository does not yet materialize provider plan rows, provide an atomic batch insert, read/verify stored checkpoint hashes on recovery, persist Candidate/Evidence/Score projection with the step transition, or resume the Run worker. It also has not been compiled or executed against PostgreSQL. The synchronous worker remains unchanged and async providers remain fail-closed. The next step is safe immutable plan materialization and a PostgreSQL-backed repository test suite before any worker integration.
