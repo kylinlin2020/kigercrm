@@ -102,6 +102,17 @@ public sealed class CrmProspectingApplicationWiringTests
 
 
     [Fact]
+    public void ExtractionMigration_ShouldAllowNeedsReviewBeforeOrAfterRemoteAcknowledgement()
+    {
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.34", "5.9.34.sql");
+        Assert.Contains("status = 'Submitting' AND provider_extraction_id IS NULL AND submitted_at_utc IS NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("status = 'NeedsReview' AND (", migration, StringComparison.Ordinal);
+        Assert.Contains("(provider_extraction_id IS NULL AND submitted_at_utc IS NULL)", migration, StringComparison.Ordinal);
+        Assert.Contains("(provider_extraction_id IS NOT NULL AND length(provider_extraction_id) > 0 AND submitted_at_utc IS NOT NULL)", migration, StringComparison.Ordinal);
+        Assert.Contains("status NOT IN ('Submitting','NeedsReview')", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ExtractionNeedsReview_ShouldNeverBeClaimedByTheAutomaticWorker()
     {
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs");
