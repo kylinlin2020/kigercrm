@@ -34,7 +34,7 @@ public sealed class CrmSamGovOpportunitiesProspectingProviderTests
     [Fact]
     public async Task SearchAsync_MapsOfficialOpportunityAndBuyerEvidence()
     {
-        var handler = new StubHandler(_ => Ok("""{"totalRecords":1,"limit":100,"offset":0,"opportunitiesData":[{"noticeId":"notice-123","title":"Supply of water pumps","solicitationNumber":"ABC-123","fullParentPathName":"DEPARTMENT OF ENERGY.WATER OFFICE","postedDate":"2026-10-20","responseDeadLine":"2026-11-20","type":"Solicitation","naicsCode":"333914"}]}"""));
+        var handler = new StubHandler(_ => Ok("""{"totalRecords":1,"limit":100,"offset":0,"opportunitiesData":[{"noticeId":"notice-123","title":"Supply of water pumps","solicitationNumber":"ABC-123","fullParentPathName":"DEPARTMENT OF ENERGY.WATER OFFICE","postedDate":"2026-10-20","responseDeadLine":"2026-11-20","type":"Solicitation","naicsCode":"333914","pointOfContact":[{"type":"primary","fullName":"Buyer Contact","email":"buyer@example.gov","phone":"202-555-0100"}]}]}"""));
         using var provider = new CrmSamGovOpportunitiesProspectingProvider(new HttpClient(handler), "test-sam-key");
         var result = await provider.SearchAsync(Request());
         var record = Assert.Single(result.Records);
@@ -42,6 +42,8 @@ public sealed class CrmSamGovOpportunitiesProspectingProviderTests
         Assert.Equal("SAMGOV:notice-123", record.ExternalId);
         Assert.Equal("DEPARTMENT OF ENERGY.WATER OFFICE", record.CompanyName);
         Assert.Equal("official_procurement", record.EvidenceType);
+        Assert.Equal("Buyer Contact", record.ContactName);
+        Assert.Equal("buyer@example.gov", record.BusinessEmail);
         Assert.Equal("https://sam.gov/opp/notice-123/view", record.SourceUrl);
         Assert.Contains("api_key=test-sam-key", handler.RequestUri, StringComparison.Ordinal);
         Assert.Contains("postedFrom=", handler.RequestUri, StringComparison.Ordinal);
