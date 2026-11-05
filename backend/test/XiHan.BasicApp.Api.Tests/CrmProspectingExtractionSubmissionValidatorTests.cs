@@ -89,6 +89,18 @@ public sealed class CrmProspectingExtractionSubmissionValidatorTests
     }
 
     [Fact]
+    public void TryValidate_AcceptsMetadataAtPersistenceColumnLimit()
+    {
+        var metadata = "{\\"x\\":1}" + new string(' ', 
+            CrmProspectingExtractionSubmissionValidator.MaxSafeMetadataJsonLength - 7);
+        var submission = Submission() with { SafeMetadataJson = metadata };
+
+        Assert.True(CrmProspectingExtractionSubmissionValidator.TryValidate(
+            submission, "eurostat_comext", out var failure));
+        Assert.Equal(string.Empty, failure);
+    }
+
+    [Fact]
     public void TryValidate_RejectsOversizedSafeMetadata()
     {
         var submission = Submission() with
