@@ -829,4 +829,16 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("failure_count = @failureCount + extraction_summary.terminal_failure_count", completion, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RunWorker_ShouldPreflightAsyncOnlyProvidersBeforeAnyProviderSideEffects()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var preflight = worker.IndexOf("var unsupportedAsyncProviders = plan", StringComparison.Ordinal);
+        var rawBuffer = worker.IndexOf("var raw = new List<CrmProspectingRawEnvelope>()", StringComparison.Ordinal);
+        var providerLoop = worker.IndexOf("foreach (var providerCode in plan.Distinct", StringComparison.Ordinal);
+        Assert.True(preflight >= 0 && rawBuffer > preflight && providerLoop > rawBuffer);
+        Assert.Contains("providerRegistry.Asynchronous.ContainsKey(providerCode)", worker, StringComparison.Ordinal);
+        Assert.Contains("durable Run orchestration", worker, StringComparison.Ordinal);
+    }
+
 }
