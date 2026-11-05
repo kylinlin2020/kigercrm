@@ -132,7 +132,7 @@
 - 每个来源都要能输出采购方/贸易主体的证据语义，不能把统计聚合数据直接当成具体进口商。
 
 ### P0-C：官方企业身份与注册
-- 补齐 Companies House、KVK、OpenCorporates、Wikidata、法国企业名录、ROR、NPPES、FDA 510(k) 等。
+- Companies House 已有真实 Provider 源码，进入来源级测试与实机验收；继续补齐 KVK、OpenCorporates、Wikidata、法国企业名录、ROR、NPPES、FDA 510(k) 等。
 - 为每个来源标注适用行业、国家覆盖和权威等级；身份冲突不得静默覆盖。
 
 ### P0-D：通用发现与商业补全
