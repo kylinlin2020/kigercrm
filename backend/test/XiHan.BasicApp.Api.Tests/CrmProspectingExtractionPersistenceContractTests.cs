@@ -21,7 +21,12 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
 
         Assert.Contains("CreateSubmissionIntentAsync", methods);
         Assert.Contains("TryAcknowledgeSubmissionAsync", methods);
-        Assert.Contains("CreateAsync", methods);
+        Assert.Contains("CreateSubmissionIntentAsync", methods);
+        var directCreate = typeof(ICrmProspectingExtractionJobRepository)
+            .GetMethod("CreateAsync");
+        Assert.NotNull(directCreate);
+        Assert.NotNull(Attribute.GetCustomAttribute(directCreate!, typeof(ObsoleteAttribute)));
+        Assert.Contains("TryAcknowledgeSubmissionAsync", methods);
         Assert.Contains("GetByIdAsync", methods);
         Assert.Contains("ClaimDueAsync", methods);
         Assert.Contains("ExpireDueAsync", methods);
