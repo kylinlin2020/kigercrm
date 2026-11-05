@@ -29,6 +29,7 @@ const definitions = [
   { code: 'hunter', name: 'Hunter.io', description: '域名邮箱发现 API Key；不会触发自动外联' },
   { code: 'open_corporates', name: 'OpenCorporates', description: '企业登记聚合 API Key / 许可凭证' },
   { code: 'kvk', name: 'Netherlands KVK', description: '荷兰商会企业登记 API Key / 订阅凭证' },
+  { code: 'companies_house', name: 'UK Companies House', description: '英国公司注册处 API Key（HTTP Basic 用户名凭证）' },
 ] as const
 
 const loading = ref(false)
