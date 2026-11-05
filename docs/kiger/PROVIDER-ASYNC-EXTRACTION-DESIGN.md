@@ -340,3 +340,10 @@ The durable claim query previously included `NeedsReview` rows whenever a remote
 A lifecycle review found that `Succeeded` was a valid state before `FetchingResults`, but it was absent from both the automatic claim set and the expiry set. If a poller persisted Succeeded and released its lease before fetching the first page, the job could remain stranded forever: no worker could claim it to begin result retrieval, and expiry recovery would not terminalize it.
 
 The claim query and expiry recovery now both include Succeeded. A later worker claim can transition Succeeded to FetchingResults and start bounded page retrieval. If the provider-side extraction expires before retrieval is complete, expiry recovery marks Succeeded jobs Expired as well. NeedsReview remains excluded from claims. This is a source-level correction; PostgreSQL scheduling/expiry behavior still requires integration testing.
+
+
+### 11.19 Fenced lease renewal contract
+
+Long-running asynchronous provider calls and multi-page result retrieval can outlive the initial worker lease. The extraction repository now exposes `TryRenewLeaseAsync`. Renewal is tenant-scoped and conditional on the exact job ID, lease token, fencing version, and a lease that is still live according to PostgreSQL `clock_timestamp()`. It cannot resurrect an expired lease, and it rejects durations outside the same 15-minute maximum used by initial claims. Only executable lifecycle states are renewable; NeedsReview and terminal states are excluded.
+
+The method is a persistence primitive, not yet a running heartbeat. The future Extraction Worker must renew before expiry while provider calls/pages are in progress, cancel work immediately when renewal fails, and continue to use fenced writes for every state/cursor update. No background worker is wired by this change.
