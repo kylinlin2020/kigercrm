@@ -77,6 +77,14 @@ public interface ICrmProspectingAsyncExtractionProvider
 {
     string ProviderCode { get; }
 
+    /// <summary>
+    /// Must be explicitly true only when the adapter sends the supplied stable key through a
+    /// provider-documented idempotency mechanism or can authoritatively recover the original
+    /// submission by that key. Without this guarantee, a timeout after remote acceptance cannot
+    /// be retried safely and the adapter must not be registered for automatic execution.
+    /// </summary>
+    bool SupportsIdempotentSubmission { get; }
+
     /// <summary>Submit one bounded extraction request and return its durable provider-side job identity.</summary>
     Task<CrmProspectingExtractionSubmission> SubmitExtractionAsync(
         CrmProspectingProviderRequest request,
