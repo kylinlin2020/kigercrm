@@ -106,7 +106,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         return affected == 1;
     }
 
-    public async Task<SysCrmProspectingExtractionJob> CreateAsync(
+    [Obsolete("Direct acknowledged-job creation bypasses the durable Submitting intent and is disabled. Use CreateSubmissionIntentAsync, claim the intent, submit with its idempotency key, then call TryAcknowledgeSubmissionAsync.")]
+    public Task<SysCrmProspectingExtractionJob> CreateAsync(
         long runId,
         string providerCode,
         string requestFingerprint,
@@ -115,74 +116,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         DateTimeOffset nextPollAtUtc,
         DateTimeOffset? expiresAtUtc,
         CancellationToken cancellationToken = default)
-    {
-        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
-        ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
-        ArgumentException.ThrowIfNullOrWhiteSpace(requestFingerprint);
-        ArgumentException.ThrowIfNullOrWhiteSpace(providerExtractionId);
-        providerCode = providerCode.Trim().ToLowerInvariant();
-        if (providerCode.Length > 80) throw new ArgumentOutOfRangeException(nameof(providerCode));
-        if (requestFingerprint.Length != 64 || !requestFingerprint.All(Uri.IsHexDigit))
-            throw new ArgumentException("Request fingerprint must be a 64-character SHA-256 hex digest.", nameof(requestFingerprint));
-        if (providerExtractionId.Length > 512) throw new ArgumentOutOfRangeException(nameof(providerExtractionId));
-        if (expiresAtUtc is not null && expiresAtUtc <= submittedAtUtc)
-            throw new ArgumentOutOfRangeException(nameof(expiresAtUtc));
-        if (nextPollAtUtc < submittedAtUtc)
-            throw new ArgumentOutOfRangeException(nameof(nextPollAtUtc));
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
-            ?? throw new InvalidOperationException("A current tenant context is required for extraction job creation.");
-
-        var existing = await CreateQueryable()
-            .Where(row => row.TenantId == tenant.TenantId
-                && row.RunId == runId
-                && row.ProviderCode == providerCode
-                && row.RequestFingerprint == requestFingerprint.ToUpperInvariant())
-            .Take(2)
-            .ToListAsync(cancellationToken);
-        if (existing.Count > 1)
-            throw new InvalidOperationException("The tenant contains duplicate extraction jobs for one Run/provider/fingerprint.");
-        if (existing.Count == 1)
-            return existing[0];
-
-        var entity = new SysCrmProspectingExtractionJob
-        {
-            TenantId = tenant.TenantId,
-            RunId = runId,
-            ProviderCode = providerCode,
-            RequestFingerprint = requestFingerprint.ToUpperInvariant(),
-            SubmissionIdempotencyKey = Guid.NewGuid(),
-            ProviderExtractionId = providerExtractionId,
-            Status = CrmProspectingExtractionStatus.Pending.ToString(),
-            SubmittedAtUtc = submittedAtUtc,
-            NextPollAtUtc = nextPollAtUtc,
-            ExpiresAtUtc = expiresAtUtc,
-            PollAttemptCount = 0,
-            ResultRecordCount = 0,
-            FencingVersion = 0
-        };
-        try
-        {
-            await AddAsync(entity);
-            return entity;
-        }
-        catch (SqlSugarException)
-        {
-            // A competing worker may have inserted the same tenant/run/provider/fingerprint.
-            // Re-read only that exact idempotency key; preserve the original error otherwise.
-            var raced = await CreateQueryable()
-                .Where(row => row.TenantId == tenant.TenantId
-                    && row.RunId == runId
-                    && row.ProviderCode == providerCode
-                    && row.RequestFingerprint == requestFingerprint.ToUpperInvariant())
-                .Take(2)
-                .ToListAsync(cancellationToken);
-            if (raced.Count == 1)
-                return raced[0];
-            throw;
-        }
-    }
+        => throw new NotSupportedException(
+            "Direct extraction creation is disabled because it bypasses the durable pre-submit intent. Use CreateSubmissionIntentAsync and TryAcknowledgeSubmissionAsync.");
 
     public async Task<SysCrmProspectingExtractionJob?> GetByIdAsync(
         long jobId,
