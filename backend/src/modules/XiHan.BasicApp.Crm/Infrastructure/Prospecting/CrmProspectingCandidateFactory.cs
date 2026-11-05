@@ -216,16 +216,22 @@ public sealed class CrmProspectingCandidatePersistenceService
                 "Checkpointed", "Projecting", cancellationToken: cancellationToken))
             throw new InvalidOperationException("The provider checkpoint could not enter Projecting under the live Run lease.");
 
+        var batchIdentities = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in items)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (item?.Candidate is null || item.Envelope?.Record is null ||
                 item.Candidate.RunId != runId ||
                 !string.Equals(item.Candidate.ProviderCode, execution.ProviderCode, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(item.Envelope.ProviderCode, execution.ProviderCode, StringComparison.OrdinalIgnoreCase) ||
-                !string.Equals(item.Candidate.ExternalId,
-                    CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record), StringComparison.Ordinal))
-                throw new ArgumentException("Every projection item must match the checkpoint Run, provider, and normalized record identity.", nameof(items));
+                !string.Equals(item.Envelope.ProviderCode, execution.ProviderCode, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Every projection item must match the checkpoint Run and provider.", nameof(items));
+
+            var normalizedIdentity = CrmProspectingRecordIdentity.NormalizeExternalId(item.Envelope.Record);
+            if (!string.Equals(item.Candidate.ExternalId, normalizedIdentity, StringComparison.Ordinal))
+                throw new ArgumentException("Every candidate external identity must match its normalized checkpoint record.", nameof(items));
+            if (!batchIdentities.Add(normalizedIdentity))
+                throw new ArgumentException("A provider batch cannot contain duplicate normalized record identities.", nameof(items));
+
             await PersistCandidateOrRepairAsync(item, cancellationToken);
         }
 
