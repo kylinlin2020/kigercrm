@@ -536,4 +536,22 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("us_healthcare_organization_registry", provider, StringComparison.Ordinal);
         Assert.Contains("NPI issuance does not establish licensure or credentialing", provider, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void HunterDiscoverProvider_ShouldBeOptInTenantScopedAndDefaultOff()
+    {
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmHunterDiscoverProspectingProvider.cs");
+        var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
+        var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
+
+        Assert.Contains("EnableHunterDiscoverProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("CrmHunterDiscoverProspectingProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("api.hunter.io", registration, StringComparison.Ordinal);
+        Assert.Contains("\"EnableHunterDiscoverProvider\": false", settings, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.hunter.ApiKey", provider, StringComparison.Ordinal);
+        Assert.Contains("commercial_company_discovery", provider, StringComparison.Ordinal);
+        Assert.Contains("one page only", provider, StringComparison.Ordinal);
+        Assert.Contains("code: 'hunter'", frontend, StringComparison.Ordinal);
+    }
 }
