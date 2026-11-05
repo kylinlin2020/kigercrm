@@ -22,7 +22,7 @@ public sealed class CrmUsCensusTradeProspectingProviderTests
     [Fact]
     public async Task SearchAsync_MapsOfficialCommodityTradeStatistics()
     {
-        var handler = new StubHandler(_ => Ok("""[["CTY_NAME","CTY_CODE","ALL_VAL_MO","GEN_VAL_MO","CON_VAL_MO","E_COMMODITY","E_COMMODITY_LDESC"],["Nigeria","NI","12345","12000","345","8418","Generators and generating sets"]]"""));
+        var handler = new StubHandler(_ => Ok("""[["CTY_NAME","CTY_CODE","ALL_VAL_MO","E_COMMODITY","E_COMMODITY_LDESC"],["Nigeria","NI","12345","8418","Generators and generating sets"]]"""));
         using var provider = new CrmUsCensusTradeProspectingProvider(new HttpClient(handler), "test-census-key");
         var result = await provider.SearchAsync(Request());
         var record = Assert.Single(result.Records);
