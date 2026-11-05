@@ -158,7 +158,7 @@
 - US Census：`EnableUsCensusTradeProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取；只请求官方 HS 出口数据集的有效字段。官方 API 要求 Key 作为 `key` 查询参数，需在 HTTP 诊断中脱敏。
 - SAM.gov：`EnableSamGovProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 `api_key` 查询参数发送；请求窗口限制为 30 天、最多 3 页，达到页数上限会标记 coverage incomplete。
 - Companies House：`EnableCompaniesHouseProvider` 显式开启；默认关闭。Key 从当前租户加密 SaaS 配置读取，按官方要求作为 HTTP Basic 用户名发送（密码为空）；只在目标市场明确包含 UK/GB/United Kingdom 等英国标识时调用，搜索结果是公司登记证据而非采购意向，最多 2 页并标记未覆盖的后续结果。
-- **租户凭证链路已接通（待测试）：**两个 Provider 均为 Scoped，后台 Worker 先切换到 Run 的 Tenant Scope，再解析 `ISaasConfigurationService`；分别读取 `CRM.Prospecting.Provider.un_comtrade.ApiKey`、`CRM.Prospecting.Provider.us_census.ApiKey`、`CRM.Prospecting.Provider.sam_gov.ApiKey` 与 `CRM.Prospecting.Provider.companies_house.ApiKey`，复用 SaaS 的加密配置解密与租户优先级/缓存逻辑。Comtrade Key 通过 `Ocp-Apim-Subscription-Key` 请求头发送；Census 按官方要求使用 `key` 查询参数。真实多租户隔离、Data Protection 密钥环和 Census 查询参数在 HTTP 诊断日志中的脱敏仍待实机验收。
+- **租户凭证链路已接通（待测试）：**相关 Provider 均为 Scoped，后台 Worker 先切换到 Run 的 Tenant Scope，再解析 `ISaasConfigurationService`；分别读取 `CRM.Prospecting.Provider.un_comtrade.ApiKey`、`CRM.Prospecting.Provider.us_census.ApiKey`、`CRM.Prospecting.Provider.sam_gov.ApiKey` 与 `CRM.Prospecting.Provider.companies_house.ApiKey`，复用 SaaS 的加密配置解密与租户优先级/缓存逻辑。Comtrade Key 通过 `Ocp-Apim-Subscription-Key` 请求头发送；Census 按官方要求使用 `key` 查询参数；SAM.gov 使用 `api_key` 查询参数；Companies House 使用 HTTP Basic 用户名。诊断脱敏器现覆盖通用 `key`、`api_key`、订阅 Key 和 Basic/Bearer 认证文本；仍需实机检查应用日志、HTTP handler 诊断与 APM 遥测是否存在额外的请求头/查询串采集。真实多租户隔离和 Data Protection 密钥环仍待实机验收。
 
 ## 4.2 Companies House 公司登记 Provider（本轮新增）
 
