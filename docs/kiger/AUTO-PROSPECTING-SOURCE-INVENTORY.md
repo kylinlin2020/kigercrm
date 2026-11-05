@@ -435,3 +435,12 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 - 源仓库相关路径总量已完成一次完整 Tree 盘点；之前仅在 `lead-providers.ts` 搜索 DENUE/FMCSA 的结论只能说明该文件未命中，不能说明源仓库没有对应能力。
 - 上述缺口是后续多任务的正式工作清单。逐项完成后应更新目标端对应实现、独立测试、DI/前端/权限接线和迁移状态；纯文档或源码存在不算运行验收。
 - 下一优先级：先完成 Candidate/Evidence/Score 公共修复/分页事务边界，再并行推进 Super Search/Deep Mining、Website Discovery/Contact Enrichment、Schedule/Coverage Memory 的能力映射和独立切片。
+
+
+### 5.8 DENUE / FMCSA 源端位置复核更正（2026-11-05）
+
+纠正此前仅检查 `lead-providers.ts` 后形成的误判：**DENUE 和 FMCSA 确实存在于源仓库**，两者位于 `backend/src/public-procurement-providers.ts`，并非不存在于源项目。该文件本次已通过源仓库原始内容复核，分别定义：
+- `mexico_denue`：墨西哥 INEGI DENUE 企业名录，固定 host `www.inegi.org.mx`、固定 API path，支持以起始记录号分页（最多 20 条/页，最大位置 1000），返回企业名称、行业、地址、电话、邮箱、官网和 DENUE 来源链接。源端将 Token 放在 URL path 中，目标端迁移必须对请求 URI、异常、日志和诊断统一脱敏，禁止将 Token 暴露到 UI/日志。
+- `fmcsa_qcmobile`：美国 FMCSA QCMobile 承运商查询，固定 host `mobile.fmcsa.dot.gov`、固定 carrier-name path，WebKey 放在 query 参数，返回 USDOT、法定名称、运营状态、地址和电话/邮箱；源端按单次查询结果截断，无 cursor 分页。目标端需确保 WebKey query 永不进入日志/异常摘要。
+
+目标端目前仍未迁移这两个适配器。先前的“在 lead-providers.ts 未发现 DENUE/FMCSA”只代表单文件搜索无匹配，不能作为源端不存在的证据；该结论现由本节纠正。两个 Provider 仍需分别完成固定端点安全、Key 输入与租户加密、分页/coverage 语义、429/503 cooldown、脱敏测试、独立 adapter tests、DI opt-in 与默认关闭配置。
