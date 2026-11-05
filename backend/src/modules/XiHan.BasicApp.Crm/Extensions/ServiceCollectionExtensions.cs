@@ -187,6 +187,18 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmWikidataProspectingProvider>());
         }
+        // ROR is a public identifier registry for research organizations; it is not a general company directory.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableRorProvider"], out var enableRor)
+            && enableRor)
+        {
+            services.AddSingleton<CrmRorProspectingProvider>(provider => new CrmRorProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.ror.org"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                }));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmRorProspectingProvider>());
+        }
         // Companies House is the UK official company register. Search results are registry evidence,
         // not proof of buyer intent; the API key is read from the current tenant's encrypted configuration.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableCompaniesHouseProvider"], out var enableCompaniesHouse)
