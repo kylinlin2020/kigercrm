@@ -55,4 +55,30 @@ public sealed class CrmKvkProspectingWiringTests
         Assert.Contains("ConfigType.Tenant", credentials, StringComparison.Ordinal);
         Assert.Contains("isEncrypted: true", credentials, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void SerperAndSerpApi_ShouldUseTenantEncryptedKeysAndExplicitOptInRegistration()
+    {
+        var root = FindRepositoryRoot();
+        var serper = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmSerperSearchProspectingProvider.cs"));
+        var serpApi = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmSerpApiProspectingProvider.cs"));
+        var registration = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        var settings = File.ReadAllText(Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json"));
+        var credentials = File.ReadAllText(Path.Combine(root, "frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue"));
+
+        Assert.Contains("CRM.Prospecting.Provider.serper.ApiKey", serper, StringComparison.Ordinal);
+        Assert.Contains("X-API-KEY", serper, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.serpapi.ApiKey", serpApi, StringComparison.Ordinal);
+        Assert.Contains("\"api_key\"", serpApi, StringComparison.Ordinal);
+        Assert.Contains("EnableSerperProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("EnableSerpApiProvider", registration, StringComparison.Ordinal);
+        Assert.Contains("google.serper.dev", registration, StringComparison.Ordinal);
+        Assert.Contains("serpapi.com", registration, StringComparison.Ordinal);
+        Assert.Contains("\"EnableSerperProvider\": false", settings, StringComparison.Ordinal);
+        Assert.Contains("\"EnableSerpApiProvider\": false", settings, StringComparison.Ordinal);
+        Assert.Contains("code: 'serper'", credentials, StringComparison.Ordinal);
+        Assert.Contains("code: 'serpapi'", credentials, StringComparison.Ordinal);
+        Assert.Contains("ConfigType.Tenant", credentials, StringComparison.Ordinal);
+        Assert.Contains("isEncrypted: true", credentials, StringComparison.Ordinal);
+    }
 }
