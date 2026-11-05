@@ -160,6 +160,37 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<ICrmProspectingProvider>(provider =>
                 provider.GetRequiredService<CrmTedProspectingProvider>());
         }
+        // UN Comtrade public preview is keyless; a configured subscription key upgrades the adapter
+        // to the registered data API. Keep the provider explicitly opt-in in either mode.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUnComtradeProvider"], out var enableUnComtrade)
+            && enableUnComtrade)
+        {
+            var subscriptionKey = configuration["XiHan:CRM:Prospecting:Providers:UnComtrade:ApiKey"];
+            services.AddSingleton<CrmUnComtradeProspectingProvider>(provider => new CrmUnComtradeProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("comtradeapi.un.org"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                subscriptionKey));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmUnComtradeProspectingProvider>());
+        }
+        // Census requires an API key. It is read from protected deployment configuration until
+        // tenant-scoped runtime credential resolution is wired into the background worker.
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableUsCensusTradeProvider"], out var enableUsCensus)
+            && enableUsCensus
+            && !string.IsNullOrWhiteSpace(configuration["XiHan:CRM:Prospecting:Providers:UsCensus:ApiKey"]))
+        {
+            var apiKey = configuration["XiHan:CRM:Prospecting:Providers:UsCensus:ApiKey"];
+            services.AddSingleton<CrmUsCensusTradeProspectingProvider>(provider => new CrmUsCensusTradeProspectingProvider(
+                new HttpClient(CrmProspectingHttpHandlerFactory.Create("api.census.gov"))
+                {
+                    Timeout = TimeSpan.FromSeconds(30)
+                },
+                apiKey));
+            services.AddSingleton<ICrmProspectingProvider>(provider =>
+                provider.GetRequiredService<CrmUsCensusTradeProspectingProvider>());
+        }
         // GLEIF is an identity-resolution source, not a discovery directory. It is opt-in
         // and only used by the worker to enrich already-discovered candidate names.
         if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableGleifIdentityResolver"], out var enableGleifIdentityResolver)
