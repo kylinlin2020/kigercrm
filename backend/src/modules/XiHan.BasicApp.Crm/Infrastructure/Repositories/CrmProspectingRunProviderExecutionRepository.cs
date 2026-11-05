@@ -247,6 +247,68 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             new SugarParameter("@fencingVersion", fencingVersion)) == 1;
     }
 
+
+    public async Task<bool> TryMarkInterruptedNeedsReviewAsync(
+        long executionId, long runId, Guid leaseToken, long fencingVersion,
+        string expectedState, string failureCode, string safeFailureSummary,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateIdentity(executionId, runId, leaseToken, fencingVersion);
+        if (expectedState is not ("Started" or "Checkpointed"))
+            throw new ArgumentException("Only interrupted Started or Checkpointed steps can be reconciled automatically.", nameof(expectedState));
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureCode);
+        ArgumentException.ThrowIfNullOrWhiteSpace(safeFailureSummary);
+        cancellationToken.ThrowIfCancellationRequested();
+        var (client, tenantId) = GetPostgresTenant();
+        if (client.Ado.Transaction is not null)
+            throw new InvalidOperationException("Interrupted-step reconciliation owns its transaction and cannot run inside another transaction.");
+
+        const string sql = """
+            WITH locked_run AS MATERIALIZED (
+                SELECT run.basic_id
+                FROM crm_prospecting_run AS run
+                WHERE run.tenant_id = @tenantId
+                  AND run.basic_id = @runId
+                  AND run.status = @runningStatus
+                  AND run.lease_token = @leaseToken
+                  AND run.fencing_version = @fencingVersion
+                  AND run.lease_expires_at > clock_timestamp()
+                FOR UPDATE
+            )
+            UPDATE crm_prospecting_run_provider_execution AS step
+            SET state = 'NeedsReview',
+                failure_code = @failureCode,
+                failure_summary = @failureSummary,
+                completed_at = clock_timestamp()
+            WHERE step.tenant_id = @tenantId
+              AND step.basic_id = @executionId
+              AND step.run_id = @runId
+              AND step.state = @expectedState
+              AND EXISTS (SELECT 1 FROM locked_run);
+            """;
+        client.Ado.BeginTran();
+        try
+        {
+            var changed = await client.Ado.ExecuteCommandAsync(sql,
+                new SugarParameter("@tenantId", tenantId),
+                new SugarParameter("@executionId", executionId),
+                new SugarParameter("@runId", runId),
+                new SugarParameter("@expectedState", expectedState),
+                new SugarParameter("@failureCode", Bound(failureCode, 80)),
+                new SugarParameter("@failureSummary", Bound(safeFailureSummary, MaxFailureSummaryLength)),
+                new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
+                new SugarParameter("@leaseToken", leaseToken),
+                new SugarParameter("@fencingVersion", fencingVersion));
+            client.Ado.CommitTran();
+            return changed == 1;
+        }
+        catch
+        {
+            client.Ado.RollbackTran();
+            throw;
+        }
+    }
+
     public async Task<bool> TryTransitionAsync(
         long executionId, long runId, Guid leaseToken, long fencingVersion,
         string expectedState, string nextState, int? projectedRecordCount = null, int? failureCount = null,
