@@ -319,3 +319,10 @@ No extraction consumer is registered yet, so this is repository-level recovery e
 ### 11.15 Keep the pure transition policy aligned with the acknowledgement boundary
 
 The pure `CrmProspectingExtractionStateMachine.CanTransition` policy now also rejects `Submitting -> Pending`. Previously the repository already blocked that transition in `TryTransitionAsync`, but the pure policy still advertised it as legal, allowing callers and contract tests to reason from a weaker rule than persistence actually enforced. The only permitted path is `TryAcknowledgeSubmissionAsync`, which validates the provider acknowledgement and persists the remote extraction ID under the active tenant/job/lease/fencing identity. This keeps the domain policy, repository guard, and database write boundary aligned. The change is source-only until the .NET test suite is executed.
+
+
+### 11.16 Fail closed when an async-only provider is selected by the synchronous Run worker
+
+The current Run worker dispatches only `ICrmProspectingProvider`. It builds the capability registry with both sync and async registrations, but previously an async-only provider selected in the immutable Run plan fell through the generic "provider not registered" branch. That branch counted a provider failure and continued, allowing the Run to reach its ordinary terminal completion without ever submitting the async extraction.
+
+The worker now distinguishes this case: if the selected code exists in the async capability map but has no synchronous implementation, it throws a classified orchestration-boundary exception. The Run follows its fenced failure path instead of appearing to have completed a plan whose async provider was never executed. This is deliberately fail-closed and temporary; it does not implement Submit/Poll/Fetch. A source-wiring regression test guards the distinction. The async extraction worker and Run continuation still need to be implemented before async-only providers can be enabled in approved plans.
