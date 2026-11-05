@@ -58,10 +58,11 @@ public sealed class CrmHunterDiscoverProspectingProvider : ICrmProspectingProvid
 
         var uri = new UriBuilder(Endpoint)
         {
-            Query = $"api_key={Uri.EscapeDataString(apiKey.Trim())}&limit={PageSize}"
+            Query = $"limit={PageSize}"
         }.Uri;
         using var message = new HttpRequestMessage(HttpMethod.Post, uri);
         message.Headers.Accept.ParseAdd("application/json");
+        message.Headers.TryAddWithoutValidation("X-API-KEY", apiKey.Trim());
         message.Content = new ByteArrayContent(JsonSerializer.SerializeToUtf8Bytes(new { query }));
         message.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
 
@@ -69,31 +70,20 @@ public sealed class CrmHunterDiscoverProspectingProvider : ICrmProspectingProvid
         if (!CrmProspectingEndpointGuard.IsApprovedResponseUri(response.RequestMessage?.RequestUri, Endpoint))
             throw new HttpRequestException("Hunter Discover response came from an unapproved endpoint.");
 
-        if (response.StatusCode is System.Net.HttpStatusCode.TooManyRequests or System.Net.HttpStatusCode.ServiceUnavailable)
+        if (response.StatusCode is System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.ServiceUnavailable)
         {
             var retryAt = response.Headers.RetryAfter?.Date
                 ?? (response.Headers.RetryAfter?.Delta is { } delay ? DateTimeOffset.UtcNow + delay : DateTimeOffset.UtcNow.AddMinutes(5));
             throw new CrmProspectingProviderRateLimitException(
-                "Hunter Discover rate limit or temporary service throttle; retry after cooldown.",
+                response.StatusCode == System.Net.HttpStatusCode.Forbidden
+                    ? "Hunter Discover request-rate limit reached; retry after cooldown."
+                    : "Hunter Discover is temporarily unavailable; retry after cooldown.",
                 (int)response.StatusCode, retryAt);
         }
-        if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-        {
-            var errorBody = await ReadBoundedAsync(response, cancellationToken);
-            var errorText = Encoding.UTF8.GetString(errorBody);
-            if (errorText.Contains("rate limit", StringComparison.OrdinalIgnoreCase)
-                || errorText.Contains("too many requests", StringComparison.OrdinalIgnoreCase))
-            {
-                var retryAt = response.Headers.RetryAfter?.Date
-                    ?? (response.Headers.RetryAfter?.Delta is { } delay ? DateTimeOffset.UtcNow + delay : DateTimeOffset.UtcNow.AddMinutes(5));
-                throw new CrmProspectingProviderRateLimitException(
-                    "Hunter Discover rate limit reached; retry after cooldown.",
-                    (int)response.StatusCode, retryAt);
-            }
+        if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             throw new HttpRequestException(
-                "Hunter Discover access denied (403); verify Discover API plan eligibility and account permissions.",
+                "Hunter Discover usage quota is exhausted (429); do not retry until the account quota or plan changes.",
                 null, response.StatusCode);
-        }
         if (!response.IsSuccessStatusCode)
             throw new HttpRequestException(
                 $"Hunter Discover returned HTTP {(int)response.StatusCode}; verify API access, plan eligibility and usage limits.",
