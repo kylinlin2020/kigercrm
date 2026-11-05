@@ -270,3 +270,10 @@ This is a fail-closed registration guard, not proof that an adapter's implementa
 - providers without a documented idempotency/recovery mechanism remain disabled and require manual review after an uncertain submission outcome.
 
 No async provider adapter is enabled by this contract change. The capability declaration must be backed by provider documentation and adapter tests before rollout.
+
+
+### 11.9 Guarded terminal completion
+
+A repository review found that the generic lease-fenced `TryTransitionAsync` could previously be asked to move `FetchingResults` directly to `Completed`, bypassing the page-completion predicate. The repository now rejects `Completed` through the generic transition API.
+
+The only completion path is `TryCompleteResultsAsync`, which requires `isLastPage=true`, `isComplete=true`, and `failureCount=0` through `CanCompleteResults`, then performs a tenant-, lease-token-, fencing-version-, and database-clock-guarded update from `FetchingResults` to `Completed`. This closes the generic transition bypass; the future page worker must call it only after the final page's Candidate/Evidence/Score and cursor transaction has committed.
