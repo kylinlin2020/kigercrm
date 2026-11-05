@@ -293,6 +293,17 @@
 Google Places 的接口和数据政策边界也已再次核验：官方政策明确 Place ID 可长期保存，但其他 Places 内容受缓存/存储限制。当前 CRM Provider 会持久化搜索结果，因此先不接入该来源，避免把名称、地址等受限内容写入 CRM。若未来实现 Place ID-only 存储 + 按需实时展示（并提供要求的 Google attribution/Terms/Privacy），再评估启用。
 
 
+## 5.1 DENUE / FMCSA 源适配器代码级复核（2026-11-05）
+
+本轮已从源仓库真实文件 `backend/src/public-procurement-providers.ts` 读取两项 Provider 的完整实现片段，确认它们不是仅存在于 Catalog 的占位项：
+
+| Provider | 源代码实现 | 认证传递 | 查询/结果边界 | 目标端迁移前置条件 |
+|---|---|---|---|---|
+| `mexico_denue` | `MEXICO_DENUE_PROVIDER`；官方 host `www.inegi.org.mx`，路径前缀 `/app/api/denue/v1/consulta/Buscar/` | Token 被拼入 URL path 最后一段 | 墨西哥市场限定；关键词查询；cursor 为起始记录位置；单次最多 20 条、总位置上限 1000；输出 DENUE ID、企业名、行业、地址摘要、电话/邮箱优先其一及官网 | **凭证 URL path 暴露风险为 P0 阻断项**。目标端必须确认 HttpClient、代理、异常、追踪和诊断日志的 path 全链路脱敏；不能只靠 query-string sanitizer。需对真实 Token 做日志捕获测试，未通过前不接入 |
+| `fmcsa_qcmobile` | `FMCSA_QCMOBILE_PROVIDER`；官方 host `mobile.fmcsa.dot.gov`，路径前缀 `/qc/services/carriers/name/` | WebKey 通过 URL query 参数 `webKey` 传递 | 美国市场限定；承运商名称搜索；结果含 USDOT、法定名称、运营状态、地区和电话/邮箱；源适配器没有分页 cursor | 目标端必须覆盖完整 query/fragment 脱敏、错误日志和代理日志；结果必须标记为物流/承运行业垂直来源，默认关闭，不得混入普通发电机/水泵 ICP；需核验 FMCSA 当前 API 访问政策和实际 WebKey 权限 |
+
+源端还为两个 Provider 提供 `health()` Key 验证调用。迁移时必须同时实现独立健康检查，而不是只接通搜索。DENUE 与 FMCSA 都需要凭证，因此必须继续使用租户加密配置，不能使用全局 appsettings Key。两者目前均未迁移到目标端；本节仅完成源代码合同复核，不代表 API 或许可验收完成。
+
 ## 6. 商业数据源许可决策记录（2026-11-05）
 
 本项目的 CRM 具备多租户能力，但这不代表可以默认把供应商数据作为可供任意租户/外部客户访问的数据服务。商业数据源统一按“谁持有订阅、谁能访问数据、数据是否对第三方可见、是否允许写入 CRM、是否允许长期保留/导出”五项核验。
