@@ -108,8 +108,16 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 scope.ServiceProvider.GetServices<ICrmProspectingProvider>(),
                 scope.ServiceProvider.GetServices<ICrmProspectingAsyncExtractionProvider>());
             var providers = providerRegistry.Synchronous;
-            var plan = ParseStringArray(run.SnapshotProviderPlanJson, "provider plan");
-            if (plan.Count == 0) throw new InvalidOperationException("The provider plan contains no usable provider codes.");
+            // Materialize once from the immutable Run snapshot. On subsequent delivery/recovery,
+            // the persisted execution rows are authoritative and are verified against that snapshot;
+            // mutable Campaign/Strategy configuration is never consulted here.
+            var providerExecutions = scope.ServiceProvider.GetRequiredService<ICrmProspectingRunProviderExecutionRepository>();
+            var persistedPlan = await providerExecutions.EnsurePlanMaterializedAsync(
+                run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
+            var plan = persistedPlan.OrderBy(step => step.PlanOrdinal)
+                .Select(step => step.ProviderCode)
+                .ToList();
+            if (plan.Count == 0) throw new InvalidOperationException("The persisted provider execution plan contains no usable provider codes.");
 
             // Preflight the complete immutable provider plan before any adapter can perform
             // network I/O or create request-ledger attempts. Async-only adapters are deliberately
