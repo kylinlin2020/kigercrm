@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
+using XiHan.BasicApp.Saas.Application.Services;
 
 namespace XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 
@@ -17,12 +18,23 @@ public sealed class CrmUsCensusTradeProspectingProvider : ICrmProspectingProvide
     private const int MaxResponseBytes = 8 * 1024 * 1024;
     private const int MaxRecords = 2000;
     private readonly HttpClient _httpClient;
-    private readonly string? _apiKey;
+    private readonly Func<CancellationToken, Task<string?>> _apiKeyFactory;
 
     public CrmUsCensusTradeProspectingProvider(HttpClient httpClient, string? apiKey)
+        : this(httpClient, _ => Task.FromResult(string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim())) { }
+
+    public CrmUsCensusTradeProspectingProvider(HttpClient httpClient, ISaasConfigurationService configuration)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _apiKey = string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim();
+        ArgumentNullException.ThrowIfNull(configuration);
+        _apiKeyFactory = cancellationToken => configuration.GetStringAsync(
+            "CRM.Prospecting.Provider.us_census.ApiKey", cancellationToken: cancellationToken);
+    }
+
+    private CrmUsCensusTradeProspectingProvider(HttpClient httpClient, Func<CancellationToken, Task<string?>> keyFactory)
+    {
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _apiKeyFactory = keyFactory;
     }
 
     public string ProviderCode => "us_census_trade";
@@ -32,8 +44,10 @@ public sealed class CrmUsCensusTradeProspectingProvider : ICrmProspectingProvide
     {
         ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
-        if (_apiKey is null)
-            return new CrmProspectingProviderResult([], 1, ["US Census trade API requires a key. Add the key in the tenant provider credentials panel; provider execution remains unavailable until secure runtime credential resolution is connected."]) { IsComplete = false };
+        var apiKey = await _apiKeyFactory(cancellationToken);
+        apiKey = string.IsNullOrWhiteSpace(apiKey) ? null : apiKey.Trim();
+        if (apiKey is null)
+            return new CrmProspectingProviderResult([], 1, ["US Census trade API requires a tenant API key. Configure it in the prospecting provider credentials panel."]) { IsComplete = false };
 
         var keywords = Regex.Split($"{request.ProductScope} {request.SearchObjective} {request.IdealCustomerProfile}", @"[^\p{L}\p{N}]+")
             .Where(value => value.Length >= 3).Distinct(StringComparer.OrdinalIgnoreCase).Take(8).ToList();
@@ -47,7 +61,7 @@ public sealed class CrmUsCensusTradeProspectingProvider : ICrmProspectingProvide
             ["get"] = "CTY_NAME,CTY_CODE,ALL_VAL_MO,GEN_VAL_MO,CON_VAL_MO,E_COMMODITY,E_COMMODITY_LDESC",
             ["time"] = period,
             ["COMM_LVL"] = "HS2",
-            ["key"] = _apiKey
+            ["key"] = apiKey
         };
         var builder = new UriBuilder(Endpoint)
         {
