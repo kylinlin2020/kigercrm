@@ -452,3 +452,87 @@ This is a safety improvement only. It does **not** add durable Run waiting/resum
 The provider registry enforces a single normalized provider code across synchronous and asynchronous capabilities, rejects blank/overlong codes, and refuses to register an asynchronous adapter unless it explicitly declares provider-documented idempotent submission support. This is required because a durable Submitting intent may be reclaimed after a process crash or an ambiguous network timeout; without provider-side idempotency or authoritative recovery by the stable key, retrying could create duplicate remote extraction jobs.
 
 A source-level regression assertion now protects these registry invariants. This remains a registration-time safety contract, not a substitute for the still-missing extraction worker or Run continuation.
+
+## 11.33 Run-level durable continuation design gate (2026-11-05)
+
+The current Run worker is intentionally synchronous-only. Before enabling asynchronous adapters, implement a durable provider-plan checkpoint; an extraction-job row alone is not sufficient to resume its owning Run safely.
+
+### A. Persist the immutable provider execution plan
+
+Create a tenant-scoped Run-provider execution record for every distinct provider code in the Run's snapshotted plan, preserving the original plan ordinal. The record must include:
+
+- RunId, TenantId, normalized ProviderCode, PlanOrdinal, and the immutable request fingerprint.
+- A state such as Queued, Submitting, AwaitingExtraction, FetchingResults, Succeeded, Failed, Skipped, or Cancelled.
+- Started/completed timestamps, bounded result/failure counters, safe failure code/summary, and row version.
+- A unique key on (TenantId, RunId, ProviderCode) and an index supporting ordered due work.
+- No raw credentials, remote response bodies, or unbounded provider metadata.
+
+Materialize the complete plan before the first provider side effect. A Run restart must read this persisted plan rather than reconstruct progress from a mutable service registration list or an in-memory loop index.
+
+### B. Make synchronous and asynchronous providers use the same checkpoint boundary
+
+For a synchronous provider, persist a durable in-progress state before network I/O. Persist its bounded normalized output or durable candidate/evidence writes and its terminal provider state before moving to the next plan ordinal. A crash after remote success but before durable result persistence remains an uncertain attempt and must follow provider-specific idempotency/reconciliation policy; it must not silently count as success.
+
+For an asynchronous provider, atomically link the provider execution record to the durable extraction job and move the provider execution to AwaitingExtraction only after the submission acknowledgement and extraction identity are durably committed. The extraction worker owns polling and page retrieval; the Run worker must not poll, sleep, or hold a Run lease while waiting for a remote job.
+
+### C. Define the Run waiting and resume contract
+
+Add an explicit non-terminal Run state (proposed name: AwaitingExtractions) only together with all of the following:
+
+1. A conditional transition from Running to AwaitingExtractions that verifies the exact live Run lease and confirms at least one linked active extraction.
+2. Release of the Run lease in the same database transaction as that transition; no heartbeat may continue renewing a waiting Run.
+3. A durable resume signal/outbox entry written in the same transaction when the last required extraction reaches a safe terminal result.
+4. A startup and periodic recovery scan that finds AwaitingExtractions Runs whose linked extraction work is already complete and recreates missing queue messages. Queue delivery remains at-least-once; database state is authoritative.
+5. A conditional AwaitingExtractions -> Queued transition, preventing duplicate resume messages from creating parallel Run executions.
+6. Resume logic that skips provider executions already durably Succeeded, handles Failed/Skipped according to the Run policy, and never repeats completed synchronous providers merely because a later async extraction finished.
+
+Do not introduce the Run state before its release, outbox, recovery, and requeue paths are implemented. A state without a wake-up path creates permanently stranded Runs.
+
+### D. Atomic result-page boundary
+
+For each fetched page, one PostgreSQL transaction must:
+
+- Validate tenant, Run, provider execution, extraction job, exact lease token/fencing version, and expected cursor.
+- Persist all accepted Candidate/Evidence/Score rows and explicit per-record failures.
+- Persist the page accounting result and extraction cursor/terminal transition using compare-and-swap.
+- Update provider execution counters/state only after every record has an accounted outcome.
+- Roll back all page writes if any candidate/evidence/score write, accounting check, or cursor CAS fails.
+
+A replay of the same page must either be a harmless exact replay or fail the cursor CAS; it must never double-count records or advance past unpersisted data.
+
+### E. Finalization and coverage rules
+
+The Run can enter a terminal state only when every provider execution is in a terminal state and every linked extraction is Completed or safely terminal Failed/Expired/Cancelled. NeedsReview and unknown future states block finalization pending explicit resolution. Coverage advances only for a provider execution whose full result set is durably persisted, complete, non-truncated, and free of page/record failures. A successful sibling provider must not cause coverage to advance for an incomplete provider.
+
+### F. Crash/recovery acceptance matrix
+
+Before enabling any async adapter, add PostgreSQL-backed tests for at least these interruption points:
+
+| Crash point | Required recovery behavior |
+|---|---|
+| After plan materialization, before first provider call | Resume from first Queued provider execution |
+| After provider Started intent, before network response | Reconcile by stable idempotency key; otherwise NeedsReview |
+| After synchronous response, before durable candidate/result commit | Reconcile or safely retry; do not mark provider Succeeded |
+| After synchronous provider commit, before next provider | Skip the already Succeeded provider on resume |
+| After async remote acknowledgement, before local acknowledgement commit | Retry only with provider-supported idempotency; otherwise NeedsReview |
+| After extraction acknowledgement and provider-link commit | Poll the same persisted extraction; never submit a second job |
+| After page candidate writes, before cursor CAS | Entire transaction rolls back |
+| After page/cursor transaction, before queue acknowledgement | Redelivery is harmless; next fetch uses persisted cursor |
+| After final extraction completion, before Run resume enqueue | Recovery scan/outbox recreates the resume signal |
+| During duplicate Run resume delivery | One conditional claim succeeds; other deliveries are no-ops |
+| After cancellation while extraction is active | Cancel/abandon remote work by adapter policy; no coverage advance |
+| Tenant A queue message references Tenant B Run | Tenant-scoped lookup returns no claim; no cross-tenant mutation |
+
+The tests must use two independent PostgreSQL connections for competing claims and stale-fence scenarios. Source-text assertions alone are not acceptance evidence.
+
+### G. Implementation order
+
+1. Add the Run-provider execution entity, repository, indexes/migration, and immutable-plan materialization.
+2. Refactor the current synchronous Run loop to checkpoint and resume one provider at a time without changing current sync-provider behavior.
+3. Add PostgreSQL crash/replay and duplicate-delivery tests for synchronous checkpoints.
+4. Add the AwaitingExtractions transition, transactional outbox/recovery, and idempotent resume.
+5. Implement the generic async extraction worker and transactional page reconciliation.
+6. Add cancellation, lease-expiry, tenant-isolation, coverage, and failure-state tests.
+7. Only then enable Eurostat Comext or another async production adapter.
+
+This section is a design gate, not a claim that Run continuation or the async worker has been implemented.
