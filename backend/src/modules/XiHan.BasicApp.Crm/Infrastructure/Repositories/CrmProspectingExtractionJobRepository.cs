@@ -307,6 +307,10 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         if (nextStatus == CrmProspectingExtractionStatus.Completed)
             throw new InvalidOperationException(
                 "Use TryCompleteResultsAsync with final-page validation to complete extraction results.");
+        if (expectedStatus == CrmProspectingExtractionStatus.Submitting
+            && nextStatus == CrmProspectingExtractionStatus.Pending)
+            throw new InvalidOperationException(
+                "Use TryAcknowledgeSubmissionAsync to persist the provider extraction identity before entering Pending.");
         if (!CrmProspectingExtractionStateMachine.CanTransition(expectedStatus, nextStatus))
             throw new InvalidOperationException("The requested extraction lifecycle transition is not allowed.");
         if (safeFailureSummary is { Length: > MaxFailureSummaryLength })
@@ -341,6 +345,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             WHERE tenant_id = @tenantId
               AND basic_id = @jobId
               AND status = @expectedStatus
+              AND (@requiresProviderExtractionId = FALSE OR provider_extraction_id IS NOT NULL)
               AND lease_token = @leaseToken
               AND fencing_version = @fencingVersion
               AND lease_expires_at_utc > clock_timestamp();
@@ -356,6 +361,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@tenantId", tenant.TenantId),
             new SugarParameter("@jobId", jobId),
             new SugarParameter("@expectedStatus", expectedStatus.ToString()),
+            new SugarParameter("@requiresProviderExtractionId",
+                CrmProspectingExtractionStateMachine.RequiresProviderExtractionId(nextStatus)),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion));
         return affected == 1;
