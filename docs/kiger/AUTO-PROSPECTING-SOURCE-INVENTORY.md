@@ -216,13 +216,6 @@
 - 只接受 HTTPS `organic_results`，过滤 ExcludedDomains，按规范化 URL 去重；`EvidenceType=web_search_result`。API Key 进入 URL 是上游合同限制，建议优先使用 Serper/Brave 等 Header 认证来源，并在实机环境检查 HttpClient/代理/异常日志的 URL 脱敏。
 - 官方参数与分页说明：SerpApi Search API、Pagination 文档。
 
-## 4.6 SerpApi Google Search Provider（本轮新增）
-
-- 使用 `GET https://serpapi.com/search`，参数包含 `engine=google`、`q`、`num=10`、`start`、可选 `gl`/`hl`。SerpApi 官方合同要求 API Key 通过 `api_key` query parameter 传递，因此本 Provider 不将 URL 写入 evidence，不输出请求 URL；所有 HTTP 诊断必须删除完整 query string。
-- Key 从租户加密 SaaS 配置 `CRM.Prospecting.Provider.serpapi.ApiKey` 读取；`EnableSerpApiProvider` 默认关闭。最多 2 页，每页 10 条；只在 `serpapi_pagination.next` 存在时请求下一页，超过上限标记 `IsComplete=false`。
-- 只接受 HTTPS `organic_results`，过滤 ExcludedDomains，按规范化 URL 去重；`EvidenceType=web_search_result`。API Key 进入 URL 是上游合同限制，建议优先使用 Serper/Brave 等 Header 认证来源，并在实机环境检查 HttpClient/代理/异常日志的 URL 脱敏。
-- 官方参数与分页说明：SerpApi Search API、Pagination 文档。
-
 ## 4.7 France Government Company Search Provider（本轮新增）
 
 - 使用法国政府公开 API `GET https://recherche-entreprises.api.gouv.fr/search`，无需 API Key；请求包含 `q`、`page`、`per_page=25`、`minimal=true` 与 `include=siege`。只在目标市场明确包含 FR/FRA/France/French Republic 时调用。
