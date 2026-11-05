@@ -367,3 +367,17 @@ Google Places 的接口和数据政策边界也已再次核验：官方政策明
 新增 `CrmProspectingExtractionStateMachineTests` 覆盖主要状态转换、终态回退阻断、最后一页完整性条件和同步 Provider 接口兼容性。
 
 **当前边界：**本轮只完成可选契约与纯状态策略；Extraction Job 实体、PostgreSQL 表/索引、Repository、调度恢复 Worker、分页持久化和 coverage 原子提交仍未实现。Comext 不得启用，所有现有同步 Provider 路径不变。自动化测试尚未执行。
+
+
+## 5.4 Extraction Job 持久化第一阶段落地（2026-11-05）
+
+已新增目标端持久化基础层：
+- Entity：`SysCrmProspectingExtractionJob`，包含 tenant、Run、Provider、request fingerprint、provider extraction ID、状态、poll 时间、expiry、cursor、结果计数、错误分类和 lease/fencing。
+- Repository contract + PostgreSQL implementation：创建幂等键、租户范围读取、`FOR UPDATE SKIP LOCKED` due-job claim、数据库时钟 lease、fencing version、状态条件更新、过期任务回收、游标条件推进。
+- Cursor 更新强制要求 PostgreSQL 活跃事务；调用方必须把该更新与对应结果/evidence 持久化放在同一事务。
+- Schema migration：`backend/src/main/XiHan.BasicApp.WebHost/UpdateScripts/5.9.33/5.9.33.sql`，新增 tenant/run/provider/fingerprint 唯一索引、due-job 索引、provider extraction lookup 索引和 CHECK constraints。
+- DI 与 CRM entity metadata 注册已完成；新增 persistence contract tests。
+
+安全边界：Provider failure summary 不保存原始异常/响应文本，只写固定脱敏摘要；Provider ID 和 cursor 均长度受限。所有 repository SQL 显式 tenant 过滤。Claim 使用每个 job 独立 token 和递增 fencing version。
+
+**尚未完成：**没有 scheduler/hosted worker 调用 ClaimDueAsync；没有 submission/poll/fetch orchestration；没有候选/evidence 页数据落库实现；没有 cursor + records 同事务端到端测试；没有 coverage 原子提交连接；没有 Comext adapter。迁移 SQL、C# 构建和测试均尚未在本轮实际执行，必须由后续 Windows/PostgreSQL 验收确认。
