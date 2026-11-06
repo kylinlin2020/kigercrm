@@ -352,4 +352,23 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("NeedsReview remains blocking", section, StringComparison.Ordinal);
         Assert.Contains("PostgreSQL integration tests", section, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void ExtractionCursorPersistence_ShouldReuseSharedCursorValidator()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+        var methodStart = source.IndexOf("public async Task<bool> TryAdvanceCursorAsync", StringComparison.Ordinal);
+        Assert.True(methodStart >= 0);
+        var methodEnd = source.IndexOf("public async Task<int> ExpireDueAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+        Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid(expectedCursor)", method, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid(nextCursor)", method, StringComparison.Ordinal);
+    }
+
 }
