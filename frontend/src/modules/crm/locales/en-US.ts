@@ -156,6 +156,7 @@ export default {
       "contacted": "Contacted",
       "qualified": "Qualified",
       "disqualified": "Disqualified",
+      "converting": "Converting",
       "converted": "Converted",
       "total": "{count} records",
       "page": "Page {current} / {total}",
