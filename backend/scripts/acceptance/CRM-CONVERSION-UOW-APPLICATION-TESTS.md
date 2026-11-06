@@ -93,3 +93,49 @@ The extraction persistence contract now checks that submission acknowledgement, 
 - Added `CrmQuoteOptimisticConcurrencySqliteIntegrationTests.UpdateAsync_ShouldRejectAStaleAcceptedQuoteConversionLink`.
 - The test uses the real `CrmQuoteRepository` with an in-memory SQLite database, reads the same Accepted quote twice, persists one Converted/order-link winner, then asserts the stale second update raises the framework `ConcurrencyConflictException` and cannot overwrite the winning order link.
 - This is a repository-level Row_Version stale-write test only. It does not execute `CrmQuoteAppService.ConvertToSalesOrderAsync`, prove UnitOfWork rollback of order header/lines, or exercise PostgreSQL isolation/unique-index behavior. Test source is committed but has not been compiled or executed.
+
+## Quote-to-sales-order PostgreSQL application acceptance plan (2026-11-07)
+
+This section is the concrete test contract for `CrmQuoteAppService.ConvertToSalesOrderAsync`. It is intentionally separate from the SQLite repository Row_Version test and from the Lead/Candidate repository claim tests above.
+
+### Fixture and invocation requirements
+
+- Use a disposable PostgreSQL database matching the CI PostgreSQL major version and the repository's actual migration/CodeFirst setup.
+- Seed one tenant-scoped Accepted quote with at least two quote lines, a customer, and any referenced contact/opportunity required by the service.
+- Resolve `CrmQuoteAppService` from the production API DI registration in two independent request scopes. Invoke through the same dynamic-proxy/interceptor path that applies `[UnitOfWork]`; do not instantiate the service directly.
+- Ensure each scope uses a distinct SqlSugar connection/client while targeting the same database and tenant.
+- Record provider, effective transaction isolation, connection identity, and transaction identity at each repository write. The expected isolation is PostgreSQL READ COMMITTED, but the attribute text alone is not proof.
+- Use deterministic test-only fault injection at repository boundaries; do not add production-only failure switches.
+
+### Concurrent first conversion
+
+1. Start two service calls for the same Accepted quote behind a barrier.
+2. Assert the database contains exactly one active sales-order header with that `SourceQuoteId`, exactly the expected copied order lines, and one order number `SO-{quote.BasicId}`.
+3. Assert the quote is Converted and `ConvertedOrderId` equals the sole order header ID.
+4. The losing request may surface the documented optimistic-concurrency/unique-constraint conflict. Retry through a fresh request scope and assert the retry returns the already-created order rather than inserting another header or lines.
+5. Verify both the tenant-scoped source-quote unique index and tenant-scoped order-number unique index exist in PostgreSQL and reject conflicting inserts. Also verify identical source quote IDs in different tenants remain independent.
+6. Assert no duplicate active source-quote order exists even when the losing request fails.
+
+### Atomic rollback fault matrix
+
+Run each case from a freshly seeded Accepted quote and assert all persisted state after the exception:
+
+| Injected failure point | Required post-failure state |
+| --- | --- |
+| Immediately after sales-order header insert | No order header; quote remains Accepted with null ConvertedOrderId; no order lines |
+| After the first copied order line insert | No order header; quote remains Accepted with null ConvertedOrderId; no order lines |
+| After all order lines, before quote update | No order header; quote remains Accepted with null ConvertedOrderId; no order lines |
+| During/after quote Row_Version update but before transaction commit | No order header; quote remains Accepted with null ConvertedOrderId; no order lines |
+
+After each rollback case, remove the injected failure and retry conversion. Assert exactly one complete order is created and linked. This proves the claim/write/quote-link sequence shares one real transaction; a source-ordering assertion is not sufficient.
+
+### Isolation and retry semantics
+
+- Have request A read the Accepted quote, then allow request B to complete and commit before A attempts its final quote update. Verify A cannot overwrite B's link and that its transaction does not leave orphaned order rows.
+- From a fresh request scope after B commits, verify the quote is read as Converted and the existing order is returned.
+- Confirm the actual transaction isolation is READ COMMITTED for both service invocations. If the framework interceptor does not apply the requested isolation, fail the test rather than weakening the assertion.
+- Capture PostgreSQL SQLSTATE for uniqueness/concurrency failures, but assert business invariants rather than coupling the test to one provider exception message.
+
+### Current implementation boundary
+
+The current `CrmQuoteOptimisticConcurrencySqliteIntegrationTests` only proves repository-level stale `Row_Version` writes are rejected. It does not prove service interception, PostgreSQL unique-index behavior, transaction enlistment, rollback, or the race above. All cases in this section remain **not implemented / not executed** until a provider-backed application test fixture exists and its CI run passes.
