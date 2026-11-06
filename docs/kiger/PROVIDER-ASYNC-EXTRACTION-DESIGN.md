@@ -907,3 +907,13 @@ This section defines the next worker implementation boundary. The expiry hosted 
 - Unit/source tests: idempotency key reuse, ambiguous submit timeout, provider-code/ID mismatch, retry-hint clamping, exponential backoff integration, heartbeat cancellation, stale fencing response discard, poll status mapping, cursor loop rejection, cross-page/provider deduplication, transaction rollback on cursor conflict, NeedsReview blocking and parent Run continuation.
 - PostgreSQL integration tests: concurrent SKIP LOCKED claims, lease expiry/reclaim, fencing after reclaim, DB-clock predicates, atomic page/cursor rollback, concurrent duplicate submission intent, and tenant isolation across both shared-schema and database-isolated tenants.
 - Only after these gates pass should async provider registrations be enabled in deployment configuration. Until then, async plan entries remain rejected before any synchronous provider is called.
+
+## 11.60 Pure work-action selection guard (2026-11-06)
+
+- Added `CrmProspectingExtractionWorkActionPolicy` as a deterministic boundary between a claimed durable job and provider I/O.
+- `Submitting` selects Submit only when no remote extraction ID exists; retries must use the already-persisted idempotency key. A Submitting row that already has a remote ID is blocked rather than submitted again.
+- `Pending` and `Running` select Poll only when a remote extraction ID is present.
+- `Succeeded` and `FetchingResults` select FetchResults only when a remote extraction ID is present.
+- `NeedsReview`, all terminal states, and unknown local enum values select no automatic action. Invalid live states return stable block reason codes.
+- This is a pure policy, not a worker: it performs no I/O, does not acquire a lease, and does not replace fenced repository writes. The future consumer must call it only after tenant-scoped claim and must retain the exact lease/fencing identity through every write.
+- Added tests for each action, missing/mismatched identity guards, manual-review/terminal no-op behavior, and unknown numeric state fail-closed behavior. Tests have not been executed because the current tool environment has no .NET SDK.
