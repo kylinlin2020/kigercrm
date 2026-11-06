@@ -788,3 +788,12 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - Added source-contract coverage for the optional parameter, validator invocation, SQL column update and bound SQL parameter.
 - This preserves provider-supplied non-secret operational metadata across worker restarts; it does not make arbitrary provider payloads safe. Adapters remain responsible for including only explicitly safe, bounded metadata.
 - Test source has not been executed; no .NET build or PostgreSQL runtime validation is claimed.
+
+
+## 11.52 Reject credential-bearing extraction metadata (2026-11-06)
+
+- Tightened `CrmProspectingExtractionSubmissionValidator`: safe metadata must be a JSON object with a maximum nesting depth of 8 and must not contain property names indicating secrets, passwords, tokens, authorization headers, credentials, API keys, private keys or signing keys.
+- The check recursively traverses nested objects and arrays, so wrapping a credential under a benign parent property does not bypass the guard.
+- Added regression cases for camelCase API keys, snake_case access tokens, nested Authorization fields, nested client secrets and excessive JSON depth.
+- The metadata contract remains intentionally allow-list-by-adapter: providers should return only bounded operational fields. This guard is a defensive rejection layer, not a general-purpose secret scrubber; arbitrary values must not be copied into metadata.
+- Tests were added but have not been executed. No .NET build or runtime validation is claimed.
