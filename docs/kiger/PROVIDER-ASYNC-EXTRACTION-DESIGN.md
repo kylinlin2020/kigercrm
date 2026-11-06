@@ -728,7 +728,7 @@ The synchronous Run Worker already contains a deterministic post-projection reco
 - When the execution row is already Succeeded, the Worker verifies checkpoint UTF-8 byte count, SHA-256, deserialization, complete flag, zero provider failure count and raw record count. It derives the response digest from the verified checkpoint and calls TryFinalizeSuccessWithCoverageAsync for the Started request attempt. No external provider call is repeated.
 - TryFinalizeSuccessWithCoverageAsync uses one PostgreSQL statement to fence and lock the live Run, transition the exact Started request to Succeeded, and upsert coverage. Request finalization and coverage advancement therefore commit atomically.
 - RecoverStaleStartedAsync explicitly excludes a Started request if a matching Succeeded execution has a durable checkpoint, allowing the resumed Run to reconcile it rather than prematurely marking it interrupted.
-- Source-contract and SQLite repository test sources already cover the recovery branch and the ambiguous Started-attempt guard. They have not been executed in this environment.
+- Source-contract coverage already guards the Worker recovery branch. This checkpoint also adds SQLite repository test sources for exact Run/provider/tenant lookup and fail-closed behavior when two Started attempts exist. These tests have not been executed in this environment.
 
 This is a real recovery mechanism, not a missing feature. The association is derived by tenant + Run + provider and the invariant of exactly one Started attempt; there is not yet a direct request-attempt ID/attempt-number column on the execution row. That is a design choice to evaluate, not evidence that recovery is absent.
 
