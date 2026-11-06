@@ -154,4 +154,30 @@ public sealed class CrmProspectingExtractionPageValidatorTests
     }
 
 
+
+    [Fact]
+    public void CursorValidator_ShouldRejectBlankOversizedAndControlBearingCursorsAtEveryBoundary()
+    {
+        Assert.True(CrmProspectingExtractionCursorValidator.IsValid(null));
+        Assert.True(CrmProspectingExtractionCursorValidator.IsValid("opaque-cursor/2?x=a"));
+        Assert.True(CrmProspectingExtractionCursorValidator.IsValid(
+            new string('x', CrmProspectingExtractionPageValidator.MaxCursorLength)));
+
+        Assert.False(CrmProspectingExtractionCursorValidator.IsValid(""));
+        Assert.False(CrmProspectingExtractionCursorValidator.IsValid("   "));
+        Assert.False(CrmProspectingExtractionCursorValidator.IsValid("cursor\nforged"));
+        Assert.False(CrmProspectingExtractionCursorValidator.IsValid(
+            new string('x', CrmProspectingExtractionPageValidator.MaxCursorLength + 1)));
+    }
+
+    [Fact]
+    public void TryValidate_RejectsBlankOpaqueCursor()
+    {
+        var page = new CrmProspectingExtractionPage(
+            [Record()], "   ", false, false, 0, []);
+
+        Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
+        Assert.Equal("invalid_cursor", failure);
+    }
+
 }
