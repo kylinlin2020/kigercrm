@@ -80,3 +80,10 @@ The backend CI job provisions PostgreSQL 17 and supplies `KIGER_TEST_POSTGRES_CO
 
 
 The extraction persistence contract now checks that submission acknowledgement, lifecycle transition, cursor advancement, successful completion, and incomplete-result finalization all include the tenant predicate, exact lease token, fencing version, and unexpired database-time lease in their conditional updates. This is a source-level regression guard; PostgreSQL execution remains required.
+
+## Quote-to-sales-order conversion isolation (2026-11-07)
+
+- The quote conversion application-service UnitOfWork now explicitly requests `ReadCommitted` rather than relying on the framework/database default.
+- The source-level wiring suite asserts the conversion endpoint retains this isolation attribute.
+- Rationale: concurrent conversion requests must not run under a repeatable-read/snapshot isolation assumption when the loser reloads the committed winner on a subsequent request. The tenant-scoped unique source-quote index and quote optimistic update remain the database safety guards; a losing concurrent request may still fail and must be retried to receive the already-created order.
+- This is a source-level contract only. It does not prove the exact deployed framework UoW provider honors the attribute, nor does it replace PostgreSQL two-connection conversion/rollback tests. Those tests and full restore/build/test remain pending.
