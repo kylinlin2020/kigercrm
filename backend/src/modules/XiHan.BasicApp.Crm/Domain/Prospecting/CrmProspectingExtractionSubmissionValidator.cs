@@ -98,8 +98,7 @@ public static class CrmProspectingExtractionSubmissionValidator
         {
             foreach (var property in element.EnumerateObject())
             {
-                var name = property.Name.Replace("_", string.Empty, StringComparison.Ordinal)
-                    .Replace("-", string.Empty, StringComparison.Ordinal);
+                var name = string.Concat(property.Name.Where(char.IsLetterOrDigit));
                 if (name.Contains("secret", StringComparison.OrdinalIgnoreCase)
                     || name.Contains("password", StringComparison.OrdinalIgnoreCase)
                     || name.Contains("token", StringComparison.OrdinalIgnoreCase)
