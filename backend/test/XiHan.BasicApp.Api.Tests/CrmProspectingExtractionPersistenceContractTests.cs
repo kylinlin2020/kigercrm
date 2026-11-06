@@ -207,4 +207,26 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     }
 
 
+
+    [Fact]
+    public void ExtractionExpiryWorker_ShouldSweepEachTenantWithoutClaimingProviderWork()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting",
+            "CrmProspectingExtractionExpiryHostedService.cs"));
+
+        Assert.Contains("ITenantDataScopeRunner", source, StringComparison.Ordinal);
+        Assert.Contains("if (tenantId is null) return;", source, StringComparison.Ordinal);
+        Assert.Contains("ICrmProspectingExtractionJobRepository", source, StringComparison.Ordinal);
+        Assert.Contains("ExpireDueAsync(cancellationToken)", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("ClaimDueAsync", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("ICrmProspectingAsyncExtractionProvider", source, StringComparison.Ordinal);
+        Assert.Contains("config.UpdateMaxConcurrentTasks(1)", source, StringComparison.Ordinal);
+    }
+
+
 }
