@@ -60,7 +60,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
     public async Task<bool> TryAcknowledgeSubmissionAsync(
         long jobId, Guid leaseToken, long fencingVersion, string providerExtractionId,
         DateTimeOffset submittedAtUtc, DateTimeOffset nextPollAtUtc, DateTimeOffset? expiresAtUtc,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, string? safeMetadataJson = null)
     {
         if (jobId <= 0) throw new ArgumentOutOfRangeException(nameof(jobId));
         if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
@@ -84,7 +84,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             return false;
         var submission = new CrmProspectingExtractionSubmission(
             new CrmProspectingExtractionReference(intent[0].ProviderCode, providerExtractionId),
-            submittedAtUtc, expiresAtUtc, nextPollAtUtc - submittedAtUtc, null);
+            submittedAtUtc, expiresAtUtc, nextPollAtUtc - submittedAtUtc, safeMetadataJson);
         if (!CrmProspectingExtractionSubmissionValidator.TryValidate(
                 submission, intent[0].ProviderCode, out var validationFailure))
             throw new ArgumentException(
@@ -100,6 +100,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             SET provider_extraction_id = @providerExtractionId,
                 status = @pendingStatus, submitted_at_utc = @submittedAtUtc,
                 next_poll_at_utc = @nextPollAtUtc, expires_at_utc = @expiresAtUtc,
+                safe_metadata_json = @safeMetadataJson,
                 lease_owner = NULL, lease_token = NULL, lease_expires_at_utc = NULL
             WHERE tenant_id = @tenantId AND basic_id = @jobId
               AND status = @submittingStatus AND provider_extraction_id IS NULL
@@ -112,6 +113,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             new SugarParameter("@submittedAtUtc", submittedAtUtc),
             new SugarParameter("@nextPollAtUtc", nextPollAtUtc),
             new SugarParameter("@expiresAtUtc", expiresAtUtc),
+            new SugarParameter("@safeMetadataJson", safeMetadataJson),
             new SugarParameter("@tenantId", tenant.TenantId),
             new SugarParameter("@jobId", jobId),
             new SugarParameter("@submittingStatus", CrmProspectingExtractionStatus.Submitting.ToString()),
