@@ -136,4 +136,24 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("if (!checkpointIdentities.Contains(normalizedIdentity))", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SubmissionIntent_ShouldNotQueryInsideAnAbortedUniqueViolationTransaction()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+        var methodStart = source.IndexOf("CreateSubmissionIntentAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("TryAcknowledgeSubmissionAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+
+        Assert.Contains("await AddAsync(entity)", method, StringComparison.Ordinal);
+        Assert.Contains("unique index is the concurrency boundary", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("catch (SqlSugarException)", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("var raced = await CreateQueryable()", method, StringComparison.Ordinal);
+    }
+
 }
