@@ -855,3 +855,12 @@ The current repository intentionally has no operator-facing recovery endpoint. T
 - **Required tests before enabling the endpoint:** tenant isolation; permission denial; blank/oversized/control-bearing reason rejection; provider ID validation; mismatch rejection; concurrent operator race (only one succeeds); transaction rollback when audit insert fails; no provider network call; NeedsReview → Pending only after identity and audit commit; parent Run remains blocked until this resolution succeeds.
 
 Until these pieces are implemented together, NeedsReview remains deliberately non-claimable and blocks parent Run completion. Do not expose a state-only “requeue” button.
+
+
+## 11.59 Async provider preflight remains ahead of all Run provider side effects (2026-11-06)
+
+- The synchronous Run worker materializes the immutable provider plan, then checks the entire plan for async-only providers before entering the provider execution loop.
+- If any async-only provider is present, the Run is rejected before a synchronous provider can issue network I/O or create provider request-ledger attempts. This avoids partial external execution followed by discarded in-memory results.
+- Added a source-contract regression test that protects the ordering: complete async preflight and rejection must occur before the first provider execution loop.
+- This guard is intentionally temporary. It prevents unsafe mixed execution but does not replace the missing durable extraction Submit/Poll/Fetch worker and parent Run continuation.
+- Test source was added but not executed; no build or runtime validation is claimed.
