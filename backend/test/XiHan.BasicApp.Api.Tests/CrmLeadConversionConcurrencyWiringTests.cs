@@ -114,7 +114,7 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         Assert.True(claim >= 0 && customerInsert > claim, "Lead claim must happen before any customer/contact creation.");
         Assert.Contains("latest.Status == CrmLeadStatus.Converted", domain, StringComparison.Ordinal);
         Assert.Contains("ValidateConvertedLeadAsync(latest", domain, StringComparison.Ordinal);
-        Assert.Contains("[UnitOfWork(true)]", app, StringComparison.Ordinal);
+        Assert.Contains("[UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]", app, StringComparison.Ordinal);
     }
 
 
