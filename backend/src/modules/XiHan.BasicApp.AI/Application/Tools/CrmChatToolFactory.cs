@@ -130,6 +130,31 @@ public sealed class CrmChatToolFactory
                     }
 
                     await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
+                    var items = await _prospecting.GetStrategiesAsync(campaignId, cancellationToken);
+                    return items.Select(item => new
+                    {
+                        item.BasicId,
+                        item.CampaignId,
+                        item.Version,
+                        item.Name,
+                        item.SearchObjective,
+                        item.ApprovalStatus,
+                        item.ApprovedAt,
+                        item.ActivatedAt
+                    }).ToArray();
+                },
+                name: "crm_prospecting_list_strategies",
+                description: "只读列出指定且当前用户有权访问的 Campaign 策略版本。仅返回名称、搜索目标、版本、审批状态和时间，不返回 ProviderPlanJson、ExcludedDomainsJson 或审批人 ID。不得访问其他用户或租户的数据。"),
+            AIFunctionFactory.Create(
+                async ([Description("CRM 自动获客 Campaign 的数字 ID。只能使用当前会话已获得的 ID。")] long campaignId) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (campaignId <= 0)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(campaignId));
+                    }
+
+                    await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
                     var items = await _prospecting.GetCampaignRunsAsync(campaignId, cancellationToken);
                     return items.Select(item => new
                     {
