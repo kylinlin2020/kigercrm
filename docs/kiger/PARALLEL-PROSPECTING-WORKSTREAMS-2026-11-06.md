@@ -197,3 +197,9 @@ At the time this plan is added:
 - Found and corrected a stale source-wiring test assertion: the test expected an older exception message, while the worker already emitted the newer durable-orchestration wording. The test now asserts the current fail-closed message and verifies that async-provider detection occurs before the provider loop.
 - Commit: `53c11c1facfc5e5fd667d5e3cbb9686fa458cec4`.
 - This is a regression-test correction, not an async consumer implementation. Submit/Poll/Fetch/Project worker orchestration and parent Run continuation remain outstanding. Tests are not executed in this environment.
+
+### Async submission idempotency replay guard
+- Added a regression contract proving a retried tenant/Run/provider/fingerprint submission intent returns the already-persisted \`SubmissionIdempotencyKey\` before any new key is generated. This is the local half of safe recovery after an ambiguous remote submit timeout; the provider registry separately rejects adapters that do not explicitly guarantee provider-documented idempotent submission.
+- The guard also asserts the lookup is scoped by tenant, Run, provider and canonical request fingerprint.
+- Commit: \`3fa4889a1f3c657e558224ab648f2531382b07a4\`.
+- Test source added; not executed here. This does not replace the missing async extraction consumer or immutable request snapshot.
