@@ -314,7 +314,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var methodIndex = app.IndexOf("public async Task<CrmLeadDetailDto> ConvertApprovedCandidateToLeadAsync", StringComparison.Ordinal);
         Assert.True(methodIndex > 0, "Candidate conversion application method must exist.");
 
-        var methodStart = app.LastIndexOf("[UnitOfWork(true)]", methodIndex, StringComparison.Ordinal);
+        var methodStart = app.LastIndexOf("[UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]", methodIndex, StringComparison.Ordinal);
         Assert.True(methodStart >= 0, "Candidate conversion must run inside an explicit transactional UnitOfWork.");
 
         var methodEnd = app.IndexOf("\n    private static CrmProspectingCandidateDto", methodIndex, StringComparison.Ordinal);
