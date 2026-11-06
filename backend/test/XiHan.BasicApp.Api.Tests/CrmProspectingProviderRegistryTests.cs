@@ -99,4 +99,17 @@ public sealed class CrmProspectingProviderRegistryTests
         Assert.Contains("CrmProspectingProviderRegistry.Create(", source, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingRunWorker_UsesScopedValidatedRegistryInsteadOfRebuildingIt()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs"));
+        Assert.Contains("GetRequiredService<CrmProspectingProviderRegistry>()", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("CrmProspectingProviderRegistry.Create(", source, StringComparison.Ordinal);
+    }
+
 }
