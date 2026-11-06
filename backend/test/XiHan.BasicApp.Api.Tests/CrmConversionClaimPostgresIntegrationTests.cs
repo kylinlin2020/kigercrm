@@ -109,6 +109,69 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task LeadClaim_FromAnotherTenant_CannotClaimOrReadTheLead()
+    {
+        var leadId = SnowFlakeSingle.Instance.NextId();
+        using (_tenant1.Change(TenantId))
+        {
+            await _db1.Insertable(new SysCrmLead
+            {
+                BasicId = leadId,
+                TenantId = TenantId,
+                CompanyName = $"Tenant isolation lead {leadId}",
+                Status = CrmLeadStatus.New
+            }).ExecuteCommandAsync();
+        }
+
+        using (_tenant2.Change(TenantId + 1))
+        {
+            Assert.False(await _leadRepository2.TryClaimForConversionAsync(leadId));
+            Assert.Null(await _db2.Queryable<SysCrmLead>().Where(row => row.BasicId == leadId).SingleAsync());
+        }
+
+        using (_tenant1.Change(TenantId))
+        {
+            var persisted = await _db1.Queryable<SysCrmLead>().Where(row => row.BasicId == leadId).SingleAsync();
+            Assert.Equal(CrmLeadStatus.New, persisted.Status);
+        }
+    }
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task CandidateClaim_FromAnotherTenant_CannotClaimOrReadTheCandidate()
+    {
+        var candidateId = SnowFlakeSingle.Instance.NextId();
+        using (_tenant1.Change(TenantId))
+        {
+            await _db1.Insertable(new SysCrmProspectingCandidate
+            {
+                BasicId = candidateId,
+                TenantId = TenantId,
+                RunId = 81002,
+                ProviderCode = "postgres-tenant-test",
+                ExternalId = $"candidate-{candidateId}",
+                CompanyName = $"Tenant isolation candidate {candidateId}",
+                Status = CrmProspectingCandidateStatus.Approved
+            }).ExecuteCommandAsync();
+        }
+
+        using (_tenant2.Change(TenantId + 1))
+        {
+            Assert.False(await _candidateRepository2.TryClaimForConversionAsync(candidateId));
+            Assert.Null(await _db2.Queryable<SysCrmProspectingCandidate>()
+                .Where(row => row.BasicId == candidateId)
+                .SingleAsync());
+        }
+
+        using (_tenant1.Change(TenantId))
+        {
+            var persisted = await _db1.Queryable<SysCrmProspectingCandidate>()
+                .Where(row => row.BasicId == candidateId)
+                .SingleAsync();
+            Assert.Equal(CrmProspectingCandidateStatus.Approved, persisted.Status);
+        }
+    }
+
     private static async Task<bool[]> RaceAsync(Func<Task<bool>> first, Func<Task<bool>> second)
     {
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
