@@ -169,4 +169,25 @@ public sealed class CrmQuoteConversionWiringTests
         Assert.Contains("EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId", helper, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void QuoteAndConvertedOrder_ShouldPreserveContactAndOpportunityNameSnapshots()
+    {
+        var domain = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "DomainServices", "Implementations", "CrmQuoteDomainService.cs");
+        var quoteApp = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        var quoteEntity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmQuote.cs");
+        var orderEntity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrder.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.38", "5.9.38.sql");
+
+        Assert.Contains("ContactNameSnapshot = contact is null ? null : string.Join", domain, StringComparison.Ordinal);
+        Assert.Contains("OpportunityNameSnapshot = opportunity?.Name", domain, StringComparison.Ordinal);
+        Assert.Contains("ContactNameSnapshot = quote.ContactNameSnapshot", quoteApp, StringComparison.Ordinal);
+        Assert.Contains("OpportunityNameSnapshot = quote.OpportunityNameSnapshot", quoteApp, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Opportunity_Name_Snapshot\"", quoteEntity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Contact_Name_Snapshot\"", orderEntity, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Opportunity_Name_Snapshot\"", orderEntity, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS opportunity_name_snapshot varchar(200) NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS contact_name_snapshot varchar(200) NULL", migration, StringComparison.Ordinal);
+    }
+
 }
