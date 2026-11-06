@@ -15,7 +15,7 @@ namespace XiHan.BasicApp.AI;
 /// <remarks>
 /// 应用层 AI 模块（与代码生成模块同构，独立工程 XiHan.BasicApp.AI）。
 /// 坐落在框架薄层 <c>XiHan.Framework.AI</c> 之上：框架给 provider 解析/会话门面，本模块给
-/// provider 的库化管理（SysAiProvider 实体 + 加密 ApiKey + CRUD + 覆盖框架默认配置源 + 权限/菜单/种子）。
+/// provider 的库化管理（SysAiProvider 实体 + 加密 ApiKey + CRUD + 覆盖框架默认配置源 + 权限/菜单/种子），并依赖 CRM 查询契约为已登录 Chat 提供请求级只读工具。
 /// 依赖 Saas（复用 RBAC 表、SaasRepository、DataProtection 密文前缀）；框架 AI 经 Saas→Core 传递依赖。
 /// </remarks>
 [DependsOn(
