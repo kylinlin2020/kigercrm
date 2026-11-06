@@ -124,8 +124,14 @@ public sealed class AiServiceRegistrationTests
 
         var tool = Assert.Single(factory.CreateTools(CancellationToken.None));
         var name = tool.GetType().GetProperty("Name")?.GetValue(tool) as string;
+        var schema = tool.GetType().GetProperty("JsonSchema")?.GetValue(tool);
 
         Assert.Equal("crm_search_customers", name);
+        Assert.NotNull(schema);
+        var schemaText = schema!.ToString();
+        Assert.Contains("keyword", schemaText, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tenantId", schemaText, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ownerUserId", schemaText, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
