@@ -37,7 +37,8 @@ public sealed class CrmProspectingExtractionStatusMapperTests
     [InlineData(2, 10)]
     [InlineData(3, 20)]
     [InlineData(4, 40)]
-    [InlineData(10, 2560)]
+    [InlineData(9, 1280)]
+    [InlineData(10, 1800)]
     [InlineData(20, 1800)]
     public void GetDefaultPollDelay_UsesBoundedExponentialBackoff(int attempts, int expectedSeconds)
         => Assert.Equal(TimeSpan.FromSeconds(expectedSeconds),
