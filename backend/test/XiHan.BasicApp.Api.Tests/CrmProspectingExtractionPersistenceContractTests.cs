@@ -254,6 +254,32 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
 
 
     [Fact]
+    public void ExtractionExpiry_ShouldClearEveryLeaseFieldAndFenceStaleWorkers()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+        var methodStart = source.IndexOf("ExpireDueAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("TryFailIncompleteResultsAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+
+        Assert.Contains("DbType.PostgreSQL", method, StringComparison.Ordinal);
+        Assert.Contains("AsyncLocalCurrentTenantAccessor.Instance.Current", method, StringComparison.Ordinal);
+        Assert.Contains("WHERE tenant_id = @tenantId", method, StringComparison.Ordinal);
+        Assert.Contains("expires_at_utc <= clock_timestamp()", method, StringComparison.Ordinal);
+        Assert.Contains("lease_owner = NULL", method, StringComparison.Ordinal);
+        Assert.Contains("lease_token = NULL", method, StringComparison.Ordinal);
+        Assert.Contains("lease_expires_at_utc = NULL", method, StringComparison.Ordinal);
+        Assert.Contains("cancellationToken.ThrowIfCancellationRequested()", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("DateTime.UtcNow", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("DateTimeOffset.UtcNow", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NeedsReviewRecovery_ShouldRequireAResolvedProviderIdentityAndRemainManual()
     {
         Assert.False(CrmProspectingExtractionStateMachine.RequiresProviderExtractionId(
