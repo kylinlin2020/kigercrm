@@ -280,14 +280,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                     continue;
                 }
 
-                var request = new CrmProspectingProviderRequest(
-                    run.BasicId,
-                    run.SnapshotSearchObjective,
-                    run.SnapshotProductScope ?? string.Empty,
-                    run.SnapshotTargetMarkets ?? string.Empty,
-                    run.SnapshotIdealCustomerProfile ?? string.Empty,
-                    "{}",
-                    excludedDomains);
+                var request = CrmProspectingProviderRequestFactory.Create(run, excludedDomains);
                 var requestKey = CrmProspectingRequestFingerprint.Create(providerCode, request);
                 var coverageCheckpoint = await requestLedger.GetCoverageCheckpointAsync(
                     run.CampaignId, providerCode, requestKey, cancellationToken);
