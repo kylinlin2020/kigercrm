@@ -5,6 +5,7 @@ using System.ComponentModel;
 using Microsoft.Extensions.AI;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
+using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Saas.Application.Services;
 
 namespace XiHan.BasicApp.AI.Application.Tools;
@@ -22,17 +23,20 @@ public sealed class CrmChatToolFactory
     private readonly ICrmLeadQueryService _leadQuery;
     private readonly ICrmProspectingAppService _prospecting;
     private readonly IFieldSecurityService _fieldSecurity;
+    private readonly IOperationPermissionGuard _permissionGuard;
 
     public CrmChatToolFactory(
         ICrmCustomerQueryService customerQuery,
         ICrmLeadQueryService leadQuery,
         ICrmProspectingAppService prospecting,
-        IFieldSecurityService fieldSecurity)
+        IFieldSecurityService fieldSecurity,
+        IOperationPermissionGuard permissionGuard)
     {
         _customerQuery = customerQuery;
         _leadQuery = leadQuery;
         _prospecting = prospecting;
         _fieldSecurity = fieldSecurity;
+        _permissionGuard = permissionGuard;
     }
 
     /// <summary>
@@ -57,6 +61,7 @@ public sealed class CrmChatToolFactory
                         throw new ArgumentOutOfRangeException(nameof(keyword), "客户搜索关键词不能超过 200 个字符。");
                     }
 
+                    await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
                     var page = await _customerQuery.GetPageAsync(
                         new CrmCustomerPageQueryDto { Keyword = keyword },
                         cancellationToken);
@@ -83,6 +88,7 @@ public sealed class CrmChatToolFactory
                         throw new ArgumentOutOfRangeException(nameof(keyword), "线索搜索关键词不能超过 200 个字符。");
                     }
 
+                    await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
                     var page = await _leadQuery.GetPageAsync(
                         new CrmLeadPageQueryDto { Keyword = keyword },
                         cancellationToken);
@@ -97,6 +103,7 @@ public sealed class CrmChatToolFactory
                 async () =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
                     var items = await _prospecting.GetCampaignsAsync(cancellationToken);
                     return items.Select(item => new
                     {
@@ -122,6 +129,7 @@ public sealed class CrmChatToolFactory
                         throw new ArgumentOutOfRangeException(nameof(campaignId));
                     }
 
+                    await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
                     var items = await _prospecting.GetCampaignRunsAsync(campaignId, cancellationToken);
                     return items.Select(item => new
                     {
@@ -148,6 +156,7 @@ public sealed class CrmChatToolFactory
                         throw new ArgumentOutOfRangeException(nameof(runId));
                     }
 
+                    await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
                     var items = await _prospecting.GetRunCandidatesAsync(runId, cancellationToken: cancellationToken);
                     return items.Select(item => new
                     {
@@ -171,6 +180,7 @@ public sealed class CrmChatToolFactory
                         throw new ArgumentOutOfRangeException(nameof(candidateId));
                     }
 
+                    await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
                     var detail = await _prospecting.GetCandidateReviewDetailAsync(candidateId, cancellationToken);
                     // The review-detail wrapper has no single entity mapping; mask its mapped Candidate DTO explicitly.
                     await _fieldSecurity.MaskAsync(detail.Candidate, cancellationToken);
