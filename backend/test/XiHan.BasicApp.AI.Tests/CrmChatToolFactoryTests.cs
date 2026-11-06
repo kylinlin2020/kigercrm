@@ -127,6 +127,7 @@ public sealed class CrmChatToolFactoryTests
         var calls = new (string Name, Dictionary<string, object?> Arguments)[]
         {
             ("crm_prospecting_list_campaigns", new()),
+            ("crm_prospecting_list_strategies", new() { ["campaignId"] = 1L }),
             ("crm_prospecting_list_runs", new() { ["campaignId"] = 1L }),
             ("crm_prospecting_list_candidates", new() { ["runId"] = 1L }),
             ("crm_prospecting_get_candidate_review", new() { ["candidateId"] = 1L })
@@ -144,9 +145,12 @@ public sealed class CrmChatToolFactoryTests
     public async Task ProspectingTools_ShouldRejectInvalidIdsBeforeResolvingProspectingService()
     {
         var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
+        var strategies = GetFunction(factory, "crm_prospecting_list_strategies");
         var runs = GetFunction(factory, "crm_prospecting_list_runs");
         var candidates = GetFunction(factory, "crm_prospecting_list_candidates");
 
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await strategies.InvokeAsync(new Dictionary<string, object?> { ["campaignId"] = 0L }));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await runs.InvokeAsync(new Dictionary<string, object?> { ["campaignId"] = 0L }));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
