@@ -87,3 +87,9 @@ The extraction persistence contract now checks that submission acknowledgement, 
 - The source-level wiring suite asserts the conversion endpoint retains this isolation attribute.
 - Rationale: concurrent conversion requests must not run under a repeatable-read/snapshot isolation assumption when the loser reloads the committed winner on a subsequent request. The tenant-scoped unique source-quote index and quote optimistic update remain the database safety guards; a losing concurrent request may still fail and must be retried to receive the already-created order.
 - This is a source-level contract only. It does not prove the exact deployed framework UoW provider honors the attribute, nor does it replace PostgreSQL two-connection conversion/rollback tests. Those tests and full restore/build/test remain pending.
+
+## Quote optimistic-update repository test source (2026-11-07)
+
+- Added `CrmQuoteOptimisticConcurrencySqliteIntegrationTests.UpdateAsync_ShouldRejectAStaleAcceptedQuoteConversionLink`.
+- The test uses the real `CrmQuoteRepository` with an in-memory SQLite database, reads the same Accepted quote twice, persists one Converted/order-link winner, then asserts the stale second update raises the framework `ConcurrencyConflictException` and cannot overwrite the winning order link.
+- This is a repository-level Row_Version stale-write test only. It does not execute `CrmQuoteAppService.ConvertToSalesOrderAsync`, prove UnitOfWork rollback of order header/lines, or exercise PostgreSQL isolation/unique-index behavior. Test source is committed but has not been compiled or executed.
