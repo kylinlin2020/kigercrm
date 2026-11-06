@@ -130,7 +130,7 @@ public sealed class CrmProspectingExtractionPageValidatorTests
     [Fact]
     public void TryValidate_RejectsControlCharactersInProviderTextFields()
     {
-        var record = Record() with { CompanyName = "Example Ltd\\nInjected" };
+        var record = Record() with { CompanyName = "Example Ltd\nInjected" };
         var page = new CrmProspectingExtractionPage([record], null, true, true, 0, []);
 
         Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
@@ -148,7 +148,7 @@ public sealed class CrmProspectingExtractionPageValidatorTests
         Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
         Assert.Equal("invalid_warnings", failure);
 
-        page = new CrmProspectingExtractionPage([Record()], null, true, true, 0, ["warning\\nforged"]);
+        page = new CrmProspectingExtractionPage([Record()], null, true, true, 0, ["warning\nforged"]);
         Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out failure));
         Assert.Equal("invalid_warnings", failure);
     }
