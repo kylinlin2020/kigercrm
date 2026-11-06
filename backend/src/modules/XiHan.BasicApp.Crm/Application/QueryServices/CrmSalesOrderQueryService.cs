@@ -107,6 +107,7 @@ public sealed class CrmSalesOrderQueryService(
             CustomerPurchaseOrderNumber = order.CustomerPurchaseOrderNumber,
             PaymentTerms = order.PaymentTerms,
             DeliveryTerms = order.DeliveryTerms,
+            TermsAndConditions = order.TermsAndConditions,
             Notes = order.Notes,
             CreatedTime = order.CreatedTime
         };
