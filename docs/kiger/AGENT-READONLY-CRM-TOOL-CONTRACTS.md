@@ -98,3 +98,29 @@
 - 框架动态 API 授权拦截器对“由 Tool executor 在 scope 内解析后直接调用”的接口是否完整生效，必须通过真实 DI/代理集成测试确认。
 - HTTP 响应脱敏 Filter 不会自动成为直接方法调用的安全边界；Tool executor 必须显式调用 MaskAsync 并有测试证明。
 - 目前没有实现任何 CRM Agent Tool、Tool Catalog 或 MCP 工具注册；本文仍是源码核验和实现约束，不是功能已上线的声明。
+
+
+## 8. 上游框架调用链核验与版本边界（本轮）
+
+本轮继续检查了公开上游仓库 XiHanFun/XiHan.Framework 的 AI Abstractions 源码，并与本项目实际依赖版本对照：
+
+### 8.1 已在上游当前源码确认的机制
+
+- 上游当前源码的 AIToolCatalog 是 Singleton，但持有 IServiceScopeFactory 与 IOperationInvoker；Bind(InvocationContext) 为每个调用方生成绑定工具。
+- OperationAIFunction.InvokeCoreAsync 每次调用创建新的 AsyncServiceScope，再创建新的 Operation Context；复制调用方 TraceId、Deadline、Baggage 与 Security Context，然后经 IOperationInvoker.InvokeAsync 执行完整 Operation 管道。
+- 上游源码明确说明 Operation 管道的 Authorize 阶段按 Operation Contract 判定；工具不复制凭据、不重新认证，而是沿用已认证调用方的主体与租户安全上下文。
+- 这比在 IAiSkill 内直接解析并调用 CRM AppService 更适合作为安全边界：工具参数先序列化为 OperationRequest，服务端由 Operation Registry/Invoker 执行，而不是模型直接选择任意服务或 Repository。
+
+### 8.2 不能直接移植到本项目的原因
+
+- 本项目 backend/src/framework/XiHan.BasicApp.Core/XiHan.BasicApp.Core.csproj 实际引用 XiHan.Framework.AI 与 XiHan.Framework.AI.Abstractions 4.8.0；Web.Core 同样引用 XiHan.Framework.Web.Mcp 4.8.0。
+- 本项目 AI 模块当前仍使用 IAiSkill、DefaultAiSkillRegistry 和 KnowledgeRetrieveSkill.AsFunction() 这条接口；本轮目标仓库源码未显示已接入 AIToolCatalog / OperationAIFunction。
+- 本轮能读取到的上游 XiHan.Framework 当前 main 源码使用新的 AI Tool Catalog / OperationAIFunction API，并标注 Preview 5.0。没有取得与本项目 4.8.0 依赖精确匹配的上游源码版本，因此不能把 5.0 的 API、生命周期和授权保证假定为 4.8.0 已具备。
+
+### 8.3 实施决策
+
+1. 不在当前 4.8.0 依赖上直接引用 AIToolCatalog、OperationAIFunction 或 Operation Registry 新 API；避免版本不匹配导致编译失败或绕开旧版框架的实际安全管道。
+2. 下一步先取得与 4.8.0 精确匹配的 Framework 源码/包符号，确认 IAiSkill、DefaultAiSkillRegistry、MCP 工具绑定、InvocationContext、安全主体传递和授权拦截的真实实现。
+3. 若 4.8.0 已有等价 Operation 管道，优先按旧版真实 API 注册只读 CRM Operation；若没有，则先在 BasicApp 内补齐经审查的受控调用桥接与集成测试，再接入模型工具目录。
+4. 第一批工具只读；返回结果必须在序列化前显式执行字段脱敏。授权上下文只能继承已认证调用方，禁止模型传入租户、用户或 Owner 身份字段。
+5. 在完成 4.8.0 版本匹配验证之前，不宣称已经实现 Agent CRM Tools，也不将上游 5.0 代码视为当前项目可用能力。
