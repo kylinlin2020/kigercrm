@@ -10,6 +10,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using XiHan.BasicApp.AI.Application.Contracts;
 using XiHan.BasicApp.AI.Application.Dtos;
+using XiHan.BasicApp.AI.Application.Tools;
 using XiHan.BasicApp.AI.Domain.Entities;
 using XiHan.BasicApp.AI.Domain.Repositories;
 using XiHan.BasicApp.Chat.Application.Mappers;
@@ -57,6 +58,7 @@ public sealed class ChatAssistantAppService : AiApplicationService, IChatAssista
     private readonly IRagPromptAugmenter _augmenter;
     private readonly IAiPromptStore _promptStore;
     private readonly IXiHanAiService _aiService;
+    private readonly CrmChatToolFactory _crmChatToolFactory;
     private readonly ICurrentUser _currentUser;
     private readonly ICurrentTenant _currentTenant;
     private readonly ILogger<ChatAssistantAppService> _logger;
@@ -76,6 +78,7 @@ public sealed class ChatAssistantAppService : AiApplicationService, IChatAssista
         IRagPromptAugmenter augmenter,
         IAiPromptStore promptStore,
         IXiHanAiService aiService,
+        CrmChatToolFactory crmChatToolFactory,
         ICurrentUser currentUser,
         ICurrentTenant currentTenant,
         ILogger<ChatAssistantAppService> logger)
@@ -91,6 +94,7 @@ public sealed class ChatAssistantAppService : AiApplicationService, IChatAssista
         _augmenter = augmenter;
         _promptStore = promptStore;
         _aiService = aiService;
+        _crmChatToolFactory = crmChatToolFactory;
         _currentUser = currentUser;
         _currentTenant = currentTenant;
         _logger = logger;
@@ -170,7 +174,13 @@ public sealed class ChatAssistantAppService : AiApplicationService, IChatAssista
         {
             var messages = await BuildMessagesAsync(assistant, history, question, cancellationToken);
             var stream = _aiService.ChatStreamAsync(
-                messages, new XiHanChatOptions { Provider = assistant.ProviderCode }, cancellationToken);
+                messages,
+                new XiHanChatOptions
+                {
+                    Provider = assistant.ProviderCode,
+                    ChatOptions = new ChatOptions { Tools = _crmChatToolFactory.CreateTools(cancellationToken) }
+                },
+                cancellationToken);
 
             await foreach (var update in stream)
             {
