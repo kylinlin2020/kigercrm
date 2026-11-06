@@ -335,6 +335,26 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Converted prospecting candidate is missing its Lead reference.", method, StringComparison.Ordinal);
         Assert.Contains("Converted prospecting candidate references a missing Lead.", method, StringComparison.Ordinal);
         Assert.Contains("The conditional database update is the concurrency boundary", method, StringComparison.Ordinal);
+
+        var failedClaimReload = method.IndexOf("candidates.GetByIdAsync(candidate.BasicId", StringComparison.Ordinal);
+        var failedClaimConvertedCheck = method.IndexOf(
+            "latestCandidate.Status == CrmProspectingCandidateStatus.Converted",
+            failedClaimReload,
+            StringComparison.Ordinal);
+        var failedClaimReturn = method.IndexOf(
+            "GetConvertedCandidateLeadAsync(latestCandidate, campaign.OwnerUserId",
+            failedClaimConvertedCheck,
+            StringComparison.Ordinal);
+        Assert.True(failedClaimReload > claim && failedClaimConvertedCheck > failedClaimReload && failedClaimReturn > failedClaimConvertedCheck,
+            "A losing concurrent claim must reload the candidate and return the committed winner when it is already Converted.");
+
+        var helperStart = method.IndexOf("private async Task<CrmLeadDetailDto> GetConvertedCandidateLeadAsync", StringComparison.Ordinal);
+        Assert.True(helperStart > candidateSave, "Converted-candidate validation helper must follow the conversion method.");
+        var helper = method[helperStart..];
+        Assert.Contains("candidate.ConvertedLeadId is not > 0", helper, StringComparison.Ordinal);
+        Assert.Contains("existingLead.Source, \"Prospecting\"", helper, StringComparison.Ordinal);
+        Assert.Contains("existingLead.SourceReference, expectedSourceReference", helper, StringComparison.Ordinal);
+        Assert.Contains("existingLead.OwnerUserId != campaignOwnerUserId", helper, StringComparison.Ordinal);
     }
 
     [Fact]
