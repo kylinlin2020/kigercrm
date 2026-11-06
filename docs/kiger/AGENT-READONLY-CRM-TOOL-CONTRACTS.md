@@ -292,3 +292,36 @@
 - 仍需真实 DI/授权代理集成测试确认 Chat 内部调用 QueryService 时 `PermissionAuthorize` 拦截确实执行，并验证当前用户/租户上下文。
 - 仍需双租户/多用户并发隔离与脱敏结果测试。
 - 下一批可在相同安全边界下评估 Prospecting Campaign、Run、Candidate 只读搜索；任何写操作、外发邮件及 MCP CRM 数据暴露继续保持关闭。
+
+
+## 13. 自动获客只读工具接入 CRM Chat
+
+本轮将现有 `ICrmProspectingAppService` 的三个只读查询方法加入已认证 Chat 请求级工具白名单：
+
+| Tool | 服务端入口 | 模型可提供的参数 |
+| --- | --- | --- |
+| `crm_prospecting_list_campaigns` | `GetCampaignsAsync` | 无 |
+| `crm_prospecting_list_runs` | `GetCampaignRunsAsync` | `campaignId` |
+| `crm_prospecting_list_candidates` | `GetRunCandidatesAsync` | `runId` |
+
+### 13.1 权限与数据范围
+
+- 三个入口均在 `CrmProspectingAppService` 上标注 `PermissionAuthorize(CrmPermissionCodes.Read)`。
+- Campaign 列表通过 `ResolveAccessibleUsersAsync` 和 `GetLatestAccessibleAsync` 施加当前用户 Owner Data Scope。
+- Run 列表和 Candidate 列表先沿 Run→Campaign 关系定位 Campaign，再执行 `EnsureRecordAccessibleAsync`，不会信任模型提供的 Owner 或 Tenant 身份。
+- Tool 层对 `campaignId`、`runId` 做正数校验；最终记录可见性仍由 CRM 应用服务强制检查。
+- Candidate 输出采用最小化投影：不向模型返回业务邮箱、联系人姓名、Provider ExternalId 或 ConvertedLeadId。Run 输出也不返回 FailureSummary。Campaign 不返回 OwnerUserId。
+- 只读工具不包含策略创建/审批/激活、Run 启动/取消、Candidate 审核或转 Lead 操作；Candidate 审核详情中的证据与原始来源信息也未暴露。
+
+### 13.2 测试源码
+
+- allowlist 契约测试检查五个函数名称：客户、线索、Campaign、Run、Candidate。
+- 新增 Campaign 工具取消令牌测试，以及 Run/Candidate 非法 ID 输入测试。
+- 以上为已提交测试源码覆盖范围，不代表已执行或通过 .NET 测试。
+
+### 13.3 待验证项
+
+- 尚未执行 restore/build/test；需优先确认 `AIFunctionFactory` 零参数委托、参数绑定、测试 API 和 DTO 序列化均可编译运行。
+- 仍需通过真实 DI/授权代理集成测试验证 Chat 内部调用时权限拦截、租户上下文与 Owner Data Scope 生效。
+- 仍需验证 Provider Function Calling 不支持时的可控降级，以及模型输出不会包含未授权记录。
+- MCP/Singleton Skill 暴露保持关闭；外发邮件、网站发布和 CRM 写操作仍需人工审批，不属于本批工具。
