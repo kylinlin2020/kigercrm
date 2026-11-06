@@ -46,6 +46,27 @@ public sealed class CrmQuoteConversionWiringTests
     }
 
     [Fact]
+    public void ConversionEndpoint_ShouldFailClosedWhenQuoteStatusAndOrderLinkDisagree()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        var methodStart = app.IndexOf("public async Task<CrmSalesOrderListItemDto> ConvertToSalesOrderAsync", StringComparison.Ordinal);
+        var nextMethod = app.IndexOf("private async Task EnsureRelatedRecordsAccessibleAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && nextMethod > methodStart);
+        var method = app[methodStart..nextMethod];
+
+        var convertedWithoutLink = method.IndexOf("quote.Status == CrmQuoteStatus.Converted && !quote.ConvertedOrderId.HasValue", StringComparison.Ordinal);
+        var acceptedWithLink = method.IndexOf("quote.Status == CrmQuoteStatus.Accepted && quote.ConvertedOrderId.HasValue", StringComparison.Ordinal);
+        var linkedOrderReplay = method.IndexOf("if (quote.ConvertedOrderId.HasValue)", StringComparison.Ordinal);
+        var orderCreation = method.IndexOf("salesOrders.AddAsync(order, cancellationToken)", StringComparison.Ordinal);
+
+        Assert.True(convertedWithoutLink >= 0 && acceptedWithLink > convertedWithoutLink);
+        Assert.True(linkedOrderReplay > acceptedWithLink);
+        Assert.True(orderCreation > linkedOrderReplay);
+        Assert.Contains("converted quote has no linked sales order", method, StringComparison.Ordinal);
+        Assert.Contains("accepted quote already has a converted-order link", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ConversionEndpoint_ShouldApplyFieldSecurityToCreatedRecords()
     {
         var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
