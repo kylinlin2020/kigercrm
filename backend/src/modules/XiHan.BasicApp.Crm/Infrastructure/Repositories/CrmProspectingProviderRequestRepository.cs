@@ -402,6 +402,29 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
         return recovered.Count;
     }
 
+    public async Task<SysCrmProspectingProviderRequest?> GetStartedAttemptAsync(
+        long runId, string providerCode,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(providerCode);
+        providerCode = providerCode.Trim().ToLowerInvariant();
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // A provider is invoked at most once per Run execution step. More than one Started
+        // attempt is an invariant violation: never guess which response owns the checkpoint.
+        var rows = await CreateQueryable()
+            .Where(row => row.RunId == runId &&
+                row.ProviderCode == providerCode &&
+                row.State == "Started")
+            .OrderByDescending(row => row.AttemptNo)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        if (rows.Count > 1)
+            throw new InvalidOperationException("More than one unfinished provider request exists for the same Run/provider pair.");
+        return rows.SingleOrDefault();
+    }
+
     public async Task<SysCrmProspectingProviderRequest?> GetAttemptAsync(
         long runId, string providerCode, int attemptNo,
         CancellationToken cancellationToken = default)
