@@ -128,6 +128,24 @@ public sealed class CrmQuoteConversionWiringTests
             "Sales-order number uniqueness must be tenant-scoped and include the generated order number.");
     }
 
+    [Fact]
+    public void ConversionEndpoint_ShouldPreserveQuotationTermsInSalesOrderSnapshotAndUpgradeSchema()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrder.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.37", "5.9.37.sql");
+
+        var methodStart = app.IndexOf("public async Task<CrmSalesOrderListItemDto> ConvertToSalesOrderAsync", StringComparison.Ordinal);
+        var methodEnd = app.IndexOf("private async Task EnsureRelatedRecordsAccessibleAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = app[methodStart..methodEnd];
+
+        Assert.Contains("TermsAndConditions = quote.TermsAndConditions", method, StringComparison.Ordinal);
+        Assert.Contains("ColumnName = \"Terms_And_Conditions\"", entity, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS terms_and_conditions text NULL", migration, StringComparison.Ordinal);
+        Assert.Contains("to_regclass('crm_sales_order') IS NOT NULL", migration, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
