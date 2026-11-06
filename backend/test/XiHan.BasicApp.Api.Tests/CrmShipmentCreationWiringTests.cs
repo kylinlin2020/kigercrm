@@ -296,7 +296,7 @@ public sealed class CrmShipmentCreationWiringTests
         var methodStart = source.IndexOf("public async Task<CrmShipmentDto> ChangeStatusAsync", StringComparison.Ordinal);
         var method = source[methodStart..];
         var dispatchStart = method.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", StringComparison.Ordinal);
-        var deliveryStart = method.IndexOf("else\\n        {\\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
+        var deliveryStart = method.IndexOf("else\n        {\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
         Assert.True(dispatchStart >= 0 && deliveryStart > dispatchStart);
         var delivery = method[deliveryStart..];
 
