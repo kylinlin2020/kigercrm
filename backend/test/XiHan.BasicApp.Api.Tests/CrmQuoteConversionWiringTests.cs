@@ -106,6 +106,28 @@ public sealed class CrmQuoteConversionWiringTests
         Assert.Contains("existingOrder.SourceQuoteId != quote.BasicId", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ConversionEndpoint_ShouldUseStableQuoteDerivedNumberProtectedByTenantUniqueIndex()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrder.cs");
+        var methodStart = app.IndexOf("public async Task<CrmSalesOrderListItemDto> ConvertToSalesOrderAsync", StringComparison.Ordinal);
+        var methodEnd = app.IndexOf("private async Task EnsureRelatedRecordsAccessibleAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = app[methodStart..methodEnd];
+
+        Assert.Contains("OrderNumber = $" + "\"SO-{quote.BasicId}\"", method, StringComparison.Ordinal);
+        Assert.Contains("UX_{table}_TeId_No", entity, StringComparison.Ordinal);
+        var indexStart = entity.IndexOf("UX_{table}_TeId_No", StringComparison.Ordinal);
+        var indexEnd = entity.IndexOf(")]", indexStart, StringComparison.Ordinal);
+        Assert.True(indexEnd > indexStart);
+        var declaration = entity[indexStart..indexEnd];
+        var tenantKey = declaration.IndexOf("nameof(TenantId)", StringComparison.Ordinal);
+        var numberKey = declaration.IndexOf("nameof(OrderNumber)", StringComparison.Ordinal);
+        Assert.True(tenantKey >= 0 && numberKey > tenantKey,
+            "Sales-order number uniqueness must be tenant-scoped and include the generated order number.");
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
