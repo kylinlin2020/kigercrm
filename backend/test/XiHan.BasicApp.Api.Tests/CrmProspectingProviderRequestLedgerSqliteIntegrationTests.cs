@@ -135,6 +135,35 @@ public sealed class CrmProspectingProviderRequestLedgerSqliteIntegrationTests : 
     }
 
     [Fact]
+    public async Task GetStartedAttempt_ShouldReturnOnlyTheUnfinishedAttemptForExactRunAndProvider()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var attempt = await _repository.CreateStartedAsync(505, "source-a", new string('A', 64), DateTimeOffset.UtcNow);
+            Assert.Equal(attempt.BasicId,
+                (await _repository.GetStartedAttemptAsync(505, "source-a"))?.BasicId);
+            Assert.Null(await _repository.GetStartedAttemptAsync(505, "source-b"));
+            Assert.Null(await _repository.GetStartedAttemptAsync(506, "source-a"));
+        }
+
+        using (_tenant.Change(TenantId + 1))
+            Assert.Null(await _repository.GetStartedAttemptAsync(505, "source-a"));
+    }
+
+    [Fact]
+    public async Task GetStartedAttempt_ShouldFailClosedWhenMoreThanOneAttemptIsUnfinished()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            await _repository.CreateStartedAsync(507, "source-a", new string('B', 64), DateTimeOffset.UtcNow);
+            await _repository.CreateStartedAsync(507, "source-a", new string('C', 64), DateTimeOffset.UtcNow);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _repository.GetStartedAttemptAsync(507, "source-a"));
+        }
+    }
+
+    [Fact]
     public async Task CreateStarted_ShouldRejectInvalidFingerprintAndIdentity()
     {
         using (_tenant.Change(TenantId))
