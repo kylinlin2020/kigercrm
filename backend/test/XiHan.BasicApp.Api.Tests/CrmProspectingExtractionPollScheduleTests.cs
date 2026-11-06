@@ -67,4 +67,16 @@ public sealed class CrmProspectingExtractionPollScheduleTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             CrmProspectingExtractionPollSchedule.GetNextPollAtUtc(Now, -1));
     }
+
+    [Fact]
+    public void GetNextPollAtUtc_NormalizesNonUtcInputToUtc()
+    {
+        var localOffsetNow = new DateTimeOffset(2026, 11, 6, 14, 0, 0, TimeSpan.FromHours(2));
+
+        var result = CrmProspectingExtractionPollSchedule.GetNextPollAtUtc(localOffsetNow, 0);
+
+        Assert.Equal(Now.AddSeconds(5), result);
+        Assert.Equal(TimeSpan.Zero, result.Offset);
+    }
+
 }
