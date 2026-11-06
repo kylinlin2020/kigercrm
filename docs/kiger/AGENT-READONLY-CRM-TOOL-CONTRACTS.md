@@ -174,3 +174,51 @@
 6. Tool 参数不能指定 TenantId、UserId、OwnerUserId；工具目录不暴露写入接口。
 
 本轮为精确版本源码审计与安全边界更新，尚未实现 CRM Agent Tool 代码；没有宣称工具已上线。
+
+
+## 10. CRM Chat 内部函数调用链核验（v4.8.0 原生支持，无需借用 MCP）
+
+本轮继续读取目标 ChatAssistant、AI Skill 注册和上游 Framework v4.8.0 AI 会话源码，确认了内部工具接入的真实路径。
+
+### 10.1 已确认的原生工具调用能力
+
+上游 v4.8.0：
+
+- `IXiHanAiService.ChatStreamAsync()` 接受 `XiHanChatOptions`。
+- `XiHanChatOptions.ChatOptions` 是原生 `Microsoft.Extensions.AI.ChatOptions`，其中可携带 `Tools`。
+- `XiHanAiService.ChatStreamAsync()` 将 `options.ChatOptions` 原样传给 `IChatClient.GetStreamingResponseAsync()`。
+- `OpenAiCompatibleChatClientFactory.Create()` 在构建 IChatClient 时无条件调用 `builder.UseFunctionInvocation(_loggerFactory)`，工具调用中间件已经位于客户端管道中。
+- 因此，应用服务可以在每个已认证 Chat 请求中创建请求级 `AIFunction`，通过 `XiHanChatOptions.ChatOptions.Tools` 传入模型；函数委托闭包持有该请求 Scope 内的服务。工具执行由已配置的 Function Invocation 中间件处理。此路径不要求把 CRM 查询服务注入 Singleton `IAiSkill`，也不要求把 CRM Tool 暴露到 MCP。
+
+### 10.2 目标 ChatAssistant 当前并未启用工具
+
+目标文件 `backend/src/modules/XiHan.BasicApp.AI/Application/AppServices/ChatAssistantAppService.cs`：
+
+- `ReplyAsync()` 调用 `_aiService.ChatStreamAsync(messages, new XiHanChatOptions { Provider = assistant.ProviderCode }, cancellationToken)`。
+- 当前 `XiHanChatOptions` 没有设置 `ChatOptions`，因此没有向本次模型请求提供工具列表。
+- 当前 ReplyAsync 只消费 `update.Text`，未看到工具执行结果的专门 UI / 审计流程。
+- `KnowledgeRetrieveSkill` 虽在 `AddAISkills()` 中注册，但注册表→MCP 投影与 ChatAssistant 的 `ChatOptions.Tools` 是两条不同通道；不能认定知识检索 Skill 或 CRM Skill 已自动进入聊天工具列表。
+
+### 10.3 第一批 CRM Chat Tool 的安全实现方案
+
+采用“请求级 AIFunction 工厂”，不复用 Singleton Skill：
+
+1. `ReplyAsync()` 已通过 `[Authorize]`、`ChatPermissionCodes.Send`、会话成员检查取得已认证的当前用户和当前租户上下文。Tool 仅在该请求中创建，不提供外部可控的身份参数。
+2. Tool 委托只捕获当前请求作用域内的 CRM Query AppService / 必要字段安全服务；不捕获 Repository、DbContext 或任何跨请求状态。
+3. 通过 `ICrmCustomerQueryService` / `ICrmLeadQueryService` 查询，继续使用现有 `CrmPermissionCodes.Read`、Owner Data Scope 和 `GuardQueryAsync`。不直接查询 Repository。
+4. QueryService 当前详情 DTO 的直接返回路径没有显式 `MaskAsync`；HTTP `FieldSecurityResponseFilter` 不会自动作用于内部函数结果。因此 Tool 必须在返回 AIFunction 结果前显式执行 `IFieldSecurityService.MaskAsync`，并仅对本次新建 DTO 对象脱敏。
+5. Tool schema 只允许业务搜索字段、分页大小和受限过滤条件；不允许 `TenantId`、`UserId`、`OwnerUserId`、权限代码或任意字段表达式由模型指定。Owner 范围始终由服务端数据范围服务决定。
+6. 首批只做客户与线索只读搜索；详情读取另行确认 ID 不存在与无权访问时的统一响应，防止存在性泄露。自动获客 Campaign/Run/Candidate 工具待相同权限与脱敏路径核验后再加入。
+7. Tool 调用记录最少保留工具名、请求用户/租户（从可信上下文取）、参数摘要、结果数量、耗时、成功/失败；不得记录完整敏感客户字段或提示词密钥。
+
+### 10.4 实施前需加的回归测试
+
+- ReplyAsync 只在当前已认证请求内创建 Tool 列表；未授权用户或非会话成员不能触发 CRM Tool。
+- `ChatOptions.Tools` 仅包含明确允许的只读函数；模型伪造 `tenantId` / `ownerUserId` 参数应在 schema 或服务端校验阶段拒绝。
+- Tool 调用确实经过 `UseFunctionInvocation`，并且函数返回后模型可以继续生成最终答复。
+- 两个不同租户/用户并发调用时，Tool 闭包不共享 Scope、CurrentUser、CurrentTenant、DbContext 或脱敏 DTO。
+- CRM QueryService 的权限和 Owner Data Scope 被执行；Tool 结果显式 Mask 后才返回模型。
+- MCP API Key 未绑定 CRM 主体时仍不得访问 CRM 工具；CRM Chat 内部 Tool 与 MCP Skill 注册分离。
+- 工具调用失败、模型取消或模型不支持工具时，Chat 回复流程正确结束，不把异常栈或敏感数据发给用户。
+
+本轮确认了 v4.8.0 原生 Function Invocation 的可行实现路线并更新本文件；尚未修改 ChatAssistant 生产代码，也未宣称 CRM Chat Tool 已经接通。实施时应先落地一个客户只读搜索工具及集成测试，再扩展线索和 Prospecting 查询。
