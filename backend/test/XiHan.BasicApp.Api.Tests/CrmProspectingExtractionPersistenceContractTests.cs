@@ -521,6 +521,41 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
 
 
     [Fact]
+    public void EveryExtractionMutation_ShouldFenceTenantLeaseTokenVersionAndDatabaseExpiry()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+
+        static string MethodBody(string repositorySource, string methodName)
+        {
+            var start = repositorySource.IndexOf($" {methodName}(", StringComparison.Ordinal);
+            Assert.True(start >= 0, $"Repository method {methodName} was not found.");
+            var end = repositorySource.IndexOf("\n    public ", start + methodName.Length, StringComparison.Ordinal);
+            return repositorySource[start..(end > start ? end : repositorySource.Length)];
+        }
+
+        foreach (var methodName in new[]
+        {
+            "TryAcknowledgeSubmissionAsync",
+            "TryTransitionAsync",
+            "TryAdvanceCursorAsync",
+            "TryCompleteResultsAsync",
+            "TryFailIncompleteResultsAsync"
+        })
+        {
+            var method = MethodBody(source, methodName);
+            Assert.Contains("WHERE tenant_id = @tenantId", method, StringComparison.Ordinal);
+            Assert.Contains("AND lease_token = @leaseToken", method, StringComparison.Ordinal);
+            Assert.Contains("AND fencing_version = @fencingVersion", method, StringComparison.Ordinal);
+            Assert.Contains("AND lease_expires_at_utc > clock_timestamp()", method, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void ExtractionLeaseRenewal_ShouldFenceTenantTokenVersionAndUnexpiredLease()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
