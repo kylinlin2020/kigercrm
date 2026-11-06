@@ -337,8 +337,11 @@ public sealed class CrmSalesOrderAppService(
         order.CustomerNameSnapshot = customer.Name;
         order.ContactId = input.ContactId;
         order.OpportunityId = input.OpportunityId;
-        order.ContactNameSnapshot = selectedContact is null ? null : string.Join(" ", new[] { selectedContact.FirstName, selectedContact.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
-        order.OpportunityNameSnapshot = selectedOpportunity?.Name;
+        if (!order.SourceQuoteId.HasValue)
+        {
+            order.ContactNameSnapshot = selectedContact is null ? null : string.Join(" ", new[] { selectedContact.FirstName, selectedContact.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            order.OpportunityNameSnapshot = selectedOpportunity?.Name;
+        }
         order.OrderDate = input.OrderDate == default ? order.OrderDate : input.OrderDate;
         order.Currency = currency;
         order.Subtotal = updatedLines.Sum(x => x.LineSubtotal);
