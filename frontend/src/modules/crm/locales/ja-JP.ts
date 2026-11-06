@@ -156,6 +156,7 @@ export default {
       "contacted": "連絡済み",
       "qualified": "有望",
       "disqualified": "対象外",
+      "converting": "変換中",
       "converted": "変換済み",
       "total": "{count} 件",
       "page": "{current} / {total} ページ",
