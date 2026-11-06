@@ -93,7 +93,6 @@ public static class CrmProspectingHttpHandlerFactory
                 || InPrefix(bytes, 24, 192, 52, 193)
                 || InPrefix(bytes, 24, 192, 88, 99)
                 || InPrefix(bytes, 24, 192, 175, 48)
-                || InPrefix(bytes, 24, 192, 175, 48)
                 || InPrefix(bytes, 16, 192, 168)
                 || InPrefix(bytes, 15, 198, 18)
                 || InPrefix(bytes, 24, 198, 51, 100)
