@@ -877,4 +877,21 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.DoesNotContain("leadDomain.CreateAsync", retry, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ConcurrentCandidateConversionLoser_ShouldReloadAndReturnCommittedWinner()
+    {
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
+        var claim = service.IndexOf("if (!await candidates.TryClaimForConversionAsync", StringComparison.Ordinal);
+        var reload = service.IndexOf("var latestCandidate = await candidates.GetByIdAsync(candidate.BasicId", claim, StringComparison.Ordinal);
+        var converted = service.IndexOf("latestCandidate.Status == CrmProspectingCandidateStatus.Converted", reload, StringComparison.Ordinal);
+        var retry = service.IndexOf("GetConvertedCandidateLeadAsync(latestCandidate", converted, StringComparison.Ordinal);
+        var create = service.IndexOf("leadDomain.CreateAsync", claim, StringComparison.Ordinal);
+        Assert.True(claim >= 0 && reload > claim && converted > reload && retry > converted);
+        Assert.True(create > retry, "Only the successful claim path may create a Lead.");
+        Assert.Contains("private async Task<CrmLeadDetailDto> GetConvertedCandidateLeadAsync", service, StringComparison.Ordinal);
+        Assert.Contains("existingLead.SourceReference, expectedSourceReference", service, StringComparison.Ordinal);
+        Assert.Contains("existingLead.OwnerUserId != campaignOwnerUserId", service, StringComparison.Ordinal);
+    }
+
 }
