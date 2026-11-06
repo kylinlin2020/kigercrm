@@ -49,6 +49,7 @@ function statusLabel(status: CrmLeadStatus | number) {
     case CrmLeadStatus.Qualified: return t('crm.lead.qualified')
     case CrmLeadStatus.Disqualified: return t('crm.lead.disqualified')
     case CrmLeadStatus.Converted: return t('crm.lead.converted')
+    case CrmLeadStatus.Converting: return t('crm.lead.converting')
     default: return t('crm.lead.new')
   }
 }
@@ -265,6 +266,7 @@ onMounted(loadPage)
         <option :value="CrmLeadStatus.Qualified">{{ t('crm.lead.qualified') }}</option>
         <option :value="CrmLeadStatus.Disqualified">{{ t('crm.lead.disqualified') }}</option>
         <option :value="CrmLeadStatus.Converted">{{ t('crm.lead.converted') }}</option>
+        <option :value="CrmLeadStatus.Converting">{{ t('crm.lead.converting') }}</option>
       </select>
       <button type="button" @click="search">{{ t('crm.lead.query') }}</button>
       <button type="button" :disabled="loading" @click="loadPage">{{ t('crm.lead.refresh') }}</button>
@@ -302,9 +304,9 @@ onMounted(loadPage)
             <td><span class="status-pill" :data-status="row.status">{{ statusLabel(row.status) }}</span></td>
             <td>{{ row.score }}</td>
             <td class="actions">
-              <button v-if="canUpdate" type="button" @click="openEdit(row)">{{ t('crm.lead.edit') }}</button>
-              <button v-if="canConvert && row.status !== CrmLeadStatus.Converted" type="button" @click="convert(row)">{{ t('crm.lead.convert') }}</button>
-              <button v-if="canDelete" class="danger-action" type="button" @click="remove(row)">{{ t('crm.lead.delete') }}</button>
+              <button v-if="canUpdate && row.status !== CrmLeadStatus.Converting && row.status !== CrmLeadStatus.Converted" type="button" @click="openEdit(row)">{{ t('crm.lead.edit') }}</button>
+              <button v-if="canConvert && ![CrmLeadStatus.Converted, CrmLeadStatus.Converting, CrmLeadStatus.Disqualified].includes(row.status)" type="button" @click="convert(row)">{{ t('crm.lead.convert') }}</button>
+              <button v-if="canDelete && row.status !== CrmLeadStatus.Converting && row.status !== CrmLeadStatus.Converted" class="danger-action" type="button" @click="remove(row)">{{ t('crm.lead.delete') }}</button>
             </td>
           </tr>
         </tbody>
@@ -395,6 +397,7 @@ td small { display: block; margin-top: 3px; color: hsl(var(--muted-foreground));
 .status-pill[data-status="2"] { color: var(--xh-color-success-600); }
 .status-pill[data-status="3"] { color: var(--xh-color-danger-600); }
 .status-pill[data-status="4"] { color: var(--xh-color-info-600); }
+.status-pill[data-status="5"] { color: var(--xh-color-warning-600); }
 .empty-state { padding: 44px 16px; text-align: center; color: hsl(var(--muted-foreground)); }
 .pagination { color: hsl(var(--muted-foreground)); font-size: 12px; }
 .pagination div { display: flex; gap: 6px; }
