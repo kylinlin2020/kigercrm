@@ -946,3 +946,15 @@ This section defines the next worker implementation boundary. The expiry hosted 
 - `GetNextPollAtUtc` now converts its input instant to UTC before applying bounded backoff and provider hints.
 - Equivalent instants supplied with different offsets therefore produce the same UTC timestamp and cannot accidentally persist a non-zero offset through a caller-specific representation.
 - Added a non-UTC offset regression test; execution remains pending the .NET SDK/Windows acceptance environment.
+
+## 11.65 Validate both sides of the result-cursor compare-and-swap (2026-11-06)
+
+- `CanCommitPage` now validates the persisted/current cursor as well as the provider's next cursor before authorizing page commit.
+- Blank, oversized, or control-bearing persisted cursor values fail closed before a page can be projected or the cursor compare-and-swap attempted.
+- Added regression coverage for malformed prior cursors. Repository-level cursor validation remains independently enforced by the persistence boundary.
+
+## 11.66 Normalize provider retry timestamps before returning a schedule (2026-11-06)
+
+- Provider-supplied absolute retry timestamps are converted to UTC before bounded scheduling.
+- This complements normalization of `nowUtc`: every returned schedule is now UTC regardless of the offset representation used by the provider.
+- Added a non-zero-offset provider retry timestamp test. Test execution is still pending the .NET SDK/Windows acceptance environment.
