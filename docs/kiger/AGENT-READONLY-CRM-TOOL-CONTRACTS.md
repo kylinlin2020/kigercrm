@@ -1,6 +1,6 @@
 # Agent 第一批只读 CRM Tools 契约映射
 
-> 状态：目标 API 源码核对与工具契约；尚未注册为 AI Skill/Tool，也不代表 Agent 已能调用。
+> 状态：客户与线索两个只读函数已接入已认证 CRM Chat 请求级工具列表；尚未注册为 Singleton AI Skill/MCP 工具，也不代表 Prospecting 工具已接入。
 > 目标分支：`kiger-dev`。
 
 ## 1. 本轮核对结果
