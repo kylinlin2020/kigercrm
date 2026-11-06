@@ -218,12 +218,16 @@ public sealed class CrmQuoteAppService(
             var contact = await contacts.GetByIdAsync(contactId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("Contact does not exist in the current tenant.");
             await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
+            if (contact.CustomerId != customer.BasicId)
+                throw new InvalidOperationException("Contact must belong to the quoted customer.");
         }
         if (opportunityId is > 0)
         {
             var opportunity = await opportunities.GetByIdAsync(opportunityId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("Opportunity does not exist in the current tenant.");
             await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId, cancellationToken);
+            if (opportunity.CustomerId != customer.BasicId)
+                throw new InvalidOperationException("Opportunity must belong to the quoted customer.");
         }
     }
 
