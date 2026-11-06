@@ -25,6 +25,7 @@ public sealed class CrmSalesOrderUpdateDto
     public string? CustomerPurchaseOrderNumber { get; set; }
     public string? PaymentTerms { get; set; }
     public string? DeliveryTerms { get; set; }
+    public string? TermsAndConditions { get; set; }
     public string? Notes { get; set; }
     public List<CrmSalesOrderLineUpdateDto> Lines { get; set; } = [];
 }
