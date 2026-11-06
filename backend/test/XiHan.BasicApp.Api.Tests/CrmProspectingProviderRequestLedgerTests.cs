@@ -23,6 +23,20 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     }
 
     [Fact]
+    public void StartedAttemptRecoveryLookup_ShouldBeExactAndFailClosedOnAmbiguity()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingProviderRequestRepository.cs");
+        var integration = Read("backend", "test", "XiHan.BasicApp.Api.Tests", "CrmProspectingProviderRequestLedgerSqliteIntegrationTests.cs");
+
+        Assert.Contains("row.RunId == runId", repository, StringComparison.Ordinal);
+        Assert.Contains("row.ProviderCode == providerCode", repository, StringComparison.Ordinal);
+        Assert.Contains("row.State == \"Started\"", repository, StringComparison.Ordinal);
+        Assert.Contains("More than one unfinished provider request", repository, StringComparison.Ordinal);
+        Assert.Contains("GetStartedAttempt_ShouldReturnOnlyTheUnfinishedAttemptForExactRunAndProvider", integration, StringComparison.Ordinal);
+        Assert.Contains("GetStartedAttempt_ShouldFailClosedWhenMoreThanOneAttemptIsUnfinished", integration, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProviderRequestEntity_ShouldBeAuditedStrictTenantScopedAndAppendOnly()
     {
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingProviderRequest.cs");
