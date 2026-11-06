@@ -38,6 +38,7 @@ export interface CrmSalesOrderDetailDto extends CrmSalesOrderListItemDto {
   customerPurchaseOrderNumber?: string | null
   paymentTerms?: string | null
   deliveryTerms?: string | null
+  termsAndConditions?: string | null
   notes?: string | null
 }
 
