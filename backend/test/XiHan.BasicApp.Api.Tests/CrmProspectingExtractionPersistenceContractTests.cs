@@ -307,4 +307,25 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("concurrent operator race", section, StringComparison.Ordinal);
         Assert.Contains("Do not expose a state-only", section, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void RunWorker_ShouldPreflightAllAsyncProvidersBeforeAnyProviderExecution()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs"));
+
+        var preflight = source.IndexOf("var unsupportedAsyncProviders = plan", StringComparison.Ordinal);
+        var rejection = source.IndexOf("if (unsupportedAsyncProviders.Length > 0)", preflight, StringComparison.Ordinal);
+        var executionLoop = source.IndexOf("foreach (var providerCode in plan.Distinct", StringComparison.Ordinal);
+        Assert.True(preflight >= 0 && rejection > preflight && executionLoop > rejection);
+        var guard = source[preflight..executionLoop];
+        Assert.Contains("providerRegistry.Asynchronous.ContainsKey(providerCode)", guard, StringComparison.Ordinal);
+        Assert.Contains("not yet supported by durable Run orchestration", guard, StringComparison.Ordinal);
+        Assert.DoesNotContain("SubmitExtractionAsync", guard, StringComparison.Ordinal);
+        Assert.DoesNotContain("PollExtractionAsync", guard, StringComparison.Ordinal);
+    }
 }
