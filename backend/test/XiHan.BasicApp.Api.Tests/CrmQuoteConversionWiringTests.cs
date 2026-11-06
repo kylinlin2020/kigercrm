@@ -8,9 +8,16 @@ public sealed class CrmQuoteConversionWiringTests
     public void ConversionEndpoint_ShouldBeExecuteAuthorizedTransactionalAndOwnerScoped()
     {
         var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
-        var method = app[app.IndexOf("ConvertToSalesOrderAsync", StringComparison.Ordinal)..];
-        Assert.Contains("[UnitOfWork(true)]", method, StringComparison.Ordinal);
-        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", method, StringComparison.Ordinal);
+        var methodStart = app.IndexOf("public async Task<CrmSalesOrderListItemDto> ConvertToSalesOrderAsync", StringComparison.Ordinal);
+        Assert.True(methodStart > 0);
+        var attributeStart = app.LastIndexOf("[UnitOfWork(", methodStart, StringComparison.Ordinal);
+        var attributeEnd = app.IndexOf(']', attributeStart);
+        Assert.True(attributeStart >= 0 && attributeEnd > attributeStart);
+        Assert.Contains("System.Data.IsolationLevel.ReadCommitted", app[attributeStart..attributeEnd], StringComparison.Ordinal);
+        var methodEnd = app.IndexOf("private async Task EnsureRelatedRecordsAccessibleAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodEnd > methodStart);
+        var method = app[methodStart..methodEnd];
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", app[attributeEnd..methodStart], StringComparison.Ordinal);
         Assert.Contains("EnsureRecordAccessibleAsync(dataScope, quote.OwnerUserId", method, StringComparison.Ordinal);
         Assert.Contains("CrmQuoteStatus.Accepted", method, StringComparison.Ordinal);
         Assert.Contains("quote.ConvertedOrderId.HasValue", method, StringComparison.Ordinal);
