@@ -159,6 +159,7 @@ public sealed class CrmQuoteAppService(
             TaxTotal = quote.TaxTotal,
             GrandTotal = quote.GrandTotal,
             OwnerUserId = quote.OwnerUserId,
+            TermsAndConditions = quote.TermsAndConditions,
             Notes = quote.Notes
         };
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmSalesOrder), order, cancellationToken);
