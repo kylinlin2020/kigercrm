@@ -104,8 +104,8 @@ public static class CrmProspectingDeepMiningPolicy
     {
         if (value.Any(char.IsControl))
             throw new ArgumentException("Mining query values cannot contain control characters.");
-        return string.Join(" ", value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
-            .Trim()[..Math.Min(string.Join(" ", value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim().Length, maxLength)];
+        var normalized = string.Join(" ", value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).Trim();
+        return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
     }
 
     private static string Fingerprint<T>(T value)
