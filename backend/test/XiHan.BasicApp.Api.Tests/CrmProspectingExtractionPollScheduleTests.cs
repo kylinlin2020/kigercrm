@@ -79,4 +79,17 @@ public sealed class CrmProspectingExtractionPollScheduleTests
         Assert.Equal(TimeSpan.Zero, result.Offset);
     }
 
+
+    [Fact]
+    public void GetNextPollAtUtc_NormalizesProviderRetryTimestampOffset()
+    {
+        var localOffsetRetry = new DateTimeOffset(2026, 11, 6, 14, 2, 0, TimeSpan.FromHours(2));
+
+        var result = CrmProspectingExtractionPollSchedule.GetNextPollAtUtc(
+            Now, 0, providerRetryAtUtc: localOffsetRetry);
+
+        Assert.Equal(Now.AddMinutes(2), result);
+        Assert.Equal(TimeSpan.Zero, result.Offset);
+    }
+
 }
