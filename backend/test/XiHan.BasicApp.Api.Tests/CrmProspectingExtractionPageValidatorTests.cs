@@ -180,4 +180,16 @@ public sealed class CrmProspectingExtractionPageValidatorTests
         Assert.Equal("invalid_cursor", failure);
     }
 
+
+    [Fact]
+    public void TryValidate_RejectsContinuationCursorOnFinalPage()
+    {
+        var page = new CrmProspectingExtractionPage(
+            [Record()], "cursor-after-final", true, true, 0, []);
+
+        Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
+        Assert.Equal("unexpected_final_cursor", failure);
+        Assert.False(CrmProspectingExtractionPageValidator.CanCommitPage(page, null));
+    }
+
 }
