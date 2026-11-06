@@ -55,7 +55,6 @@ public sealed class CrmSalesOrderAppService(
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
         var owner = input.OwnerUserId ?? customer.OwnerUserId;
         SysCrmContact? selectedContact = null;
-        SysCrmContact? selectedContact = null;
         if (input.ContactId.HasValue)
         {
             var contact = await contacts.GetByIdAsync(input.ContactId.Value, cancellationToken)
@@ -307,6 +306,7 @@ public sealed class CrmSalesOrderAppService(
         var customer = await customers.GetByIdAsync(input.CustomerId, cancellationToken)
             ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
+        SysCrmContact? selectedContact = null;
         if (input.ContactId.HasValue)
         {
             var contact = await contacts.GetByIdAsync(input.ContactId.Value, cancellationToken)
