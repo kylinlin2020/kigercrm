@@ -135,11 +135,16 @@ public sealed class CrmChatToolFactoryTests
             ("crm_prospecting_get_candidate_review", new() { ["candidateId"] = 1L })
         };
 
+        var guard = Assert.IsType<DenyingPermissionGuard>(
+            typeof(CrmChatToolFactory).GetField("_permissionGuard", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(factory));
+
         foreach (var call in calls)
         {
             var function = GetFunction(factory, call.Name);
             await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await function.InvokeAsync(call.Arguments));
+            Assert.Equal(XiHan.BasicApp.Crm.Domain.Permissions.CrmPermissionCodes.Read, guard.LastPermissionCode);
         }
 
         Assert.Equal(calls.Length, factory.CreateTools(CancellationToken.None).Count);
@@ -236,8 +241,13 @@ public sealed class CrmChatToolFactoryTests
 
     private sealed class DenyingPermissionGuard : IOperationPermissionGuard
     {
-        public Task EnsureGrantedAsync(string permissionCode, CancellationToken cancellationToken = default) =>
+        public string? LastPermissionCode { get; private set; }
+
+        public Task EnsureGrantedAsync(string permissionCode, CancellationToken cancellationToken = default)
+        {
+            LastPermissionCode = permissionCode;
             throw new UnauthorizedAccessException($"Permission denied: {permissionCode}");
+        }
     }
 
     private sealed class RecordingPermissionGuard : IOperationPermissionGuard
