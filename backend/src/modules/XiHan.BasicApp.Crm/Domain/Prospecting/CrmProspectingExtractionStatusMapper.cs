@@ -21,11 +21,6 @@ public static class CrmProspectingExtractionStatusMapper
         };
 
     /// <summary>
-    /// Clamp provider retry hints to a safe scheduling window. Provider timestamps are advisory;
-    /// the caller must still enforce the persisted extraction expiry.
-    /// </summary>
-
-    /// <summary>
     /// Computes bounded exponential polling backoff when the provider supplies no retry hint.
     /// Attempt numbers are one-based; delay grows from five seconds and caps at thirty minutes.
     /// </summary>
@@ -48,6 +43,10 @@ public static class CrmProspectingExtractionStatusMapper
     public static DateTimeOffset GetDefaultRetryAtUtc(int pollAttemptCount, DateTimeOffset nowUtc)
         => nowUtc.ToUniversalTime().Add(GetDefaultPollDelay(pollAttemptCount));
 
+    /// <summary>
+    /// Clamp provider retry hints to a safe scheduling window. Provider timestamps are advisory;
+    /// the caller must still enforce the persisted extraction expiry.
+    /// </summary>
     public static DateTimeOffset NormalizeRetryAtUtc(
         DateTimeOffset? providerRetryAtUtc,
         DateTimeOffset nowUtc)
