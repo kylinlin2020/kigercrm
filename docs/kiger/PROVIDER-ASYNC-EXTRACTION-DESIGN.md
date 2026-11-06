@@ -778,3 +778,13 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - Added a source-contract regression test that guards the worker's use of the shared scoped registry.
 - This does not activate asynchronous Run execution: the worker still explicitly rejects async-only provider plan entries until a durable extraction consumer and Run continuation protocol exist. No async adapters are registered by this change.
 - Test source has not been executed; no build or PostgreSQL runtime validation is claimed.
+
+
+## 11.51 Persist validated provider acknowledgement metadata (2026-11-06)
+
+- Closed a contract-to-storage gap in the durable submission acknowledgement path: `CrmProspectingExtractionSubmission.SafeMetadataJson` was validated by the submission validator but was not passed into the repository acknowledgement method or stored on the extraction job.
+- `TryAcknowledgeSubmissionAsync` now accepts an optional safe-metadata JSON value, includes it in the same acknowledgement validation, and writes it to `safe_metadata_json` in the same fenced PostgreSQL update that records the provider extraction ID and transitions Submitting → Pending.
+- The parameter is appended after the existing optional cancellation token to preserve existing positional call compatibility.
+- Added source-contract coverage for the optional parameter, validator invocation, SQL column update and bound SQL parameter.
+- This preserves provider-supplied non-secret operational metadata across worker restarts; it does not make arbitrary provider payloads safe. Adapters remain responsible for including only explicitly safe, bounded metadata.
+- Test source has not been executed; no .NET build or PostgreSQL runtime validation is claimed.
