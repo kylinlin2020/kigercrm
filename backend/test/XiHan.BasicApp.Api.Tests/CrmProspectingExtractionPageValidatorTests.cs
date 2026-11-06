@@ -116,4 +116,42 @@ public sealed class CrmProspectingExtractionPageValidatorTests
             [Record()], null, true, true, 0, []);
         Assert.True(CrmProspectingExtractionPageValidator.CanCommitPage(completeFinal, null));
     }
+
+    [Fact]
+    public void TryValidate_RejectsExternalIdsThatCollideAfterNormalization()
+    {
+        var page = new CrmProspectingExtractionPage(
+            [Record("record-1"), Record(" record-1 ")], null, true, true, 0, []);
+
+        Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
+        Assert.Equal("duplicate_record_identity", failure);
+    }
+
+    [Fact]
+    public void TryValidate_RejectsControlCharactersInProviderTextFields()
+    {
+        var record = Record() with { CompanyName = "Example Ltd\\nInjected" };
+        var page = new CrmProspectingExtractionPage([record], null, true, true, 0, []);
+
+        Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
+        Assert.Equal("invalid_record", failure);
+    }
+
+    [Fact]
+    public void TryValidate_RejectsUnboundedOrControlBearingWarnings()
+    {
+        var tooMany = Enumerable.Range(0, CrmProspectingExtractionPageValidator.MaxWarningsPerPage + 1)
+            .Select(index => "warning-" + index)
+            .ToArray();
+        var page = new CrmProspectingExtractionPage([Record()], null, true, true, 0, tooMany);
+
+        Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out var failure));
+        Assert.Equal("invalid_warnings", failure);
+
+        page = new CrmProspectingExtractionPage([Record()], null, true, true, 0, ["warning\\nforged"]);
+        Assert.False(CrmProspectingExtractionPageValidator.TryValidate(page, out failure));
+        Assert.Equal("invalid_warnings", failure);
+    }
+
+
 }
