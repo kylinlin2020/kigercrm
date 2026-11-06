@@ -151,4 +151,22 @@ public sealed class CrmQuoteConversionWiringTests
 
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
+
+    [Fact]
+    public void ConversionEndpoint_ShouldRequireContactAndOpportunityToBelongToQuotedCustomer()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        var helperStart = app.IndexOf("private async Task EnsureRelatedRecordsAccessibleAsync", StringComparison.Ordinal);
+        var helperEnd = app.IndexOf("private static CrmQuoteDto", helperStart, StringComparison.Ordinal);
+        Assert.True(helperStart >= 0 && helperEnd > helperStart);
+        var helper = app[helperStart..helperEnd];
+
+        Assert.Contains("contact.CustomerId != customer.BasicId", helper, StringComparison.Ordinal);
+        Assert.Contains("Contact must belong to the quoted customer.", helper, StringComparison.Ordinal);
+        Assert.Contains("opportunity.CustomerId != customer.BasicId", helper, StringComparison.Ordinal);
+        Assert.Contains("Opportunity must belong to the quoted customer.", helper, StringComparison.Ordinal);
+        Assert.Contains("EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId", helper, StringComparison.Ordinal);
+        Assert.Contains("EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId", helper, StringComparison.Ordinal);
+    }
+
 }
