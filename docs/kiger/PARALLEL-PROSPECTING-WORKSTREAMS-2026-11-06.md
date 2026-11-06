@@ -210,3 +210,11 @@ At the time this plan is added:
 - Added a source contract test covering both finalization paths.
 - Commits: cc718082 (repository fix), 22c6a621 (contract test).
 - Test source is not executed in this environment; this is a boundary-hardening fix, not completion of the async consumer.
+
+
+### Bounded asynchronous extraction poll scheduling
+- Added `CrmProspectingExtractionPollSchedule` as a pure domain policy for exponential poll backoff.
+- Poll delay starts at 5 seconds, doubles by attempt, and caps at 15 minutes. Provider-supplied `PollAfter` and absolute retry timestamps are treated as untrusted hints and clamped to the same 5-second/15-minute window, preventing hot polling and unbounded deferral.
+- Added tests for the backoff sequence, maximum attempt saturation, provider hint handling, timestamp clamping, and negative attempt rejection.
+- Commits: `3bb184a919aa90443cf3415f2749720c37fa3796` (policy), `dfa0104426d892d1f030605d12754a3dbee728ea` (tests).
+- This policy is not yet wired into a hosted consumer or persisted poll transition. Tests are added but not executed in this environment; Windows/.NET build and PostgreSQL acceptance remain pending.
