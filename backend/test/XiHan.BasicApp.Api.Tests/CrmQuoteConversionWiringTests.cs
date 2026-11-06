@@ -102,7 +102,7 @@ public sealed class CrmQuoteConversionWiringTests
         Assert.True(methodStart >= 0 && nextMethod > methodStart);
         var method = app[methodStart..nextMethod];
 
-        Assert.Contains("[UnitOfWork(true)]", app[..methodStart], StringComparison.Ordinal);
+        Assert.Contains("[UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]", app[..methodStart], StringComparison.Ordinal);
         Assert.Contains("UX_{table}_TeId_Sq_IsDe", entity, StringComparison.Ordinal);
         Assert.Contains("nameof(TenantId)", entity, StringComparison.Ordinal);
         Assert.Contains("nameof(SourceQuoteId)", entity, StringComparison.Ordinal);
