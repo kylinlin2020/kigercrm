@@ -167,7 +167,11 @@ public sealed class CrmProspectingApplicationWiringTests
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
         Assert.Contains("providerRegistry.Asynchronous.ContainsKey(providerCode)", worker, StringComparison.Ordinal);
-        Assert.Contains("requires the asynchronous extraction worker, which is not yet wired to Run orchestration", worker, StringComparison.Ordinal);
+        Assert.Contains("not yet supported by durable Run orchestration", worker, StringComparison.Ordinal);
+        var preflight = worker.IndexOf("var unsupportedAsyncProviders", StringComparison.Ordinal);
+        var providerLoop = worker.IndexOf("foreach (var providerCode in plan", StringComparison.Ordinal);
+        Assert.True(preflight >= 0 && providerLoop > preflight, "Async-provider preflight must run before any provider execution.");
+        Assert.Contains("providerRegistry.Asynchronous.ContainsKey(providerCode)", worker[preflight..providerLoop], StringComparison.Ordinal);
         Assert.Contains("throw new InvalidOperationException", worker, StringComparison.Ordinal);
     }
 
