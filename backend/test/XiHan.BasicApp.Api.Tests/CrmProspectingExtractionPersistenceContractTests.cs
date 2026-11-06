@@ -395,4 +395,28 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("row.ProviderCode == providerCode && row.RequestFingerprint == fingerprint", method, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ExtractionFinalization_ShouldReuseSharedCursorValidator()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+
+        var failedStart = source.IndexOf("public async Task<bool> TryFailIncompleteResultsAsync", StringComparison.Ordinal);
+        var completeStart = source.IndexOf("public async Task<bool> TryCompleteResultsAsync", failedStart, StringComparison.Ordinal);
+        var transitionStart = source.IndexOf("public async Task<bool> TryTransitionAsync", completeStart, StringComparison.Ordinal);
+        Assert.True(failedStart >= 0 && completeStart > failedStart && transitionStart > completeStart);
+
+        var failed = source[failedStart..completeStart];
+        var complete = source[completeStart..transitionStart];
+        Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid(expectedCursor)", failed, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid(expectedCursor)", complete, StringComparison.Ordinal);
+        Assert.DoesNotContain("expectedCursor.Any(char.IsControl)", failed, StringComparison.Ordinal);
+        Assert.DoesNotContain("expectedCursor.Any(char.IsControl)", complete, StringComparison.Ordinal);
+    }
+
 }
