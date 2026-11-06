@@ -156,6 +156,7 @@ export default {
       "contacted": "संपर्क किया",
       "qualified": "योग्य",
       "disqualified": "अयोग्य",
+      "converting": "परिवर्तित हो रहा है",
       "converted": "बदली गई",
       "total": "{count} रिकॉर्ड",
       "page": "पृष्ठ {current} / {total}",
