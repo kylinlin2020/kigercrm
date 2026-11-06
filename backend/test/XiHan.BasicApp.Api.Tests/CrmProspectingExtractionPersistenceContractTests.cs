@@ -445,9 +445,6 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.DoesNotContain("expectedCursor.Any(char.IsControl)", complete, StringComparison.Ordinal);
     }
 
-}
-
-
     [Fact]
     public void AsyncExtractionPagePersistence_ShouldFenceLeaseAndCursorBeforeWritingCandidates()
     {
@@ -521,3 +518,31 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("page.IsLastPage", method, StringComparison.Ordinal);
         Assert.Contains("expectedCursor: expectedCursor", method, StringComparison.Ordinal);
     }
+
+
+    [Fact]
+    public void ExtractionLeaseRenewal_ShouldFenceTenantTokenVersionAndUnexpiredLease()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+        var methodStart = source.IndexOf("public async Task<bool> TryRenewLeaseAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("public async Task<int> ExpireDueAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+
+        Assert.Contains("DbType.PostgreSQL", method, StringComparison.Ordinal);
+        Assert.Contains("WHERE tenant_id = @tenantId", method, StringComparison.Ordinal);
+        Assert.Contains("AND basic_id = @jobId", method, StringComparison.Ordinal);
+        Assert.Contains("AND lease_token = @leaseToken", method, StringComparison.Ordinal);
+        Assert.Contains("AND fencing_version = @fencingVersion", method, StringComparison.Ordinal);
+        Assert.Contains("AND lease_expires_at_utc > clock_timestamp()", method, StringComparison.Ordinal);
+        Assert.Contains("AND status IN (@submittingStatus, @pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)", method, StringComparison.Ordinal);
+        Assert.Contains("return affected == 1", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("fencing_version =", method, StringComparison.Ordinal);
+    }
+
+}
