@@ -176,3 +176,10 @@ At the time this plan is added:
 - Commits: `24f2b957c84f817b41b7842561a1bdb70a683e92`, `f09cf8f337f859a77e1c49642d1c90477e742884`, `f43964523fd671ed6e07896167e20f6e1693ad2e`.
 
 **Validation boundary:** tests are committed but not executed here because the environment has no .NET SDK. Windows-native build and runtime verification remain required.
+
+
+### IPv6 special-use prefix correction
+- Corrected the public-address filter's RFC 9637 documentation allocation check for `3fff::/20`. The previous prefix helper call supplied too few prefix bytes for a /20 match and therefore did not reject that range.
+- Added a regression vector for `3fff::1`.
+- Commits: `cead645a8600f73a0fc843e52daaab3a81d4ff52`, `c7c7573721949dcf3065206f6f8d5e787a9502c7`.
+- Tests remain unexecuted in this environment; Windows/.NET validation is still required.
