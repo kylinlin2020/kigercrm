@@ -172,6 +172,8 @@ public sealed class CrmChatToolFactory
                     }
 
                     var detail = await _prospecting.GetCandidateReviewDetailAsync(candidateId, cancellationToken);
+                    // The review-detail wrapper has no single entity mapping; mask its mapped Candidate DTO explicitly.
+                    await _fieldSecurity.MaskAsync(detail.Candidate, cancellationToken);
                     return new
                     {
                         Candidate = new
