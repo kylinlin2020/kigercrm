@@ -798,3 +798,12 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - Added regression cases for camelCase API keys, snake_case access tokens, nested Authorization fields, nested client secrets and excessive JSON depth.
 - The metadata contract remains intentionally allow-list-by-adapter: providers should return only bounded operational fields. This guard is a defensive rejection layer, not a general-purpose secret scrubber; arbitrary values must not be copied into metadata.
 - Tests were added but have not been executed. No .NET build or runtime validation is claimed.
+
+
+## 11.53 Tenant-scoped extraction expiry sweep worker (2026-11-06)
+
+- Added `CrmProspectingExtractionExpiryHostedService` as the first hosted maintenance consumer for durable extraction jobs. It periodically uses `ITenantDataScopeRunner` to visit data-reachable tenants and invokes `ExpireDueAsync` only after entering a concrete tenant scope; the platform/null scope is explicitly skipped because extraction jobs are strict tenant data.
+- The worker is single-concurrency and runs on a 30-second idle interval. It relies on the existing repository's PostgreSQL `clock_timestamp()` expiry predicate and does not scan provider payloads or log extraction IDs.
+- Deliberately does not call `ClaimDueAsync`, submit/poll providers, or advance cursors. It is expiry housekeeping only—not the async extraction execution worker. The full Submit/Poll/Fetch/Project lifecycle and parent Run continuation remain outstanding.
+- Added a source-contract test covering tenant-scope traversal, platform-scope exclusion, expiry invocation and the absence of accidental provider claims.
+- Test/build/runtime validation has not been executed in this environment.
