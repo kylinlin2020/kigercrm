@@ -42,6 +42,7 @@ public sealed class CrmProspectingWebsiteDiscoveryPolicyTests
     [InlineData("https://localhost", "non_public_or_invalid_host")]
     [InlineData("https://printer.local", "non_public_or_invalid_host")]
     [InlineData("https://127.0.0.1", "non_public_or_invalid_host")]
+    [InlineData("https://[::1]", "non_public_or_invalid_host")]
     [InlineData("https://linkedin.com/company/example-pumps", "non_corporate_platform")]
     [InlineData("https://directory.example.com/listing", "insufficient_company_match")]
     public void Assess_ShouldRejectUnsafeOrWeakCandidates(string url, string reason)
