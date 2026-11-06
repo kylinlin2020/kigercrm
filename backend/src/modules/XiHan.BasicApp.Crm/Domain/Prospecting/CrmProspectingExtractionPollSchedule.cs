@@ -39,6 +39,7 @@ public static class CrmProspectingExtractionPollSchedule
         var scheduledAt = nowUtc + delay;
         if (providerRetryAtUtc is { } retryAt)
         {
+            retryAt = retryAt.ToUniversalTime();
             var boundedRetryAt = retryAt < nowUtc + MinimumDelay
                 ? nowUtc + MinimumDelay
                 : retryAt > nowUtc + MaximumDelay ? nowUtc + MaximumDelay : retryAt;
