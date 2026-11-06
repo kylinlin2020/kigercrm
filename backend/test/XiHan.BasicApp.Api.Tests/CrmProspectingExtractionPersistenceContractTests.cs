@@ -285,4 +285,26 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("job.status IN (@submittingStatus, @pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)", claim, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void NeedsReviewManualReconciliation_ShouldRequireIdentityAuditAndAtomicTenantScopedResolution()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "docs", "kiger",
+            "PROVIDER-ASYNC-EXTRACTION-DESIGN.md")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var document = File.ReadAllText(Path.Combine(tree!.FullName, "docs", "kiger",
+            "PROVIDER-ASYNC-EXTRACTION-DESIGN.md"));
+        var sectionStart = document.IndexOf("## 11.58 Manual NeedsReview reconciliation protocol", StringComparison.Ordinal);
+        Assert.True(sectionStart >= 0);
+        var section = document[sectionStart..];
+
+        Assert.Contains("authenticated request context", section, StringComparison.Ordinal);
+        Assert.Contains("operator subject ID", section, StringComparison.Ordinal);
+        Assert.Contains("provider_extraction_id IS NULL", section, StringComparison.Ordinal);
+        Assert.Contains("immutable reconciliation audit record", section, StringComparison.Ordinal);
+        Assert.Contains("If audit insertion fails, roll back the state transition", section, StringComparison.Ordinal);
+        Assert.Contains("concurrent operator race", section, StringComparison.Ordinal);
+        Assert.Contains("Do not expose a state-only", section, StringComparison.Ordinal);
+    }
 }
