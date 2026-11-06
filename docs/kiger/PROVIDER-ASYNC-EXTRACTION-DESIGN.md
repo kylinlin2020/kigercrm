@@ -738,3 +738,16 @@ Consequently, if a future Worker integration commits Candidate/Evidence/Score an
 ### Gate
 
 Do not switch the synchronous Worker from `PersistNewAsync` to the batch primitive until the durable attempt link and crash-recovery path are implemented and PostgreSQL transaction participation is proven for every repository involved. Until then, the current per-candidate path remains active and the atomic batch method is a foundation only. The asynchronous extraction worker is also still not wired into Run orchestration. Source inspection only was performed for this checkpoint; no .NET build, automated test, or PostgreSQL execution was run.
+
+
+## 11.45 Recover coverage after a committed provider batch (2026-11-06)
+
+Closed the post-projection crash window for successful synchronous providers:
+
+- Added a tenant-scoped `GetStartedAttemptAsync(runId, providerCode)` lookup. It returns the single unfinished request attempt and fails closed if more than one Started attempt exists for the same Run/provider pair.
+- When a provider execution is already Succeeded on Run redelivery, the worker checks for its still-Started request attempt. If present, it verifies the persisted checkpoint byte count, SHA-256, completion flag, failure count, and record count before deriving the response digest.
+- The worker then uses the existing PostgreSQL atomic `TryFinalizeSuccessWithCoverageAsync` statement to finalize the Started request and advance coverage under the current Run lease. It does not call the external provider again.
+- Startup stale-request recovery now preserves a Started request when the same Run/provider has a Succeeded execution row with a durable checkpoint. This is essential because startup recovery runs before the queued Run is replayed; without this exclusion, the request would be marked interrupted before the worker could reconcile coverage.
+- Added SQLite repository tests for single-attempt lookup and ambiguous Started attempts, plus a source-contract regression test for the recovery path.
+
+This specifically repairs the crash window after the provider execution terminal commit but before request-ledger/coverage finalization. It does not yet wire the synchronous worker to `PersistProviderBatchAndTransitionAsync`; the worker's current Candidate/Evidence/Score projection still uses the legacy per-candidate path. Same-connection transaction proof, batch identity conflict strategy, PostgreSQL fault-injection tests, .NET compilation, and Windows real-machine validation remain pending.
