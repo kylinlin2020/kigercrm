@@ -117,4 +117,16 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         Assert.Contains("[UnitOfWork(true)]", app, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void LeadInConversion_ShouldNotBeEditableOrDeletableOrManuallyAssignedAsStatus()
+    {
+        var domain = File.ReadAllText(RepositoryPath(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "DomainServices", "Implementations", "CrmLeadDomainService.cs"));
+        Assert.Contains("command.Status == (int)CrmLeadStatus.Converting", domain, StringComparison.Ordinal);
+        Assert.Contains("entity.Status is CrmLeadStatus.Converted or CrmLeadStatus.Converting", domain, StringComparison.Ordinal);
+        Assert.Contains("A converted or converting lead cannot be edited.", domain, StringComparison.Ordinal);
+        Assert.Contains("A converted or converting lead cannot be deleted.", domain, StringComparison.Ordinal);
+    }
+
 }
