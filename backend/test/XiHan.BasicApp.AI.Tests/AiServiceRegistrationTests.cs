@@ -118,6 +118,27 @@ public sealed class AiServiceRegistrationTests
     /// </summary>
     [Fact]
     [Fact]
+    public void CrmChatToolFactory_ShouldExposeOnlyTheAllowListedReadOnlyCustomerTool()
+    {
+        var factory = new CrmChatToolFactory(null!, null!);
+
+        var tool = Assert.Single(factory.CreateTools(CancellationToken.None));
+        var name = tool.GetType().GetProperty("Name")?.GetValue(tool) as string;
+
+        Assert.Equal("crm_search_customers", name);
+    }
+
+    [Fact]
+    public void ChatAssistant_ShouldReceiveTheRequestScopedCrmToolFactory()
+    {
+        var constructor = typeof(XiHan.BasicApp.AI.Application.AppServices.ChatAssistantAppService)
+            .GetConstructors()
+            .Single();
+
+        Assert.Contains(constructor.GetParameters(), parameter => parameter.ParameterType == typeof(CrmChatToolFactory));
+    }
+
+    [Fact]
     public void AddAISkills_ShouldRegisterCrmChatToolFactoryAsScoped()
     {
         var services = new ServiceCollection();
