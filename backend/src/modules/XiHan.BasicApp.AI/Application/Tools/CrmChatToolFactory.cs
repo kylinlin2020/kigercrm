@@ -19,13 +19,16 @@ namespace XiHan.BasicApp.AI.Application.Tools;
 public sealed class CrmChatToolFactory
 {
     private readonly ICrmCustomerQueryService _customerQuery;
+    private readonly ICrmLeadQueryService _leadQuery;
     private readonly IFieldSecurityService _fieldSecurity;
 
     public CrmChatToolFactory(
         ICrmCustomerQueryService customerQuery,
+        ICrmLeadQueryService leadQuery,
         IFieldSecurityService fieldSecurity)
     {
         _customerQuery = customerQuery;
+        _leadQuery = leadQuery;
         _fieldSecurity = fieldSecurity;
     }
 
@@ -62,6 +65,31 @@ public sealed class CrmChatToolFactory
                 },
                 name: "crm_search_customers",
                 description: "只读搜索当前登录用户有权访问的 CRM 客户。按客户名称、法定名称或网站关键词搜索；遵守当前用户的数据范围和字段脱敏规则。不得尝试读取其他租户或指定 Owner。")
+            AIFunctionFactory.Create(
+                async ([Description("要搜索的线索公司名称、联系人或邮箱关键词；不得填写租户或用户身份信息。")] string keyword) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (string.IsNullOrWhiteSpace(keyword))
+                    {
+                        throw new ArgumentException("线索搜索关键词不能为空。", nameof(keyword));
+                    }
+
+                    keyword = keyword.Trim();
+                    if (keyword.Length > 200)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(keyword), "线索搜索关键词不能超过 200 个字符。");
+                    }
+
+                    var page = await _leadQuery.GetPageAsync(
+                        new CrmLeadPageQueryDto { Keyword = keyword },
+                        cancellationToken);
+
+                    // Lead results also bypass the HTTP response filter on this internal Tool path.
+                    await _fieldSecurity.MaskAsync(page, cancellationToken);
+                    return page.Items.ToList();
+                },
+                name: "crm_search_leads",
+                description: "只读搜索当前登录用户有权访问的 CRM 线索。按公司名称、联系人或邮箱关键词搜索；遵守当前用户的数据范围和字段脱敏规则。不得尝试读取其他租户或指定 Owner。")
         ];
     }
 }
