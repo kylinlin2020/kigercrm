@@ -17,7 +17,7 @@ public sealed class CrmChatToolFactoryTests
     [Fact]
     public async Task SearchCustomers_ShouldRejectBlankKeywordBeforeResolvingCrmServices()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var function = GetFunction(factory, "crm_search_customers");
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -29,7 +29,7 @@ public sealed class CrmChatToolFactoryTests
     [Fact]
     public async Task SearchCustomers_ShouldRejectKeywordLongerThan200Characters()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var function = GetFunction(factory, "crm_search_customers");
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
@@ -43,7 +43,7 @@ public sealed class CrmChatToolFactoryTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var function = GetFunction(factory, "crm_search_customers");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
@@ -55,7 +55,7 @@ public sealed class CrmChatToolFactoryTests
     {
         var query = new RecordingCustomerQuery();
         var fieldSecurity = new RecordingFieldSecurity();
-        var factory = new CrmChatToolFactory(query, null!, null!, fieldSecurity);
+        var factory = new CrmChatToolFactory(query, null!, null!, fieldSecurity, new RecordingPermissionGuard());
         var function = GetFunction(factory, "crm_search_customers");
 
         _ = await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "  Acme  " });
@@ -68,7 +68,7 @@ public sealed class CrmChatToolFactoryTests
     [Fact]
     public async Task SearchLeads_ShouldRejectBlankKeywordBeforeResolvingCrmServices()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var function = GetFunction(factory, "crm_search_leads");
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
@@ -80,7 +80,7 @@ public sealed class CrmChatToolFactoryTests
     [Fact]
     public async Task SearchLeads_ShouldRejectKeywordLongerThan200Characters()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var function = GetFunction(factory, "crm_search_leads");
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
@@ -94,7 +94,7 @@ public sealed class CrmChatToolFactoryTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var function = GetFunction(factory, "crm_search_leads");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
@@ -106,7 +106,7 @@ public sealed class CrmChatToolFactoryTests
     {
         var query = new RecordingLeadQuery();
         var fieldSecurity = new RecordingFieldSecurity();
-        var factory = new CrmChatToolFactory(null!, query, null!, fieldSecurity);
+        var factory = new CrmChatToolFactory(null!, query, null!, fieldSecurity, new RecordingPermissionGuard());
         var function = GetFunction(factory, "crm_search_leads");
 
         _ = await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "  Acme  " });
@@ -119,7 +119,7 @@ public sealed class CrmChatToolFactoryTests
     [Fact]
     public async Task ProspectingTools_ShouldRejectInvalidIdsBeforeResolvingProspectingService()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var runs = GetFunction(factory, "crm_prospecting_list_runs");
         var candidates = GetFunction(factory, "crm_prospecting_list_candidates");
 
@@ -132,7 +132,7 @@ public sealed class CrmChatToolFactoryTests
     [Fact]
     public async Task ProspectingReview_ShouldRejectInvalidCandidateIdBeforeResolvingProspectingService()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var review = GetFunction(factory, "crm_prospecting_get_candidate_review");
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
@@ -144,7 +144,7 @@ public sealed class CrmChatToolFactoryTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var review = Assert.IsAssignableFrom<AIFunction>(
             Assert.Single(factory.CreateTools(cancellation.Token), tool =>
                 string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, "crm_prospecting_get_candidate_review", StringComparison.Ordinal)));
@@ -158,7 +158,7 @@ public sealed class CrmChatToolFactoryTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
         var campaigns = Assert.IsAssignableFrom<AIFunction>(
             Assert.Single(factory.CreateTools(cancellation.Token), tool =>
                 string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, "crm_prospecting_list_campaigns", StringComparison.Ordinal)));
@@ -200,6 +200,18 @@ public sealed class CrmChatToolFactoryTests
 
         public Task<CrmLeadDetailDto?> GetDetailAsync(long id, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class RecordingPermissionGuard : IOperationPermissionGuard
+    {
+        public List<string> GrantedPermissions { get; } = [];
+
+        public Task EnsureGrantedAsync(string permissionCode, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            GrantedPermissions.Add(permissionCode);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingFieldSecurity : IFieldSecurityService
