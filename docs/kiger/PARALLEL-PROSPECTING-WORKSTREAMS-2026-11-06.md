@@ -218,3 +218,13 @@ At the time this plan is added:
 - Added tests for the backoff sequence, maximum attempt saturation, provider hint handling, timestamp clamping, and negative attempt rejection.
 - Commits: `3bb184a919aa90443cf3415f2749720c37fa3796` (policy), `dfa0104426d892d1f030605d12754a3dbee728ea` (tests).
 - This policy is not yet wired into a hosted consumer or persisted poll transition. Tests are added but not executed in this environment; Windows/.NET build and PostgreSQL acceptance remain pending.
+
+
+### Fail-closed provider poll-state mapping
+- Added `CrmProspectingExtractionPollPolicy` to translate remote provider states into local extraction lifecycle decisions.
+- Pending/Running always receive a bounded next-poll timestamp through the shared backoff policy. Succeeded/Failed/Expired/Cancelled/NeedsReview are terminal decisions with no further poll scheduled.
+- Unknown numeric enum values fail closed to NeedsReview; they can never be interpreted as Succeeded.
+- Provider failure codes are reduced to a bounded lowercase token and provider-supplied failure summaries are not echoed into the persisted safe summary.
+- Added tests for every known state, unknown status, bounded retry timestamps, terminal success, failure-code normalization, and invalid attempt counts.
+- Commits: `fc329d230cd610d24e3f9c9e672529d93d099538` (policy), `ffad2ed67ee443ddd23544ccf163288e23d5d789` (tests).
+- This is a pure domain decision layer and is not yet connected to the repository transition/lease operations or a hosted consumer. Tests are added but not executed in this environment.
