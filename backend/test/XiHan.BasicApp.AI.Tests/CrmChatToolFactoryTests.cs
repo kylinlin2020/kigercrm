@@ -55,12 +55,14 @@ public sealed class CrmChatToolFactoryTests
     {
         var query = new RecordingCustomerQuery();
         var fieldSecurity = new RecordingFieldSecurity();
-        var factory = new CrmChatToolFactory(query, null!, null!, fieldSecurity, new RecordingPermissionGuard());
+        var permissionGuard = new RecordingPermissionGuard();
+        var factory = new CrmChatToolFactory(query, null!, null!, fieldSecurity, permissionGuard);
         var function = GetFunction(factory, "crm_search_customers");
 
         _ = await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "  Acme  " });
 
         Assert.Equal("Acme", query.LastInput?.Keyword);
+        Assert.Equal([XiHan.BasicApp.Crm.Domain.Permissions.CrmPermissionCodes.Read], permissionGuard.GrantedPermissions);
         Assert.True(fieldSecurity.MaskCalled);
         Assert.NotNull(fieldSecurity.MaskedResponse);
     }
@@ -106,12 +108,14 @@ public sealed class CrmChatToolFactoryTests
     {
         var query = new RecordingLeadQuery();
         var fieldSecurity = new RecordingFieldSecurity();
-        var factory = new CrmChatToolFactory(null!, query, null!, fieldSecurity, new RecordingPermissionGuard());
+        var permissionGuard = new RecordingPermissionGuard();
+        var factory = new CrmChatToolFactory(null!, query, null!, fieldSecurity, permissionGuard);
         var function = GetFunction(factory, "crm_search_leads");
 
         _ = await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "  Acme  " });
 
         Assert.Equal("Acme", query.LastInput?.Keyword);
+        Assert.Equal([XiHan.BasicApp.Crm.Domain.Permissions.CrmPermissionCodes.Read], permissionGuard.GrantedPermissions);
         Assert.True(fieldSecurity.MaskCalled);
         Assert.NotNull(fieldSecurity.MaskedResponse);
     }
