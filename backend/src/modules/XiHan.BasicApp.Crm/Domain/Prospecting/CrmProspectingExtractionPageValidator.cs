@@ -151,6 +151,7 @@ public static class CrmProspectingExtractionPageValidator
         string? currentCursor)
     {
         if (!TryValidate(page, out _)) return false;
+        if (!CrmProspectingExtractionCursorValidator.IsValid(currentCursor)) return false;
         if (page.IsLastPage)
             return page.IsComplete;
         return !string.IsNullOrWhiteSpace(page.NextCursor)
