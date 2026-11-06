@@ -27,6 +27,8 @@ Reference: https://framework.docs.xihanfun.com/packages/uow
 
 The Lead source-wiring regression test was also aligned with the explicit `[UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]` declaration so it no longer searches for the superseded `[UnitOfWork(true)]` form.
 
+The Candidate conversion source-wiring test now also guards the losing-claim path: it must reload the candidate after a failed conditional claim, return the committed Lead when the candidate is already Converted, and validate the referenced Lead's Prospecting source, source reference, and campaign owner.
+
 The manual two-session SQL procedure in `CRM-CONVERSION-CONCURRENCY-POSTGRES.md` validates PostgreSQL conditional-update behavior only. It does not prove that the application service, DI interception, repositories, and SqlSugar transaction enlistment share the same runtime unit of work.
 
 Add provider-backed tests that execute the real application service through the same DI registration/proxy path used by the API. Use PostgreSQL and two independent service scopes/connections.
