@@ -49,16 +49,12 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             SubmittedAtUtc = null, NextPollAtUtc = nextAttemptAtUtc, PollAttemptCount = 0,
             ResultRecordCount = 0, FencingVersion = 0
         };
-        try { await AddAsync(entity); return entity; }
-        catch (SqlSugarException)
-        {
-            var raced = await CreateQueryable()
-                .Where(row => row.TenantId == tenant.TenantId && row.RunId == runId
-                    && row.ProviderCode == providerCode && row.RequestFingerprint == fingerprint)
-                .Take(2).ToListAsync(cancellationToken);
-            if (raced.Count == 1) return raced[0];
-            throw;
-        }
+        // The tenant/run/provider/fingerprint unique index is the concurrency boundary.
+        // Do not catch a failed insert and query through the same ambient PostgreSQL transaction:
+        // after a unique violation PostgreSQL marks that transaction aborted. A caller that needs
+        // winner reconciliation must do it after this UnitOfWork has rolled back/disposed.
+        await AddAsync(entity);
+        return entity;
     }
 
     public async Task<bool> TryAcknowledgeSubmissionAsync(
