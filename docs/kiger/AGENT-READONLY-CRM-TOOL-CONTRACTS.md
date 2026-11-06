@@ -402,3 +402,8 @@
 每个工具都使用拒绝型 `IOperationPermissionGuard`，断言委托在底层查询服务被访问前抛出拒绝，并核对请求的权限码是 `CrmPermissionCodes.Read`。因此即使后续有人新增工具或调整委托，也能通过测试及时发现 Read 守卫缺失/权限码错误。
 
 该测试仍属于工厂委托级单元测试，不等同于真实 API Host 的认证、租户切换、授权快照和 Owner Data Scope 集成测试；这些运行时边界继续列为后续验收项。
+
+
+## 19. Prospecting 工具取消传播回归
+
+取消令牌测试扩展到五个 Prospecting Chat 工具（Campaign、Strategy、Run、Candidate 列表、Candidate 审核摘要）。在创建工具时传入已取消令牌，逐个调用委托，断言立即抛出 `OperationCanceledException`，并断言权限守卫没有被调用。该回归确保取消请求不会继续触发权限读取或 CRM 数据查询。
