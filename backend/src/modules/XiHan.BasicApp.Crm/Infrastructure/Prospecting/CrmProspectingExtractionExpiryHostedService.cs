@@ -54,6 +54,11 @@ public sealed class CrmProspectingExtractionExpiryHostedService
         return [];
     }
 
+    protected override Task ProcessItemAsync(
+        IBackgroundTaskItem item,
+        CancellationToken cancellationToken)
+        => Task.CompletedTask;
+
     private static IDynamicServiceConfig BuildConfig(IOptions<XiHanBackgroundServiceOptions> options)
     {
         var config = new DynamicServiceConfig(options);
