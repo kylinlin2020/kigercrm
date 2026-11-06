@@ -140,10 +140,10 @@ After each rollback case, remove the injected failure and retry conversion. Asse
 
 The current `CrmQuoteOptimisticConcurrencySqliteIntegrationTests` only proves repository-level stale `Row_Version` writes are rejected. It does not prove service interception, PostgreSQL unique-index behavior, transaction enlistment, rollback, or the race above. All cases in this section remain **not implemented / not executed** until a provider-backed application test fixture exists and its CI run passes.
 
-### Test-host wiring prerequisite discovered during repository inspection
+### Test-host wiring prerequisite and groundwork
 
-The current `XiHan.BasicApp.Api.Tests.csproj` references CRM and other module projects, but does not directly reference `XiHan.BasicApp.WebHost`. The existing PostgreSQL conversion tests construct repositories with standalone SqlSugar clients; they do not bootstrap the API host or its dynamic-proxy UnitOfWork interception.
+The API test project has now been given a direct project reference to `XiHan.BasicApp.WebHost` plus `Microsoft.AspNetCore.App`. This makes the production root module and ASP.NET Core host assemblies available to future application-level integration tests. The WebHost already declares the CRM module in its real `[DependsOn]` graph.
 
-Therefore, a genuine quote application-service test cannot be obtained by merely adding another repository fixture or manually constructing `CrmQuoteAppService`. Before implementing the application-level race/rollback suite, add or reuse a supported test-host bootstrap that loads the production WebHost service registrations and interception pipeline, while allowing two independent request scopes to use separate PostgreSQL connections. If the WebHost cannot safely be referenced from this test assembly, create a dedicated integration-test host project rather than weakening the test to a direct service invocation.
+This is only compile-time wiring groundwork. Existing PostgreSQL conversion tests still construct repositories with standalone SqlSugar clients; they do not bootstrap the API host or its dynamic-proxy UnitOfWork interception. A genuine quote application-service test still needs a supported host bootstrap that loads production WebHost service registrations and interception while allowing two independent request scopes to use separate PostgreSQL connections. Do not manually instantiate `CrmQuoteAppService` and treat that as equivalent.
 
-This is a source/project-structure finding from the current test project file; it is not evidence that application-level tests have run.
+The project reference change has not yet been restored or built, so dependency-graph compatibility remains unverified. This is not evidence that application-level tests have run.
