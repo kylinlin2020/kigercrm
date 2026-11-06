@@ -110,6 +110,19 @@ public sealed partial class FieldSecurityEntityWiringTests
         Assert.True(withoutDto.Count == 0, $"以下实体没有经映射器生成的 DTO，响应里认不出它们：{string.Join("、", withoutDto)}");
     }
 
+    [Fact]
+    public void ProspectingCandidateDto_ShouldBeDiscoverableByFieldSecurityCatalog()
+    {
+        var mappings = new FieldSecurityDtoCatalog(Options.Create(BuildOptions())).Mappings;
+
+        Assert.Equal(
+            typeof(XiHan.BasicApp.Crm.Domain.Entities.SysCrmProspectingCandidate),
+            mappings[typeof(XiHan.BasicApp.Crm.Application.Dtos.CrmProspectingCandidateDto)]);
+        Assert.Contains(
+            typeof(XiHan.BasicApp.Crm.Application.Mappers.CrmProspectingMapper).GetMethods(BindingFlags.Public | BindingFlags.Static),
+            method => method.Name == nameof(XiHan.BasicApp.Crm.Application.Mappers.CrmProspectingMapper.ToCandidateDto));
+    }
+
     /// <summary>
     /// 映射器把实体字段改名映射进 DTO 时（如 UserSessionId → SessionId），DTO 属性必须声明来源，否则按名字打不到码。
     /// </summary>
