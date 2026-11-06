@@ -917,3 +917,12 @@ This section defines the next worker implementation boundary. The expiry hosted 
 - `NeedsReview`, all terminal states, and unknown local enum values select no automatic action. Invalid live states return stable block reason codes.
 - This is a pure policy, not a worker: it performs no I/O, does not acquire a lease, and does not replace fenced repository writes. The future consumer must call it only after tenant-scoped claim and must retain the exact lease/fencing identity through every write.
 - Added tests for each action, missing/mismatched identity guards, manual-review/terminal no-op behavior, and unknown numeric state fail-closed behavior. Tests have not been executed because the current tool environment has no .NET SDK.
+
+## 11.61 Poll responses are validated against the persisted local lifecycle (2026-11-06)
+
+- Added `EvaluateForCurrentState` so a consumer evaluates each remote poll response together with the local state it actually claimed.
+- A provider response that regresses a job from local Running to remote Pending is converted to NeedsReview with `provider_status_regression`; it is not sent to `TryTransitionAsync` as an illegal transition.
+- Poll evaluation is accepted only for local Pending or Running jobs. Calling it for Submitting, Succeeded, FetchingResults, NeedsReview or terminal states fails closed to NeedsReview with `invalid_local_poll_state`.
+- Pending → Running and same-state Pending/Running polling remain valid. Terminal provider outcomes continue through the existing state-machine transition validation.
+- Added regression tests for Running → Pending, Pending → Running, and a non-pollable local state. These tests have not been executed in this environment.
+- Consumer requirement: use the claimed persisted status, not a status reconstructed from provider metadata, and retain the exact lease/fencing token when persisting the resulting decision.
