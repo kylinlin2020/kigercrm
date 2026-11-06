@@ -129,9 +129,9 @@ public sealed class AiServiceRegistrationTests
         Assert.Equal("crm_search_customers", name);
         Assert.NotNull(schema);
         var schemaText = schema!.ToString();
-        Assert.Contains("keyword", schemaText, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("tenantId", schemaText, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("ownerUserId", schemaText, StringComparison.OrdinalIgnoreCase);
+        Assert.True(schemaText.Contains("keyword", StringComparison.OrdinalIgnoreCase));
+        Assert.False(schemaText.Contains("tenantId", StringComparison.OrdinalIgnoreCase));
+        Assert.False(schemaText.Contains("ownerUserId", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
