@@ -148,3 +148,12 @@ At the time this plan is added:
 - Commits: `99045e641e006b7b38a41fe8f9df9fb85341b93f`, `e9b10b374e670ab21b76c276a93e99d42d0eccc7`, `cc62fbf9dfada8a8633e63afa71f7378afaff5be`.
 
 **Validation boundary:** these are domain foundations and test source, not completed end-to-end Super Search or Deep Mining workflows. They are not yet exposed through application APIs/UI, persisted as missions/graphs, or connected to the Run/website-probe pipeline. No .NET build/test has been executed in this environment.
+
+
+### Website Discovery candidate-policy foundation
+- Added `CrmProspectingWebsiteDiscoveryPolicy` to validate HTTPS URL shape, default port, userinfo/query/fragment rejection, hostname syntax, IP-literal/local/internal hosts, and non-corporate social/directory platforms.
+- Candidate match classes distinguish registry name matches, search title/host matches, map matches and manual candidates. Every accepted candidate remains review-only; the policy never sets an official website.
+- Added tests for positive-but-unverified candidates, registry/manual review boundaries, unsafe URL forms, localhost/private/IP literals (IPv4 and IPv6), social platforms, weak matches and control characters.
+- Commits: `e61e345f197659671b4cab38d64638ced3c40496`, `a637fa198b5d3e9652b6a235fb4c7603d3b93b63`, `14a1bf34762fc758d3ca4fe9b64d2c59ed97a6a9`, `1b612f39cde13c8df76784e4d373525bab21833c`, `66751e95f4fd84fa0cf7075cbc5368d8ff484e0d`, `2b3460bbc8e309d1ddad1e0680fc25173d917d57`.
+
+**Validation boundary:** this is URL/candidate intake policy only. It does not fetch pages, resolve DNS, validate redirects, persist website evidence, or expose an application API/UI. Callers must use the existing DNS/IP-pinned HTTP transport before network access. No .NET build/test has been executed.
