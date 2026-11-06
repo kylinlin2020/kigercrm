@@ -45,7 +45,7 @@ public sealed class CrmLeadAppService(ICrmLeadDomainService domainService, ICrmL
         return CrmLeadMapper.ToDetailDto(entity);
     }
 
-    [UnitOfWork(true)]
+    [UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public async Task<CrmLeadDetailDto> ConvertAsync(long id, CancellationToken cancellationToken = default)
     {
