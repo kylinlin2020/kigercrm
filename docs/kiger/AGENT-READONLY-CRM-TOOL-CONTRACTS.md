@@ -124,3 +124,53 @@
 3. 若 4.8.0 已有等价 Operation 管道，优先按旧版真实 API 注册只读 CRM Operation；若没有，则先在 BasicApp 内补齐经审查的受控调用桥接与集成测试，再接入模型工具目录。
 4. 第一批工具只读；返回结果必须在序列化前显式执行字段脱敏。授权上下文只能继承已认证调用方，禁止模型传入租户、用户或 Owner 身份字段。
 5. 在完成 4.8.0 版本匹配验证之前，不宣称已经实现 Agent CRM Tools，也不将上游 5.0 代码视为当前项目可用能力。
+
+
+## 9. Framework v4.8.0 精确版本源码核验（已解除版本猜测）
+
+本轮通过上游 v4.8.0 发布提交 `f15bf18` 读取了与本项目 NuGet 4.8.0 对应的源码，不再以当前 main / Preview 5.0 推断旧版行为。
+
+核验文件：
+
+- `framework/src/XiHan.Framework.AI.Abstractions/Skills/IAiSkill.cs`
+- `framework/src/XiHan.Framework.AI.Abstractions/Skills/IAiSkillRegistry.cs`
+- `framework/src/XiHan.Framework.AI/Skills/DefaultAiSkillRegistry.cs`
+- `framework/src/XiHan.Framework.AI/Mcp/SkillMcpToolsConfigurator.cs`
+- `framework/test/XiHan.Framework.AI.Tests/SkillMcpToolsConfiguratorTests.cs`
+- `framework/test/XiHan.Framework.Web.Mcp.Tests/Extensions/McpSkillProjectionTests.cs`
+- `framework/test/XiHan.Framework.Web.Mcp.Tests/Extensions/McpDuplicateToolNameTests.cs`
+
+### 9.1 v4.8.0 已确认事实
+
+- `IAiSkill` 仅暴露 `Name`、`Description`、`AsFunction()`；没有 `InvocationContext`、调用者参数或请求 Scope 参数。
+- `IAiSkillRegistry` 只负责注册、枚举和按名查找；`DefaultAiSkillRegistry` 在构造时收纳 DI 中的 `IAiSkill`，使用线程安全字典，同名覆盖。
+- `SkillMcpToolsConfigurator` 遍历注册表，对每个 Skill 执行 `AsFunction()`，再调用 `McpServerTool.Create()` 加入 MCP ToolCollection。工具集合已存在同名工具时启动配置失败并指出冲突双方。
+- Framework v4.8.0 的测试确认已注册 Skill 可通过 MCP `tools/list` 暴露，也可经 `tools/call` 执行；这证明 MCP 通道直接使用 Skill 的 AIFunction，不是 CRM AppService Operation 的自动代理。
+- 以上源码没有显示 Skill→MCP 投影过程为每次调用自动创建 CRM DI Scope，也没有显示它会自动复制 CRM 当前用户/租户安全上下文。不能把 v5 Preview 的 `OperationAIFunction` 调用管道套用到 v4.8.0 Skill。
+
+### 9.2 对本项目的直接影响
+
+当前 `KnowledgeRetrieveSkill` 采用 Singleton 注册，`AsFunction()` 是在 Skill 实例上生成的函数。若按相同模式实现 CRM 查询 Skill，并在构造时注入 Scoped CRM 服务，会产生 Singleton 捕获 Scoped 依赖的生命周期问题；若直接用 Repository 查询，则会绕过 CRM AppService 的授权和 Data Scope。
+
+此外，MCP 工具调用并不等同于用户登录的 CRM HTTP 请求。即使 MCP Server 自身配置了 API Key，也不能据此推断 MCP 调用已经绑定某个 CRM TenantId、CurrentUserId、Owner Scope 或字段安全策略。必须核实 MCP 认证如何映射到 CRM 主体，不能把外部客户端身份当作 CRM 用户身份。
+
+### 9.3 当前可接受的实施边界
+
+- 不新增任何持有 Scoped CRM 服务的 Singleton Skill。
+- 不在 Skill 中直接访问 Repository / DbContext。
+- 不接受模型提供 TenantId、UserId、OwnerUserId 或权限参数。
+- 不把 MCP API Key 本身映射成 CRM 用户身份，除非存在显式、可审计且可撤销的服务身份映射与权限策略。
+- 继续保留当前 KnowledgeRetrieveSkill 只负责知识检索的边界。
+- 第一批 CRM Agent 工具应通过独立的认证/授权上下文适配层，创建每次调用独立的 DI Scope，并在调用 CRM AppService 的授权代理前建立可信的主体上下文；结果在返回模型前显式 Mask。
+- 若 v4.8.0 MCP 请求上下文无法安全承载 CRM 主体，则首批工具先只在已登录 CRM Chat 请求内启用，不对外部 MCP 暴露；MCP 暴露另行完成身份绑定设计与集成测试。
+
+### 9.4 下一步实现前必须验证的测试
+
+1. Skill 单例实例被并发调用时，每次执行创建独立 Scope / DbContext / UnitOfWork。
+2. 已登录 CRM 用户发起 Chat Tool Call 时，调用者 TenantId / UserId 能可信传入 CRM AppService 授权代理。
+3. MCP API Key 调用在没有显式 CRM 主体绑定时默认拒绝 CRM 数据工具，而不是使用系统管理员、匿名或默认租户身份。
+4. 两个租户、两个用户并发调用时，数据范围与字段 Mask 互不串用。
+5. 越权记录读取不泄露记录存在性；受保护字段不会进入模型上下文。
+6. Tool 参数不能指定 TenantId、UserId、OwnerUserId；工具目录不暴露写入接口。
+
+本轮为精确版本源码审计与安全边界更新，尚未实现 CRM Agent Tool 代码；没有宣称工具已上线。
