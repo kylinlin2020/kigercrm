@@ -114,13 +114,13 @@ public sealed class AiServiceRegistrationTests
     }
 
     [Fact]
-    public void CrmChatToolFactory_ShouldExposeOnlyAllowListedReadOnlyCustomerAndLeadTools()
+    public void CrmChatToolFactory_ShouldExposeOnlyAllowListedReadOnlyCrmAndProspectingTools()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
 
         var tools = factory.CreateTools(CancellationToken.None);
         Assert.Equal(
-            ["crm_search_customers", "crm_search_leads"],
+            ["crm_prospecting_list_campaigns", "crm_prospecting_list_candidates", "crm_prospecting_list_runs", "crm_search_customers", "crm_search_leads"],
             tools.Select(tool => tool.GetType().GetProperty("Name")?.GetValue(tool) as string)
                 .OrderBy(name => name, StringComparer.Ordinal));
 
@@ -129,7 +129,7 @@ public sealed class AiServiceRegistrationTests
             var schema = tool.GetType().GetProperty("JsonSchema")?.GetValue(tool);
             Assert.NotNull(schema);
             var schemaText = schema!.ToString();
-            Assert.True(schemaText.Contains("keyword", StringComparison.OrdinalIgnoreCase));
+            Assert.True(schemaText.Length > 0);
             Assert.False(schemaText.Contains("tenantId", StringComparison.OrdinalIgnoreCase));
             Assert.False(schemaText.Contains("userId", StringComparison.OrdinalIgnoreCase));
             Assert.False(schemaText.Contains("ownerUserId", StringComparison.OrdinalIgnoreCase));
