@@ -77,6 +77,10 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         Assert.Contains("customers.GetByIdAsync(lead.ConvertedCustomerId.Value", retryPath, StringComparison.Ordinal);
         Assert.Contains("lead.ConvertedContactId is > 0", retryPath, StringComparison.Ordinal);
         Assert.Contains("contacts.GetByIdAsync(lead.ConvertedContactId.Value", retryPath, StringComparison.Ordinal);
+        Assert.Contains("convertedCustomer.ConvertedLeadId != lead.BasicId", retryPath, StringComparison.Ordinal);
+        Assert.Contains("convertedContact.CustomerId != convertedCustomer.BasicId", retryPath, StringComparison.Ordinal);
+        Assert.Contains("Converted customer does not reference this Lead.", retryPath, StringComparison.Ordinal);
+        Assert.Contains("Converted contact does not belong to the converted customer.", retryPath, StringComparison.Ordinal);
         Assert.Contains("return lead;", retryPath, StringComparison.Ordinal);
         Assert.DoesNotContain("customers.AddAsync", retryPath, StringComparison.Ordinal);
         Assert.DoesNotContain("contacts.AddAsync", retryPath, StringComparison.Ordinal);
