@@ -203,3 +203,10 @@ At the time this plan is added:
 - The guard also asserts the lookup is scoped by tenant, Run, provider and canonical request fingerprint.
 - Commit: \`3fa4889a1f3c657e558224ab648f2531382b07a4\`.
 - Test source added; not executed here. This does not replace the missing async extraction consumer or immutable request snapshot.
+
+### Extraction finalization cursor validation consistency
+- A further persistence-boundary audit found that page cursor advancement used the shared cursor validator, but the two final-page close paths (TryFailIncompleteResultsAsync and TryCompleteResultsAsync) still used older inline checks that allowed whitespace-only cursors.
+- Both finalization methods now reuse CrmProspectingExtractionCursorValidator.IsValid, so initial/final null cursors remain valid while blank, oversized, and control-bearing non-null cursors are rejected consistently across advancement and completion.
+- Added a source contract test covering both finalization paths.
+- Commits: cc718082 (repository fix), 22c6a621 (contract test).
+- Test source is not executed in this environment; this is a boundary-hardening fix, not completion of the async consumer.
