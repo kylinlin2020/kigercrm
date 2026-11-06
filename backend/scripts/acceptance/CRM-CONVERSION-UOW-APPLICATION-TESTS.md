@@ -68,7 +68,7 @@ The backend CI workflow now provisions PostgreSQL 17 and supplies `KIGER_TEST_PO
 
 ## Implemented PostgreSQL repository-level CI coverage
 
-`backend/test/XiHan.BasicApp.Api.Tests/CrmConversionClaimPostgresIntegrationTests.cs` now runs two independent SqlSugar clients against the same PostgreSQL database and races the real `CrmLeadRepository.TryClaimForConversionAsync` and `CrmProspectingCandidateRepository.TryClaimForConversionAsync` methods. Each race asserts exactly one conditional claim succeeds and the persisted status is `Converting`.
+`backend/test/XiHan.BasicApp.Api.Tests/CrmConversionClaimPostgresIntegrationTests.cs` now runs two independent SqlSugar clients against the same PostgreSQL database. It covers four repository-level cases: Lead claim race, Candidate claim race, cross-tenant Lead claim/read denial, and cross-tenant Candidate claim/read denial. Each race asserts exactly one conditional claim succeeds and the persisted status is `Converting`; each cross-tenant case asserts the other tenant cannot read or claim the record and the owner tenant's original status remains unchanged.
 
 The backend CI job provisions PostgreSQL 17 and supplies `KIGER_TEST_POSTGRES_CONNECTION_STRING`; the tests are conditionally skipped when that variable is absent in a local environment.
 
