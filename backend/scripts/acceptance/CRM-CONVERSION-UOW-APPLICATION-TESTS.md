@@ -58,7 +58,7 @@ Add provider-backed tests that execute the real application service through the 
 
 ## CI and release gate
 
-The current repository CI workflow runs the .NET solution restore/build/test but has no PostgreSQL service container. Add a PostgreSQL-backed CI job only when a deterministic fixture and migration bootstrap are available. Until then:
+The backend CI workflow now provisions PostgreSQL 17 and supplies `KIGER_TEST_POSTGRES_CONNECTION_STRING` to the repository-level integration tests. The workflow is configured to run solution restore/build/test, but repository inspection currently shows no GitHub Actions runs for branch `kiger-dev`; therefore no CI execution result has been observed. Until a run completes successfully:
 
 - keep the existing source-contract tests classified as static checks;
 - keep the manual SQL acceptance procedure classified as database-semantic/manual verification;
