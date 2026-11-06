@@ -7,6 +7,7 @@ using XiHan.BasicApp.AI.Domain.DomainServices;
 using XiHan.BasicApp.AI.Domain.DomainServices.Implementations;
 using XiHan.BasicApp.AI.Extensions;
 using XiHan.BasicApp.AI.Infrastructure.Configuration;
+using XiHan.BasicApp.AI.Application.Tools;
 using XiHan.BasicApp.AI.Infrastructure.Security;
 using XiHan.BasicApp.AI.Infrastructure.Seeders;
 using XiHan.BasicApp.AI.Infrastructure.Skills;
@@ -116,6 +117,32 @@ public sealed class AiServiceRegistrationTests
     /// 权限目录与菜单两个种子器都必须登记到 <see cref="IDataSeeder"/> 上，漏登记的种子器永远不会执行。
     /// </summary>
     [Fact]
+    [Fact]
+    public void AddAISkills_ShouldRegisterCrmChatToolFactoryAsScoped()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddAISkills();
+
+        var descriptor = Assert.Single(services, item => item.ServiceType == typeof(CrmChatToolFactory));
+        Assert.Equal(typeof(CrmChatToolFactory), descriptor.ImplementationType);
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+    }
+
+    /// <summary>
+    /// AI 模块必须依赖 CRM 模块，才能解析请求级 CRM 查询工具所需的应用服务。
+    /// </summary>
+    [Fact]
+    public void Module_ShouldDependOnCrmModule()
+    {
+        var dependsOn = typeof(XiHanBasicAppAIModule)
+            .GetCustomAttributes(typeof(XiHan.Framework.Core.Modularity.DependsOnAttribute), inherit: false)
+            .Cast<XiHan.Framework.Core.Modularity.DependsOnAttribute>()
+            .SelectMany(attribute => attribute.GetDependedTypes())
+            .ToList();
+
+        Assert.Contains(typeof(XiHan.BasicApp.Crm.XiHanBasicAppCrmModule), dependsOn);
+    }
+
     public void AddDataSeeders_ShouldRegisterEverySeederInTheModule()
     {
         var services = new ServiceCollection();
