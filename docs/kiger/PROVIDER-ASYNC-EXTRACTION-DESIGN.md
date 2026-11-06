@@ -705,3 +705,36 @@ The atomic provider-batch method no longer relies solely on its caller to verify
 This closes a boundary gap for future worker callers: a correct database hash cannot be paired with an arbitrary, unrelated candidate payload. Added a source-contract regression test for byte count, digest, record count, and membership validation.
 
 The synchronous Run worker is still not integrated with the atomic method. Coverage recovery, same-connection PostgreSQL transaction proof, fault-injection tests, and runtime compilation/testing remain outstanding.
+
+## 11.45 Synchronous Worker atomic-batch integration and coverage crash window (2026-11-06)
+
+### Verified current state
+
+The atomic provider-batch primitive exists in `CrmProspectingCandidatePersistenceService.PersistProviderBatchAndTransitionAsync`, but the synchronous `CrmProspectingRunHostedService` does not call it yet. The current Worker still:
+
+1. Accumulates provider records into one Run-wide `raw` collection.
+2. Performs Run-wide candidate/email/website/lead/cross-Run duplicate classification.
+3. Persists each new Candidate/Evidence/Score through `PersistNewAsync` (one transaction per candidate); repairs old candidates and performs optional GLEIF enrichment in separate fenced transactions.
+4. Transitions replayed provider executions from Checkpointed/Projecting to Succeeded/Failed after the Run-wide projection loop.
+5. Finalizes pending provider request attempts and advances coverage in a later operation.
+
+The batch primitive validates the persisted checkpoint and Candidate identity membership and writes Candidate/Evidence/Score plus the provider execution terminal state in one UnitOfWork. It does not currently finalize the matching provider request attempt or advance coverage. It also does not perform the Worker's Run-wide duplicate classification, legacy provenance repair orchestration, or GLEIF enrichment.
+
+### Confirmed crash-consistency gap
+
+The provider execution entity stores `RequestFingerprint` and checkpoint metadata, while the request ledger stores `RequestKey`, `AttemptNo`, response hash and timing. There is no durable request-attempt ID/attempt number link on the execution row, nor are response hash, result count and duration stored as a complete commit receipt on that row.
+
+Consequently, if a future Worker integration commits Candidate/Evidence/Score and marks the provider execution terminal, then crashes before `TryFinalizeSuccessWithCoverageAsync`, the next delivery can observe the execution as Succeeded and skip it while the request ledger remains Started. Startup stale-request recovery may later mark that attempt Failed. The data may be safely persisted, but coverage is not advanced and the ledger no longer represents the successful durable projection. This is a correctness gap, not merely a monitoring issue.
+
+### Required implementation sequence (do not bypass)
+
+1. **Provider-scoped preparation:** derive one projection batch from the exact verified checkpoint for one provider execution. Keep provider code attached to every envelope. Preserve the existing Run-wide duplicate semantics by preparing against a shared in-memory identity/email/website set and the existing-lead/cross-Run match results; do not independently classify each provider without considering earlier providers in the same Run.
+2. **Preserve repair and enrichment:** existing same-Run Candidates must still receive missing Evidence/initial Score repair without changing review/conversion state. Candidate unique-key race recovery must still read the winner and repair provenance. GLEIF identity lookup and its registry Evidence must remain post-Candidate and separately fenced; do not hold a large provider batch transaction open across external HTTP calls.
+3. **Durable attempt linkage:** persist an unambiguous link from provider execution to its Started request-ledger attempt (for example, attempt number plus provider/run identity, or a tenant-scoped request ID), and persist the bounded response receipt needed for replay/reconciliation: request key, result count, response hash, duration and completion timestamp. Do not infer the attempt from mutable in-memory lists or assume plan fingerprint equals request key.
+4. **Atomic commit or deterministic recovery:** either commit Candidate/Evidence/Score, execution terminal state and request-ledger success in one proven PostgreSQL transaction, with coverage advancement in that same transaction where feasible; or persist a durable projection receipt that lets recovery safely finalize the exact Started attempt and advance coverage exactly once after verifying the live Run fence and all success predicates. A successful execution with an unresolved ledger attempt must never be silently skipped.
+5. **Failure accounting:** distinguish provider-reported failures, invalid/oversized records, duplicate identities, missing company names, candidate persistence failures and incomplete provider pages. Define exactly which conditions disqualify coverage. Reconcile the batch method's `RawRecordCount - items.Count` failure inference with the Worker's current duplicate/repair semantics before enabling it.
+6. **Acceptance tests:** add PostgreSQL tests for crash after candidate/execution commit but before coverage finalization, duplicate recovery delivery, exact request-attempt linkage, coverage idempotency, rollback of Candidate/Evidence/Score/execution/ledger writes on a forced failure, and preservation of duplicate/repair/GLEIF behavior. Add a multi-provider Run test proving shared deduplication remains stable across provider batches.
+
+### Gate
+
+Do not switch the synchronous Worker from `PersistNewAsync` to the batch primitive until the durable attempt link and crash-recovery path are implemented and PostgreSQL transaction participation is proven for every repository involved. Until then, the current per-candidate path remains active and the atomic batch method is a foundation only. The asynchronous extraction worker is also still not wired into Run orchestration. Source inspection only was performed for this checkpoint; no .NET build, automated test, or PostgreSQL execution was run.
