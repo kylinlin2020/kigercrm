@@ -114,7 +114,7 @@ public sealed class CrmShipmentCreationWiringTests
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
         var cancellationStart = source.IndexOf("if (target == CrmShipmentStatus.Cancelled)", StringComparison.Ordinal);
         var dispatchStart = source.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", cancellationStart, StringComparison.Ordinal);
-        var deliveredStart = source.IndexOf("else\\n        {\\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
+        var deliveredStart = source.IndexOf("else\n        {\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
 
         Assert.True(cancellationStart >= 0);
         Assert.True(dispatchStart > cancellationStart);
@@ -129,6 +129,14 @@ public sealed class CrmShipmentCreationWiringTests
             < cancellation.IndexOf(parentScopeCheck, StringComparison.Ordinal));
         Assert.True(dispatch.IndexOf("GetByIdAsync(shipment.SalesOrderId", StringComparison.Ordinal)
             < dispatch.IndexOf(parentScopeCheck, StringComparison.Ordinal));
+        Assert.True(cancellation.IndexOf(parentScopeCheck, StringComparison.Ordinal)
+            < cancellation.IndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal));
+        Assert.True(dispatch.IndexOf(parentScopeCheck, StringComparison.Ordinal)
+            < dispatch.IndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal));
+        Assert.True(cancellation.IndexOf(parentScopeCheck, StringComparison.Ordinal)
+            < cancellation.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal));
+        Assert.True(dispatch.IndexOf(parentScopeCheck, StringComparison.Ordinal)
+            < dispatch.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal));
     }
 
     [Fact]
