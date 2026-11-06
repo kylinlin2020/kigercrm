@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using XiHan.BasicApp.AI.Domain.DomainServices;
 using XiHan.BasicApp.AI.Domain.DomainServices.Implementations;
 using XiHan.BasicApp.AI.Infrastructure.Configuration;
+using XiHan.BasicApp.AI.Application.Tools;
 using XiHan.BasicApp.AI.Infrastructure.Security;
 using XiHan.BasicApp.AI.Infrastructure.Seeders;
 using XiHan.BasicApp.AI.Infrastructure.Skills;
@@ -127,6 +128,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddAISkills(this IServiceCollection services)
     {
         services.AddSingleton<IAiSkill, KnowledgeRetrieveSkill>();
+        // CRM chat functions capture request-scoped query/security services; never register as singleton Skills.
+        services.AddScoped<CrmChatToolFactory>();
         return services;
     }
 
