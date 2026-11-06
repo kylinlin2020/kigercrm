@@ -259,6 +259,46 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("DocumentNumber = saved.ShipmentNumber", create, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ShipmentCancellation_ShouldReleaseReservationsWithoutChangingShippedQuantities()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var methodStart = source.IndexOf("public async Task<CrmShipmentDto> ChangeStatusAsync", StringComparison.Ordinal);
+        var method = source[methodStart..];
+        var cancelStart = method.IndexOf("if (target == CrmShipmentStatus.Cancelled)", StringComparison.Ordinal);
+        var dispatchStart = method.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", cancelStart, StringComparison.Ordinal);
+        Assert.True(cancelStart >= 0 && dispatchStart > cancelStart);
+        var cancellation = method[cancelStart..dispatchStart];
+
+        Assert.Contains("shipment.Status != CrmShipmentStatus.Draft", cancellation, StringComparison.Ordinal);
+        Assert.Contains("order.FulfillmentRevision++", cancellation, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ReservedQuantity < shipmentLine.Quantity", cancellation, StringComparison.Ordinal);
+        Assert.Contains("orderLine.ReservedQuantity -= shipmentLine.Quantity", cancellation, StringComparison.Ordinal);
+        Assert.DoesNotContain("orderLine.ShippedQuantity +=", cancellation, StringComparison.Ordinal);
+        Assert.DoesNotContain("orderLine.ShippedQuantity -=", cancellation, StringComparison.Ordinal);
+        Assert.True(cancellation.IndexOf("orders.UpdateAsync(order, cancellationToken)", StringComparison.Ordinal)
+            < cancellation.IndexOf("orderLines.UpdateAsync(orderLine, cancellationToken)", StringComparison.Ordinal),
+            "Cancellation must acquire the order aggregate lock before releasing line reservations.");
+    }
+
+    [Fact]
+    public void ShipmentDelivery_ShouldOnlyCompleteDispatchedShipmentAndSetDeliveryTimestamp()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmShipmentAppService.cs");
+        var methodStart = source.IndexOf("public async Task<CrmShipmentDto> ChangeStatusAsync", StringComparison.Ordinal);
+        var method = source[methodStart..];
+        var dispatchStart = method.IndexOf("else if (target == CrmShipmentStatus.Dispatched)", StringComparison.Ordinal);
+        var deliveryStart = method.IndexOf("else\\n        {\\n            if (shipment.Status != CrmShipmentStatus.Dispatched)", dispatchStart, StringComparison.Ordinal);
+        Assert.True(dispatchStart >= 0 && deliveryStart > dispatchStart);
+        var delivery = method[deliveryStart..];
+
+        Assert.Contains("shipment.Status != CrmShipmentStatus.Dispatched", delivery, StringComparison.Ordinal);
+        Assert.Contains("shipment.DeliveredDate ??= DateTime.UtcNow", delivery, StringComparison.Ordinal);
+        Assert.DoesNotContain("orderLine.ReservedQuantity", delivery, StringComparison.Ordinal);
+        Assert.DoesNotContain("orderLine.ShippedQuantity", delivery, StringComparison.Ordinal);
+        Assert.DoesNotContain("orders.UpdateAsync", delivery, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
