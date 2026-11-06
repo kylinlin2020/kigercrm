@@ -191,3 +191,9 @@ At the time this plan is added:
 - Added unit coverage for null, allowed punctuation, exact length boundary, blank, oversized and control-bearing cursors, plus a source contract asserting the repository calls the shared validator.
 - Commits: `ee396f902d9d76b75946580747b4d32b0e734559`, `e62269934e64111183dfd479a3d1c263d2dfa368`, `952f1303dec87ad2735fbf92cbf52fc2a01f3c8a`, `45feca879992c0b7617f93470b16b227d4b0999c`, `640938bf3d91cfc2999d02bd402d78275ff997fb`, `f29fcf1c05998d19db11832283a59081f0020c44`.
 - Tests have been added but not executed in this environment; Windows/.NET and PostgreSQL acceptance remains pending.
+
+### Async-provider fail-closed regression guard
+- Audited the async extraction execution boundary and confirmed the existing Run worker intentionally preflights the complete persisted provider plan before entering the provider execution loop. This prevents a mixed sync/async plan from invoking synchronous providers before discovering an unsupported async provider.
+- Found and corrected a stale source-wiring test assertion: the test expected an older exception message, while the worker already emitted the newer durable-orchestration wording. The test now asserts the current fail-closed message and verifies that async-provider detection occurs before the provider loop.
+- Commit: `53c11c1facfc5e5fd667d5e3cbb9686fa458cec4`.
+- This is a regression-test correction, not an async consumer implementation. Submit/Poll/Fetch/Project worker orchestration and parent Run continuation remain outstanding. Tests are not executed in this environment.
