@@ -25,6 +25,7 @@ public sealed class CrmProspectingHttpHandlerFactoryTests
     [InlineData("fe80::1")]
     [InlineData("2001:db8::1")]
     [InlineData("3fff::1")]
+    [InlineData("3fff:0fff::1")]
     [InlineData("::ffff:192.168.1.1")]
     public void IsPublicAddress_ShouldRejectNonPublicAndSpecialUseAddresses(string value)
     {
@@ -36,6 +37,7 @@ public sealed class CrmProspectingHttpHandlerFactoryTests
     [InlineData("8.8.8.8")]
     [InlineData("93.184.216.34")]
     [InlineData("2606:4700:4700::1111")]
+    [InlineData("3fff:1000::1")]
     public void IsPublicAddress_ShouldAcceptGlobalUnicastAddresses(string value)
     {
         Assert.True(CrmProspectingHttpHandlerFactory.IsPublicAddress(IPAddress.Parse(value)));
