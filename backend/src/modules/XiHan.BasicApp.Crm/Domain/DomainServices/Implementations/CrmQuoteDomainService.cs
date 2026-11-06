@@ -87,10 +87,11 @@ public sealed class CrmQuoteDomainService(
                 throw new InvalidOperationException("Contact must belong to the selected customer.");
         }
 
+        SysCrmOpportunity? opportunity = null;
         if (command.OpportunityId.HasValue)
         {
             if (command.OpportunityId.Value <= 0) throw new ArgumentOutOfRangeException(nameof(command.OpportunityId));
-            var opportunity = await opportunities.GetByIdAsync(command.OpportunityId.Value, cancellationToken)
+            opportunity = await opportunities.GetByIdAsync(command.OpportunityId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("Opportunity does not exist in the current tenant.");
             if (opportunity.CustomerId != customer.BasicId)
                 throw new InvalidOperationException("Opportunity must belong to the selected customer.");
@@ -112,6 +113,7 @@ public sealed class CrmQuoteDomainService(
             OpportunityId = command.OpportunityId,
             CustomerNameSnapshot = customer.Name,
             ContactNameSnapshot = contact is null ? null : string.Join(" ", new[] { contact.FirstName, contact.LastName }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            OpportunityNameSnapshot = opportunity?.Name,
             Status = CrmQuoteStatus.Draft,
             IssueDate = command.IssueDate,
             ValidUntil = command.ValidUntil,
