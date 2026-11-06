@@ -755,3 +755,10 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - The repository no longer catches a generic `SqlSugarException` from `AddAsync` and immediately queries for a possible winner. On PostgreSQL, a uniqueness violation aborts the current transaction; querying through that same ambient transaction is not a valid recovery strategy and can mask the original error.
 - Concurrent insert losers now propagate the persistence exception to the outer UnitOfWork boundary. Any future winner reconciliation must execute only after the failed transaction has rolled back/disposed, in a fresh UnitOfWork/connection, and must compare the complete tenant/run/provider/fingerprint tuple.
 - Added a source-contract regression test asserting that the failed-insert catch-and-query pattern is absent. This test source has not been executed; no PostgreSQL concurrency result is claimed.
+
+## 11.48 Run completion guard for unresolved extraction review (2026-11-06)
+
+- `CompleteFencedWithDatabaseClockAsync` permits Run completion only when every extraction job for the same tenant and Run is in one of the explicit terminal states: Completed, Failed, Expired, or Cancelled.
+- `NeedsReview` is intentionally not a terminal state for Run completion. A job whose remote submission/result outcome is ambiguous therefore continues to fence the parent Run until an authorized review action resolves it.
+- The parent Run completion statement computes terminal extraction failures separately, so Failed/Expired/Cancelled jobs contribute to the Run failure count while Completed jobs do not.
+- Added a source-contract regression test that protects this distinction. Test source was added but not executed; no PostgreSQL runtime claim is made.
