@@ -183,3 +183,11 @@ At the time this plan is added:
 - Added a regression vector for `3fff::1`. Added an upper-bound rejection vector (`3fff:0fff::1`) and a just-outside acceptance vector (`3fff:1000::1`) to verify the /20 boundary.
 - Commits: `cead645a8600f73a0fc843e52daaab3a81d4ff52`, `c7c7573721949dcf3065206f6f8d5e787a9502c7`, `63aa6c8adcbe81724691b34c1e817519962673fe`.
 - Tests remain unexecuted in this environment; Windows/.NET validation is still required.
+
+
+### Extraction cursor persistence boundary hardening
+- Added a shared opaque-cursor validator and reused it in both page-envelope validation and PostgreSQL cursor advancement.
+- Repository writes now reject blank, oversized, or control-bearing current/next cursors even if a caller bypasses the provider-page validator. Null remains valid for the initial/final cursor; non-final cursors must still advance.
+- Added unit coverage for null, allowed punctuation, exact length boundary, blank, oversized and control-bearing cursors, plus a source contract asserting the repository calls the shared validator.
+- Commits: `ee396f902d9d76b75946580747b4d32b0e734559`, `e62269934e64111183dfd479a3d1c263d2dfa368`, `952f1303dec87ad2735fbf92cbf52fc2a01f3c8a`, `45feca879992c0b7617f93470b16b227d4b0999c`, `640938bf3d91cfc2999d02bd402d78275ff997fb`, `f29fcf1c05998d19db11832283a59081f0020c44`.
+- Tests have been added but not executed in this environment; Windows/.NET and PostgreSQL acceptance remains pending.
