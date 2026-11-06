@@ -307,8 +307,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
             throw new ArgumentOutOfRangeException(nameof(pageFailureCount));
         if (persistedRecordCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
             throw new ArgumentOutOfRangeException(nameof(persistedRecordCount));
-        if (expectedCursor is { Length: > MaxCursorLength } || (expectedCursor is not null && expectedCursor.Any(char.IsControl)))
-            throw new ArgumentOutOfRangeException(nameof(expectedCursor));
+        if (!CrmProspectingExtractionCursorValidator.IsValid(expectedCursor))
+            throw new ArgumentException("The expected result cursor must be null or a bounded non-blank value without control characters.", nameof(expectedCursor));
         cancellationToken.ThrowIfCancellationRequested();
 
         var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
@@ -370,8 +370,8 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
         if (persistedRecordCount is < 0 or > CrmProspectingExtractionPageValidator.MaxRecordsPerPage)
             throw new ArgumentOutOfRangeException(nameof(persistedRecordCount));
-        if (expectedCursor is { Length: > MaxCursorLength } || (expectedCursor is not null && expectedCursor.Any(char.IsControl)))
-            throw new ArgumentOutOfRangeException(nameof(expectedCursor));
+        if (!CrmProspectingExtractionCursorValidator.IsValid(expectedCursor))
+            throw new ArgumentException("The expected result cursor must be null or a bounded non-blank value without control characters.", nameof(expectedCursor));
         if (!CrmProspectingExtractionStateMachine.CanCompleteResults(
                 CrmProspectingExtractionStatus.FetchingResults, isLastPage, isComplete, failureCount))
             throw new InvalidOperationException(
