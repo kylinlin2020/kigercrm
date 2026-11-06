@@ -107,6 +107,10 @@ public sealed class CrmQuoteAppService(
         await EnsureRelatedRecordsAccessibleAsync(quote.CustomerId, quote.ContactId, quote.OpportunityId, cancellationToken);
         if (quote.Status != CrmQuoteStatus.Accepted && quote.Status != CrmQuoteStatus.Converted)
             throw new InvalidOperationException("Only an accepted quote can be converted to a sales order.");
+        if (quote.Status == CrmQuoteStatus.Converted && !quote.ConvertedOrderId.HasValue)
+            throw new InvalidOperationException("The converted quote has no linked sales order; manual repair is required.");
+        if (quote.Status == CrmQuoteStatus.Accepted && quote.ConvertedOrderId.HasValue)
+            throw new InvalidOperationException("The accepted quote already has a converted-order link; manual repair is required.");
 
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmQuote), quote.BasicId, quote, cancellationToken);
 
