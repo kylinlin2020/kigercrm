@@ -94,7 +94,7 @@ public sealed class CrmQuoteAppService(
     /// The source-quote unique index is the final concurrent-request guard; the UnitOfWork
     /// rolls back order headers/lines if the quote optimistic update or uniqueness check fails.
     /// </summary>
-    [UnitOfWork(true)]
+    [UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public async Task<CrmSalesOrderListItemDto> ConvertToSalesOrderAsync(long quoteId, CancellationToken cancellationToken = default)
     {
