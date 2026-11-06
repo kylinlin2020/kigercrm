@@ -26,17 +26,8 @@ public sealed class CrmProspectingExtractionExpiryHostedService
         _scopeFactory = scopeFactory;
     }
 
-    protected override Task<IEnumerable<IBackgroundTaskItem>> FetchWorkItemsAsync(
+    protected override async Task<IEnumerable<IBackgroundTaskItem>> FetchWorkItemsAsync(
         int maxCount,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IEnumerable<IBackgroundTaskItem>>(
-            [new ExpirySweepTrigger { CreatedAt = DateTimeOffset.UtcNow }]);
-    }
-
-    protected override async Task ProcessItemAsync(
-        IBackgroundTaskItem item,
         CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -59,6 +50,9 @@ public sealed class CrmProspectingExtractionExpiryHostedService
             Logger.LogInformation(
                 "Expired {Count} provider extraction jobs across tenant data scopes",
                 expiredCount);
+
+        // Returning no work lets the base worker apply the configured 30-second idle delay.
+        return [];
     }
 
     private static IDynamicServiceConfig BuildConfig(IOptions<XiHanBackgroundServiceOptions> options)
