@@ -38,6 +38,9 @@ public sealed class SysCrmQuote : BasicAppFullAuditedEntity, IStrictMultiTenantE
     [SugarColumn(ColumnName = "Contact_Name_Snapshot", Length = 200, IsNullable = true)]
     public string? ContactNameSnapshot { get; set; }
 
+    [SugarColumn(ColumnName = "Opportunity_Name_Snapshot", Length = 200, IsNullable = true)]
+    public string? OpportunityNameSnapshot { get; set; }
+
     [SugarColumn(ColumnName = "Status", IsNullable = false)]
     public CrmQuoteStatus Status { get; set; } = CrmQuoteStatus.Draft;
 
