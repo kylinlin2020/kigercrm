@@ -30,6 +30,7 @@ public sealed class CrmQuoteDetailDto : CrmQuoteListItemDto
     public long? ContactId { get; set; }
     public long? OpportunityId { get; set; }
     public string? ContactNameSnapshot { get; set; }
+    public string? OpportunityNameSnapshot { get; set; }
     public decimal Subtotal { get; set; }
     public decimal DiscountTotal { get; set; }
     public decimal TaxTotal { get; set; }
