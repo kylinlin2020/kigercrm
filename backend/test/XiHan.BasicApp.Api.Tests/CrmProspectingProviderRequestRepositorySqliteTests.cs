@@ -71,6 +71,36 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
     }
 
     [Fact]
+    public async Task StartedAttemptLookup_ShouldReturnOnlyTheUnfinishedRunProviderAttempt()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var started = await _repository.CreateStartedAsync(
+                1007, "uk_find_tender", new string('9', 64), DateTimeOffset.UtcNow);
+
+            var found = await _repository.GetStartedAttemptAsync(1007, " UK_FIND_TENDER ");
+            Assert.NotNull(found);
+            Assert.Equal(started.BasicId, found.BasicId);
+            Assert.Equal("Started", found.State);
+
+            Assert.Null(await _repository.GetStartedAttemptAsync(1008, "uk_find_tender"));
+        }
+    }
+
+    [Fact]
+    public async Task StartedAttemptLookup_ShouldRejectAmbiguousUnfinishedAttempts()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            await _repository.CreateStartedAsync(1009, "ted", new string('A', 64), DateTimeOffset.UtcNow);
+            await _repository.CreateStartedAsync(1009, "ted", new string('B', 64), DateTimeOffset.UtcNow);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _repository.GetStartedAttemptAsync(1009, "ted"));
+        }
+    }
+
+    [Fact]
     public async Task AttemptNumbers_ShouldIncreaseForEachProviderWithinRun()
     {
         using (_tenant.Change(TenantId))
