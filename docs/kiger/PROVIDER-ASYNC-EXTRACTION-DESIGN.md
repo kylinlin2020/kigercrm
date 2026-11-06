@@ -748,3 +748,10 @@ The current Worker still uses Run-wide candidate preparation and per-candidate P
 ### Gate and validation
 
 Do not switch the Worker to the atomic batch primitive until the above invariants are preserved and PostgreSQL fault-injection tests pass. The existing post-projection coverage recovery is implemented, but the atomic provider-batch Worker cutover is not. No .NET build, automated test execution, PostgreSQL execution, or Windows pull/build acceptance is claimed for this source audit.
+
+## 11.47 Submission-intent unique-race transaction safety (2026-11-06)
+
+- `CreateSubmissionIntentAsync` first reads the tenant/run/provider/fingerprint identity and returns the existing intent when exactly one row exists. The database unique index remains the final concurrent-insert boundary.
+- The repository no longer catches a generic `SqlSugarException` from `AddAsync` and immediately queries for a possible winner. On PostgreSQL, a uniqueness violation aborts the current transaction; querying through that same ambient transaction is not a valid recovery strategy and can mask the original error.
+- Concurrent insert losers now propagate the persistence exception to the outer UnitOfWork boundary. Any future winner reconciliation must execute only after the failed transaction has rolled back/disposed, in a fresh UnitOfWork/connection, and must compare the complete tenant/run/provider/fingerprint tuple.
+- Added a source-contract regression test asserting that the failed-insert catch-and-query pattern is absent. This test source has not been executed; no PostgreSQL concurrency result is claimed.
