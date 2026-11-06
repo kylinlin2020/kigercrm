@@ -167,3 +167,12 @@ At the time this plan is added:
 - Commits: `62481631d25d21cab9c3ec457ef537a5e3a6418e`, `87fb1d1c56acb751b79e8cb85a15d91ea41d4360`.
 
 **Validation boundary:** this is identity/policy code only. It is not backed by a coverage table/repository, is not wired into provider request finalization, and cannot advance a watermark. Schedule entity, recurrence worker, durable idempotency and API/UI are still outstanding. No .NET build/test has been executed.
+
+
+### Website Discovery transport regression coverage
+- Added focused tests for the shared DNS/IP-pinned HTTP transport's public-address filter, including private, loopback, link-local, carrier-grade NAT, documentation, benchmarking, multicast, broadcast, IPv4-mapped IPv6, IPv6 ULA/link-local/documentation, and representative public IPv4/IPv6 addresses.
+- Removed a duplicate IPv4 special-use range predicate from the transport filter.
+- This hardens the shared network boundary used by future website probes; it does not yet implement page fetching, bounded response streaming, redirect-hop revalidation, or evidence persistence.
+- Commits: `24f2b957c84f817b41b7842561a1bdb70a683e92`, `f09cf8f337f859a77e1c49642d1c90477e742884`, `f43964523fd671ed6e07896167e20f6e1693ad2e`.
+
+**Validation boundary:** tests are committed but not executed here because the environment has no .NET SDK. Windows-native build and runtime verification remain required.
