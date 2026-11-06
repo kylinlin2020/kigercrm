@@ -94,6 +94,7 @@ export interface CrmSalesOrderCreateDto {
   customerPurchaseOrderNumber?: string | null
   paymentTerms?: string | null
   deliveryTerms?: string | null
+  termsAndConditions?: string | null
   notes?: string | null
   lines: CrmSalesOrderLineCreateDto[]
 }
