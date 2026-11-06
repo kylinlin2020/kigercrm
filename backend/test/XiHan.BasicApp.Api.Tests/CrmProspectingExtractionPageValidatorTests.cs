@@ -192,4 +192,16 @@ public sealed class CrmProspectingExtractionPageValidatorTests
         Assert.False(CrmProspectingExtractionPageValidator.CanCommitPage(page, null));
     }
 
+
+    [Fact]
+    public void CanCommitPage_RejectsInvalidPersistedCursor()
+    {
+        var page = new CrmProspectingExtractionPage(
+            [Record()], "cursor-2", false, false, 0, []);
+
+        Assert.False(CrmProspectingExtractionPageValidator.CanCommitPage(page, "invalid\nprior-cursor"));
+        Assert.False(CrmProspectingExtractionPageValidator.CanCommitPage(page, new string('x',
+            CrmProspectingExtractionPageValidator.MaxCursorLength + 1)));
+    }
+
 }
