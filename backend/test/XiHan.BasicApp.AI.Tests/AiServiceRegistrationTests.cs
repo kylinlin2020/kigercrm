@@ -113,10 +113,6 @@ public sealed class AiServiceRegistrationTests
         Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
     }
 
-    /// <summary>
-    /// 权限目录与菜单两个种子器都必须登记到 <see cref="IDataSeeder"/> 上，漏登记的种子器永远不会执行。
-    /// </summary>
-    [Fact]
     [Fact]
     public void CrmChatToolFactory_ShouldExposeOnlyTheAllowListedReadOnlyCustomerTool()
     {
@@ -170,6 +166,7 @@ public sealed class AiServiceRegistrationTests
         Assert.Contains(typeof(XiHan.BasicApp.Crm.XiHanBasicAppCrmModule), dependsOn);
     }
 
+    [Fact]
     public void AddDataSeeders_ShouldRegisterEverySeederInTheModule()
     {
         var services = new ServiceCollection();
