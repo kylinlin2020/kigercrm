@@ -99,6 +99,7 @@ public sealed class CrmQuoteQueryService(
             ContactId = quote.ContactId,
             ContactNameSnapshot = quote.ContactNameSnapshot,
             OpportunityId = quote.OpportunityId,
+            OpportunityNameSnapshot = quote.OpportunityNameSnapshot,
             Status = (int)quote.Status,
             IssueDate = quote.IssueDate,
             ValidUntil = quote.ValidUntil,
