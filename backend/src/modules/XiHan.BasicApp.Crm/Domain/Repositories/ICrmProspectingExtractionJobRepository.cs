@@ -60,7 +60,6 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
     /// <summary>Marks provider jobs expired by database time and releases any stale lease.</summary>
     Task<int> ExpireDueAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Conditionally changes lifecycle state under the exact tenant/job/lease identity.</summary>
     /// <summary>Commits a complete final page but marks the extraction Failed when any page had record failures.</summary>
     Task<bool> TryFailIncompleteResultsAsync(
         long jobId,
@@ -85,6 +84,7 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         int persistedRecordCount = 0,
         string? expectedCursor = null);
 
+    /// <summary>Conditionally changes lifecycle state under the exact tenant/job/lease identity and live fencing lease.</summary>
     Task<bool> TryTransitionAsync(
         long jobId,
         CrmProspectingExtractionStatus expectedStatus,
