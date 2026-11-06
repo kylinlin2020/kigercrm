@@ -65,3 +65,11 @@ The current repository CI workflow runs the .NET solution restore/build/test but
 - classify the application-level race and rollback tests as outstanding;
 - do not claim PostgreSQL concurrency safety is proven;
 - do not merge the draft PR before full restore/build/test, PostgreSQL integration tests, frontend checks, and Windows pull/build/runtime acceptance pass.
+
+## Implemented PostgreSQL repository-level CI coverage
+
+`backend/test/XiHan.BasicApp.Api.Tests/CrmConversionClaimPostgresIntegrationTests.cs` now runs two independent SqlSugar clients against the same PostgreSQL database and races the real `CrmLeadRepository.TryClaimForConversionAsync` and `CrmProspectingCandidateRepository.TryClaimForConversionAsync` methods. Each race asserts exactly one conditional claim succeeds and the persisted status is `Converting`.
+
+The backend CI job provisions PostgreSQL 17 and supplies `KIGER_TEST_POSTGRES_CONNECTION_STRING`; the tests are conditionally skipped when that variable is absent in a local environment.
+
+**Scope boundary:** these are real PostgreSQL repository-level conditional-update tests. They do not yet invoke `CrmLeadAppService.ConvertAsync` or `CrmProspectingAppService.ConvertApprovedCandidateToLeadAsync` through DI interception, and do not prove that claim + related inserts + final status update share one application UoW. The application-level tests in the preceding section remain required. The CI run must pass before this repository-level coverage is considered verified.
