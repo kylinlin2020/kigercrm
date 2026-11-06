@@ -858,4 +858,23 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("asynchronous.Add(code, provider)", registry, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ConvertedCandidateRetry_ShouldVerifyLeadSourceIdentityAndCampaignOwner()
+    {
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
+        var start = service.IndexOf("if (candidate.Status == CrmProspectingCandidateStatus.Converted)", StringComparison.Ordinal);
+        var end = service.IndexOf("if (candidate.Status != CrmProspectingCandidateStatus.Approved)", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var retry = service[start..end];
+        Assert.Contains("candidate.ConvertedLeadId is not > 0", retry, StringComparison.Ordinal);
+        Assert.Contains("leads.GetByIdAsync(candidate.ConvertedLeadId.Value", retry, StringComparison.Ordinal);
+        Assert.Contains("expectedSourceReference = \"{candidate.ProviderCode}:{candidate.ExternalId}\"", retry, StringComparison.Ordinal);
+        Assert.Contains("existingLead.Source, \"Prospecting\"", retry, StringComparison.Ordinal);
+        Assert.Contains("existingLead.SourceReference, expectedSourceReference", retry, StringComparison.Ordinal);
+        Assert.Contains("existingLead.OwnerUserId != campaign.OwnerUserId", retry, StringComparison.Ordinal);
+        Assert.Contains("Converted Lead does not match its prospecting candidate source or campaign owner.", retry, StringComparison.Ordinal);
+        Assert.DoesNotContain("leadDomain.CreateAsync", retry, StringComparison.Ordinal);
+    }
+
 }
