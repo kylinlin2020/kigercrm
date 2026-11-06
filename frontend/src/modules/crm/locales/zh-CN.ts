@@ -156,6 +156,7 @@ export default {
       "contacted": "已联系",
       "qualified": "已确认",
       "disqualified": "已淘汰",
+      "converting": "转换中",
       "converted": "已转化",
       "total": "共 {count} 条",
       "page": "第 {current} / {total} 页",
