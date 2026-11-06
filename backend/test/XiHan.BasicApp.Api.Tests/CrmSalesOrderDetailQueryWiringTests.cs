@@ -59,4 +59,27 @@ public sealed class CrmSalesOrderDetailQueryWiringTests
         Assert.Contains("termsAndConditions:form.value.termsAndConditions", frontendView, StringComparison.Ordinal);
         Assert.Contains("termsAndConditions:editForm.value.termsAndConditions", frontendView, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void SalesOrder_ShouldExposeAndPreserveRelationshipNameSnapshots()
+    {
+        var dto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmSalesOrderQueryDtos.cs");
+        var query = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmSalesOrderQueryService.cs");
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var frontendTypes = Read("frontend", "src", "api", "modules", "crm", "sales-order.types.ts");
+        var frontendView = Read("frontend", "src", "modules", "crm", "views", "crm", "sales-order", "index.vue");
+
+        Assert.Contains("public string? ContactNameSnapshot { get; set; }", dto, StringComparison.Ordinal);
+        Assert.Contains("public string? OpportunityNameSnapshot { get; set; }", dto, StringComparison.Ordinal);
+        Assert.Contains("ContactNameSnapshot = order.ContactNameSnapshot", query, StringComparison.Ordinal);
+        Assert.Contains("OpportunityNameSnapshot = order.OpportunityNameSnapshot", query, StringComparison.Ordinal);
+        Assert.Contains("ContactNameSnapshot = selectedContact is null ? null : string.Join", service, StringComparison.Ordinal);
+        Assert.Contains("OpportunityNameSnapshot = selectedOpportunity?.Name", service, StringComparison.Ordinal);
+        Assert.Contains("if (!order.SourceQuoteId.HasValue)", service, StringComparison.Ordinal);
+        Assert.Contains("contactNameSnapshot?: string | null", frontendTypes, StringComparison.Ordinal);
+        Assert.Contains("opportunityNameSnapshot?: string | null", frontendTypes, StringComparison.Ordinal);
+        Assert.Contains("selected.contactNameSnapshot", frontendView, StringComparison.Ordinal);
+        Assert.Contains("selected.opportunityNameSnapshot", frontendView, StringComparison.Ordinal);
+    }
+
 }
