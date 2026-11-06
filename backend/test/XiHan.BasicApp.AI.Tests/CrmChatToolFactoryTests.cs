@@ -123,7 +123,8 @@ public sealed class CrmChatToolFactoryTests
     [Fact]
     public async Task AllCrmReadTools_ShouldEnforceReadPermissionBeforeResolvingRecords()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new DenyingPermissionGuard());
+        var guard = new DenyingPermissionGuard();
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, guard);
         var calls = new (string Name, Dictionary<string, object?> Arguments)[]
         {
             ("crm_search_customers", new() { ["keyword"] = "Acme" }),
@@ -134,10 +135,6 @@ public sealed class CrmChatToolFactoryTests
             ("crm_prospecting_list_candidates", new() { ["runId"] = 1L }),
             ("crm_prospecting_get_candidate_review", new() { ["candidateId"] = 1L })
         };
-
-        var guard = Assert.IsType<DenyingPermissionGuard>(
-            typeof(CrmChatToolFactory).GetField("_permissionGuard", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
-                .GetValue(factory));
 
         foreach (var call in calls)
         {
