@@ -45,17 +45,16 @@ public sealed class CrmSalesOrderDetailQueryWiringTests
     [Fact]
     public void SalesOrderCreateAndDraftUpdate_ShouldPersistTermsAndConditions()
     {
-        var createDto = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "backend/src/modules/XiHan.BasicApp.Crm/Application/Dtos/CrmSalesOrderCreateDto.cs"));
-        var updateDto = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "backend/src/modules/XiHan.BasicApp.Crm/Application/Dtos/CrmSalesOrderUpdateDto.cs"));
-        var service = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "backend/src/modules/XiHan.BasicApp.Crm/Application/AppServices/CrmSalesOrderAppService.cs"));
-        var frontendTypes = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "frontend/src/api/modules/crm/sales-order.types.ts"));
-        var frontendView = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "frontend/src/modules/crm/views/crm/sales-order/index.vue"));
+        var createDto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmSalesOrderCreateDto.cs");
+        var updateDto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmSalesOrderUpdateDto.cs");
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
+        var frontendTypes = Read("frontend", "src", "api", "modules", "crm", "sales-order.types.ts");
+        var frontendView = Read("frontend", "src", "modules", "crm", "views", "crm", "sales-order", "index.vue");
 
         Assert.Contains("public string? TermsAndConditions { get; set; }", createDto, StringComparison.Ordinal);
         Assert.Contains("public string? TermsAndConditions { get; set; }", updateDto, StringComparison.Ordinal);
         Assert.Contains("TermsAndConditions = termsAndConditions", service, StringComparison.Ordinal);
         Assert.Contains("order.TermsAndConditions = NormalizeOptional(input.TermsAndConditions, 20000", service, StringComparison.Ordinal);
-        Assert.Contains("TermsAndConditions = termsAndConditions", service, StringComparison.Ordinal);
         Assert.Contains("termsAndConditions?: string | null", frontendTypes, StringComparison.Ordinal);
         Assert.Contains("termsAndConditions:form.value.termsAndConditions", frontendView, StringComparison.Ordinal);
         Assert.Contains("termsAndConditions:editForm.value.termsAndConditions", frontendView, StringComparison.Ordinal);
