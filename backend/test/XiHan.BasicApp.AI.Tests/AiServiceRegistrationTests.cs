@@ -114,20 +114,26 @@ public sealed class AiServiceRegistrationTests
     }
 
     [Fact]
-    public void CrmChatToolFactory_ShouldExposeOnlyTheAllowListedReadOnlyCustomerTool()
+    public void CrmChatToolFactory_ShouldExposeOnlyAllowListedReadOnlyCustomerAndLeadTools()
     {
-        var factory = new CrmChatToolFactory(null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!);
 
-        var tool = Assert.Single(factory.CreateTools(CancellationToken.None));
-        var name = tool.GetType().GetProperty("Name")?.GetValue(tool) as string;
-        var schema = tool.GetType().GetProperty("JsonSchema")?.GetValue(tool);
+        var tools = factory.CreateTools(CancellationToken.None);
+        Assert.Equal(
+            ["crm_search_customers", "crm_search_leads"],
+            tools.Select(tool => tool.GetType().GetProperty("Name")?.GetValue(tool) as string)
+                .OrderBy(name => name, StringComparer.Ordinal));
 
-        Assert.Equal("crm_search_customers", name);
-        Assert.NotNull(schema);
-        var schemaText = schema!.ToString();
-        Assert.True(schemaText.Contains("keyword", StringComparison.OrdinalIgnoreCase));
-        Assert.False(schemaText.Contains("tenantId", StringComparison.OrdinalIgnoreCase));
-        Assert.False(schemaText.Contains("ownerUserId", StringComparison.OrdinalIgnoreCase));
+        foreach (var tool in tools)
+        {
+            var schema = tool.GetType().GetProperty("JsonSchema")?.GetValue(tool);
+            Assert.NotNull(schema);
+            var schemaText = schema!.ToString();
+            Assert.True(schemaText.Contains("keyword", StringComparison.OrdinalIgnoreCase));
+            Assert.False(schemaText.Contains("tenantId", StringComparison.OrdinalIgnoreCase));
+            Assert.False(schemaText.Contains("userId", StringComparison.OrdinalIgnoreCase));
+            Assert.False(schemaText.Contains("ownerUserId", StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     [Fact]
