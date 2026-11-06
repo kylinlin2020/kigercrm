@@ -38,9 +38,8 @@ public static class CrmProspectingExtractionPageValidator
             return false;
         }
 
-        // Opaque cursors may contain provider-specific punctuation, but control characters
-        // are never valid transport state and can corrupt logs or database text fields.
-        if (page.NextCursor is not null && page.NextCursor.Any(char.IsControl))
+        // Keep adapter validation and the repository's final persistence guard consistent.
+        if (!CrmProspectingExtractionCursorValidator.IsValid(page.NextCursor))
         {
             failureCode = "invalid_cursor";
             return false;
