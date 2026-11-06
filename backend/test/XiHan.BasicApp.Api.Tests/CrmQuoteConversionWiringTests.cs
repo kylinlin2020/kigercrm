@@ -17,6 +17,19 @@ public sealed class CrmQuoteConversionWiringTests
     }
 
     [Fact]
+    public void ConversionEndpoint_ShouldUseReadCommittedForConcurrentWinnerVisibility()
+    {
+        var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
+        var methodStart = app.IndexOf("public async Task<CrmSalesOrderListItemDto> ConvertToSalesOrderAsync", StringComparison.Ordinal);
+        Assert.True(methodStart > 0);
+        var attributeStart = app.LastIndexOf("[UnitOfWork(", methodStart, StringComparison.Ordinal);
+        Assert.True(attributeStart >= 0);
+        var attributeEnd = app.IndexOf(']', attributeStart);
+        Assert.True(attributeEnd > attributeStart);
+        Assert.Contains("System.Data.IsolationLevel.ReadCommitted", app[attributeStart..attributeEnd], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ConversionEndpoint_ShouldCopyQuoteHeaderAndLinesAndLinkConvertedOrder()
     {
         var app = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmQuoteAppService.cs");
