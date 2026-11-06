@@ -281,7 +281,7 @@ public sealed class CrmProspectingAppService(
 
         return new CrmProspectingCandidateReviewDetailDto
         {
-            Candidate = ToCandidateDto(candidate),
+            Candidate = CrmProspectingMapper.ToCandidateDto(candidate),
             Evidence = evidenceItems.Select(item => new CrmProspectingEvidenceDto
             {
                 BasicId = item.BasicId,
@@ -338,7 +338,7 @@ public sealed class CrmProspectingAppService(
         if (!await candidates.TryReviewAsync(candidate.BasicId, input.Approve, input.OverrideDuplicate, cancellationToken))
             throw new InvalidOperationException("This candidate was already reviewed or its review state changed. Refresh before trying again.");
         candidate.Status = input.Approve ? CrmProspectingCandidateStatus.Approved : CrmProspectingCandidateStatus.Rejected;
-        return ToCandidateDto(candidate);
+        return CrmProspectingMapper.ToCandidateDto(candidate);
     }
 
     [UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]
@@ -412,7 +412,7 @@ public sealed class CrmProspectingAppService(
         return CrmLeadMapper.ToDetailDto(existingLead);
     }
 
-    private static CrmProspectingCandidateDto ToCandidateDto(SysCrmProspectingCandidate entity) => new()
+    private static CrmProspectingCandidateDto CrmProspectingMapper.ToCandidateDto(SysCrmProspectingCandidate entity) => new()
     {
         BasicId = entity.BasicId,
         RunId = entity.RunId,
