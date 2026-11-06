@@ -229,4 +229,27 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     }
 
 
+
+    [Fact]
+    public void ExtractionExpiry_ShouldNotGuessOutcomeForSubmittingOrNeedsReviewJobs()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories",
+            "CrmProspectingExtractionJobRepository.cs"));
+        var methodStart = source.IndexOf("ExpireDueAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("TryFailIncompleteResultsAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+
+        Assert.Contains("status IN (@pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("@submittingStatus", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("@needsReviewStatus", method, StringComparison.Ordinal);
+        Assert.Contains("expires_at_utc <= clock_timestamp()", method, StringComparison.Ordinal);
+        Assert.Contains("lease_token = NULL", method, StringComparison.Ordinal);
+    }
+
 }
