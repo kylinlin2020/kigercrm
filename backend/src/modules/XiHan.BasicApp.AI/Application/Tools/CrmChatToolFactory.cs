@@ -40,6 +40,17 @@ public sealed class CrmChatToolFactory
                 async ([Description("要搜索的客户名称、法定名称、网站关键词；不得填写租户或用户身份信息。")] string keyword) =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (string.IsNullOrWhiteSpace(keyword))
+                    {
+                        throw new ArgumentException("客户搜索关键词不能为空。", nameof(keyword));
+                    }
+
+                    keyword = keyword.Trim();
+                    if (keyword.Length > 200)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(keyword), "客户搜索关键词不能超过 200 个字符。");
+                    }
+
                     var page = await _customerQuery.GetPageAsync(
                         new CrmCustomerPageQueryDto { Keyword = keyword },
                         cancellationToken);
