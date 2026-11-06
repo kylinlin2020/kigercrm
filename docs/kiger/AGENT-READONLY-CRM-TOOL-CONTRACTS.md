@@ -69,3 +69,32 @@
 ## 6. 不能提前宣称完成的事项
 
 当前已核对真实服务接口和关键授权/数据范围实现，但尚未新增 Tool executor、Skill 注册、CRM AI 权限、MCP 暴露、前端 Agent 面板或集成测试。需要先确认框架 AI Skill registry 对 scoped execution 的支持方式，再实施第一批代码。
+
+
+## 7. 进一步源码核验：DI 注册与非 HTTP 调用的字段安全
+
+本轮继续读取了 AI 模块服务注册、IFieldSecurityService、FieldSecurityService 和 CRM 查询实现，确认以下实现级约束：
+
+- AddAISkills() 当前明确执行 services.AddSingleton<IAiSkill, KnowledgeRetrieveSkill>()；框架 DefaultAiSkillRegistry 构造时收纳这些 Singleton Skill。当前没有证据表明该注册表支持每次工具调用创建 scoped DI scope。
+- IFieldSecurityService 的契约明确区分 GuardQueryAsync 与 MaskAsync：前者防止受保护字段被用于过滤、排序和关键词检索；后者对返回 DTO 对象图执行字段脱敏。
+- CRM Customer / Lead / Opportunity / Task 分页 QueryService 显式执行 GuardQueryAsync，并应用 Owner/Assignee Data Scope。详情查询显式执行记录 Owner/Assignee 范围判断。
+- 字段脱敏的统一入口是 HTTP FieldSecurityResponseFilter。如果未来 Agent Tool executor 在服务端直接调用 QueryService/AppService，而不是经 HTTP 响应管道，不能假设该 Filter 会执行；必须在 Tool 返回模型上下文之前，对本次调用独占的 DTO 结果显式执行 IFieldSecurityService.MaskAsync。不能对缓存共享对象原地脱敏。
+- Customer / Lead / Opportunity / Task 详情方法本身没有直接调用 MaskAsync；其安全依赖 HTTP 响应 Filter。直接调用路径若遗漏显式脱敏，会形成字段级信息泄露风险。
+- Prospecting 查询方法有 CrmPermissionCodes.Read 与 Campaign Owner Data Scope 检查；Run/Candidate 读取先校验 Campaign 可访问性。但同样不能把 HTTP Filter 的脱敏效果假定为直接 Tool 调用的一部分。
+
+### 7.1 受控 Tool 执行路径（实施前置条件）
+
+1. 模型只能选择静态 Tool Catalog 中的工具名和经过 schema 校验的参数。
+2. 每次调用创建独立 IServiceScope，从该 scope 解析明确的 CRM 查询接口与 IFieldSecurityService。
+3. 必须确认框架动态代理授权在从 scope 解析应用服务时仍然生效；不能直接 new QueryService，也不能直接调用 Repository。
+4. 应用服务调用结束后，针对返回的 DTO / 分页结果调用 MaskAsync，然后才允许序列化为模型 Tool result。
+5. Tool executor 不接受模型传入 TenantId、CurrentUserId、OwnerUserId；所有主体上下文必须来自可信请求/对话授权上下文。
+6. Tool 的授权失败、记录不可见、记录不存在采用不泄露存在性的统一对外语义；内部审计可记录真实拒绝原因。
+7. 不得把工具结果或 DTO 实例跨请求缓存；每次执行使用独立 scope，避免 DbContext、UnitOfWork、当前用户和字段规则串用。
+
+### 7.2 本轮确认的阻断项
+
+- 框架 DefaultAiSkillRegistry / IAiSkill 是否允许 Skill 内部通过受控 scope factory 执行 scoped 业务工具，尚未从框架源码核实；当前只能确认 BasicApp 注册层为 Singleton。
+- 框架动态 API 授权拦截器对“由 Tool executor 在 scope 内解析后直接调用”的接口是否完整生效，必须通过真实 DI/代理集成测试确认。
+- HTTP 响应脱敏 Filter 不会自动成为直接方法调用的安全边界；Tool executor 必须显式调用 MaskAsync 并有测试证明。
+- 目前没有实现任何 CRM Agent Tool、Tool Catalog 或 MCP 工具注册；本文仍是源码核验和实现约束，不是功能已上线的声明。
