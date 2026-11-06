@@ -80,6 +80,36 @@ public sealed class CrmQuoteConversionMigrationTests
         Assert.Contains("ON crm_quote (tenant_id, quote_number, version, is_deleted)", sql, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SourceQuoteLineUniqueIndex_ShouldMatchFreshCodeFirstAndUpgradeMigration()
+    {
+        var entity = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "Entities", "SysCrmSalesOrderLine.cs")));
+        var sql = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
+            "UpdateScripts", "5.9.4", "5.9.4.sql")));
+
+        const string indexName = "UX_{table}_TeId_Or_SqLi_IsDe";
+        Assert.Contains(indexName, entity, StringComparison.Ordinal);
+        var indexStart = entity.IndexOf(indexName, StringComparison.Ordinal);
+        var indexEnd = entity.IndexOf(")]", indexStart, StringComparison.Ordinal);
+        Assert.True(indexEnd > indexStart);
+        var declaration = entity[indexStart..indexEnd];
+        var fields = new[] { "TenantId", "SalesOrderId", "SourceQuoteLineId", "IsDeleted" };
+        var previous = -1;
+        foreach (var field in fields)
+        {
+            var position = declaration.IndexOf($"nameof({field})", StringComparison.Ordinal);
+            Assert.True(position > previous, $"CodeFirst quote-line index must include {field} in migration order.");
+            previous = position;
+        }
+
+        Assert.Contains("ux_crm_sales_order_line_teid_or_sql_isde", sql, StringComparison.Ordinal);
+        Assert.Contains("ON crm_sales_order_line (tenant_id, sales_order_id, source_quote_line_id, is_deleted)", sql, StringComparison.Ordinal);
+        Assert.Contains("GROUP BY tenant_id, sales_order_id, source_quote_line_id, is_deleted", sql, StringComparison.Ordinal);
+    }
+
     private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
 }
