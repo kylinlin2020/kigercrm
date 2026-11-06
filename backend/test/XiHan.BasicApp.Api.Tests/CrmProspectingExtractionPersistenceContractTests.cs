@@ -179,4 +179,32 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.DoesNotContain("CrmProspectingExtractionStatus.NeedsReview.ToString()", method, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void SubmissionAcknowledgement_ShouldPersistValidatedSafeMetadata()
+    {
+        var method = typeof(ICrmProspectingExtractionJobRepository).GetMethod("TryAcknowledgeSubmissionAsync");
+        Assert.NotNull(method);
+        var metadataParameter = method!.GetParameters().Single(parameter => parameter.Name == "safeMetadataJson");
+        Assert.Equal(typeof(string), metadataParameter.ParameterType);
+        Assert.True(metadataParameter.IsOptional);
+
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+        var methodStart = source.IndexOf("TryAcknowledgeSubmissionAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("[Obsolete", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var acknowledgement = source[methodStart..methodEnd];
+
+        Assert.Contains("nextPollAtUtc - submittedAtUtc, safeMetadataJson", acknowledgement, StringComparison.Ordinal);
+        Assert.Contains("safe_metadata_json = @safeMetadataJson", acknowledgement, StringComparison.Ordinal);
+        Assert.Contains("new SugarParameter(\"@safeMetadataJson\", safeMetadataJson)", acknowledgement, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingExtractionSubmissionValidator.TryValidate", acknowledgement, StringComparison.Ordinal);
+    }
+
+
 }
