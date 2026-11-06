@@ -19,11 +19,13 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         Assert.True(convert >= 0, "Lead conversion endpoint was not found.");
 
         var preceding = source[..convert];
-        var unitOfWork = preceding.LastIndexOf("[UnitOfWork(true)]", StringComparison.Ordinal);
+        var unitOfWork = preceding.LastIndexOf(
+            "[UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]",
+            StringComparison.Ordinal);
         var permission = preceding.LastIndexOf("[PermissionAuthorize(CrmPermissionCodes.Execute)]", StringComparison.Ordinal);
 
         Assert.True(unitOfWork >= 0 && permission > unitOfWork,
-            "ConvertAsync must retain its transactional UnitOfWork attribute and Execute permission.");
+            "ConvertAsync must retain its transactional ReadCommitted UnitOfWork attribute and Execute permission.");
     }
 
     [Fact]
