@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using XiHan.BasicApp.AI.Extensions;
+using XiHan.BasicApp.Crm;
 using XiHan.BasicApp.Saas;
 using XiHan.Framework.Core.Extensions.DependencyInjection;
 using XiHan.Framework.Core.Modularity;
@@ -18,7 +19,8 @@ namespace XiHan.BasicApp.AI;
 /// 依赖 Saas（复用 RBAC 表、SaasRepository、DataProtection 密文前缀）；框架 AI 经 Saas→Core 传递依赖。
 /// </remarks>
 [DependsOn(
-    typeof(XiHanBasicAppSaasModule)
+    typeof(XiHanBasicAppSaasModule),
+    typeof(XiHanBasicAppCrmModule)
 )]
 public class XiHanBasicAppAIModule : XiHanModule
 {
