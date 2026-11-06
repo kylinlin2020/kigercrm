@@ -121,6 +121,26 @@ public sealed class CrmChatToolFactoryTests
     }
 
     [Fact]
+    public async Task ProspectingReadTools_ShouldEnforceReadPermissionBeforeResolvingRecords()
+    {
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new DenyingPermissionGuard());
+        var calls = new (string Name, Dictionary<string, object?> Arguments)[]
+        {
+            ("crm_prospecting_list_campaigns", new()),
+            ("crm_prospecting_list_runs", new() { ["campaignId"] = 1L }),
+            ("crm_prospecting_list_candidates", new() { ["runId"] = 1L }),
+            ("crm_prospecting_get_candidate_review", new() { ["candidateId"] = 1L })
+        };
+
+        foreach (var call in calls)
+        {
+            var function = GetFunction(factory, call.Name);
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+                await function.InvokeAsync(call.Arguments));
+        }
+    }
+
+    [Fact]
     public async Task ProspectingTools_ShouldRejectInvalidIdsBeforeResolvingProspectingService()
     {
         var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
@@ -204,6 +224,12 @@ public sealed class CrmChatToolFactoryTests
 
         public Task<CrmLeadDetailDto?> GetDetailAsync(long id, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class DenyingPermissionGuard : IOperationPermissionGuard
+    {
+        public Task EnsureGrantedAsync(string permissionCode, CancellationToken cancellationToken = default) =>
+            throw new UnauthorizedAccessException($"Permission denied: {permissionCode}");
     }
 
     private sealed class RecordingPermissionGuard : IOperationPermissionGuard
