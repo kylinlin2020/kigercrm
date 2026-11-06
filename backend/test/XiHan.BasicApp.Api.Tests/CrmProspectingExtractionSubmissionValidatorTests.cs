@@ -115,4 +115,31 @@ public sealed class CrmProspectingExtractionSubmissionValidatorTests
             submission, "eurostat_comext", out var failure));
         Assert.Equal("safe_metadata_limit_exceeded", failure);
     }
+
+    [Theory]
+    [InlineData("{\"apiKey\":\"secret-value\"}")]
+    [InlineData("{\"access_token\":\"secret-value\"}")]
+    [InlineData("{\"provider\":{\"Authorization\":\"Bearer secret-value\"}}")]
+    [InlineData("{\"nested\":[{\"client_secret\":\"secret-value\"}]}")]
+    public void TryValidate_RejectsCredentialBearingSafeMetadata(string metadata)
+    {
+        var submission = Submission() with { SafeMetadataJson = metadata };
+
+        Assert.False(CrmProspectingExtractionSubmissionValidator.TryValidate(
+            submission, "eurostat_comext", out var failure));
+        Assert.Equal("unsafe_safe_metadata", failure);
+    }
+
+    [Fact]
+    public void TryValidate_RejectsMetadataExceedingMaximumJsonDepth()
+    {
+        var metadata = "{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"f\":{\"g\":{\"h\":{\"i\":1}}}}}}}}}";
+        var submission = Submission() with { SafeMetadataJson = metadata };
+
+        Assert.False(CrmProspectingExtractionSubmissionValidator.TryValidate(
+            submission, "eurostat_comext", out var failure));
+        Assert.Equal("invalid_safe_metadata", failure);
+    }
+
+
 }
