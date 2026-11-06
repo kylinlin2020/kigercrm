@@ -933,3 +933,16 @@ This section defines the next worker implementation boundary. The expiry hosted 
 - A provider response that marks a page final while also returning a continuation cursor is rejected as `unexpected_final_cursor`; the cursor is not silently ignored.
 - This keeps the final-page completion boundary unambiguous: the final page is committed with the current expected cursor, and no further page can be scheduled from that response.
 - Added a regression test asserting both structural validation and commit eligibility reject the contradictory response. Tests remain unexecuted pending .NET SDK/real PostgreSQL acceptance.
+
+## 11.63 Persist result-fetch state before the first page request (2026-11-06)
+
+- Corrected the work-action selector: local `Succeeded` now selects `BeginResultFetch`, not `FetchResults`.
+- The consumer must first persist `Succeeded → FetchingResults` using the current tenant/job/lease token/fencing version. Only a later claim in `FetchingResults` may select `FetchResults` and call the provider page endpoint.
+- This makes the durable state accurately reflect the side effect boundary and allows restart/reclaim to resume page retrieval without treating an unrecorded fetch as already started.
+- Added a regression test distinguishing the two actions. Tests have not been executed in this environment.
+
+## 11.64 Poll schedule timestamps are normalized to UTC (2026-11-06)
+
+- `GetNextPollAtUtc` now converts its input instant to UTC before applying bounded backoff and provider hints.
+- Equivalent instants supplied with different offsets therefore produce the same UTC timestamp and cannot accidentally persist a non-zero offset through a caller-specific representation.
+- Added a non-UTC offset regression test; execution remains pending the .NET SDK/Windows acceptance environment.
