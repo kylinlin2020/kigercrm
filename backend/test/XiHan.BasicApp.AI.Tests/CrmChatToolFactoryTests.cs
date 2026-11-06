@@ -130,6 +130,30 @@ public sealed class CrmChatToolFactoryTests
     }
 
     [Fact]
+    public async Task ProspectingReview_ShouldRejectInvalidCandidateIdBeforeResolvingProspectingService()
+    {
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var review = GetFunction(factory, "crm_prospecting_get_candidate_review");
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await review.InvokeAsync(new Dictionary<string, object?> { ["candidateId"] = 0L }));
+    }
+
+    [Fact]
+    public async Task ProspectingReview_ShouldHonorCancellationBeforeCallingServices()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var review = Assert.IsAssignableFrom<AIFunction>(
+            Assert.Single(factory.CreateTools(cancellation.Token), tool =>
+                string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, "crm_prospecting_get_candidate_review", StringComparison.Ordinal)));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await review.InvokeAsync(new Dictionary<string, object?> { ["candidateId"] = 1L }));
+    }
+
+    [Fact]
     public async Task ProspectingTools_ShouldHonorCancellationBeforeCallingServices()
     {
         using var cancellation = new CancellationTokenSource();
