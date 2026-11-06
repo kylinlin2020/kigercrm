@@ -45,6 +45,11 @@ public interface ICrmProspectingProviderRequestRepository : ISaasRepository<SysC
     /// <summary>Mark stale Started attempts interrupted only after their owning Run is no longer actively leased.</summary>
     Task<int> RecoverStaleStartedAsync(TimeSpan minimumAge, CancellationToken cancellationToken = default);
 
+    /// <summary>Find the single unfinished request attempt for a tenant-scoped Run/provider pair.</summary>
+    Task<SysCrmProspectingProviderRequest?> GetStartedAttemptAsync(
+        long runId, string providerCode,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Find one attempt by tenant-scoped Run/provider/attempt identity.</summary>
     Task<SysCrmProspectingProviderRequest?> GetAttemptAsync(
         long runId, string providerCode, int attemptNo,
