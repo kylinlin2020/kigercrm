@@ -64,7 +64,7 @@ public sealed class CrmChatToolFactory
                     return page.Items.ToList();
                 },
                 name: "crm_search_customers",
-                description: "只读搜索当前登录用户有权访问的 CRM 客户。按客户名称、法定名称或网站关键词搜索；遵守当前用户的数据范围和字段脱敏规则。不得尝试读取其他租户或指定 Owner。")
+                description: "只读搜索当前登录用户有权访问的 CRM 客户。按客户名称、法定名称或网站关键词搜索；遵守当前用户的数据范围和字段脱敏规则。不得尝试读取其他租户或指定 Owner。"),
             AIFunctionFactory.Create(
                 async ([Description("要搜索的线索公司名称、联系人或邮箱关键词；不得填写租户或用户身份信息。")] string keyword) =>
                 {
