@@ -54,6 +54,8 @@ public sealed class CrmSalesOrderAppService(
             ?? throw new InvalidOperationException("Customer does not exist in the current tenant.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, customer.OwnerUserId, cancellationToken);
         var owner = input.OwnerUserId ?? customer.OwnerUserId;
+        SysCrmContact? selectedContact = null;
+        SysCrmContact? selectedContact = null;
         if (input.ContactId.HasValue)
         {
             var contact = await contacts.GetByIdAsync(input.ContactId.Value, cancellationToken)
@@ -61,7 +63,9 @@ public sealed class CrmSalesOrderAppService(
             await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
             if (contact.CustomerId != customer.BasicId)
                 throw new InvalidOperationException("Contact must belong to the selected customer.");
+            selectedContact = contact;
         }
+        SysCrmOpportunity? selectedOpportunity = null;
         if (input.OpportunityId.HasValue)
         {
             var opportunity = await opportunities.GetByIdAsync(input.OpportunityId.Value, cancellationToken)
@@ -69,6 +73,7 @@ public sealed class CrmSalesOrderAppService(
             await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId, cancellationToken);
             if (opportunity.CustomerId != customer.BasicId)
                 throw new InvalidOperationException("Opportunity must belong to the selected customer.");
+            selectedOpportunity = opportunity;
         }
 
         var calculated = input.Lines.Select(CalculateLine).ToArray();
@@ -147,6 +152,8 @@ public sealed class CrmSalesOrderAppService(
             ContactId = input.ContactId,
             OpportunityId = input.OpportunityId,
             CustomerNameSnapshot = customer.Name,
+            ContactNameSnapshot = selectedContact is null ? null : string.Join(" ", new[] { selectedContact.FirstName, selectedContact.LastName }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            OpportunityNameSnapshot = selectedOpportunity?.Name,
             Status = CrmSalesOrderStatus.Draft,
             OrderDate = input.OrderDate == default ? DateTime.UtcNow : input.OrderDate,
             Currency = currency,
@@ -307,7 +314,9 @@ public sealed class CrmSalesOrderAppService(
             await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, contact.OwnerUserId, cancellationToken);
             if (contact.CustomerId != customer.BasicId)
                 throw new InvalidOperationException("Contact must belong to the selected customer.");
+            selectedContact = contact;
         }
+        SysCrmOpportunity? selectedOpportunity = null;
         if (input.OpportunityId.HasValue)
         {
             var opportunity = await opportunities.GetByIdAsync(input.OpportunityId.Value, cancellationToken)
@@ -315,6 +324,7 @@ public sealed class CrmSalesOrderAppService(
             await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, opportunity.OwnerUserId, cancellationToken);
             if (opportunity.CustomerId != customer.BasicId)
                 throw new InvalidOperationException("Opportunity must belong to the selected customer.");
+            selectedOpportunity = opportunity;
         }
 
         var currency = NormalizeRequired(input.Currency, 3, nameof(input.Currency)).ToUpperInvariant();
@@ -327,6 +337,8 @@ public sealed class CrmSalesOrderAppService(
         order.CustomerNameSnapshot = customer.Name;
         order.ContactId = input.ContactId;
         order.OpportunityId = input.OpportunityId;
+        order.ContactNameSnapshot = selectedContact is null ? null : string.Join(" ", new[] { selectedContact.FirstName, selectedContact.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        order.OpportunityNameSnapshot = selectedOpportunity?.Name;
         order.OrderDate = input.OrderDate == default ? order.OrderDate : input.OrderDate;
         order.Currency = currency;
         order.Subtotal = updatedLines.Sum(x => x.LineSubtotal);
