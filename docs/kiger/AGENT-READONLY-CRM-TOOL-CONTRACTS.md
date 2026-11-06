@@ -265,3 +265,30 @@
 - 目前只完成客户搜索，未添加客户详情、线索、Prospecting 写操作、外发邮件或 MCP CRM 数据工具。
 - 需要验证模型 Provider 对 function calling 的支持；若 Provider 不支持，回复应有安全的降级行为，不能绕过 CRM 权限。
 - 仍需确认 Function Invocation 中间件执行期间使用当前 Chat 请求的 DI Scope，及其取消/异常处理语义。
+
+
+## 12. 第二个 CRM Chat 只读工具落地（线索搜索）
+
+本轮在客户搜索工具基础上增加 `crm_search_leads`，与客户工具共享请求级工厂，但各自只调用对应的 CRM QueryService。
+
+### 12.1 实现与安全边界
+
+- `CrmChatToolFactory` 现在显式依赖 `ICrmCustomerQueryService`、`ICrmLeadQueryService` 和 `IFieldSecurityService`，仍由每个已认证 Chat 请求的 Scoped 工厂创建工具。
+- 新工具仅接受一个 `keyword` 参数，空白值拒绝，Trim 后最多 200 字符；不接受 TenantId、UserId、OwnerUserId、状态/任意过滤表达式或分页参数。
+- 通过 `ICrmLeadQueryService.GetPageAsync(new CrmLeadPageQueryDto { Keyword = keyword }, cancellationToken)` 查询，不直接访问 Repository。
+- Lead QueryService 源码已核实：带有 `[PermissionAuthorize(CrmPermissionCodes.Read)]`，查询路径执行 `GuardQueryAsync` 和 Owner Data Scope，并将实体映射为 `CrmLeadListItemDto`。
+- `CrmLeadMapper.ToListItemDto(SysCrmLead)` 满足 FieldSecurityDtoCatalog 的实体→DTO 映射约定，因此 Tool 对分页结果显式执行 `MaskAsync` 后才返回列表。
+- Customer 和 Lead 两个工具都不提供详情读取或任何写操作；MCP Skill 注册路径未改变。
+
+### 12.2 新增测试源码
+
+- 两个工具分别覆盖空关键词拒绝、201 字符关键词拒绝、调用前取消令牌检查。
+- 两个工具分别覆盖关键词 Trim、QueryService 调用和 MaskAsync 调用。
+- 注册契约测试断言工厂只暴露 `crm_search_customers` 与 `crm_search_leads`，且各自 schema 不包含 TenantId、UserId 或 OwnerUserId。
+
+### 12.3 尚待验证
+
+- 测试源码已提交，尚未运行 .NET restore/build/test；不得将源码测试覆盖表述为测试通过。
+- 仍需真实 DI/授权代理集成测试确认 Chat 内部调用 QueryService 时 `PermissionAuthorize` 拦截确实执行，并验证当前用户/租户上下文。
+- 仍需双租户/多用户并发隔离与脱敏结果测试。
+- 下一批可在相同安全边界下评估 Prospecting Campaign、Run、Candidate 只读搜索；任何写操作、外发邮件及 MCP CRM 数据暴露继续保持关闭。
