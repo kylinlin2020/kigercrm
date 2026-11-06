@@ -341,7 +341,7 @@ public sealed class CrmProspectingAppService(
         return ToCandidateDto(candidate);
     }
 
-    [UnitOfWork(true)]
+    [UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]
     [PermissionAuthorize(CrmPermissionCodes.Create)]
     public async Task<CrmLeadDetailDto> ConvertApprovedCandidateToLeadAsync(long candidateId, CancellationToken cancellationToken = default)
     {
