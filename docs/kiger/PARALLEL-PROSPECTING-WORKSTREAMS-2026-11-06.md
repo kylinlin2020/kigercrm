@@ -180,6 +180,6 @@ At the time this plan is added:
 
 ### IPv6 special-use prefix correction
 - Corrected the public-address filter's RFC 9637 documentation allocation check for `3fff::/20`. The previous prefix helper call supplied too few prefix bytes for a /20 match and therefore did not reject that range.
-- Added a regression vector for `3fff::1`.
+- Added a regression vector for `3fff::1`. Added an upper-bound rejection vector (`3fff:0fff::1`) and a just-outside acceptance vector (`3fff:1000::1`) to verify the /20 boundary.
 - Commits: `cead645a8600f73a0fc843e52daaab3a81d4ff52`, `c7c7573721949dcf3065206f6f8d5e787a9502c7`.
 - Tests remain unexecuted in this environment; Windows/.NET validation is still required.
