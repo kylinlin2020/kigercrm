@@ -26,12 +26,12 @@ public sealed class CrmLeadDomainService(
         ArgumentNullException.ThrowIfNull(command);
         cancellationToken.ThrowIfCancellationRequested();
         if (command.Id <= 0) throw new ArgumentOutOfRangeException(nameof(command.Id));
-        if (!Enum.IsDefined(typeof(CrmLeadStatus), command.Status) || command.Status == (int)CrmLeadStatus.Converted)
+        if (!Enum.IsDefined(typeof(CrmLeadStatus), command.Status) || command.Status == (int)CrmLeadStatus.Converted || command.Status == (int)CrmLeadStatus.Converting)
             throw new ArgumentOutOfRangeException(nameof(command.Status), "Lead status is invalid or requires the conversion workflow.");
         var entity = await repository.GetByIdAsync(command.Id, cancellationToken)
             ?? throw new InvalidOperationException("Lead does not exist.");
-        if (entity.Status == CrmLeadStatus.Converted)
-            throw new InvalidOperationException("A converted lead cannot be edited.");
+        if (entity.Status is CrmLeadStatus.Converted or CrmLeadStatus.Converting)
+            throw new InvalidOperationException("A converted or converting lead cannot be edited.");
         Apply(entity, command.CompanyName, command.ContactName, command.Email, command.Phone, command.Website, command.CountryRegion, command.Source, command.SourceReference, command.OwnerUserId, command.Notes);
         entity.Status = (CrmLeadStatus)command.Status;
         return await repository.UpdateAsync(entity, cancellationToken);
@@ -120,8 +120,8 @@ public sealed class CrmLeadDomainService(
         if (id <= 0) throw new ArgumentOutOfRangeException(nameof(id));
         var entity = await repository.GetByIdAsync(id, cancellationToken)
             ?? throw new InvalidOperationException("Lead does not exist.");
-        if (entity.Status == CrmLeadStatus.Converted)
-            throw new InvalidOperationException("A converted lead cannot be deleted.");
+        if (entity.Status is CrmLeadStatus.Converted or CrmLeadStatus.Converting)
+            throw new InvalidOperationException("A converted or converting lead cannot be deleted.");
         if (!await repository.DeleteAsync(entity, cancellationToken))
             throw new InvalidOperationException("Lead deletion failed.");
     }
