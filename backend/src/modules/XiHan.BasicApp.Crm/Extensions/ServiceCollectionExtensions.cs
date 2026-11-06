@@ -64,6 +64,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrmProspectingScoreRepository, CrmProspectingScoreRepository>();
         services.AddScoped<ICrmProspectingProviderRequestRepository, CrmProspectingProviderRequestRepository>();
         services.AddScoped<ICrmProspectingExtractionJobRepository, CrmProspectingExtractionJobRepository>();
+        // Resolve provider capabilities from the same scoped registrations used by the worker.
+        // The registry validates normalized codes across sync/async contracts at resolution time.
+        services.AddScoped<CrmProspectingProviderRegistry>(provider =>
+            CrmProspectingProviderRegistry.Create(
+                provider.GetServices<ICrmProspectingProvider>(),
+                provider.GetServices<ICrmProspectingAsyncExtractionProvider>()));
         services.AddScoped<ICrmProspectingRunProviderExecutionRepository, CrmProspectingRunProviderExecutionRepository>();
         services.AddScoped<CrmProspectingCandidatePersistenceService>();
         // CrmProspectingRunHostedService follows the framework worker convention:
