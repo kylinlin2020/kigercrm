@@ -77,4 +77,44 @@ public sealed class CrmProspectingExtractionPollPolicyTests
             CrmProspectingExtractionPollPolicy.Evaluate(
                 new(CrmProspectingExtractionProviderStatus.Pending, null, null, null), Now, -1));
     }
+
+    [Fact]
+    public void EvaluateForCurrentState_RunningCannotRegressToPending()
+    {
+        var decision = CrmProspectingExtractionPollPolicy.EvaluateForCurrentState(
+            CrmProspectingExtractionStatus.Running,
+            new(CrmProspectingExtractionProviderStatus.Pending, null, null, null),
+            Now, 2);
+
+        Assert.Equal(CrmProspectingExtractionStatus.NeedsReview, decision.NextStatus);
+        Assert.Null(decision.NextPollAtUtc);
+        Assert.Equal("provider_status_regression", decision.FailureCode);
+    }
+
+    [Fact]
+    public void EvaluateForCurrentState_PendingMayAdvanceToRunning()
+    {
+        var decision = CrmProspectingExtractionPollPolicy.EvaluateForCurrentState(
+            CrmProspectingExtractionStatus.Pending,
+            new(CrmProspectingExtractionProviderStatus.Running, null, null, null),
+            Now, 0);
+
+        Assert.Equal(CrmProspectingExtractionStatus.Running, decision.NextStatus);
+        Assert.NotNull(decision.NextPollAtUtc);
+        Assert.Null(decision.FailureCode);
+    }
+
+    [Fact]
+    public void EvaluateForCurrentState_RejectsNonPollableLocalState()
+    {
+        var decision = CrmProspectingExtractionPollPolicy.EvaluateForCurrentState(
+            CrmProspectingExtractionStatus.Succeeded,
+            new(CrmProspectingExtractionProviderStatus.Succeeded, null, null, null),
+            Now, 0);
+
+        Assert.Equal(CrmProspectingExtractionStatus.NeedsReview, decision.NextStatus);
+        Assert.Equal("invalid_local_poll_state", decision.FailureCode);
+        Assert.Null(decision.NextPollAtUtc);
+    }
+
 }
