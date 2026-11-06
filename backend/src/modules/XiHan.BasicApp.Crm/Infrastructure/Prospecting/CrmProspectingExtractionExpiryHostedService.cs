@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -63,16 +62,4 @@ public sealed class CrmProspectingExtractionExpiryHostedService
         return config;
     }
 
-    private sealed class ExpirySweepTrigger : IBackgroundTaskItem
-    {
-        [JsonIgnore]
-        public string TaskId => "crm-prospecting-extraction-expiry";
-
-        [JsonIgnore]
-        public object? Data => null;
-
-        public DateTimeOffset CreatedAt { get; init; }
-
-        public int RetryCount { get; set; }
-    }
 }
