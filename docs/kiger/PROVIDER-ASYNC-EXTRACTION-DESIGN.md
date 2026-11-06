@@ -762,3 +762,11 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - `NeedsReview` is intentionally not a terminal state for Run completion. A job whose remote submission/result outcome is ambiguous therefore continues to fence the parent Run until an authorized review action resolves it.
 - The parent Run completion statement computes terminal extraction failures separately, so Failed/Expired/Cancelled jobs contribute to the Run failure count while Completed jobs do not.
 - Added a source-contract regression test that protects this distinction. Test source was added but not executed; no PostgreSQL runtime claim is made.
+
+## 11.49 Provider capability registry dependency-injection wiring (2026-11-06)
+
+- The CRM module now registers one scoped `CrmProspectingProviderRegistry` factory built from the actual scoped `ICrmProspectingProvider` and `ICrmProspectingAsyncExtractionProvider` registrations.
+- Registry construction therefore validates normalized provider-code uniqueness across both capability contracts when resolved, rather than leaving the registry as an unreferenced utility.
+- Scoped lifetime is intentional: credential-aware provider adapters may depend on tenant-scoped SaaS configuration services and must not be captured by a singleton registry.
+- Added a source-contract regression test for this DI wiring. No asynchronous adapter is enabled by this change, and it does not claim the Extraction Worker exists; submission, polling, page persistence and worker orchestration remain outstanding.
+- Test source has not been executed; no .NET build/runtime validation is claimed.
