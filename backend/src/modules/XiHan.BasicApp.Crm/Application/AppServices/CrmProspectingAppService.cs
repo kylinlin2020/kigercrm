@@ -357,24 +357,21 @@ public sealed class CrmProspectingAppService(
         // A retry after a successful commit returns the already-created Lead instead of
         // creating a second one or reporting a misleading conversion failure.
         if (candidate.Status == CrmProspectingCandidateStatus.Converted)
-        {
-            if (candidate.ConvertedLeadId is not > 0)
-                throw new InvalidOperationException("Converted prospecting candidate is missing its Lead reference.");
-            var existingLead = await leads.GetByIdAsync(candidate.ConvertedLeadId.Value, cancellationToken)
-                ?? throw new InvalidOperationException("Converted prospecting candidate references a missing Lead.");
-            var expectedSourceReference = $"{candidate.ProviderCode}:{candidate.ExternalId}";
-            if (!string.Equals(existingLead.Source, "Prospecting", StringComparison.Ordinal)
-                || !string.Equals(existingLead.SourceReference, expectedSourceReference, StringComparison.Ordinal)
-                || existingLead.OwnerUserId != campaign.OwnerUserId)
-                throw new InvalidOperationException("Converted Lead does not match its prospecting candidate source or campaign owner.");
-            return CrmLeadMapper.ToDetailDto(existingLead);
-        }
+            return await GetConvertedCandidateLeadAsync(candidate, campaign.OwnerUserId, cancellationToken);
         if (candidate.Status != CrmProspectingCandidateStatus.Approved)
             throw new InvalidOperationException("Only an approved prospecting candidate can be converted to a Lead.");
         // The conditional database update is the concurrency boundary: exactly one caller can
         // transition Approved -> Converting. The surrounding UoW rolls the claim back if Lead creation fails.
         if (!await candidates.TryClaimForConversionAsync(candidate.BasicId, cancellationToken))
+        {
+            // A concurrent request may have committed the conversion while this conditional
+            // claim waited on its row lock. Reload under the same tenant/UoW and return its winner.
+            var latestCandidate = await candidates.GetByIdAsync(candidate.BasicId, cancellationToken)
+                ?? throw new InvalidOperationException("Prospecting candidate does not exist.");
+            if (latestCandidate.Status == CrmProspectingCandidateStatus.Converted)
+                return await GetConvertedCandidateLeadAsync(latestCandidate, campaign.OwnerUserId, cancellationToken);
             throw new InvalidOperationException("This prospecting candidate is already being converted or is no longer approved.");
+        }
 
         var leadInput = new CrmLeadCreateDto
         {
@@ -396,6 +393,23 @@ public sealed class CrmProspectingAppService(
         candidate.ConvertedLeadId = lead.BasicId;
         await candidates.UpdateAsync(candidate, cancellationToken);
         return CrmLeadMapper.ToDetailDto(lead);
+    }
+
+    private async Task<CrmLeadDetailDto> GetConvertedCandidateLeadAsync(
+        SysCrmProspectingCandidate candidate,
+        long campaignOwnerUserId,
+        CancellationToken cancellationToken)
+    {
+        if (candidate.ConvertedLeadId is not > 0)
+            throw new InvalidOperationException("Converted prospecting candidate is missing its Lead reference.");
+        var existingLead = await leads.GetByIdAsync(candidate.ConvertedLeadId.Value, cancellationToken)
+            ?? throw new InvalidOperationException("Converted prospecting candidate references a missing Lead.");
+        var expectedSourceReference = $"{candidate.ProviderCode}:{candidate.ExternalId}";
+        if (!string.Equals(existingLead.Source, "Prospecting", StringComparison.Ordinal)
+            || !string.Equals(existingLead.SourceReference, expectedSourceReference, StringComparison.Ordinal)
+            || existingLead.OwnerUserId != campaignOwnerUserId)
+            throw new InvalidOperationException("Converted Lead does not match its prospecting candidate source or campaign owner.");
+        return CrmLeadMapper.ToDetailDto(existingLead);
     }
 
     private static CrmProspectingCandidateDto ToCandidateDto(SysCrmProspectingCandidate entity) => new()
