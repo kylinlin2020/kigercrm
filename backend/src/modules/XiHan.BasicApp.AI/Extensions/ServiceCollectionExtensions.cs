@@ -120,8 +120,8 @@ public static class ServiceCollectionExtensions
     /// 添加应用层 AI 技能
     /// </summary>
     /// <remarks>
-    /// 技能注册为 <see cref="IAiSkill"/>,框架 <c>DefaultAiSkillRegistry</c> 构造时收纳,进而暴露为对话工具 / MCP tools。
-    /// 单例(依赖单例 IKnowledgeRetriever)。新增技能在此追加一行。
+    /// 知识检索技能以 Singleton 注册并由框架技能注册表收纳，供 MCP Skill 投影使用。
+    /// CRM Chat 内部函数走独立的请求级 CrmChatToolFactory，不进入 Singleton Skill 注册表。
     /// </remarks>
     /// <param name="services">服务集合</param>
     /// <returns></returns>
