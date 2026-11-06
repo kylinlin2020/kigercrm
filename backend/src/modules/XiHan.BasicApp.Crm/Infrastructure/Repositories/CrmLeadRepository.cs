@@ -9,6 +9,19 @@ namespace XiHan.BasicApp.Crm.Infrastructure.Repositories;
 public sealed class CrmLeadRepository(ISqlSugarClientResolver clientResolver)
     : SaasRepository<SysCrmLead>(clientResolver), ICrmLeadRepository
 {
+    public async Task<bool> TryClaimForConversionAsync(long leadId, CancellationToken cancellationToken = default)
+    {
+        if (leadId <= 0) throw new ArgumentOutOfRangeException(nameof(leadId));
+        cancellationToken.ThrowIfCancellationRequested();
+        return await UpdateAsync(
+            lead => new SysCrmLead { Status = XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmLeadStatus.Converting },
+            lead => lead.BasicId == leadId &&
+                (lead.Status == XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmLeadStatus.New ||
+                 lead.Status == XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmLeadStatus.Contacted ||
+                 lead.Status == XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmLeadStatus.Qualified),
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<SysCrmLead>> GetDuplicateMatchesAsync(
         IReadOnlyCollection<string> normalizedEmails,
         IReadOnlyCollection<string> websiteHosts,
