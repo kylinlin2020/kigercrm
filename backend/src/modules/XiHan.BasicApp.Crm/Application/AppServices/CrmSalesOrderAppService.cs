@@ -75,11 +75,12 @@ public sealed class CrmSalesOrderAppService(
         var customerPurchaseOrderNumber = NormalizeOptional(input.CustomerPurchaseOrderNumber, 100, nameof(input.CustomerPurchaseOrderNumber));
         var paymentTerms = NormalizeOptional(input.PaymentTerms, 500, nameof(input.PaymentTerms));
         var deliveryTerms = NormalizeOptional(input.DeliveryTerms, 500, nameof(input.DeliveryTerms));
+        var termsAndConditions = NormalizeOptional(input.TermsAndConditions, 20000, nameof(input.TermsAndConditions));
         string? creationRequestFingerprint = null;
         if (requestKey is not null)
         {
             creationRequestFingerprint = CreateRequestFingerprint(
-                input, owner, currency, customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+                input, owner, currency, customerPurchaseOrderNumber, paymentTerms, deliveryTerms, termsAndConditions, calculated);
 
             var existingRequest = await createRequests.GetByRequestKeyAsync("SALES_ORDER", requestKey, cancellationToken);
             if (existingRequest is not null)
@@ -97,7 +98,7 @@ public sealed class CrmSalesOrderAppService(
                 // Recompute with the persisted owner so later customer reassignment does not break replay.
                 var replayFingerprint = CreateRequestFingerprint(
                     input, input.OwnerUserId ?? replayOrder.OwnerUserId, currency,
-                    customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+                    customerPurchaseOrderNumber, paymentTerms, deliveryTerms, termsAndConditions, calculated);
                 if (!string.Equals(existingRequest.PayloadHash, replayFingerprint, StringComparison.Ordinal))
                     throw new InvalidOperationException("The sales-order idempotency key was already used with a different create request.");
                 return ToListItem(replayOrder);
@@ -120,7 +121,7 @@ public sealed class CrmSalesOrderAppService(
                 await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existingOrder.OwnerUserId, cancellationToken);
                 var legacyFingerprint = CreateRequestFingerprint(
                     input, input.OwnerUserId ?? existingOrder.OwnerUserId, currency,
-                    customerPurchaseOrderNumber, paymentTerms, deliveryTerms, calculated);
+                    customerPurchaseOrderNumber, paymentTerms, deliveryTerms, termsAndConditions, calculated);
                 if (existingOrder.CreationRequestFingerprint is null ||
                     !string.Equals(existingOrder.CreationRequestFingerprint, legacyFingerprint, StringComparison.Ordinal))
                     throw new InvalidOperationException("The sales-order idempotency key was already used with a different or unverifiable create request.");
@@ -157,6 +158,7 @@ public sealed class CrmSalesOrderAppService(
             CustomerPurchaseOrderNumber = customerPurchaseOrderNumber,
             PaymentTerms = paymentTerms,
             DeliveryTerms = deliveryTerms,
+            TermsAndConditions = termsAndConditions,
             Notes = input.Notes
         };
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmSalesOrder), input, cancellationToken);
@@ -334,6 +336,7 @@ public sealed class CrmSalesOrderAppService(
         order.CustomerPurchaseOrderNumber = NormalizeOptional(input.CustomerPurchaseOrderNumber, 100, nameof(input.CustomerPurchaseOrderNumber));
         order.PaymentTerms = NormalizeOptional(input.PaymentTerms, 500, nameof(input.PaymentTerms));
         order.DeliveryTerms = NormalizeOptional(input.DeliveryTerms, 500, nameof(input.DeliveryTerms));
+        order.TermsAndConditions = NormalizeOptional(input.TermsAndConditions, 20000, nameof(input.TermsAndConditions));
         order.Notes = input.Notes;
         var saved = await repository.UpdateAsync(order, cancellationToken);
         return ToListItem(saved);
@@ -346,6 +349,7 @@ public sealed class CrmSalesOrderAppService(
         string? customerPurchaseOrderNumber,
         string? paymentTerms,
         string? deliveryTerms,
+        string? termsAndConditions,
         IReadOnlyList<SysCrmSalesOrderLine> lines)
     {
         var canonicalRequest = new
@@ -359,6 +363,7 @@ public sealed class CrmSalesOrderAppService(
             CustomerPurchaseOrderNumber = customerPurchaseOrderNumber,
             PaymentTerms = paymentTerms,
             DeliveryTerms = deliveryTerms,
+            TermsAndConditions = termsAndConditions,
             input.Notes,
             Lines = lines.Select(line => new
             {
