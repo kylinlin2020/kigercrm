@@ -20,15 +20,18 @@ public sealed class CrmChatToolFactory
 {
     private readonly ICrmCustomerQueryService _customerQuery;
     private readonly ICrmLeadQueryService _leadQuery;
+    private readonly ICrmProspectingAppService _prospecting;
     private readonly IFieldSecurityService _fieldSecurity;
 
     public CrmChatToolFactory(
         ICrmCustomerQueryService customerQuery,
         ICrmLeadQueryService leadQuery,
+        ICrmProspectingAppService prospecting,
         IFieldSecurityService fieldSecurity)
     {
         _customerQuery = customerQuery;
         _leadQuery = leadQuery;
+        _prospecting = prospecting;
         _fieldSecurity = fieldSecurity;
     }
 
@@ -89,7 +92,78 @@ public sealed class CrmChatToolFactory
                     return page.Items.ToList();
                 },
                 name: "crm_search_leads",
-                description: "只读搜索当前登录用户有权访问的 CRM 线索。按公司名称、联系人或邮箱关键词搜索；遵守当前用户的数据范围和字段脱敏规则。不得尝试读取其他租户或指定 Owner。")
+                description: "只读搜索当前登录用户有权访问的 CRM 线索。按公司名称、联系人或邮箱关键词搜索；遵守当前用户的数据范围和字段脱敏规则。不得尝试读取其他租户或指定 Owner。"),
+            AIFunctionFactory.Create(
+                async () =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var items = await _prospecting.GetCampaignsAsync(cancellationToken);
+                    return items.Select(item => new
+                    {
+                        item.BasicId,
+                        item.Name,
+                        item.Objective,
+                        item.ProductScope,
+                        item.TargetMarkets,
+                        item.IdealCustomerProfile,
+                        item.Status,
+                        item.ActiveStrategyVersion,
+                        item.CreatedTime
+                    }).ToArray();
+                },
+                name: "crm_prospecting_list_campaigns",
+                description: "只读列出当前登录用户数据范围内的自动获客 Campaign。不得尝试访问其他用户或租户的数据。"),
+            AIFunctionFactory.Create(
+                async ([Description("CRM 自动获客 Campaign 的数字 ID。只能使用当前会话已获得的 ID。")] long campaignId) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (campaignId <= 0)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(campaignId));
+                    }
+
+                    var items = await _prospecting.GetCampaignRunsAsync(campaignId, cancellationToken);
+                    return items.Select(item => new
+                    {
+                        item.BasicId,
+                        item.CampaignId,
+                        item.StrategyVersion,
+                        item.Status,
+                        item.CreatedTime,
+                        item.StartedAt,
+                        item.CompletedAt,
+                        item.RawRecordCount,
+                        item.CandidateCount,
+                        item.FailureCount
+                    }).ToArray();
+                },
+                name: "crm_prospecting_list_runs",
+                description: "只读列出指定且当前用户有权访问的 Campaign 的自动获客运行记录。不得尝试访问其他用户或租户的数据。"),
+            AIFunctionFactory.Create(
+                async ([Description("CRM 自动获客 Run 的数字 ID。只能使用当前会话已获得的 ID。")] long runId) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (runId <= 0)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(runId));
+                    }
+
+                    var items = await _prospecting.GetRunCandidatesAsync(runId, cancellationToken: cancellationToken);
+                    return items.Select(item => new
+                    {
+                        item.BasicId,
+                        item.RunId,
+                        item.Title,
+                        item.CompanyName,
+                        item.Website,
+                        item.Summary,
+                        item.Status,
+                        item.DuplicateReason,
+                        item.CreatedTime
+                    }).ToArray();
+                },
+                name: "crm_prospecting_list_candidates",
+                description: "只读列出指定且当前用户有权访问的自动获客 Run 的候选客户。出于数据最小化，不返回候选人的邮箱、联系人姓名、供应商原始记录 ID 或转换记录 ID。不得尝试访问其他用户或租户的数据。")
         ];
     }
 }
