@@ -30,10 +30,16 @@ public static class CrmProspectingExtractionWorkActionPolicy
             CrmProspectingExtractionStatus.Pending or CrmProspectingExtractionStatus.Running =>
                 new(CrmProspectingExtractionWorkAction.None, "poll_requires_remote_identity"),
 
-            CrmProspectingExtractionStatus.Succeeded or CrmProspectingExtractionStatus.FetchingResults
-                when hasRemoteIdentity =>
+            // Succeeded is an intermediate remote state: the consumer must first persist
+            // Succeeded -> FetchingResults under its lease before any page request is allowed.
+            CrmProspectingExtractionStatus.Succeeded when hasRemoteIdentity =>
+                new(CrmProspectingExtractionWorkAction.BeginResultFetch, null),
+            CrmProspectingExtractionStatus.Succeeded =>
+                new(CrmProspectingExtractionWorkAction.None, "fetch_requires_remote_identity"),
+
+            CrmProspectingExtractionStatus.FetchingResults when hasRemoteIdentity =>
                 new(CrmProspectingExtractionWorkAction.FetchResults, null),
-            CrmProspectingExtractionStatus.Succeeded or CrmProspectingExtractionStatus.FetchingResults =>
+            CrmProspectingExtractionStatus.FetchingResults =>
                 new(CrmProspectingExtractionWorkAction.None, "fetch_requires_remote_identity"),
 
             // NeedsReview is deliberately not an automatic action. Terminal states are inert.
@@ -48,7 +54,8 @@ public enum CrmProspectingExtractionWorkAction
     None = 0,
     Submit = 1,
     Poll = 2,
-    FetchResults = 3
+    BeginResultFetch = 3,
+    FetchResults = 4
 }
 
 /// <summary>Pure work-selection result with a stable reason code when an invalid state is blocked.</summary>
