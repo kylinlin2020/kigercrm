@@ -32,4 +32,28 @@ public sealed class CrmProspectingExtractionStatusMapperTests
         Assert.Equal(now.AddMinutes(30), CrmProspectingExtractionStatusMapper.NormalizeRetryAtUtc(now.AddHours(4), now));
         Assert.Equal(now.AddMinutes(2), CrmProspectingExtractionStatusMapper.NormalizeRetryAtUtc(now.AddMinutes(2), now));
     }
+    [Theory]
+    [InlineData(1, 5)]
+    [InlineData(2, 10)]
+    [InlineData(3, 20)]
+    [InlineData(4, 40)]
+    [InlineData(10, 2560)]
+    [InlineData(20, 1800)]
+    public void GetDefaultPollDelay_UsesBoundedExponentialBackoff(int attempts, int expectedSeconds)
+        => Assert.Equal(TimeSpan.FromSeconds(expectedSeconds),
+            CrmProspectingExtractionStatusMapper.GetDefaultPollDelay(attempts));
+
+    [Fact]
+    public void GetDefaultPollDelay_RejectsNonPositiveAttemptCount()
+        => Assert.Throws<ArgumentOutOfRangeException>(
+            () => CrmProspectingExtractionStatusMapper.GetDefaultPollDelay(0));
+
+    [Fact]
+    public void GetDefaultRetryAt_UsesUtcAndAttemptBasedDelay()
+    {
+        var now = new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.FromHours(3));
+        Assert.Equal(now.ToUniversalTime().AddSeconds(10),
+            CrmProspectingExtractionStatusMapper.GetDefaultRetryAtUtc(2, now));
+    }
+
 }
