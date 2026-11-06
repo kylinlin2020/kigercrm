@@ -412,25 +412,6 @@ public sealed class CrmProspectingAppService(
         return CrmLeadMapper.ToDetailDto(existingLead);
     }
 
-    private static CrmProspectingCandidateDto CrmProspectingMapper.ToCandidateDto(SysCrmProspectingCandidate entity) => new()
-    {
-        BasicId = entity.BasicId,
-        RunId = entity.RunId,
-        ProviderCode = entity.ProviderCode,
-        ExternalId = entity.ExternalId,
-        Source = entity.Source,
-        Title = entity.Title,
-        CompanyName = entity.CompanyName,
-        ContactName = entity.ContactName,
-        BusinessEmail = entity.BusinessEmail,
-        Website = entity.Website,
-        Summary = entity.Summary,
-        Status = (int)entity.Status,
-        DuplicateReason = entity.DuplicateReason,
-        ConvertedLeadId = entity.ConvertedLeadId,
-        CreatedTime = entity.CreatedTime
-    };
-
     private static CrmProspectingRunDto ToDto(SysCrmProspectingRun entity) => new()
     {
         BasicId = entity.BasicId,
