@@ -252,4 +252,37 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("lease_token = NULL", method, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void NeedsReviewRecovery_ShouldRequireAResolvedProviderIdentityAndRemainManual()
+    {
+        Assert.False(CrmProspectingExtractionStateMachine.RequiresProviderExtractionId(
+            CrmProspectingExtractionStatus.NeedsReview));
+        Assert.True(CrmProspectingExtractionStateMachine.RequiresProviderExtractionId(
+            CrmProspectingExtractionStatus.Pending));
+        Assert.True(CrmProspectingExtractionStateMachine.RequiresProviderExtractionId(
+            CrmProspectingExtractionStatus.Running));
+
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+
+        var transitionStart = source.IndexOf("TryTransitionAsync", StringComparison.Ordinal);
+        var cursorStart = source.IndexOf("TryAdvanceCursorAsync", transitionStart, StringComparison.Ordinal);
+        Assert.True(transitionStart >= 0 && cursorStart > transitionStart);
+        var transition = source[transitionStart..cursorStart];
+        Assert.Contains("CrmProspectingExtractionStateMachine.RequiresProviderExtractionId(nextStatus)", transition, StringComparison.Ordinal);
+        Assert.Contains("@requiresProviderExtractionId = FALSE OR provider_extraction_id IS NOT NULL", transition, StringComparison.Ordinal);
+
+        var claimStart = source.IndexOf("ClaimDueAsync", StringComparison.Ordinal);
+        var renewStart = source.IndexOf("TryRenewLeaseAsync", claimStart, StringComparison.Ordinal);
+        Assert.True(claimStart >= 0 && renewStart > claimStart);
+        var claim = source[claimStart..renewStart];
+        Assert.DoesNotContain("NeedsReview", claim, StringComparison.Ordinal);
+        Assert.Contains("job.status IN (@submittingStatus, @pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)", claim, StringComparison.Ordinal);
+    }
+
 }
