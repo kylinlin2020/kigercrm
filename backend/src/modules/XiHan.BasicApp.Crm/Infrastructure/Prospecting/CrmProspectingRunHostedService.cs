@@ -209,6 +209,39 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
                 else if (executionStep.State == "Succeeded")
                 {
+                    // Recover the only post-projection crash window: the provider batch and
+                    // execution terminal state committed, but request-ledger coverage did not.
+                    // A durable Succeeded execution plus its verified complete checkpoint is
+                    // sufficient to reconcile the Started attempt without repeating provider I/O.
+                    var unfinishedAttempt = await requestLedger.GetStartedAttemptAsync(
+                        run.BasicId, providerCode, cancellationToken);
+                    if (unfinishedAttempt is not null)
+                    {
+                        var succeededCheckpointJson = executionStep.CheckpointJson
+                            ?? throw new InvalidOperationException($"Succeeded provider execution '{providerCode}' has no durable checkpoint.");
+                        var succeededCheckpointBytes = System.Text.Encoding.UTF8.GetByteCount(succeededCheckpointJson);
+                        var succeededCheckpointHash = Convert.ToHexString(
+                            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(succeededCheckpointJson)));
+                        if (succeededCheckpointBytes != executionStep.CheckpointBytes ||
+                            !string.Equals(succeededCheckpointHash, executionStep.CheckpointHash, StringComparison.Ordinal))
+                            throw new InvalidOperationException($"Succeeded provider checkpoint integrity validation failed for '{providerCode}'.");
+                        var succeededCheckpoint = JsonSerializer.Deserialize<CrmProspectingProviderResultCheckpoint>(succeededCheckpointJson)
+                            ?? throw new InvalidOperationException($"Succeeded provider checkpoint payload is invalid for '{providerCode}'.");
+                        if (!succeededCheckpoint.IsComplete ||
+                            succeededCheckpoint.FailureCount != 0 ||
+                            succeededCheckpoint.Records is null ||
+                            succeededCheckpoint.Records.Count != executionStep.RawRecordCount)
+                            throw new InvalidOperationException($"A Started request attempt cannot advance coverage from an incomplete checkpoint for '{providerCode}'.");
+                        var recoveredResponseHash = CrmProspectingResponseFingerprint.Create(succeededCheckpoint.Records);
+                        var recoveredAt = DateTimeOffset.UtcNow;
+                        var recoveredDurationMs = Math.Max(0L, (long)(recoveredAt - unfinishedAttempt.StartedAt).TotalMilliseconds);
+                        if (!await requestLedger.TryFinalizeSuccessWithCoverageAsync(
+                            unfinishedAttempt.BasicId, run.BasicId, run.CampaignId,
+                            leaseToken, activeFencingVersion, unfinishedAttempt.RequestKey,
+                            recoveredAt, recoveredDurationMs, succeededCheckpoint.Records.Count,
+                            recoveredResponseHash, cancellationToken))
+                            throw new InvalidOperationException($"The completed provider request for '{providerCode}' could not recover its pending coverage checkpoint.");
+                    }
                     continue;
                 }
                 else if (executionStep.State != "Queued")
