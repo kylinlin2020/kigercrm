@@ -864,3 +864,46 @@ Until these pieces are implemented together, NeedsReview remains deliberately no
 - Added a source-contract regression test that protects the ordering: complete async preflight and rejection must occur before the first provider execution loop.
 - This guard is intentionally temporary. It prevents unsafe mixed execution but does not replace the missing durable extraction Submit/Poll/Fetch worker and parent Run continuation.
 - Test source was added but not executed; no build or runtime validation is claimed.
+
+
+## 11.59 Submit/Poll worker execution protocol (2026-11-06)
+
+This section defines the next worker implementation boundary. The expiry hosted service is not a substitute for this worker, and the current Run worker still rejects async-only plan entries.
+
+### Claim and lease lifecycle
+- Run the extraction consumer as a dedicated hosted worker with bounded concurrency and a stable worker identity. It must claim jobs only inside a concrete tenant scope; never execute extraction repository methods in platform/null scope.
+- ClaimDueAsync remains the only automatic claim entry point. Every claimed job carries the exact lease token and monotonic fencing version. All post-I/O writes must use both values and must fail closed when ownership has expired or been replaced.
+- Start an independent heartbeat immediately after claim. Renew at a fraction of the lease duration (target no more than one third); heartbeat failure cancels the job processing token. Never let a provider HTTP request continue into subsequent persistence after lease loss.
+- Provider I/O must run outside database transactions. Open short transactions only for intent/acknowledgement, state transitions, and page persistence/cursor advancement.
+
+### Submission
+- Before provider I/O, create or load the tenant/run/provider/fingerprint durable Submitting intent. Pass its persisted SubmissionIdempotencyKey to the adapter; never generate a replacement key during retry.
+- Submit only when the provider contract explicitly guarantees authoritative idempotent submission. If the adapter cannot prove this capability, do not register it as an async execution provider.
+- A successful provider response must pass CrmProspectingExtractionSubmissionValidator and be acknowledged through TryAcknowledgeSubmissionAsync under the original live lease. The provider ID and safe metadata must be committed together.
+- If the request times out, the connection drops, or the process stops after remote acceptance may have occurred, the result is ambiguous. Retry only with the same key and only where the provider guarantees that the same key returns the same remote operation. Otherwise, use the explicit NeedsReview workflow; never issue a fresh submission.
+- Do not treat a Submitting row as expired or failed solely because its local lease elapsed. Reclaiming it must first reconcile the same idempotency key according to the adapter's documented semantics.
+
+### Poll and state transition
+- Poll only jobs with a persisted provider extraction ID. Validate the provider response against the job's normalized ProviderCode and extraction ID before interpreting status.
+- Perform PollExtractionAsync outside a transaction. Map remote states through the provider-status mapper; do not persist provider-supplied enum strings directly.
+- When the provider supplies RetryAtUtc, normalize/clamp it with NormalizeRetryAtUtc. When it supplies no retry hint, calculate the next delay with GetDefaultPollDelay(nextPollAttemptCount), then persist the transition under the exact lease/fencing identity. The attempt count is incremented only by the fenced poll transition.
+- Heartbeat must remain active during long polling calls. If the lease is lost while the HTTP request is in flight, discard its response and do not transition state.
+- Succeeded is not terminal for the parent Run: transition into FetchingResults and retrieve every result page. Failed/Expired/Cancelled may release the job lease and contribute a terminal failure to parent Run aggregation.
+
+### Result-page persistence and continuation
+- Fetch one page outside a transaction and validate it with CrmProspectingExtractionPageValidator before any database write.
+- Persist raw provider checkpoint, normalized record identity, candidate projection, evidence and score effects using the same Run-wide deduplication and repair rules as synchronous provider results. A per-page-only dedupe set is insufficient; duplicates across pages and across providers in one Run must be resolved by the shared Run-level identity boundary.
+- In one transaction, persist all page effects and then call TryAdvanceCursorAsync, TryCompleteResultsAsync, or TryFailIncompleteResultsAsync with the exact expected cursor. A failed fenced update must roll back every page write. Never advance a cursor in a separate transaction from the data it represents.
+- A non-final page must provide a non-empty cursor different from the expected cursor. Reject repeated cursors and page loops. Enforce the page validator's record, warning, cursor and serialized-byte ceilings.
+- A page with record-level failures must not be reported as Completed. Persist valid records and failure counts atomically, then close as Failed only after a complete final page has been processed according to the repository contract.
+
+### Parent Run orchestration
+- Parent Run remains non-terminal while any extraction child is Submitting, Pending, Running, Succeeded, FetchingResults or NeedsReview. Do not mark the Run complete after merely enqueueing extraction jobs.
+- Once all child jobs are terminal, aggregate Completed records and Failed/Expired/Cancelled child failures, then resume the parent Run through its existing fenced completion/cancellation path. NeedsReview remains blocking and requires the audited operator workflow.
+- Queue delivery is at-least-once. A worker restart must rediscover due jobs from durable tenant-scoped state; Redis messages may wake workers but are not the source of truth.
+- Startup recovery must not use the Run worker's single-instance RecoverInterrupted path for extraction jobs. Extraction recovery must be based on PostgreSQL leases, fencing and idempotency semantics.
+
+### Required acceptance gates
+- Unit/source tests: idempotency key reuse, ambiguous submit timeout, provider-code/ID mismatch, retry-hint clamping, exponential backoff integration, heartbeat cancellation, stale fencing response discard, poll status mapping, cursor loop rejection, cross-page/provider deduplication, transaction rollback on cursor conflict, NeedsReview blocking and parent Run continuation.
+- PostgreSQL integration tests: concurrent SKIP LOCKED claims, lease expiry/reclaim, fencing after reclaim, DB-clock predicates, atomic page/cursor rollback, concurrent duplicate submission intent, and tenant isolation across both shared-schema and database-isolated tenants.
+- Only after these gates pass should async provider registrations be enabled in deployment configuration. Until then, async plan entries remain rejected before any synchronous provider is called.
