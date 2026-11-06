@@ -863,16 +863,18 @@ public sealed class CrmProspectingApplicationWiringTests
     public void ConvertedCandidateRetry_ShouldVerifyLeadSourceIdentityAndCampaignOwner()
     {
         var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
-        var start = service.IndexOf("if (candidate.Status == CrmProspectingCandidateStatus.Converted)", StringComparison.Ordinal);
-        var end = service.IndexOf("if (candidate.Status != CrmProspectingCandidateStatus.Approved)", start, StringComparison.Ordinal);
-        Assert.True(start >= 0 && end > start);
-        var retry = service[start..end];
+        Assert.Contains("if (candidate.Status == CrmProspectingCandidateStatus.Converted)", service, StringComparison.Ordinal);
+        Assert.Contains("return await GetConvertedCandidateLeadAsync(candidate, campaign.OwnerUserId, cancellationToken)", service, StringComparison.Ordinal);
+        var helperStart = service.IndexOf("private async Task<CrmLeadDetailDto> GetConvertedCandidateLeadAsync", StringComparison.Ordinal);
+        var helperEnd = service.IndexOf("private static CrmProspectingCandidateDto", helperStart, StringComparison.Ordinal);
+        Assert.True(helperStart >= 0 && helperEnd > helperStart);
+        var retry = service[helperStart..helperEnd];
         Assert.Contains("candidate.ConvertedLeadId is not > 0", retry, StringComparison.Ordinal);
         Assert.Contains("leads.GetByIdAsync(candidate.ConvertedLeadId.Value", retry, StringComparison.Ordinal);
         Assert.Contains("expectedSourceReference = \"{candidate.ProviderCode}:{candidate.ExternalId}\"", retry, StringComparison.Ordinal);
         Assert.Contains("existingLead.Source, \"Prospecting\"", retry, StringComparison.Ordinal);
         Assert.Contains("existingLead.SourceReference, expectedSourceReference", retry, StringComparison.Ordinal);
-        Assert.Contains("existingLead.OwnerUserId != campaign.OwnerUserId", retry, StringComparison.Ordinal);
+        Assert.Contains("existingLead.OwnerUserId != campaignOwnerUserId", retry, StringComparison.Ordinal);
         Assert.Contains("Converted Lead does not match its prospecting candidate source or campaign owner.", retry, StringComparison.Ordinal);
         Assert.DoesNotContain("leadDomain.CreateAsync", retry, StringComparison.Ordinal);
     }
