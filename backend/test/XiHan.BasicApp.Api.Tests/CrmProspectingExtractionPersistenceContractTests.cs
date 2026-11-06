@@ -371,4 +371,28 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid(nextCursor)", method, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void SubmissionIntent_ShouldReusePersistedIdempotencyKeyBeforeGeneratingANewOne()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+        var methodStart = source.IndexOf("CreateSubmissionIntentAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("TryAcknowledgeSubmissionAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+
+        var existingLookup = method.IndexOf("var existing = await CreateQueryable()", StringComparison.Ordinal);
+        var existingReturn = method.IndexOf("if (existing.Count == 1) return existing[0];", StringComparison.Ordinal);
+        var newKey = method.IndexOf("SubmissionIdempotencyKey = Guid.NewGuid()", StringComparison.Ordinal);
+        Assert.True(existingLookup >= 0 && existingReturn > existingLookup && newKey > existingReturn,
+            "A retried local intent must return its original provider idempotency key before any new key can be generated.");
+        Assert.Contains("row.TenantId == tenant.TenantId && row.RunId == runId", method, StringComparison.Ordinal);
+        Assert.Contains("row.ProviderCode == providerCode && row.RequestFingerprint == fingerprint", method, StringComparison.Ordinal);
+    }
+
 }
