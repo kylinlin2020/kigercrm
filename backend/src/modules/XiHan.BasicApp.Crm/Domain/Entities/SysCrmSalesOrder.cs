@@ -74,6 +74,9 @@ public sealed class SysCrmSalesOrder : BasicAppFullAuditedEntity, IStrictMultiTe
     [SugarColumn(ColumnName = "Delivery_Terms", Length = 500, IsNullable = true)]
     public string? DeliveryTerms { get; set; }
 
+    [SugarColumn(ColumnName = "Terms_And_Conditions", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
+    public string? TermsAndConditions { get; set; }
+
     [SugarColumn(ColumnName = "Notes", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
     public string? Notes { get; set; }
 }
