@@ -19,6 +19,22 @@ jobs:
   backend:
     name: 后端构建与测试
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: kigercrm_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d kigercrm_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      KIGER_TEST_POSTGRES_CONNECTION_STRING: "Host=localhost;Port=5432;Database=kigercrm_test;Username=postgres;Password=postgres;Pooling=false"
     steps:
       - uses: actions/checkout@v7
 
