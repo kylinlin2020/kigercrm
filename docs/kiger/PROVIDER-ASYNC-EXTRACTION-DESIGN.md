@@ -832,3 +832,10 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - The generic fenced transition path refuses to move a job into Pending or Running unless a provider extraction ID has already been persisted. This prevents an operator or future worker from converting an ambiguous submission into a pollable job without first resolving the remote identity.
 - This does not yet implement the operator-facing reconciliation action that safely records a provider-confirmed extraction ID and requeues the job. Until that explicit action exists, unresolved NeedsReview jobs remain blocked and continue to prevent parent Run completion.
 - Added source-contract coverage for the provider-ID precondition and manual-only claim behavior. Tests/build/runtime validation have not been executed.
+
+## 11.57 Bounded exponential polling backoff contract (2026-11-06)
+
+- Added a deterministic default polling schedule for asynchronous extraction jobs when a provider supplies no retry timestamp: one-based attempt counts start at five seconds, double per attempt, and cap at thirty minutes.
+- Provider-supplied retry timestamps continue to pass through NormalizeRetryAtUtc, which clamps them to the five-second/thirty-minute scheduling window. The new default-delay helper is separate so the future worker can explicitly use the persisted poll-attempt count.
+- Added regression cases for early backoff steps, cap behavior, non-positive attempt counts and UTC normalization.
+- This is a scheduling policy primitive only; the Submit/Poll worker and its lease-heartbeat integration are still not implemented. Tests/build/runtime validation have not been executed.
