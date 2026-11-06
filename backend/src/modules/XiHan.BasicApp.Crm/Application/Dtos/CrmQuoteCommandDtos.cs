@@ -45,6 +45,7 @@ public sealed class CrmQuoteDto
     public long? OpportunityId { get; set; }
     public string CustomerNameSnapshot { get; set; } = string.Empty;
     public string? ContactNameSnapshot { get; set; }
+    public string? OpportunityNameSnapshot { get; set; }
     public int Status { get; set; }
     public DateTime IssueDate { get; set; }
     public DateTime? ValidUntil { get; set; }
