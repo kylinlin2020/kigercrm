@@ -420,3 +420,78 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     }
 
 }
+
+
+    [Fact]
+    public void AsyncExtractionPagePersistence_ShouldFenceLeaseAndCursorBeforeWritingCandidates()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs"));
+        var start = source.IndexOf("public async Task<int> PersistPageAndAdvanceAsync", StringComparison.Ordinal);
+        var end = source.IndexOf("private async Task PersistCandidateOrRepairAsync", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var method = source[start..end];
+
+        var transaction = method.IndexOf("isTransactional: true", StringComparison.Ordinal);
+        var leaseRead = method.IndexOf("_extractionJobs.GetByIdAsync", StringComparison.Ordinal);
+        var leaseFence = method.IndexOf("extraction.FencingVersion != extractionFencingVersion", StringComparison.Ordinal);
+        var candidateWrite = method.IndexOf("PersistCandidateOrRepairAsync(item, cancellationToken)", StringComparison.Ordinal);
+        var cursorAdvance = method.IndexOf("_extractionJobs.TryAdvanceCursorAsync", StringComparison.Ordinal);
+        var commit = method.IndexOf("unitOfWork.CompleteAsync", StringComparison.Ordinal);
+
+        Assert.True(transaction >= 0 && leaseRead > transaction && leaseFence > leaseRead);
+        Assert.True(candidateWrite > leaseFence && cursorAdvance > candidateWrite && commit > cursorAdvance);
+        Assert.Contains("extraction.LeaseToken != extractionLeaseToken", method, StringComparison.Ordinal);
+        Assert.Contains("extraction.ResultCursor, expectedCursor", method, StringComparison.Ordinal);
+        Assert.Contains("if (!advanced)", method, StringComparison.Ordinal);
+        Assert.Contains("all page writes were rolled back", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AsyncExtractionPagePersistence_ShouldEnforceOneToOneCandidateRecordMembership()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs"));
+        var start = source.IndexOf("public async Task<int> PersistPageAndAdvanceAsync", StringComparison.Ordinal);
+        var end = source.IndexOf("private async Task PersistCandidateOrRepairAsync", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var method = source[start..end];
+
+        Assert.Contains("var pageIdentities = page.Records", method, StringComparison.Ordinal);
+        Assert.Contains("var itemIdentities = new HashSet<string>(StringComparer.Ordinal)", method, StringComparison.Ordinal);
+        Assert.Contains("if (!pageIdentities.Contains(identity) || !itemIdentities.Add(identity))", method, StringComparison.Ordinal);
+        Assert.Contains("item.Candidate.RunId != extraction.RunId", method, StringComparison.Ordinal);
+        Assert.Contains("item.Candidate.ExternalId, identity", method, StringComparison.Ordinal);
+        Assert.Contains("items.Count + page.FailureCount != page.Records.Count", method, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AsyncExtractionFinalPage_ShouldFailIncompleteResultsInsteadOfReportingSuccess()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs"));
+        var start = source.IndexOf("public async Task<int> PersistPageAndAdvanceAsync", StringComparison.Ordinal);
+        var end = source.IndexOf("private async Task PersistCandidateOrRepairAsync", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var method = source[start..end];
+
+        var fail = method.IndexOf("_extractionJobs.TryFailIncompleteResultsAsync", StringComparison.Ordinal);
+        var complete = method.IndexOf("_extractionJobs.TryCompleteResultsAsync", StringComparison.Ordinal);
+        var continuePage = method.IndexOf("_extractionJobs.TryAdvanceCursorAsync", StringComparison.Ordinal);
+        Assert.True(fail >= 0 && complete > fail && continuePage > complete);
+        Assert.Contains("page.IsLastPage && extraction.ResultFailureCount + page.FailureCount > 0", method, StringComparison.Ordinal);
+        Assert.Contains("page.IsLastPage", method, StringComparison.Ordinal);
+        Assert.Contains("expectedCursor: expectedCursor", method, StringComparison.Ordinal);
+    }
