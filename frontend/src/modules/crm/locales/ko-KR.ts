@@ -156,6 +156,7 @@ export default {
       "contacted": "연락됨",
       "qualified": "적격",
       "disqualified": "부적격",
+      "converting": "전환 중",
       "converted": "전환됨",
       "total": "{count}개",
       "page": "{current} / {total}페이지",
