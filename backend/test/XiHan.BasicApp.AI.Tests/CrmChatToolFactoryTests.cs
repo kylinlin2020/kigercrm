@@ -121,11 +121,13 @@ public sealed class CrmChatToolFactoryTests
     }
 
     [Fact]
-    public async Task ProspectingReadTools_ShouldEnforceReadPermissionBeforeResolvingRecords()
+    public async Task AllCrmReadTools_ShouldEnforceReadPermissionBeforeResolvingRecords()
     {
         var factory = new CrmChatToolFactory(null!, null!, null!, null!, new DenyingPermissionGuard());
         var calls = new (string Name, Dictionary<string, object?> Arguments)[]
         {
+            ("crm_search_customers", new() { ["keyword"] = "Acme" }),
+            ("crm_search_leads", new() { ["keyword"] = "Acme" }),
             ("crm_prospecting_list_campaigns", new()),
             ("crm_prospecting_list_strategies", new() { ["campaignId"] = 1L }),
             ("crm_prospecting_list_runs", new() { ["campaignId"] = 1L }),
@@ -139,6 +141,8 @@ public sealed class CrmChatToolFactoryTests
             await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await function.InvokeAsync(call.Arguments));
         }
+
+        Assert.Equal(calls.Length, factory.CreateTools(CancellationToken.None).Count);
     }
 
     [Fact]
