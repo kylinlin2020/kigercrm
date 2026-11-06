@@ -77,3 +77,6 @@ The backend CI workflow now provisions PostgreSQL 17 and supplies `KIGER_TEST_PO
 The backend CI job provisions PostgreSQL 17 and supplies `KIGER_TEST_POSTGRES_CONNECTION_STRING`; the tests are conditionally skipped when that variable is absent in a local environment.
 
 **Scope boundary:** these are real PostgreSQL repository-level conditional-update tests. They do not yet invoke `CrmLeadAppService.ConvertAsync` or `CrmProspectingAppService.ConvertApprovedCandidateToLeadAsync` through DI interception, and do not prove that claim + related inserts + final status update share one application UoW. The application-level tests in the preceding section remain required. The CI run must pass before this repository-level coverage is considered verified.
+
+
+The extraction persistence contract now checks that submission acknowledgement, lifecycle transition, cursor advancement, successful completion, and incomplete-result finalization all include the tenant predicate, exact lease token, fencing version, and unexpired database-time lease in their conditional updates. This is a source-level regression guard; PostgreSQL execution remains required.
