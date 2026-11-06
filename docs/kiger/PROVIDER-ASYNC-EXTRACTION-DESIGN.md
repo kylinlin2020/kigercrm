@@ -822,3 +822,7 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - Submitting is deliberately excluded because a worker/network timeout may occur after remote acceptance but before local acknowledgement; expiry must not pretend that the remote outcome is known. Recovery must reuse the same provider-documented idempotency key or move to NeedsReview when the provider cannot authoritatively reconcile the submission.
 - NeedsReview is also excluded from automatic expiry and remains a human-resolution state. Expiry clears stale lease ownership only for the acknowledged states it actually transitions.
 - The added source-contract test is committed but has not been executed. No build, database or runtime validation is claimed.
+### Regression test literal correction
+
+- Corrected the control-character regression inputs to contain actual C# newline escape sequences (`\n`) at runtime, rather than the two-character backslash-plus-n text. The prior test source therefore did not exercise the control-character branch despite its name; the corrected source now does.
+- The test source has been re-fetched and inspected after commit `2412e32cee5e0379a9adac9f7d4463fa9a26c63f`. Execution is still pending.
