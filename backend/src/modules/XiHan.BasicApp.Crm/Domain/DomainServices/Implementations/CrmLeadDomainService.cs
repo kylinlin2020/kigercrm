@@ -45,25 +45,22 @@ public sealed class CrmLeadDomainService(
             ?? throw new InvalidOperationException("Lead does not exist.");
 
         if (lead.Status == CrmLeadStatus.Converted)
-        {
-            if (lead.ConvertedCustomerId is not > 0)
-                throw new InvalidOperationException("Converted lead is missing its customer reference.");
-            var convertedCustomer = await customers.GetByIdAsync(lead.ConvertedCustomerId.Value, cancellationToken)
-                ?? throw new InvalidOperationException("Converted customer reference is invalid.");
-            if (convertedCustomer.ConvertedLeadId != lead.BasicId)
-                throw new InvalidOperationException("Converted customer does not reference this Lead.");
-            if (lead.ConvertedContactId is > 0)
-            {
-                var convertedContact = await contacts.GetByIdAsync(lead.ConvertedContactId.Value, cancellationToken)
-                    ?? throw new InvalidOperationException("Converted contact reference is invalid.");
-                if (convertedContact.CustomerId != convertedCustomer.BasicId)
-                    throw new InvalidOperationException("Converted contact does not belong to the converted customer.");
-            }
-            return lead;
-        }
+            return await ValidateConvertedLeadAsync(lead, cancellationToken);
 
         if (lead.Status == CrmLeadStatus.Disqualified)
             throw new InvalidOperationException("A disqualified lead cannot be converted.");
+
+        // Claim with one conditional UPDATE before creating any related records. Under PostgreSQL
+        // READ COMMITTED, a concurrent caller waits for the winner and then observes the final status.
+        if (!await repository.TryClaimForConversionAsync(lead.BasicId, cancellationToken))
+        {
+            var latest = await repository.GetByIdAsync(lead.BasicId, cancellationToken)
+                ?? throw new InvalidOperationException("Lead does not exist.");
+            if (latest.Status == CrmLeadStatus.Converted)
+                return await ValidateConvertedLeadAsync(latest, cancellationToken);
+            throw new InvalidOperationException("This Lead is already being converted or is no longer eligible.");
+        }
+        lead.Status = CrmLeadStatus.Converting;
 
         var customer = await customers.AddAsync(new SysCrmCustomer
         {
@@ -96,6 +93,25 @@ public sealed class CrmLeadDomainService(
         lead.ConvertedContactId = contactId;
         lead.Status = CrmLeadStatus.Converted;
         return await repository.UpdateAsync(lead, cancellationToken);
+    }
+
+
+    private async Task<SysCrmLead> ValidateConvertedLeadAsync(SysCrmLead lead, CancellationToken cancellationToken)
+    {
+        if (lead.ConvertedCustomerId is not > 0)
+            throw new InvalidOperationException("Converted lead is missing its customer reference.");
+        var convertedCustomer = await customers.GetByIdAsync(lead.ConvertedCustomerId.Value, cancellationToken)
+            ?? throw new InvalidOperationException("Converted customer reference is invalid.");
+        if (convertedCustomer.ConvertedLeadId != lead.BasicId)
+            throw new InvalidOperationException("Converted customer does not reference this Lead.");
+        if (lead.ConvertedContactId is > 0)
+        {
+            var convertedContact = await contacts.GetByIdAsync(lead.ConvertedContactId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("Converted contact reference is invalid.");
+            if (convertedContact.CustomerId != convertedCustomer.BasicId)
+                throw new InvalidOperationException("Converted contact does not belong to the converted customer.");
+        }
+        return lead;
     }
 
     public async Task DeleteAsync(long id, CancellationToken cancellationToken = default)
