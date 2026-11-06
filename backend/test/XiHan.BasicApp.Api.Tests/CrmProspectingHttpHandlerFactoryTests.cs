@@ -41,7 +41,7 @@ public sealed class CrmProspectingHttpHandlerFactoryTests
     }
 
     [Fact]
-    public void IsPublicAddress_ShouldRejectUnsupportedAddressFamilies()
+    public void IsPublicAddress_ShouldRejectLimitedBroadcastAddress()
     {
         Assert.False(CrmProspectingHttpHandlerFactory.IsPublicAddress(IPAddress.None));
     }
