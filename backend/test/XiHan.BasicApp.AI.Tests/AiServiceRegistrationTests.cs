@@ -116,7 +116,7 @@ public sealed class AiServiceRegistrationTests
     [Fact]
     public void CrmChatToolFactory_ShouldExposeOnlyAllowListedReadOnlyCrmAndProspectingTools()
     {
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!);
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, null!);
 
         var tools = factory.CreateTools(CancellationToken.None);
         Assert.Equal(
