@@ -7,6 +7,7 @@ export enum CrmLeadStatus {
   Qualified = 2,
   Disqualified = 3,
   Converted = 4,
+  Converting = 5,
 }
 
 export interface CrmLeadPageQueryDto extends PageRequest {
