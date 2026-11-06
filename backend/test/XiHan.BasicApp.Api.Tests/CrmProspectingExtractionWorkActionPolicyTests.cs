@@ -47,8 +47,22 @@ public sealed class CrmProspectingExtractionWorkActionPolicyTests
 
         Assert.Equal(CrmProspectingExtractionWorkAction.None, missing.Action);
         Assert.Equal("fetch_requires_remote_identity", missing.BlockReason);
-        Assert.Equal(CrmProspectingExtractionWorkAction.FetchResults, present.Action);
+        Assert.Equal(
+            status == CrmProspectingExtractionStatus.Succeeded
+                ? CrmProspectingExtractionWorkAction.BeginResultFetch
+                : CrmProspectingExtractionWorkAction.FetchResults,
+            present.Action);
     }
+
+    [Fact]
+    public void SucceededStateMustBePersistedAsFetchingBeforePageFetch()
+    {
+        var decision = CrmProspectingExtractionWorkActionPolicy.Evaluate(
+            CrmProspectingExtractionStatus.Succeeded, "remote-123");
+
+        Assert.Equal(CrmProspectingExtractionWorkAction.BeginResultFetch, decision.Action);
+    }
+
 
     [Theory]
     [InlineData(CrmProspectingExtractionStatus.NeedsReview)]
