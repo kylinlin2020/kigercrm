@@ -210,4 +210,30 @@ public sealed class CrmQuoteConversionWiringTests
         Assert.Contains("ADD COLUMN IF NOT EXISTS contact_name_snapshot varchar(200) NULL", migration, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ProductionWebHost_ShouldBootstrapTheSameRootModuleUsedByApplicationIntegrationTests()
+    {
+        var program = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "Program.cs");
+        var hostProject = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "XiHan.BasicApp.WebHost.csproj");
+        var testProject = Read("backend", "test", "XiHan.BasicApp.Api.Tests", "XiHan.BasicApp.Api.Tests.csproj");
+
+        Assert.Contains("AddApplicationAsync<XiHanBasicAppWebHostModule>()", program, StringComparison.Ordinal);
+        Assert.Contains("builder.Build()", program, StringComparison.Ordinal);
+        Assert.Contains("InitializeApplicationAsync()", program, StringComparison.Ordinal);
+        Assert.Contains("RunAsync()", program, StringComparison.Ordinal);
+        Assert.Contains("XiHan.BasicApp.Crm.csproj", hostProject, StringComparison.Ordinal);
+        Assert.Contains("XiHan.BasicApp.WebHost.csproj", testProject, StringComparison.Ordinal);
+        Assert.Contains("FrameworkReference Include=\"Microsoft.AspNetCore.App\"", testProject, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProductionWebHostRootModule_ShouldRegisterCrmAsAnApplicationDependency()
+    {
+        var module = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "XiHanBasicAppWebHostModule.cs");
+
+        Assert.Contains("typeof(XiHanBasicAppCrmModule)", module, StringComparison.Ordinal);
+        Assert.Contains("[DependsOn(", module, StringComparison.Ordinal);
+    }
+
 }
