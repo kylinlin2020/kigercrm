@@ -350,3 +350,20 @@
 - `ICrmProspectingAppService` 继承 `IApplicationService`，其只读方法有 `PermissionAuthorize(Read)` 属性；Campaign 列表还显式解析可访问 Owner 集合，Run/Candidate/Review Detail 均按 Campaign Owner 校验。
 - 当前仍未完成从真实 API Host DI 容器解析 Chat 请求所用代理、模拟无 Read 权限主体并断言拒绝的集成测试。因此此处记录为源码路径具备权限约束，不将其等同于已证明代理拦截在 Chat 路径运行。
 - 下一并行工作项是追踪 Framework 的应用服务代理注册/拦截器装配，并增加真实 Host 级验证；若无法证明代理生效，则工具入口必须 fail-closed，而不能仅依赖属性标注。
+
+
+## 15. Chat Tool 入口增加显式权限守卫（不再只依赖应用服务拦截器）
+
+本轮完成权限路径加固：六个 CRM Chat 工具的委托均在调用 QueryService / Prospecting AppService 前，显式执行 `IOperationPermissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read)`。
+
+- `IOperationPermissionGuard` 已由 SaaS 模块 `AddSaasApplicationServices()` 注册为 Scoped `OperationPermissionGuard`。
+- `OperationPermissionGuard` 通过 `ICurrentUser.UserId` 取得当前认证用户，并调用框架 `IPermissionChecker.IsGrantedAsync(userId, permissionCode)`；未登录或无 Read 权限时抛出拒绝异常。
+- 该守卫与应用服务上的 `[PermissionAuthorize(Read)]` 使用相同权限检查器，故 Chat Tool 不再把安全性单独押在动态代理是否被触发上；应用服务的 Owner Data Scope 校验仍是第二道记录级边界。
+- 新增测试：Customer / Lead 工具调用时断言 Read 权限码；四个 Prospecting 工具使用拒绝型 Guard，验证在访问底层服务之前即失败。
+- 六个 Tool 仍然只读，工具列表与请求级 Scoped 生命周期不变。
+
+### 15.1 剩余集成验证
+
+- 已核对守卫接口、实现和 SaaS Scoped 注册源码；尚未运行 Host DI 集成测试或 .NET 编译测试。
+- 仍需实测 `IPermissionChecker` 的当前租户/用户授权快照行为，以及 Owner Data Scope 对跨用户记录的拒绝。
+- 仍需双租户场景验证 Chat 请求创建的 Scoped 工厂、当前用户、当前租户与 CRM Query/AppService 使用同一个请求上下文。
