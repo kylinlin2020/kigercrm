@@ -252,6 +252,7 @@
 - `CrmChatToolFactory` 以 Scoped 注册。
 - 工具工厂仅生成一个 allow-listed 工具，名称为 `crm_search_customers`。
 - `ChatAssistantAppService` 构造函数接收请求级工厂。
+- 函数 schema 暴露 `keyword`，并静态断言不包含 `tenantId` / `ownerUserId`。
 - AI 模块显式依赖 CRM 模块。
 
 这些测试源码已写入仓库，但本轮尚未执行 .NET restore/build/test；不能将测试源码存在表述为测试通过。还需增加工具实际调用测试（验证 QueryService 被调用、空关键词拒绝、Mask 在返回前执行），以及双租户/权限集成测试。
