@@ -11,16 +11,14 @@ using XiHan.Framework.Domain.Shared.Paging.Models;
 
 namespace XiHan.BasicApp.AI.Tests;
 
-/// <summary>
-/// CRM Chat 工具输入边界测试。无效参数必须在触达请求级 CRM 服务前被拒绝。
-/// </summary>
+/// <summary>CRM Chat 工具输入边界、查询调用和脱敏顺序测试。</summary>
 public sealed class CrmChatToolFactoryTests
 {
     [Fact]
     public async Task SearchCustomers_ShouldRejectBlankKeywordBeforeResolvingCrmServices()
     {
-        var factory = new CrmChatToolFactory(null!, null!);
-        var function = Assert.IsAssignableFrom<AIFunction>(Assert.Single(factory.CreateTools(CancellationToken.None)));
+        var factory = new CrmChatToolFactory(null!, null!, null!);
+        var function = GetFunction(factory, "crm_search_customers");
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
             await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "   " }));
@@ -31,8 +29,8 @@ public sealed class CrmChatToolFactoryTests
     [Fact]
     public async Task SearchCustomers_ShouldRejectKeywordLongerThan200Characters()
     {
-        var factory = new CrmChatToolFactory(null!, null!);
-        var function = Assert.IsAssignableFrom<AIFunction>(Assert.Single(factory.CreateTools(CancellationToken.None)));
+        var factory = new CrmChatToolFactory(null!, null!, null!);
+        var function = GetFunction(factory, "crm_search_customers");
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = new string('x', 201) }));
@@ -45,19 +43,20 @@ public sealed class CrmChatToolFactoryTests
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var factory = new CrmChatToolFactory(null!, null!);
-        var function = Assert.IsAssignableFrom<AIFunction>(Assert.Single(factory.CreateTools(cancellation.Token)));
+        var factory = new CrmChatToolFactory(null!, null!, null!);
+        var function = GetFunction(factory, "crm_search_customers");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "Acme" }));
     }
+
     [Fact]
     public async Task SearchCustomers_ShouldUseQueryServiceAndMaskResultsBeforeReturningThem()
     {
         var query = new RecordingCustomerQuery();
         var fieldSecurity = new RecordingFieldSecurity();
-        var factory = new CrmChatToolFactory(query, fieldSecurity);
-        var function = Assert.IsAssignableFrom<AIFunction>(Assert.Single(factory.CreateTools(CancellationToken.None)));
+        var factory = new CrmChatToolFactory(query, null!, fieldSecurity);
+        var function = GetFunction(factory, "crm_search_customers");
 
         _ = await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "  Acme  " });
 
@@ -66,22 +65,90 @@ public sealed class CrmChatToolFactoryTests
         Assert.NotNull(fieldSecurity.MaskedResponse);
     }
 
+    [Fact]
+    public async Task SearchLeads_ShouldRejectBlankKeywordBeforeResolvingCrmServices()
+    {
+        var factory = new CrmChatToolFactory(null!, null!, null!);
+        var function = GetFunction(factory, "crm_search_leads");
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = " " }));
+
+        Assert.Equal("keyword", exception.ParamName);
+    }
+
+    [Fact]
+    public async Task SearchLeads_ShouldRejectKeywordLongerThan200Characters()
+    {
+        var factory = new CrmChatToolFactory(null!, null!, null!);
+        var function = GetFunction(factory, "crm_search_leads");
+
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = new string('x', 201) }));
+
+        Assert.Equal("keyword", exception.ParamName);
+    }
+
+    [Fact]
+    public async Task SearchLeads_ShouldHonorCancellationBeforeCallingCrmServices()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var factory = new CrmChatToolFactory(null!, null!, null!);
+        var function = GetFunction(factory, "crm_search_leads");
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "Acme" }));
+    }
+
+    [Fact]
+    public async Task SearchLeads_ShouldUseQueryServiceAndMaskResultsBeforeReturningThem()
+    {
+        var query = new RecordingLeadQuery();
+        var fieldSecurity = new RecordingFieldSecurity();
+        var factory = new CrmChatToolFactory(null!, query, fieldSecurity);
+        var function = GetFunction(factory, "crm_search_leads");
+
+        _ = await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "  Acme  " });
+
+        Assert.Equal("Acme", query.LastInput?.Keyword);
+        Assert.True(fieldSecurity.MaskCalled);
+        Assert.NotNull(fieldSecurity.MaskedResponse);
+    }
+
+    private static AIFunction GetFunction(CrmChatToolFactory factory, string name) =>
+        Assert.IsAssignableFrom<AIFunction>(
+            Assert.Single(factory.CreateTools(CancellationToken.None), tool =>
+                string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, name, StringComparison.Ordinal)));
+
     private sealed class RecordingCustomerQuery : ICrmCustomerQueryService
     {
         public CrmCustomerPageQueryDto? LastInput { get; private set; }
 
         public Task<PageResultDtoBase<CrmCustomerListItemDto>> GetPageAsync(
-            CrmCustomerPageQueryDto input,
-            CancellationToken cancellationToken = default)
+            CrmCustomerPageQueryDto input, CancellationToken cancellationToken = default)
         {
             LastInput = input;
             return Task.FromResult(new PageResultDtoBase<CrmCustomerListItemDto>([], null!));
         }
 
-        public Task<CrmCustomerDetailDto?> GetDetailAsync(long id, CancellationToken cancellationToken = default)
-        {
+        public Task<CrmCustomerDetailDto?> GetDetailAsync(long id, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+    }
+
+    private sealed class RecordingLeadQuery : ICrmLeadQueryService
+    {
+        public CrmLeadPageQueryDto? LastInput { get; private set; }
+
+        public Task<PageResultDtoBase<CrmLeadListItemDto>> GetPageAsync(
+            CrmLeadPageQueryDto input, CancellationToken cancellationToken = default)
+        {
+            LastInput = input;
+            return Task.FromResult(new PageResultDtoBase<CrmLeadListItemDto>([], null!));
         }
+
+        public Task<CrmLeadDetailDto?> GetDetailAsync(long id, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class RecordingFieldSecurity : IFieldSecurityService
@@ -90,14 +157,10 @@ public sealed class CrmChatToolFactoryTests
         public object? MaskedResponse { get; private set; }
 
         public Task<IReadOnlyDictionary<string, EffectiveFieldRule>> ResolveAsync(
-            Type entityType,
-            CancellationToken cancellationToken = default) =>
-            throw new NotSupportedException();
+            Type entityType, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task GuardQueryAsync(
-            QueryConditions conditions,
-            Type entityType,
-            CancellationToken cancellationToken = default) =>
+            QueryConditions conditions, Type entityType, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public Task MaskAsync(object? response, CancellationToken cancellationToken = default)
@@ -108,19 +171,11 @@ public sealed class CrmChatToolFactoryTests
         }
 
         public Task EnsureCreatableAsync<TInput>(
-            Type entityType,
-            TInput input,
-            CancellationToken cancellationToken = default)
-            where TInput : class, new() =>
-            throw new NotSupportedException();
+            Type entityType, TInput input, CancellationToken cancellationToken = default)
+            where TInput : class, new() => throw new NotSupportedException();
 
         public Task EnsureUpdatableAsync<TInput>(
-            Type entityType,
-            long id,
-            TInput input,
-            CancellationToken cancellationToken = default)
-            where TInput : class =>
-            throw new NotSupportedException();
+            Type entityType, long id, TInput input, CancellationToken cancellationToken = default)
+            where TInput : class => throw new NotSupportedException();
     }
-
 }
