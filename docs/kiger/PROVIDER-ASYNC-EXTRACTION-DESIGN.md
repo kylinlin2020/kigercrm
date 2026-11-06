@@ -794,6 +794,7 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 
 - Tightened `CrmProspectingExtractionSubmissionValidator`: safe metadata must be a JSON object with a maximum nesting depth of 8 and must not contain property names indicating secrets, passwords, tokens, authorization headers, credentials, API keys, private keys or signing keys.
 - The check recursively traverses nested objects and arrays, so wrapping a credential under a benign parent property does not bypass the guard.
+- Property names are normalized by removing punctuation before matching, so variants such as `apiKey`, `api_key` and `api.key` are treated consistently.
 - Added regression cases for camelCase API keys, snake_case access tokens, nested Authorization fields, nested client secrets and excessive JSON depth.
 - The metadata contract remains intentionally allow-list-by-adapter: providers should return only bounded operational fields. This guard is a defensive rejection layer, not a general-purpose secret scrubber; arbitrary values must not be copied into metadata.
 - Tests were added but have not been executed. No .NET build or runtime validation is claimed.
