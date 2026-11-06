@@ -926,3 +926,10 @@ This section defines the next worker implementation boundary. The expiry hosted 
 - Pending → Running and same-state Pending/Running polling remain valid. Terminal provider outcomes continue through the existing state-machine transition validation.
 - Added regression tests for Running → Pending, Pending → Running, and a non-pollable local state. These tests have not been executed in this environment.
 - Consumer requirement: use the claimed persisted status, not a status reconstructed from provider metadata, and retain the exact lease/fencing token when persisting the resulting decision.
+
+## 11.62 Final result pages cannot advertise another cursor (2026-11-06)
+
+- Tightened `CrmProspectingExtractionPageValidator`: a page marked both `IsLastPage` and `IsComplete` must have `NextCursor == null`.
+- A provider response that marks a page final while also returning a continuation cursor is rejected as `unexpected_final_cursor`; the cursor is not silently ignored.
+- This keeps the final-page completion boundary unambiguous: the final page is committed with the current expected cursor, and no further page can be scheduled from that response.
+- Added a regression test asserting both structural validation and commit eligibility reject the contradictory response. Tests remain unexecuted pending .NET SDK/real PostgreSQL acceptance.
