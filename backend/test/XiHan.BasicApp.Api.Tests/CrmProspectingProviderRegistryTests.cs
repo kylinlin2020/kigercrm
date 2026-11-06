@@ -84,4 +84,19 @@ public sealed class CrmProspectingProviderRegistryTests
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }
+    [Fact]
+    public void CrmModule_ShouldResolveOneValidatedRegistryFromRegisteredProviderCapabilities()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        Assert.Contains("services.AddScoped<CrmProspectingProviderRegistry>", source, StringComparison.Ordinal);
+        Assert.Contains("provider.GetServices<ICrmProspectingProvider>()", source, StringComparison.Ordinal);
+        Assert.Contains("provider.GetServices<ICrmProspectingAsyncExtractionProvider>()", source, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingProviderRegistry.Create(", source, StringComparison.Ordinal);
+    }
+
 }
