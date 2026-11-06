@@ -157,3 +157,13 @@ At the time this plan is added:
 - Commits: `e61e345f197659671b4cab38d64638ced3c40496`, `a637fa198b5d3e9652b6a235fb4c7603d3b93b63`, `14a1bf34762fc758d3ca4fe9b64d2c59ed97a6a9`, `1b612f39cde13c8df76784e4d373525bab21833c`, `66751e95f4fd84fa0cf7075cbc5368d8ff484e0d`, `2b3460bbc8e309d1ddad1e0680fc25173d917d57`.
 
 **Validation boundary:** this is URL/candidate intake policy only. It does not fetch pages, resolve DNS, validate redirects, persist website evidence, or expose an application API/UI. Callers must use the existing DNS/IP-pinned HTTP transport before network access. No .NET build/test has been executed.
+
+
+### Coverage Memory policy foundation
+- Added `CrmProspectingCoverageMemoryPolicy` with deterministic stable scope fingerprints that normalize and sort search scope fields while keeping moving scan windows separate.
+- Added provider + normalized external-record observation keys that remain stable across retrieval attempts.
+- Added a fail-closed complete-watermark predicate: only Completed, fully paged, zero-failure, non-truncated, non-cancelled, non-review work may advance coverage.
+- Added tests for order/whitespace stability, scope changes, retry-stable observation identity and every incomplete/failed watermark condition.
+- Commits: `62481631d25d21cab9c3ec457ef537a5e3a6418e`, `87fb1d1c56acb751b79e8cb85a15d91ea41d4360`.
+
+**Validation boundary:** this is identity/policy code only. It is not backed by a coverage table/repository, is not wired into provider request finalization, and cannot advance a watermark. Schedule entity, recurrence worker, durable idempotency and API/UI are still outstanding. No .NET build/test has been executed.
