@@ -393,3 +393,12 @@
 - Chat 审核摘要工具先对 Candidate DTO 执行 MaskAsync，再投影允许字段；Evidence/Score 仍采用显式输出白名单。
 
 此处是源码和测试契约修复，尚未实际运行测试；仍需 .NET 构建和字段规则集成测试验证最终运行行为。
+
+
+## 18. 七个 Chat CRM 工具统一权限回归
+
+本轮将权限拒绝测试从仅覆盖 Prospecting 工具扩展到全部七个 CRM Chat 工具：客户搜索、线索搜索、Campaign、策略版本、Run、Candidate 列表和 Candidate 审核摘要。
+
+每个工具都使用拒绝型 `IOperationPermissionGuard`，断言委托在底层查询服务被访问前抛出拒绝，并核对请求的权限码是 `CrmPermissionCodes.Read`。因此即使后续有人新增工具或调整委托，也能通过测试及时发现 Read 守卫缺失/权限码错误。
+
+该测试仍属于工厂委托级单元测试，不等同于真实 API Host 的认证、租户切换、授权快照和 Owner Data Scope 集成测试；这些运行时边界继续列为后续验收项。
