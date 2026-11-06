@@ -770,3 +770,11 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - Scoped lifetime is intentional: credential-aware provider adapters may depend on tenant-scoped SaaS configuration services and must not be captured by a singleton registry.
 - Added a source-contract regression test for this DI wiring. No asynchronous adapter is enabled by this change, and it does not claim the Extraction Worker exists; submission, polling, page persistence and worker orchestration remain outstanding.
 - Test source has not been executed; no .NET build/runtime validation is claimed.
+
+## 11.50 Run worker consumes the scoped provider capability registry (2026-11-06)
+
+- `CrmProspectingRunHostedService` now resolves the CRM-scoped `CrmProspectingProviderRegistry` from DI instead of constructing a second registry directly from service-provider enumerations.
+- This makes the registered capability map the single validation point for provider-code uniqueness and async idempotency declarations within the Run scope; both sync and async adapters are still resolved with their registered scoped lifetime.
+- Added a source-contract regression test that guards the worker's use of the shared scoped registry.
+- This does not activate asynchronous Run execution: the worker still explicitly rejects async-only provider plan entries until a durable extraction consumer and Run continuation protocol exist. No async adapters are registered by this change.
+- Test source has not been executed; no build or PostgreSQL runtime validation is claimed.
