@@ -325,3 +325,28 @@
 - 仍需通过真实 DI/授权代理集成测试验证 Chat 内部调用时权限拦截、租户上下文与 Owner Data Scope 生效。
 - 仍需验证 Provider Function Calling 不支持时的可控降级，以及模型输出不会包含未授权记录。
 - MCP/Singleton Skill 暴露保持关闭；外发邮件、网站发布和 CRM 写操作仍需人工审批，不属于本批工具。
+
+
+## 14. Candidate 审核摘要只读工具与模型输出最小化
+
+本轮新增 `crm_prospecting_get_candidate_review(candidateId)`，调用现有 `GetCandidateReviewDetailAsync`，仅供已认证 CRM Chat 请求读取当前用户有权访问的候选审核摘要；不触发审核或转线索。
+
+### 14.1 输出白名单
+
+- Candidate：仅输出 BasicId、RunId、Title、CompanyName、Website、Status、CreatedTime；先对 `detail.Candidate` 显式执行 `IFieldSecurityService.MaskAsync`，再做投影。
+- Evidence：仅输出 FieldName、EvidenceType、VerificationStatus、PublishedAtUtc、RetrievedAtUtc；不输出 SourceUrl、ProviderRecordId、FieldValueHash、RawPayloadHash 或 EvidenceSummary。
+- ScoreHistory：仅输出评分版本、总分/优先级、各维度分数和评估时间；不输出 ReviewGatesJson。
+- Candidate 列表也进一步移除 Summary 和 DuplicateReason，防止模型上下文承载未经审核的长文本或重复判定细节。
+- 工具参数仅为正数 candidateId；应用服务仍负责从 Candidate→Run→Campaign 解析归属并执行 Owner Data Scope 检查。
+
+### 14.2 测试源码
+
+- 新增候选审核摘要工具的非法 ID 与取消令牌测试。
+- 工具 allowlist 契约扩展为六个函数。
+- 仍未执行 .NET restore/build/test；源码测试不等于运行通过。
+
+### 14.3 权限拦截验证边界
+
+- `ICrmProspectingAppService` 继承 `IApplicationService`，其只读方法有 `PermissionAuthorize(Read)` 属性；Campaign 列表还显式解析可访问 Owner 集合，Run/Candidate/Review Detail 均按 Campaign Owner 校验。
+- 当前仍未完成从真实 API Host DI 容器解析 Chat 请求所用代理、模拟无 Read 权限主体并断言拒绝的集成测试。因此此处记录为源码路径具备权限约束，不将其等同于已证明代理拦截在 Chat 路径运行。
+- 下一并行工作项是追踪 Framework 的应用服务代理注册/拦截器装配，并增加真实 Host 级验证；若无法证明代理生效，则工具入口必须 fail-closed，而不能仅依赖属性标注。
