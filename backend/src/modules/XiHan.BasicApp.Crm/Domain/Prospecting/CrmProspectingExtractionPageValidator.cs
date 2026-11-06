@@ -12,6 +12,8 @@ public static class CrmProspectingExtractionPageValidator
     public const int MaxCursorLength = 2048;
     public const int MaxRecordFieldLength = 5000;
     public const int MaxSerializedPageBytes = 2_000_000;
+    public const int MaxWarningsPerPage = 50;
+    public const int MaxWarningLength = 500;
 
     public static bool TryValidate(
         CrmProspectingExtractionPage? page,
@@ -56,6 +58,13 @@ public static class CrmProspectingExtractionPageValidator
             return false;
         }
 
+        if (page.Warnings.Count > MaxWarningsPerPage ||
+            page.Warnings.Any(warning => warning is null || warning.Length > MaxWarningLength || ContainsControlCharacters(warning)))
+        {
+            failureCode = "invalid_warnings";
+            return false;
+        }
+
         var identities = new HashSet<string>(StringComparer.Ordinal);
         foreach (var record in page.Records)
         {
@@ -69,13 +78,22 @@ public static class CrmProspectingExtractionPageValidator
                 (record.ContactName?.Length ?? 0) > 200 ||
                 (record.BusinessEmail?.Length ?? 0) > 254 ||
                 (record.Website?.Length ?? 0) > 500 ||
-                (record.Summary?.Length ?? 0) > MaxRecordFieldLength)
+                (record.Summary?.Length ?? 0) > MaxRecordFieldLength ||
+                ContainsControlCharacters(record.ExternalId) ||
+                ContainsControlCharacters(record.Source) ||
+                ContainsControlCharacters(record.Title) ||
+                ContainsControlCharacters(record.CompanyName) ||
+                ContainsControlCharacters(record.ContactName) ||
+                ContainsControlCharacters(record.BusinessEmail) ||
+                ContainsControlCharacters(record.Website) ||
+                ContainsControlCharacters(record.Summary))
             {
                 failureCode = "invalid_record";
                 return false;
             }
 
-            if (!identities.Add(record.ExternalId))
+            var normalizedIdentity = CrmProspectingRecordIdentity.NormalizeExternalId(record);
+            if (!identities.Add(normalizedIdentity))
             {
                 failureCode = "duplicate_record_identity";
                 return false;
@@ -88,7 +106,8 @@ public static class CrmProspectingExtractionPageValidator
             }
 
             if (record.SourceUrl is { Length: > 0 } sourceUrl &&
-                (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) ||
+                (ContainsControlCharacters(sourceUrl) ||
+                 !Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) ||
                  (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp) ||
                  !string.IsNullOrEmpty(uri.UserInfo)))
             {
