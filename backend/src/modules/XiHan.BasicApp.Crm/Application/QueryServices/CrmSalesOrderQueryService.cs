@@ -96,6 +96,8 @@ public sealed class CrmSalesOrderQueryService(
             CustomerNameSnapshot = order.CustomerNameSnapshot,
             ContactId = order.ContactId,
             OpportunityId = order.OpportunityId,
+            ContactNameSnapshot = order.ContactNameSnapshot,
+            OpportunityNameSnapshot = order.OpportunityNameSnapshot,
             Status = (int)order.Status,
             OrderDate = order.OrderDate,
             Currency = order.Currency,
