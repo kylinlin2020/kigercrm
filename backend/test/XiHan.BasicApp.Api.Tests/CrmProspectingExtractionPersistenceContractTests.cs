@@ -328,4 +328,28 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.DoesNotContain("SubmitExtractionAsync", guard, StringComparison.Ordinal);
         Assert.DoesNotContain("PollExtractionAsync", guard, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void AsyncExtractionWorkerProtocol_ShouldPreserveIdempotencyFencingAndAtomicPageContinuation()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "docs", "kiger",
+            "PROVIDER-ASYNC-EXTRACTION-DESIGN.md")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var document = File.ReadAllText(Path.Combine(tree!.FullName, "docs", "kiger",
+            "PROVIDER-ASYNC-EXTRACTION-DESIGN.md"));
+        var sectionStart = document.IndexOf("## 11.59 Submit/Poll worker execution protocol", StringComparison.Ordinal);
+        Assert.True(sectionStart >= 0);
+        var section = document[sectionStart..];
+
+        Assert.Contains("same key and only where the provider guarantees", section, StringComparison.Ordinal);
+        Assert.Contains("exact lease/fencing identity", section, StringComparison.Ordinal);
+        Assert.Contains("GetDefaultPollDelay(nextPollAttemptCount)", section, StringComparison.Ordinal);
+        Assert.Contains("Heartbeat must remain active", section, StringComparison.Ordinal);
+        Assert.Contains("same Run-level identity boundary", section, StringComparison.Ordinal);
+        Assert.Contains("same transaction", section, StringComparison.Ordinal);
+        Assert.Contains("NeedsReview remains blocking", section, StringComparison.Ordinal);
+        Assert.Contains("PostgreSQL integration tests", section, StringComparison.Ordinal);
+    }
 }
