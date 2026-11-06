@@ -706,40 +706,6 @@ This closes a boundary gap for future worker callers: a correct database hash ca
 
 The synchronous Run worker is still not integrated with the atomic method. Coverage recovery, same-connection PostgreSQL transaction proof, fault-injection tests, and runtime compilation/testing remain outstanding.
 
-## 11.45 Synchronous Worker atomic-batch integration and coverage crash window (2026-11-06)
-
-### Verified current state
-
-The atomic provider-batch primitive exists in `CrmProspectingCandidatePersistenceService.PersistProviderBatchAndTransitionAsync`, but the synchronous `CrmProspectingRunHostedService` does not call it yet. The current Worker still:
-
-1. Accumulates provider records into one Run-wide `raw` collection.
-2. Performs Run-wide candidate/email/website/lead/cross-Run duplicate classification.
-3. Persists each new Candidate/Evidence/Score through `PersistNewAsync` (one transaction per candidate); repairs old candidates and performs optional GLEIF enrichment in separate fenced transactions.
-4. Transitions replayed provider executions from Checkpointed/Projecting to Succeeded/Failed after the Run-wide projection loop.
-5. Finalizes pending provider request attempts and advances coverage in a later operation.
-
-The batch primitive validates the persisted checkpoint and Candidate identity membership and writes Candidate/Evidence/Score plus the provider execution terminal state in one UnitOfWork. It does not currently finalize the matching provider request attempt or advance coverage. It also does not perform the Worker's Run-wide duplicate classification, legacy provenance repair orchestration, or GLEIF enrichment.
-
-### Confirmed crash-consistency gap
-
-The provider execution entity stores `RequestFingerprint` and checkpoint metadata, while the request ledger stores `RequestKey`, `AttemptNo`, response hash and timing. There is no durable request-attempt ID/attempt number link on the execution row, nor are response hash, result count and duration stored as a complete commit receipt on that row.
-
-Consequently, if a future Worker integration commits Candidate/Evidence/Score and marks the provider execution terminal, then crashes before `TryFinalizeSuccessWithCoverageAsync`, the next delivery can observe the execution as Succeeded and skip it while the request ledger remains Started. Startup stale-request recovery may later mark that attempt Failed. The data may be safely persisted, but coverage is not advanced and the ledger no longer represents the successful durable projection. This is a correctness gap, not merely a monitoring issue.
-
-### Required implementation sequence (do not bypass)
-
-1. **Provider-scoped preparation:** derive one projection batch from the exact verified checkpoint for one provider execution. Keep provider code attached to every envelope. Preserve the existing Run-wide duplicate semantics by preparing against a shared in-memory identity/email/website set and the existing-lead/cross-Run match results; do not independently classify each provider without considering earlier providers in the same Run.
-2. **Preserve repair and enrichment:** existing same-Run Candidates must still receive missing Evidence/initial Score repair without changing review/conversion state. Candidate unique-key race recovery must still read the winner and repair provenance. GLEIF identity lookup and its registry Evidence must remain post-Candidate and separately fenced; do not hold a large provider batch transaction open across external HTTP calls.
-3. **Durable attempt linkage:** persist an unambiguous link from provider execution to its Started request-ledger attempt (for example, attempt number plus provider/run identity, or a tenant-scoped request ID), and persist the bounded response receipt needed for replay/reconciliation: request key, result count, response hash, duration and completion timestamp. Do not infer the attempt from mutable in-memory lists or assume plan fingerprint equals request key.
-4. **Atomic commit or deterministic recovery:** either commit Candidate/Evidence/Score, execution terminal state and request-ledger success in one proven PostgreSQL transaction, with coverage advancement in that same transaction where feasible; or persist a durable projection receipt that lets recovery safely finalize the exact Started attempt and advance coverage exactly once after verifying the live Run fence and all success predicates. A successful execution with an unresolved ledger attempt must never be silently skipped.
-5. **Failure accounting:** distinguish provider-reported failures, invalid/oversized records, duplicate identities, missing company names, candidate persistence failures and incomplete provider pages. Define exactly which conditions disqualify coverage. Reconcile the batch method's `RawRecordCount - items.Count` failure inference with the Worker's current duplicate/repair semantics before enabling it.
-6. **Acceptance tests:** add PostgreSQL tests for crash after candidate/execution commit but before coverage finalization, duplicate recovery delivery, exact request-attempt linkage, coverage idempotency, rollback of Candidate/Evidence/Score/execution/ledger writes on a forced failure, and preservation of duplicate/repair/GLEIF behavior. Add a multi-provider Run test proving shared deduplication remains stable across provider batches.
-
-### Gate
-
-Do not switch the synchronous Worker from `PersistNewAsync` to the batch primitive until the durable attempt link and crash-recovery path are implemented and PostgreSQL transaction participation is proven for every repository involved. Until then, the current per-candidate path remains active and the atomic batch method is a foundation only. The asynchronous extraction worker is also still not wired into Run orchestration. Source inspection only was performed for this checkpoint; no .NET build, automated test, or PostgreSQL execution was run.
-
-
 ## 11.45 Recover coverage after a committed provider batch (2026-11-06)
 
 Closed the post-projection crash window for successful synchronous providers:
@@ -751,3 +717,34 @@ Closed the post-projection crash window for successful synchronous providers:
 - Added SQLite repository tests for single-attempt lookup and ambiguous Started attempts, plus a source-contract regression test for the recovery path.
 
 This specifically repairs the crash window after the provider execution terminal commit but before request-ledger/coverage finalization. It does not yet wire the synchronous worker to `PersistProviderBatchAndTransitionAsync`; the worker's current Candidate/Evidence/Score projection still uses the legacy per-candidate path. Same-connection transaction proof, batch identity conflict strategy, PostgreSQL fault-injection tests, .NET compilation, and Windows real-machine validation remain pending.
+
+## 11.46 Synchronous Worker atomic-batch cutover audit (2026-11-06)
+
+### Existing recovery that is already implemented
+
+The synchronous Run Worker already contains a deterministic post-projection recovery path; do not reimplement it as a new feature:
+
+- GetStartedAttemptAsync(runId, providerCode) queries the tenant-scoped ledger for the single Started attempt for that Run/provider pair and throws if more than one exists. The request table's unique (tenant_id, run_id, provider_code, attempt_no) key and this explicit ambiguity check prevent guessing between multiple unfinished attempts.
+- When the execution row is already Succeeded, the Worker verifies checkpoint UTF-8 byte count, SHA-256, deserialization, complete flag, zero provider failure count and raw record count. It derives the response digest from the verified checkpoint and calls TryFinalizeSuccessWithCoverageAsync for the Started request attempt. No external provider call is repeated.
+- TryFinalizeSuccessWithCoverageAsync uses one PostgreSQL statement to fence and lock the live Run, transition the exact Started request to Succeeded, and upsert coverage. Request finalization and coverage advancement therefore commit atomically.
+- RecoverStaleStartedAsync explicitly excludes a Started request if a matching Succeeded execution has a durable checkpoint, allowing the resumed Run to reconcile it rather than prematurely marking it interrupted.
+- Source-contract and SQLite repository test sources already cover the recovery branch and the ambiguous Started-attempt guard. They have not been executed in this environment.
+
+This is a real recovery mechanism, not a missing feature. The association is derived by tenant + Run + provider and the invariant of exactly one Started attempt; there is not yet a direct request-attempt ID/attempt-number column on the execution row. That is a design choice to evaluate, not evidence that recovery is absent.
+
+### Remaining synchronous Worker limitation
+
+The current Worker still uses Run-wide candidate preparation and per-candidate PersistNewAsync; it does not yet call PersistProviderBatchAndTransitionAsync. Candidate/Evidence/Score persistence, provider execution terminal transition, and coverage finalization are separate durable stages. The checkpoint/replay and candidate identity repair paths make this recoverable, but they do not provide one atomic Candidate/Evidence/Score + provider-execution batch commit.
+
+### Safe cutover requirements
+
+1. Keep Run-wide deduplication semantics across providers. A provider-scoped batch must not reset shared identity, email, website, existing-lead, or cross-Run deduplication state.
+2. Preserve existing-candidate provenance repair, unique-key winner recovery, and post-insert GLEIF enrichment. External GLEIF calls must remain outside a long-running candidate batch transaction.
+3. Reconcile RawRecordCount - items.Count with the Worker's distinct rejection/failure classes. Duplicate or invalid raw rows cannot silently become a successful zero-failure provider batch.
+4. After a provider batch commits, retain the existing Started-attempt recovery route unless request-ledger finalization is deliberately moved into the same proven transaction. Any changed flow must continue to use the exact attempt and the existing live Run fence.
+5. Add PostgreSQL fault-injection tests for Candidate, Evidence, Score and terminal-transition failures; test replay after batch commit but before coverage finalization; assert no provider re-invocation, exact failure counters, and idempotent coverage. Prove all repositories share the same SqlSugar connection/transaction before claiming atomicity.
+6. Add a multi-provider Run test proving shared deduplication, candidate repair and GLEIF evidence behavior remain unchanged after batch cutover.
+
+### Gate and validation
+
+Do not switch the Worker to the atomic batch primitive until the above invariants are preserved and PostgreSQL fault-injection tests pass. The existing post-projection coverage recovery is implemented, but the atomic provider-batch Worker cutover is not. No .NET build, automated test execution, PostgreSQL execution, or Windows pull/build acceptance is claimed for this source audit.
