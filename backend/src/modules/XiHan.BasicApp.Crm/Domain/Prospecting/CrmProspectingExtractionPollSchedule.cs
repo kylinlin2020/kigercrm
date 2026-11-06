@@ -18,6 +18,10 @@ public static class CrmProspectingExtractionPollSchedule
         if (attemptCount < 0)
             throw new ArgumentOutOfRangeException(nameof(attemptCount));
 
+        // The persisted column and method contract are UTC; normalize caller offsets before
+        // applying provider hints so equivalent instants produce identical timestamps.
+        nowUtc = nowUtc.ToUniversalTime();
+
         var exponent = Math.Min(attemptCount, 20);
         var seconds = Math.Min(
             MaximumDelay.TotalSeconds,
