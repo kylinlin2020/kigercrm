@@ -371,6 +371,20 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             WHERE request.tenant_id = @tenantId
               AND request.state = 'Started'
               AND request.started_at <= recovery_clock.now - (@ageMilliseconds * INTERVAL '1 millisecond')
+              -- A completed provider execution with a durable response checkpoint may still
+              -- need its Started request ledger reconciled into coverage after a process crash.
+              -- Preserve that row so the resumed Run can verify the checkpoint and atomically
+              -- finalize request + coverage instead of losing the successful scan.
+              AND NOT EXISTS (
+                    SELECT 1
+                    FROM crm_prospecting_run_provider_execution AS execution
+                    WHERE execution.tenant_id = request.tenant_id
+                      AND execution.run_id = request.run_id
+                      AND execution.provider_code = request.provider_code
+                      AND execution.state = 'Succeeded'
+                      AND execution.checkpoint_json IS NOT NULL
+                      AND execution.checkpoint_hash IS NOT NULL
+              )
               AND (
                     NOT EXISTS (
                         SELECT 1
