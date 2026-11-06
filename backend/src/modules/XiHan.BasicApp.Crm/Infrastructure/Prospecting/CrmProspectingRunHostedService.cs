@@ -104,9 +104,7 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
 
             // Provider codes are global identities across capability contracts. Never silently
             // choose the first registration: a sync/async collision could route a Run to the wrong adapter.
-            var providerRegistry = CrmProspectingProviderRegistry.Create(
-                scope.ServiceProvider.GetServices<ICrmProspectingProvider>(),
-                scope.ServiceProvider.GetServices<ICrmProspectingAsyncExtractionProvider>());
+            var providerRegistry = scope.ServiceProvider.GetRequiredService<CrmProspectingProviderRegistry>();
             var providers = providerRegistry.Synchronous;
             // Materialize once from the immutable Run snapshot. On subsequent delivery/recovery,
             // the persisted execution rows are authoritative and are verified against that snapshot;
