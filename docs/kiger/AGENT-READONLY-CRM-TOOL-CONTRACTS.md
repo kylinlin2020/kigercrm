@@ -367,3 +367,14 @@
 - 已核对守卫接口、实现和 SaaS Scoped 注册源码；尚未运行 Host DI 集成测试或 .NET 编译测试。
 - 仍需实测 `IPermissionChecker` 的当前租户/用户授权快照行为，以及 Owner Data Scope 对跨用户记录的拒绝。
 - 仍需双租户场景验证 Chat 请求创建的 Scoped 工厂、当前用户、当前租户与 CRM Query/AppService 使用同一个请求上下文。
+
+
+## 16. 自动获客策略版本只读查询
+
+新增 `crm_prospecting_list_strategies(campaignId)`，调用现有 `GetStrategiesAsync`，服务端先校验 Campaign 归属和 Owner Data Scope，再返回策略版本摘要。
+
+- 输出字段：BasicId、CampaignId、Version、Name、SearchObjective、ApprovalStatus、ApprovedAt、ActivatedAt。
+- 明确排除 ProviderPlanJson、ExcludedDomainsJson、ApprovedBy，避免将完整供应商计划、排除名单和审批人身份直接注入模型上下文。
+- Tool 入口显式调用 `IOperationPermissionGuard` 的 CRM Read 权限守卫；正数 ID 校验在调用服务前执行。
+- 拒绝型 Permission Guard 测试覆盖策略列表工具；非法 Campaign ID 测试覆盖 0 值；allowlist 已扩展为七个只读工具。
+- 不开放策略创建、提交审批、审批决策或激活操作。
