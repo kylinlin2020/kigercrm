@@ -362,6 +362,11 @@ public sealed class CrmProspectingAppService(
                 throw new InvalidOperationException("Converted prospecting candidate is missing its Lead reference.");
             var existingLead = await leads.GetByIdAsync(candidate.ConvertedLeadId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("Converted prospecting candidate references a missing Lead.");
+            var expectedSourceReference = $"{candidate.ProviderCode}:{candidate.ExternalId}";
+            if (!string.Equals(existingLead.Source, "Prospecting", StringComparison.Ordinal)
+                || !string.Equals(existingLead.SourceReference, expectedSourceReference, StringComparison.Ordinal)
+                || existingLead.OwnerUserId != campaign.OwnerUserId)
+                throw new InvalidOperationException("Converted Lead does not match its prospecting candidate source or campaign owner.");
             return CrmLeadMapper.ToDetailDto(existingLead);
         }
         if (candidate.Status != CrmProspectingCandidateStatus.Approved)
