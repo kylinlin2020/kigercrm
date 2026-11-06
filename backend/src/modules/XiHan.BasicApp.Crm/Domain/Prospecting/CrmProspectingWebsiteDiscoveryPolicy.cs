@@ -62,6 +62,7 @@ public static class CrmProspectingWebsiteDiscoveryPolicy
 
         var host = uri.IdnHost.TrimEnd('.').ToLowerInvariant();
         if (host.Length is 0 or > 253 || host.Contains("..", StringComparison.Ordinal) ||
+            uri.HostNameType is UriHostNameType.IPv4 or UriHostNameType.IPv6 ||
             IPAddress.TryParse(host, out _) ||
             host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
             host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
