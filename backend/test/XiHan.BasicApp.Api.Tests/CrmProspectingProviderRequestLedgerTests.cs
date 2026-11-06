@@ -6,6 +6,23 @@ namespace XiHan.BasicApp.Api.Tests;
 public sealed class CrmProspectingProviderRequestLedgerTests
 {
     [Fact]
+    public void SuccessfulProviderCheckpoint_ShouldPreserveStartedRequestForCoverageRecovery()
+    {
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingProviderRequestRepository.cs");
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingProviderRequestRepository.cs");
+
+        Assert.Contains("GetStartedAttemptAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("row.State == \"Started\"", repository, StringComparison.Ordinal);
+        Assert.Contains("More than one unfinished provider request", repository, StringComparison.Ordinal);
+        Assert.Contains("execution.state = 'Succeeded'", repository, StringComparison.Ordinal);
+        Assert.Contains("execution.checkpoint_json IS NOT NULL", repository, StringComparison.Ordinal);
+        Assert.Contains("GetStartedAttemptAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("Succeeded provider checkpoint integrity validation failed", worker, StringComparison.Ordinal);
+        Assert.Contains("TryFinalizeSuccessWithCoverageAsync(", worker, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ProviderRequestEntity_ShouldBeAuditedStrictTenantScopedAndAppendOnly()
     {
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingProviderRequest.cs");
