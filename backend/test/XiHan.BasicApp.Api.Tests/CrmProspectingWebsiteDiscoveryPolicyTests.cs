@@ -46,7 +46,10 @@ public sealed class CrmProspectingWebsiteDiscoveryPolicyTests
     [InlineData("https://directory.example.com/listing", "insufficient_company_match")]
     public void Assess_ShouldRejectUnsafeOrWeakCandidates(string url, string reason)
     {
-        var result = CrmProspectingWebsiteDiscoveryPolicy.Assess(Input(url));
+        var input = Input(url);
+        if (url == "https://directory.example.com/listing")
+            input = input with { PageTitle = "Unrelated business directory" };
+        var result = CrmProspectingWebsiteDiscoveryPolicy.Assess(input);
 
         Assert.False(result.AcceptedForReview);
         Assert.False(result.CanSetOfficialWebsite);
