@@ -69,10 +69,16 @@ public static class CrmProspectingExtractionSubmissionValidator
 
             try
             {
-                using var document = JsonDocument.Parse(metadata);
+                using var document = JsonDocument.Parse(metadata, new JsonDocumentOptions { MaxDepth = 8 });
                 if (document.RootElement.ValueKind != JsonValueKind.Object)
                 {
                     failureCode = "invalid_safe_metadata";
+                    return false;
+                }
+
+                if (ContainsCredentialMaterial(document.RootElement))
+                {
+                    failureCode = "unsafe_safe_metadata";
                     return false;
                 }
             }
@@ -84,5 +90,35 @@ public static class CrmProspectingExtractionSubmissionValidator
         }
 
         return true;
+    }
+
+    private static bool ContainsCredentialMaterial(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in element.EnumerateObject())
+            {
+                var name = property.Name.Replace("_", string.Empty, StringComparison.Ordinal)
+                    .Replace("-", string.Empty, StringComparison.Ordinal);
+                if (name.Contains("secret", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("password", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("token", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("authorization", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("credential", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("apikey", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("privatekey", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("signingkey", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (ContainsCredentialMaterial(property.Value)) return true;
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray())
+                if (ContainsCredentialMaterial(item)) return true;
+        }
+
+        return false;
     }
 }
