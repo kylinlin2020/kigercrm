@@ -156,4 +156,27 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.DoesNotContain("var raced = await CreateQueryable()", method, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RunCompletion_ShouldRemainBlockedByNeedsReviewExtractionJobs()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs"));
+        var methodStart = source.IndexOf("CompleteFencedWithDatabaseClockAsync", StringComparison.Ordinal);
+        var methodEnd = source.IndexOf("CancelFencedWithDatabaseClockAsync", methodStart, StringComparison.Ordinal);
+        Assert.True(methodStart >= 0 && methodEnd > methodStart);
+        var method = source[methodStart..methodEnd];
+
+        Assert.Contains("pending_job.status NOT IN", method, StringComparison.Ordinal);
+        Assert.Contains("@completedExtractionStatus", method, StringComparison.Ordinal);
+        Assert.Contains("@failedExtractionStatus", method, StringComparison.Ordinal);
+        Assert.Contains("@expiredExtractionStatus", method, StringComparison.Ordinal);
+        Assert.Contains("@cancelledExtractionStatus", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("@needsReviewExtractionStatus", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("CrmProspectingExtractionStatus.NeedsReview.ToString()", method, StringComparison.Ordinal);
+    }
+
 }
