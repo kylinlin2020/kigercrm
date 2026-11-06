@@ -120,7 +120,7 @@ public sealed class AiServiceRegistrationTests
 
         var tools = factory.CreateTools(CancellationToken.None);
         Assert.Equal(
-            ["crm_prospecting_list_campaigns", "crm_prospecting_list_candidates", "crm_prospecting_list_runs", "crm_search_customers", "crm_search_leads"],
+            ["crm_prospecting_get_candidate_review", "crm_prospecting_list_campaigns", "crm_prospecting_list_candidates", "crm_prospecting_list_runs", "crm_search_customers", "crm_search_leads"],
             tools.Select(tool => tool.GetType().GetProperty("Name")?.GetValue(tool) as string)
                 .OrderBy(name => name, StringComparer.Ordinal));
 
