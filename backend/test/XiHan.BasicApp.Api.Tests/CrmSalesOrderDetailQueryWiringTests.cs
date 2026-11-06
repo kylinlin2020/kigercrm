@@ -15,6 +15,19 @@ public sealed class CrmSalesOrderDetailQueryWiringTests
     }
 
     [Fact]
+    public void SalesOrderDetail_ShouldExposePersistedTermsAndConditionsSnapshot()
+    {
+        var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmSalesOrderQueryService.cs");
+        var dto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmSalesOrderQueryDtos.cs");
+
+        Assert.Contains("public string? TermsAndConditions { get; set; }", dto, StringComparison.Ordinal);
+        Assert.Contains("TermsAndConditions = order.TermsAndConditions", source, StringComparison.Ordinal);
+        Assert.Contains("CustomerPurchaseOrderNumber = order.CustomerPurchaseOrderNumber", source, StringComparison.Ordinal);
+        Assert.Contains("PaymentTerms = order.PaymentTerms", source, StringComparison.Ordinal);
+        Assert.Contains("DeliveryTerms = order.DeliveryTerms", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SalesOrderLines_ShouldBePagedSortedAndFieldGuardedAfterParentAuthorization()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmSalesOrderQueryService.cs");
