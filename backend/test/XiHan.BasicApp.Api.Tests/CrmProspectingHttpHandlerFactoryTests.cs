@@ -24,6 +24,7 @@ public sealed class CrmProspectingHttpHandlerFactoryTests
     [InlineData("fc00::1")]
     [InlineData("fe80::1")]
     [InlineData("2001:db8::1")]
+    [InlineData("3fff::1")]
     [InlineData("::ffff:192.168.1.1")]
     public void IsPublicAddress_ShouldRejectNonPublicAndSpecialUseAddresses(string value)
     {
