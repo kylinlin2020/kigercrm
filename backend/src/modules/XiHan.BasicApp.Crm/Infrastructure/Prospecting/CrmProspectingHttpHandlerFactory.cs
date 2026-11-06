@@ -109,7 +109,7 @@ public static class CrmProspectingHttpHandlerFactory
             && !InPrefix(bytes, 32, 0x20, 0x01, 0x0D, 0xB8)
             && !InPrefix(bytes, 23, 0x20, 0x01, 0x00, 0x00)
             && !InPrefix(bytes, 16, 0x20, 0x02)
-            && !InPrefix(bytes, 20, 0x3F, 0xFF);
+            && !InPrefix(bytes, 20, 0x3F, 0xFF, 0x00);
     }
 
     private static bool InPrefix(byte[] address, int prefixLength, params int[] prefix)
