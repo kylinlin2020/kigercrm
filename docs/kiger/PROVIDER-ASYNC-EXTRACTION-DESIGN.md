@@ -807,3 +807,12 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - Deliberately does not call `ClaimDueAsync`, submit/poll providers, or advance cursors. It is expiry housekeeping only—not the async extraction execution worker. The full Submit/Poll/Fetch/Project lifecycle and parent Run continuation remain outstanding.
 - Added a source-contract test covering tenant-scope traversal, platform-scope exclusion, expiry invocation and the absence of accidental provider claims.
 - Test/build/runtime validation has not been executed in this environment.
+
+
+## 11.54 Async result-page text and identity hardening (2026-11-06)
+
+- Page validation now rejects control characters in provider-controlled record text fields and source URLs before candidate/evidence projection. This prevents newline/control injection into persisted text and downstream logs.
+- Duplicate record detection uses `CrmProspectingRecordIdentity.NormalizeExternalId`, so whitespace-normalized aliases cannot bypass the per-page duplicate guard and later collide during candidate projection.
+- Provider warnings are bounded to 50 entries and 500 characters each, and reject control characters. The overall serialized page byte ceiling remains in force as a second resource bound.
+- Added regression cases for normalized duplicate IDs, control-bearing company text, excessive warning count and newline-bearing warnings.
+- Tests/build/runtime validation have not been executed in this environment.
