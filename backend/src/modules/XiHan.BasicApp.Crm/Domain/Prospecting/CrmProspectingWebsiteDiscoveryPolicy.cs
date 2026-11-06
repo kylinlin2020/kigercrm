@@ -1,5 +1,4 @@
 using System.Net;
-using System.Globalization;
 using System.Text;
 
 namespace XiHan.BasicApp.Crm.Domain.Prospecting;
