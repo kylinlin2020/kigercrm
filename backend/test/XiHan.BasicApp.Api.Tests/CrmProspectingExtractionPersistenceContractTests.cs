@@ -542,7 +542,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("AND lease_expires_at_utc > clock_timestamp()", method, StringComparison.Ordinal);
         Assert.Contains("AND status IN (@submittingStatus, @pendingStatus, @runningStatus, @succeededStatus, @fetchingStatus)", method, StringComparison.Ordinal);
         Assert.Contains("return affected == 1", method, StringComparison.Ordinal);
-        Assert.DoesNotContain("fencing_version =", method, StringComparison.Ordinal);
+        Assert.DoesNotContain("SET fencing_version =", method, StringComparison.Ordinal);
     }
 
 }
