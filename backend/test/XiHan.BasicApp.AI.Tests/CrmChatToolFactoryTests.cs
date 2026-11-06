@@ -174,31 +174,32 @@ public sealed class CrmChatToolFactoryTests
     }
 
     [Fact]
-    public async Task ProspectingReview_ShouldHonorCancellationBeforeCallingServices()
+    public async Task ProspectingReadTools_ShouldHonorCancellationBeforeCallingPermissionOrCrmServices()
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
-        var review = Assert.IsAssignableFrom<AIFunction>(
-            Assert.Single(factory.CreateTools(cancellation.Token), tool =>
-                string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, "crm_prospecting_get_candidate_review", StringComparison.Ordinal)));
+        var permissionGuard = new RecordingPermissionGuard();
+        var factory = new CrmChatToolFactory(null!, null!, null!, null!, permissionGuard);
+        var calls = new (string Name, Dictionary<string, object?> Arguments)[]
+        {
+            ("crm_prospecting_list_campaigns", new()),
+            ("crm_prospecting_list_strategies", new() { ["campaignId"] = 1L }),
+            ("crm_prospecting_list_runs", new() { ["campaignId"] = 1L }),
+            ("crm_prospecting_list_candidates", new() { ["runId"] = 1L }),
+            ("crm_prospecting_get_candidate_review", new() { ["candidateId"] = 1L })
+        };
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await review.InvokeAsync(new Dictionary<string, object?> { ["candidateId"] = 1L }));
-    }
+        foreach (var call in calls)
+        {
+            var function = Assert.IsAssignableFrom<AIFunction>(
+                Assert.Single(factory.CreateTools(cancellation.Token), tool =>
+                    string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, call.Name, StringComparison.Ordinal)));
 
-    [Fact]
-    public async Task ProspectingTools_ShouldHonorCancellationBeforeCallingServices()
-    {
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-        var factory = new CrmChatToolFactory(null!, null!, null!, null!, new RecordingPermissionGuard());
-        var campaigns = Assert.IsAssignableFrom<AIFunction>(
-            Assert.Single(factory.CreateTools(cancellation.Token), tool =>
-                string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, "crm_prospecting_list_campaigns", StringComparison.Ordinal)));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+                await function.InvokeAsync(call.Arguments));
+        }
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await campaigns.InvokeAsync(new Dictionary<string, object?>()));
+        Assert.Empty(permissionGuard.GrantedPermissions);
     }
 
     private static AIFunction GetFunction(CrmChatToolFactory factory, string name) =>
