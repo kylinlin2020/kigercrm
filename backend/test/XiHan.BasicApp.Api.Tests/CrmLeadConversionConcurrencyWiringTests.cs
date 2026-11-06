@@ -91,4 +91,30 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
 
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
+
+    [Fact]
+    public void LeadConversion_ShouldClaimEligibleLeadAtomicallyBeforeCreatingCustomer()
+    {
+        var repository = File.ReadAllText(RepositoryPath(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmLeadRepository.cs"));
+        var contract = File.ReadAllText(RepositoryPath(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmLeadRepository.cs"));
+        var domain = File.ReadAllText(RepositoryPath(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "DomainServices", "Implementations", "CrmLeadDomainService.cs"));
+        var app = File.ReadAllText(RepositoryPath(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmLeadAppService.cs"));
+
+        Assert.Contains("TryClaimForConversionAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("lead.Status == XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmLeadStatus.New", repository, StringComparison.Ordinal);
+        Assert.Contains("lead.Status == XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmLeadStatus.Contacted", repository, StringComparison.Ordinal);
+        Assert.Contains("lead.Status == XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmLeadStatus.Qualified", repository, StringComparison.Ordinal);
+        Assert.Contains("CrmLeadStatus.Converting", repository, StringComparison.Ordinal);
+        var claim = domain.IndexOf("repository.TryClaimForConversionAsync", StringComparison.Ordinal);
+        var customerInsert = domain.IndexOf("customers.AddAsync", StringComparison.Ordinal);
+        Assert.True(claim >= 0 && customerInsert > claim, "Lead claim must happen before any customer/contact creation.");
+        Assert.Contains("latest.Status == CrmLeadStatus.Converted", domain, StringComparison.Ordinal);
+        Assert.Contains("ValidateConvertedLeadAsync(latest", domain, StringComparison.Ordinal);
+        Assert.Contains("[UnitOfWork(true)]", app, StringComparison.Ordinal);
+    }
+
 }
