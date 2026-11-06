@@ -48,11 +48,17 @@ public sealed class CrmLeadDomainService(
         {
             if (lead.ConvertedCustomerId is not > 0)
                 throw new InvalidOperationException("Converted lead is missing its customer reference.");
-            _ = await customers.GetByIdAsync(lead.ConvertedCustomerId.Value, cancellationToken)
+            var convertedCustomer = await customers.GetByIdAsync(lead.ConvertedCustomerId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("Converted customer reference is invalid.");
+            if (convertedCustomer.ConvertedLeadId != lead.BasicId)
+                throw new InvalidOperationException("Converted customer does not reference this Lead.");
             if (lead.ConvertedContactId is > 0)
-                _ = await contacts.GetByIdAsync(lead.ConvertedContactId.Value, cancellationToken)
+            {
+                var convertedContact = await contacts.GetByIdAsync(lead.ConvertedContactId.Value, cancellationToken)
                     ?? throw new InvalidOperationException("Converted contact reference is invalid.");
+                if (convertedContact.CustomerId != convertedCustomer.BasicId)
+                    throw new InvalidOperationException("Converted contact does not belong to the converted customer.");
+            }
             return lead;
         }
 
