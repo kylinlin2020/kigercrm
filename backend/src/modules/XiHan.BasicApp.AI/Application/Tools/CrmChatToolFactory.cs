@@ -156,14 +156,60 @@ public sealed class CrmChatToolFactory
                         item.Title,
                         item.CompanyName,
                         item.Website,
-                        item.Summary,
                         item.Status,
-                        item.DuplicateReason,
                         item.CreatedTime
                     }).ToArray();
                 },
                 name: "crm_prospecting_list_candidates",
-                description: "只读列出指定且当前用户有权访问的自动获客 Run 的候选客户。出于数据最小化，不返回候选人的邮箱、联系人姓名、供应商原始记录 ID 或转换记录 ID。不得尝试访问其他用户或租户的数据。")
+                description: "只读列出指定且当前用户有权访问的自动获客 Run 的候选客户。出于数据最小化，不返回候选人的邮箱、联系人姓名、供应商原始记录 ID、转换记录 ID、摘要或重复判定细节。不得尝试访问其他用户或租户的数据。"),
+            AIFunctionFactory.Create(
+                async ([Description("CRM 自动获客候选客户的数字 ID。只能使用当前会话已获得的 ID。")] long candidateId) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (candidateId <= 0)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(candidateId));
+                    }
+
+                    var detail = await _prospecting.GetCandidateReviewDetailAsync(candidateId, cancellationToken);
+                    return new
+                    {
+                        Candidate = new
+                        {
+                            detail.Candidate.BasicId,
+                            detail.Candidate.RunId,
+                            detail.Candidate.Title,
+                            detail.Candidate.CompanyName,
+                            detail.Candidate.Website,
+                            detail.Candidate.Status,
+                            detail.Candidate.CreatedTime
+                        },
+                        Evidence = detail.Evidence.Select(item => new
+                        {
+                            item.FieldName,
+                            item.EvidenceType,
+                            item.VerificationStatus,
+                            item.PublishedAtUtc,
+                            item.RetrievedAtUtc
+                        }).ToArray(),
+                        ScoreHistory = detail.ScoreHistory.Select(item => new
+                        {
+                            item.ScorecardVersion,
+                            item.Total,
+                            item.Priority,
+                            item.IdentityPoints,
+                            item.ProcurementPoints,
+                            item.ProductFitPoints,
+                            item.MarketFitPoints,
+                            item.RecencyPoints,
+                            item.EvidencePoints,
+                            item.ContactPoints,
+                            item.EvaluatedAtUtc
+                        }).ToArray()
+                    };
+                },
+                name: "crm_prospecting_get_candidate_review",
+                description: "只读获取当前用户有权访问的候选客户审核摘要和评分历史。仅返回脱敏后的字段名、证据类型/验证状态、时间和评分，不返回邮箱、联系人姓名、证据 URL、供应商记录 ID、原始证据摘要或哈希。不得执行审核或转线索。")
         ];
     }
 }
