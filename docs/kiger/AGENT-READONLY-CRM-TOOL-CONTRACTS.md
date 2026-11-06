@@ -222,3 +222,45 @@
 - 工具调用失败、模型取消或模型不支持工具时，Chat 回复流程正确结束，不把异常栈或敏感数据发给用户。
 
 本轮确认了 v4.8.0 原生 Function Invocation 的可行实现路线并更新本文件；尚未修改 ChatAssistant 生产代码，也未宣称 CRM Chat Tool 已经接通。实施时应先落地一个客户只读搜索工具及集成测试，再扩展线索和 Prospecting 查询。
+
+
+## 11. 第一批 CRM Chat 只读工具落地（客户搜索）
+
+本轮已在 `kiger-dev` 实现首个请求级 CRM Chat Tool，代码落点：
+
+- `backend/src/modules/XiHan.BasicApp.AI/Application/Tools/CrmChatToolFactory.cs`
+- `backend/src/modules/XiHan.BasicApp.AI/Application/AppServices/ChatAssistantAppService.cs`
+- `backend/src/modules/XiHan.BasicApp.AI/Extensions/ServiceCollectionExtensions.cs`
+- `backend/src/modules/XiHan.BasicApp.AI/XiHan.BasicApp.AI.csproj`
+- `backend/src/modules/XiHan.BasicApp.AI/XiHanBasicAppAIModule.cs`
+- `backend/test/XiHan.BasicApp.AI.Tests/AiServiceRegistrationTests.cs`
+
+### 11.1 已实现内容
+
+- 新增 `CrmChatToolFactory`，显式 Scoped 注册；工厂依赖 `ICrmCustomerQueryService` 与 `IFieldSecurityService`。
+- 每次 `ChatAssistantAppService.ReplyAsync()` 创建本次请求的工具列表，通过 Framework 4.8.0 原生 `XiHanChatOptions.ChatOptions.Tools` 传入 `IXiHanAiService.ChatStreamAsync()`。
+- 只暴露 `crm_search_customers` 一个函数，输入仅有 `keyword`；空白关键词拒绝，长度上限 200 字符。没有 tenant/user/owner 参数，也没有任意字段/过滤表达式。
+- 函数调用 `ICrmCustomerQueryService.GetPageAsync()`，沿用 CRM `CrmPermissionCodes.Read` 授权、字段查询门控和 Owner Data Scope，不直接访问 Repository/DbContext。
+- 查询结果在进入模型上下文前显式执行 `IFieldSecurityService.MaskAsync()`。该路径绕过 HTTP `FieldSecurityResponseFilter`，因此显式 Mask 是必要步骤。
+- AI 模块增加 CRM 项目引用和模块依赖；CRM 模块自身只依赖 Saas，没有形成 AI↔CRM 循环依赖。
+- `KnowledgeRetrieveSkill` 仍为 Singleton 且只走 MCP Skill 投影；CRM Chat Tool 工厂保持 Scoped，两条通道分离。
+
+### 11.2 已加入的静态/结构测试
+
+`AiServiceRegistrationTests` 新增断言：
+
+- `CrmChatToolFactory` 以 Scoped 注册。
+- 工具工厂仅生成一个 allow-listed 工具，名称为 `crm_search_customers`。
+- `ChatAssistantAppService` 构造函数接收请求级工厂。
+- AI 模块显式依赖 CRM 模块。
+
+这些测试源码已写入仓库，但本轮尚未执行 .NET restore/build/test；不能将测试源码存在表述为测试通过。还需增加工具实际调用测试（验证 QueryService 被调用、空关键词拒绝、Mask 在返回前执行），以及双租户/权限集成测试。
+
+### 11.3 当前安全边界与后续工作
+
+- Tool 的权限和 Owner Scope 由 CRM QueryService 在调用时强制执行；模型无法指定租户或归属用户。
+- 查询 DTO 是本次调用新建对象，Mask 不会修改共享缓存对象。
+- 关键词限制为空拒绝、最多 200 字符；分页采用 CRM Query DTO 默认分页策略，仍需通过运行测试确认单次结果量上限。
+- 目前只完成客户搜索，未添加客户详情、线索、Prospecting 写操作、外发邮件或 MCP CRM 数据工具。
+- 需要验证模型 Provider 对 function calling 的支持；若 Provider 不支持，回复应有安全的降级行为，不能绕过 CRM 权限。
+- 仍需确认 Function Invocation 中间件执行期间使用当前 Chat 请求的 DI Scope，及其取消/异常处理语义。
