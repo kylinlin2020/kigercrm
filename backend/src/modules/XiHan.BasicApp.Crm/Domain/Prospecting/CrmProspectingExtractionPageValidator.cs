@@ -51,6 +51,12 @@ public static class CrmProspectingExtractionPageValidator
             return false;
         }
 
+        if (page.IsLastPage && page.NextCursor is not null)
+        {
+            failureCode = "unexpected_final_cursor";
+            return false;
+        }
+
         if (!page.IsLastPage && page.IsComplete)
         {
             failureCode = "inconsistent_completion_marker";
