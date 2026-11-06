@@ -27,7 +27,7 @@ public sealed class CrmProspectingProviderRequestFactoryTests
         Assert.Equal("Brazil;Chile", request.TargetMarkets);
         Assert.Equal("Importers and wholesalers", request.IdealCustomerProfile);
         Assert.Equal("{}", request.ProviderOptionsJson);
-        Assert.Equal(["blocked.test", "example.com"], request.ExcludedDomains);
+        Assert.Equal(new[] { "blocked.test", "example.com" }, request.ExcludedDomains);
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public sealed class CrmProspectingProviderRequestFactoryTests
             run, ["a.example", "b.example"]);
 
         Assert.Equal(first.ExcludedDomains, second.ExcludedDomains);
-        Assert.Equal(["a.example", "b.example"], first.ExcludedDomains);
+        Assert.Equal(new[] { "a.example", "b.example" }, first.ExcludedDomains);
     }
 
     [Fact]
