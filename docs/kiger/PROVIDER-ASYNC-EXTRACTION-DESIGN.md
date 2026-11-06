@@ -816,3 +816,9 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 - Provider warnings are bounded to 50 entries and 500 characters each, and reject control characters. The overall serialized page byte ceiling remains in force as a second resource bound.
 - Added regression cases for normalized duplicate IDs, control-bearing company text, excessive warning count and newline-bearing warnings.
 - Tests/build/runtime validation have not been executed in this environment.
+## 11.55 Expiry recovery must preserve ambiguous submission outcomes (2026-11-06)
+
+- Added a regression contract around ExpireDueAsync: only acknowledged provider jobs in Pending, Running, Succeeded or FetchingResults may be expired by the database-clock deadline.
+- Submitting is deliberately excluded because a worker/network timeout may occur after remote acceptance but before local acknowledgement; expiry must not pretend that the remote outcome is known. Recovery must reuse the same provider-documented idempotency key or move to NeedsReview when the provider cannot authoritatively reconcile the submission.
+- NeedsReview is also excluded from automatic expiry and remains a human-resolution state. Expiry clears stale lease ownership only for the acknowledged states it actually transitions.
+- The added source-contract test is committed but has not been executed. No build, database or runtime validation is claimed.
