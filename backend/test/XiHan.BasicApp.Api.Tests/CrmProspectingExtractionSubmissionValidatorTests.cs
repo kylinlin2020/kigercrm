@@ -119,6 +119,7 @@ public sealed class CrmProspectingExtractionSubmissionValidatorTests
     [Theory]
     [InlineData("{\"apiKey\":\"secret-value\"}")]
     [InlineData("{\"access_token\":\"secret-value\"}")]
+    [InlineData("{\"api.key\":\"secret-value\"}")]
     [InlineData("{\"provider\":{\"Authorization\":\"Bearer secret-value\"}}")]
     [InlineData("{\"nested\":[{\"client_secret\":\"secret-value\"}]}")]
     public void TryValidate_RejectsCredentialBearingSafeMetadata(string metadata)
