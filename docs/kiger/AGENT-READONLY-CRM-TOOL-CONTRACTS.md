@@ -261,7 +261,7 @@
 
 - Tool 的权限和 Owner Scope 由 CRM QueryService 在调用时强制执行；模型无法指定租户或归属用户。
 - 查询 DTO 是本次调用新建对象，Mask 不会修改共享缓存对象。
-- 关键词限制为空拒绝、最多 200 字符；分页采用 CRM Query DTO 默认分页策略，仍需通过运行测试确认单次结果量上限。
+- 关键词限制为空拒绝、最多 200 字符；分页采用 CRM Query DTO 默认分页策略，工具结果在脱敏后物化为独立列表。新增 `CrmChatToolFactoryTests` 覆盖空关键词、超长关键词和取消令牌的拒绝路径；这些测试已提交但尚未运行。
 - 目前只完成客户搜索，未添加客户详情、线索、Prospecting 写操作、外发邮件或 MCP CRM 数据工具。
 - 需要验证模型 Provider 对 function calling 的支持；若 Provider 不支持，回复应有安全的降级行为，不能绕过 CRM 权限。
 - 仍需确认 Function Invocation 中间件执行期间使用当前 Chat 请求的 DI Scope，及其取消/异常处理语义。
