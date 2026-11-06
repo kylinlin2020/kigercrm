@@ -59,6 +59,42 @@ public static class CrmProspectingExtractionPollPolicy
         }
     }
 
+    /// <summary>
+    /// Evaluates a remote response against the persisted local state. This overload prevents
+    /// non-monotonic provider regressions (for example Running back to Pending) from reaching
+    /// the repository transition boundary as an invalid write.
+    /// </summary>
+    public static CrmProspectingExtractionPollDecision EvaluateForCurrentState(
+        CrmProspectingExtractionStatus currentStatus,
+        CrmProspectingExtractionPollResult? poll,
+        DateTimeOffset nowUtc,
+        int currentAttemptCount)
+    {
+        if (currentStatus is not (CrmProspectingExtractionStatus.Pending or CrmProspectingExtractionStatus.Running))
+        {
+            return new(
+                CrmProspectingExtractionStatus.NeedsReview,
+                null,
+                "invalid_local_poll_state",
+                "The extraction is not in a pollable local state; manual review is required.");
+        }
+
+        var decision = Evaluate(poll, nowUtc, currentAttemptCount);
+        if (decision.NextStatus == CrmProspectingExtractionStatus.NeedsReview)
+            return decision;
+
+        if (!CrmProspectingExtractionStateMachine.CanTransition(currentStatus, decision.NextStatus))
+        {
+            return new(
+                CrmProspectingExtractionStatus.NeedsReview,
+                null,
+                "provider_status_regression",
+                "The provider returned a status inconsistent with the persisted extraction lifecycle; manual review is required.");
+        }
+
+        return decision;
+    }
+
     private static CrmProspectingExtractionPollDecision Schedule(
         CrmProspectingExtractionStatus status,
         CrmProspectingExtractionPollResult poll,
