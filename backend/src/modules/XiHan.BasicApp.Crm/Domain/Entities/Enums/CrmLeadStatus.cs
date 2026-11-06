@@ -7,5 +7,6 @@ public enum CrmLeadStatus
     Contacted = 1,
     Qualified = 2,
     Disqualified = 3,
-    Converted = 4
+    Converted = 4,
+    Converting = 5
 }
