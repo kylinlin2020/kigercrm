@@ -826,3 +826,9 @@ Do not switch the Worker to the atomic batch primitive until the above invariant
 
 - Corrected the control-character regression inputs to contain actual C# newline escape sequences (`\n`) at runtime, rather than the two-character backslash-plus-n text. The prior test source therefore did not exercise the control-character branch despite its name; the corrected source now does.
 - The test source has been re-fetched and inspected after commit `2412e32cee5e0379a9adac9f7d4463fa9a26c63f`. Execution is still pending.
+## 11.56 NeedsReview recovery must establish provider identity first (2026-11-06)
+
+- Added a regression contract for the manual-recovery boundary: NeedsReview is not itself a provider execution state and is excluded from automatic ClaimDueAsync claims.
+- The generic fenced transition path refuses to move a job into Pending or Running unless a provider extraction ID has already been persisted. This prevents an operator or future worker from converting an ambiguous submission into a pollable job without first resolving the remote identity.
+- This does not yet implement the operator-facing reconciliation action that safely records a provider-confirmed extraction ID and requeues the job. Until that explicit action exists, unresolved NeedsReview jobs remain blocked and continue to prevent parent Run completion.
+- Added source-contract coverage for the provider-ID precondition and manual-only claim behavior. Tests/build/runtime validation have not been executed.
