@@ -156,6 +156,7 @@ export default {
       "contacted": "Kontaktiert",
       "qualified": "Qualifiziert",
       "disqualified": "Nicht qualifiziert",
+      "converting": "Wird umgewandelt",
       "converted": "Umgewandelt",
       "total": "{count} Einträge",
       "page": "Seite {current} / {total}",
