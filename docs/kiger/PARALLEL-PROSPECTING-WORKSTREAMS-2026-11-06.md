@@ -129,3 +129,22 @@ At the time this plan is added:
 - B, C, D and E require target-side implementation; source-project functionality is reference behavior, not proof of target completion.
 - No .NET build/test or PostgreSQL dual-connection runtime validation is claimed by this plan.
 - Windows-native acceptance remains a final gate; do not mark the migration complete until it passes.
+
+
+## Implementation increments after baseline
+
+### Super Search planner foundation
+- Added `CrmProspectingSuperSearchPlanner` as a pure deterministic planning component.
+- Supports Balanced/Deep/Extreme profiles capped at 4/8/16 rounds, 16 query themes, bounded provider fan-out, normalized scope, and stable SHA-256 scope/round/cell fingerprints.
+- Carries excluded terms and domains into each persisted-ready round plan. It does not call providers or create Runs.
+- Added unit-test source covering depth caps, determinism, unique round/cell fingerprints, exclusion propagation, normalization, invalid scope/fan-out and fingerprint changes.
+- Commits: `23eddd535b80524716f53df3dbb7c6d404a24ea7`, `f85a811568094aa5e8065ec7381d1289fabc75e3`.
+
+### Deep Mining policy foundation
+- Added `CrmProspectingDeepMiningPolicy` with bounded depth/root/query/website-probe budgets matching the three depth profiles.
+- Added deterministic mission/root/candidate task IDs and a relationship-query builder that preserves product/company/market scope and explicit exclusions.
+- Added stop decisions for cancellation, deadline, cost ceiling, duplicate saturation, root/depth/query/probe limits, and empty root sets.
+- Added unit-test source for policy profiles, terminal stop reasons, resource limits, deterministic task identity, query scope and control-character rejection.
+- Commits: `99045e641e006b7b38a41fe8f9df9fb85341b93f`, `e9b10b374e670ab21b76c276a93e99d42d0eccc7`, `cc62fbf9dfada8a8633e63afa71f7378afaff5be`.
+
+**Validation boundary:** these are domain foundations and test source, not completed end-to-end Super Search or Deep Mining workflows. They are not yet exposed through application APIs/UI, persisted as missions/graphs, or connected to the Run/website-probe pipeline. No .NET build/test has been executed in this environment.
