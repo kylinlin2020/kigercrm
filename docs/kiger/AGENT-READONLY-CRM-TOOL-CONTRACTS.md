@@ -378,3 +378,18 @@
 - Tool 入口显式调用 `IOperationPermissionGuard` 的 CRM Read 权限守卫；正数 ID 校验在调用服务前执行。
 - 拒绝型 Permission Guard 测试覆盖策略列表工具；非法 Campaign ID 测试覆盖 0 值；allowlist 已扩展为七个只读工具。
 - 不开放策略创建、提交审批、审批决策或激活操作。
+
+
+## 17. 修复 Candidate DTO 字段安全目录映射缺口
+
+并行审查发现 `CrmProspectingCandidateDto` 原先由 `CrmProspectingAppService` 内部私有方法构造，没有公开静态 Mapper 方法供 `FieldSecurityDtoCatalog` 发现。因此单独调用 `MaskAsync(candidateDto)` 时，字段安全目录可能无法将 DTO 反向关联到 `SysCrmProspectingCandidate`，这会让之前的“显式 MaskAsync”路径无法证明真正套用候选字段规则。
+
+本轮已修复：
+
+- 新增 `Application/Mappers/CrmProspectingMapper.cs`，公开 `ToCandidateDto(SysCrmProspectingCandidate)` 映射方法。
+- `CrmProspectingAppService` 的候选列表、审核详情等映射统一改为调用该 Mapper。
+- 由于 `SysCrmProspectingCandidate` 已登记到字段安全实体目录，DTO Catalog 现在可以通过 Mapper 发现 `CrmProspectingCandidateDto → SysCrmProspectingCandidate` 对应关系。
+- `FieldSecurityEntityWiringTests` 新增显式回归断言，确保该 DTO 被字段安全目录识别。
+- Chat 审核摘要工具先对 Candidate DTO 执行 MaskAsync，再投影允许字段；Evidence/Score 仍采用显式输出白名单。
+
+此处是源码和测试契约修复，尚未实际运行测试；仍需 .NET 构建和字段规则集成测试验证最终运行行为。
