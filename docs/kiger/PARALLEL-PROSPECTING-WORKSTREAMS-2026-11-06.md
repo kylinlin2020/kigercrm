@@ -228,3 +228,12 @@ At the time this plan is added:
 - Added tests for every known state, unknown status, bounded retry timestamps, terminal success, failure-code normalization, and invalid attempt counts.
 - Commits: `fc329d230cd610d24e3f9c9e672529d93d099538` (policy), `ffad2ed67ee443ddd23544ccf163288e23d5d789` (tests).
 - This is a pure domain decision layer and is not yet connected to the repository transition/lease operations or a hosted consumer. Tests are added but not executed in this environment.
+
+
+### Shared immutable provider request reconstruction
+- Added `CrmProspectingProviderRequestFactory` to rebuild provider requests exclusively from the persisted immutable Run snapshot; no mutable Campaign/Strategy fields are read.
+- The existing synchronous Run worker now uses the shared factory. The upcoming asynchronous extraction consumer can use the exact same reconstruction path, avoiding request drift between sync/async execution and after restart.
+- Excluded domains are normalized, deduplicated, and sorted deterministically; malformed Run identity or missing search objective fails closed.
+- Added tests for snapshot-only reconstruction, deterministic exclusion normalization, and invalid Run snapshots.
+- Commits: `cb8c34d09368fb5f4d3bb755d77f7cdbfae515c1` (factory), `d5bfd954130bcff20cd84a2e7b45db6ac48565be` (Run worker refactor), `affa647cd56a67b93b26b0ad6c250df67505d4a3` (tests).
+- Still pending: a dedicated extraction consumer must invoke this factory, persist the provider submission lifecycle, and connect result projection to the existing candidate/evidence pipeline. Tests have not been executed in this environment.
