@@ -14,7 +14,7 @@ public sealed class CrmCustomerImportPreviewAppService : CrmApplicationService, 
     private static readonly string[] RequiredFields = ["Name"];
 
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
-    public Task<CrmCsvImportPreviewResult> PreviewAsync(CrmLeadImportPreviewRequestDto input, CancellationToken cancellationToken = default)
+    public Task<CrmCsvImportPreviewResult> PreviewAsync(CrmCsvImportPreviewRequestDto input, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
