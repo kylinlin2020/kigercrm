@@ -248,6 +248,9 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
 
                 Assert.Equal(first.BasicId, second.BasicId);
                 Assert.Equal(first.SubmissionIdempotencyKey, second.SubmissionIdempotencyKey);
+                Assert.Equal(first.ProviderCode, second.ProviderCode);
+                Assert.Equal(first.RequestFingerprint, second.RequestFingerprint);
+                Assert.Equal(first.NextPollAtUtc, second.NextPollAtUtc);
                 Assert.Equal(CrmProspectingExtractionStatus.Submitting.ToString(), second.Status);
             }
 
