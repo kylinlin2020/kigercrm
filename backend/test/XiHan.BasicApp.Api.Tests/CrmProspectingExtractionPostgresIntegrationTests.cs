@@ -4,6 +4,7 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Infrastructure.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using XiHan.Framework.Data.SqlSugar.Extensions;
 using XiHan.Framework.Domain.Entities.Abstracts;
 using XiHan.Framework.MultiTenancy;
 using XiHan.Framework.MultiTenancy.Abstractions;
@@ -208,7 +209,10 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
             db.Aop.DataExecuting = (_, entityInfo) =>
             {
                 if (entityInfo.OperationType == DataFilterType.InsertByObject)
+                {
                     entityInfo.TrySetSnowflakeId(SnowFlakeSingle.Instance.NextId());
+                    entityInfo.ToCreated(EntityAuditContext.From(null, ScopeTenantId()));
+                }
             };
         });
 
