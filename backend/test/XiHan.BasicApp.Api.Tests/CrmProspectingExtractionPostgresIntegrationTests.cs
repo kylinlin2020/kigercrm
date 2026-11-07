@@ -133,14 +133,16 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         {
             db.QueryFilter.AddTableFilter<ISoftDelete>(entity => !entity.IsDeleted);
             db.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(
-                entity => AsyncLocalCurrentTenantAccessor.Instance.Current != null &&
-                    AsyncLocalCurrentTenantAccessor.Instance.Current.TenantId == entity.TenantId);
+                entity => ScopeTenantId() == entity.TenantId);
             db.Aop.DataExecuting = (_, entityInfo) =>
             {
                 if (entityInfo.OperationType == DataFilterType.InsertByObject)
                     entityInfo.TrySetSnowflakeId(SnowFlakeSingle.Instance.NextId());
             };
         });
+
+    private static long ScopeTenantId()
+        => AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0;
 
     private static CrmProspectingExtractionJobRepository CreateRepository(ISqlSugarClient client)
     {
