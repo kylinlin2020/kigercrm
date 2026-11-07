@@ -146,7 +146,7 @@ public sealed class CrmCommandAuthorizationTests
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", service, StringComparison.Ordinal);
         Assert.Contains("CrmCsvImportPreviewService.Preview(", service, StringComparison.Ordinal);
         Assert.Contains("RequiredFields = [\"CompanyName\"]", service, StringComparison.Ordinal);
-        Assert.Contains("\"DuplicateEmailNormalized\"", service, StringComparison.Ordinal) is false;
+        Assert.DoesNotContain("\"DuplicateEmailNormalized\"", service, StringComparison.Ordinal);
         Assert.DoesNotContain("ICrmLeadDomainService", service, StringComparison.Ordinal);
         Assert.DoesNotContain("ICrmLeadRepository", service, StringComparison.Ordinal);
         Assert.DoesNotContain("CreateAsync(", service, StringComparison.Ordinal);
