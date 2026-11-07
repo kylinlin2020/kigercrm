@@ -4,6 +4,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Chat.Application.EventHandlers;
 using XiHan.BasicApp.Chat.Domain.DomainServices;
+using XiHan.BasicApp.Chat.Domain.Entities;
 using XiHan.BasicApp.Chat.Infrastructure.Seeders;
 using XiHan.Framework.Data.Extensions.DependencyInjection;
 using XiHan.Framework.EventBus.Local;
@@ -16,6 +17,16 @@ namespace XiHan.BasicApp.Chat.Extensions;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers the strict-tenant WhatsApp webhook inbox with the platform entity metadata.
+    /// The webhook endpoint must not acknowledge Meta until this durable table is available.
+    /// </summary>
+    public static IServiceCollection AddChatFieldSecurityEntities(this IServiceCollection services)
+    {
+        return services.AddFieldSecurityEntities(entities => entities
+            .Add<SysWhatsAppWebhookInbox>());
+    }
+
     /// <summary>
     /// 添加聊天模块种子：权限目录、菜单、参数配置、内建定时任务
     /// </summary>
