@@ -4,6 +4,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Application.Exporting;
+using XiHan.BasicApp.Saas.Application.Exporting;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 using XiHan.BasicApp.Crm.Domain.DomainServices;
@@ -56,6 +58,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
+        // CRM export providers reuse the existing permission-checked, tenant-scoped query services.
+        services.AddScoped<IExportProvider, CrmLeadExportProvider>();
         services.AddScoped<ICrmProspectingCampaignRepository, CrmProspectingCampaignRepository>();
         services.AddScoped<ICrmProspectingStrategyRepository, CrmProspectingStrategyRepository>();
         services.AddScoped<ICrmProspectingRunRepository, CrmProspectingRunRepository>();
