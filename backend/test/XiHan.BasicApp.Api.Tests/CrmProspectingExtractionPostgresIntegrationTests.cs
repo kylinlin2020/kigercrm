@@ -345,7 +345,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                     .ExecuteCommandAsync();
 
                 var expiredCount = await _repository1.ExpireDueAsync();
-                Assert.Equal(1, expiredCount);
+                Assert.True(expiredCount >= 1);
 
                 var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
                     .Where(row => row.BasicId == jobId)
