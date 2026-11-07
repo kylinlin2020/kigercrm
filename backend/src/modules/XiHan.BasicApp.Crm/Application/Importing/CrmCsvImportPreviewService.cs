@@ -36,6 +36,17 @@ public static class CrmCsvImportPreviewService
         if (!required.IsSubsetOf(allowed))
             throw new ArgumentException("必填字段必须属于目标字段白名单。", nameof(requiredTargetFields));
 
+        if (fieldValidators is not null)
+        {
+            foreach (var validator in fieldValidators)
+            {
+                if (string.IsNullOrWhiteSpace(validator.Key) || !allowed.Contains(validator.Key))
+                    throw new ArgumentException("字段验证器只能绑定白名单中的目标字段。", nameof(fieldValidators));
+                if (validator.Value is null)
+                    throw new ArgumentException("字段验证器不能为空。", nameof(fieldValidators));
+            }
+        }
+
         string csv;
         try
         {
@@ -101,6 +112,8 @@ public static class CrmCsvImportPreviewService
         for (var index = 0; index < dataRows.Length; index++)
         {
             var source = dataRows[index];
+            if (source.Count > MaxColumns)
+                throw new ArgumentException($"CSV 列数不能超过 {MaxColumns}。", nameof(fileBytes));
             var errors = new List<string>();
             if (source.Count != headers.Length)
                 errors.Add($"列数不匹配：预期 {headers.Length} 列，实际 {source.Count} 列。");
