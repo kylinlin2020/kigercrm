@@ -17,7 +17,7 @@ public sealed class CrmQuoteExportProvider : QueryServiceExportProviderBase<CrmQ
     public override string BusinessType => "crm.quote";
 
     // Query service re-applies its existing authorization and data-scope checks during export.
-    public override string RequiredPermission => CrmPermissionCodes.Read;
+    public override string RequiredPermission => CrmPermissionCodes.Execute;
 
     protected override Task<PageResultDtoBase<CrmQuoteListItemDto>> QueryPageAsync(
         CrmQuotePageQueryDto query,
