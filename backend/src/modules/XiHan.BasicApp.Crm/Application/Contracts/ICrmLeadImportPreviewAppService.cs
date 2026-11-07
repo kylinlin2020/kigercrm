@@ -7,6 +7,6 @@ namespace XiHan.BasicApp.Crm.Application.Contracts;
 public interface ICrmLeadImportPreviewAppService : IApplicationService
 {
     Task<CrmCsvImportPreviewResult> PreviewAsync(
-        CrmLeadImportPreviewRequestDto input,
+        CrmCsvImportPreviewRequestDto input,
         CancellationToken cancellationToken = default);
 }
