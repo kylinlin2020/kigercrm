@@ -60,6 +60,8 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(configuration);
         // CRM export providers reuse the existing permission-checked, tenant-scoped query services.
         services.AddScoped<IExportProvider, CrmLeadExportProvider>();
+        services.AddScoped<IExportProvider, CrmCustomerExportProvider>();
+        services.AddScoped<IExportProvider, CrmContactExportProvider>();
         services.AddScoped<ICrmProspectingCampaignRepository, CrmProspectingCampaignRepository>();
         services.AddScoped<ICrmProspectingStrategyRepository, CrmProspectingStrategyRepository>();
         services.AddScoped<ICrmProspectingRunRepository, CrmProspectingRunRepository>();
