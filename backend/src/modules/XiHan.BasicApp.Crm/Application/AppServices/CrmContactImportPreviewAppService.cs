@@ -1,3 +1,4 @@
+using System.Globalization;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Importing;
 using XiHan.BasicApp.Crm.Domain.Permissions;
@@ -18,6 +19,17 @@ public sealed class CrmContactImportPreviewAppService : CrmApplicationService, I
     {
         ArgumentNullException.ThrowIfNull(input);
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(CrmCsvImportPreviewService.Preview(input.FileBytes, AllowedFields, RequiredFields, input.FieldMapping, 100));
+        return Task.FromResult(CrmCsvImportPreviewService.Preview(
+            input.FileBytes,
+            AllowedFields,
+            RequiredFields,
+            input.FieldMapping,
+            previewLimit: 100,
+            fieldValidators: new Dictionary<string, Func<string, bool>>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["CustomerId"] = value =>
+                    long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var customerId) &&
+                    customerId > 0
+            }));
     }
 }
