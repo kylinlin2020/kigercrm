@@ -33,6 +33,8 @@ public sealed class WhatsAppMetaWebhookEndpointContractTests
             "Infrastructure", "Channels", "WhatsAppMetaWebhookEndpoints.cs"));
 
         Assert.Contains("MaxWebhookBodyBytes = 1_048_576", source, StringComparison.Ordinal);
+        Assert.Contains("throwOnInvalidBytes: true", source, StringComparison.Ordinal);
+        Assert.Contains("catch (DecoderFallbackException)", source, StringComparison.Ordinal);
         Assert.Contains("WhatsAppMetaWebhookSignatureValidator.IsValid(rawBody, signature, appSecret)", source, StringComparison.Ordinal);
         Assert.Contains("WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(rawJson, out var messages)", source, StringComparison.Ordinal);
         Assert.Contains("Status503ServiceUnavailable", source, StringComparison.Ordinal);
