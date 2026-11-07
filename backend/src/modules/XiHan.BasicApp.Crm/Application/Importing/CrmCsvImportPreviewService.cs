@@ -173,8 +173,10 @@ public static class CrmCsvImportPreviewService
 
             if (afterQuote && character != ',' && character != '\r' && character != '\n' && !char.IsWhiteSpace(character))
                 throw new ArgumentException("CSV 引号闭合后存在非法字符。", nameof(csv));
-            if (character == '"' && cell.Length == 0 && !afterQuote)
+            if (character == '"')
             {
+                if (cell.Length != 0 || afterQuote)
+                    throw new ArgumentException("CSV 未加引号字段中包含非法引号。", nameof(csv));
                 quoted = true;
                 continue;
             }
