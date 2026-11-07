@@ -13,6 +13,8 @@ namespace XiHan.BasicApp.Chat.Domain.Entities;
 /// </summary>
 [SugarTable(TableName = "Sys_WhatsApp_Webhook_Inbox", TableDescription = "WhatsApp Webhook 持久收件箱")]
 [SugarIndex("UX_{table}_TeId_WaId_MeId", nameof(TenantId), OrderByType.Asc, nameof(WhatsAppBusinessAccountId), OrderByType.Asc, nameof(ProviderMessageId), OrderByType.Asc, true)]
+[SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
+[SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
 [SugarIndex("IX_{table}_TeId_St_NeAt", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(NextAttemptTime), OrderByType.Asc)]
 public partial class SysWhatsAppWebhookInbox : BasicAppCreationEntity, IStrictMultiTenantEntity
 {
