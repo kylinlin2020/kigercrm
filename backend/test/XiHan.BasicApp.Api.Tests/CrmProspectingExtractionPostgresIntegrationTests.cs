@@ -46,36 +46,49 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     public async Task ClaimDue_TwoIndependentClients_ExactlyOneWinsAndReturnsFencedLease()
     {
         var jobId = await InsertDueJobAsync(TenantId, "claim-race");
-        var results = await RaceAsync(
-            () => WithTenant(_tenant1, TenantId, () => _repository1.ClaimDueAsync("pg-worker-a", TimeSpan.FromMinutes(2), 1)),
-            () => WithTenant(_tenant2, TenantId, () => _repository2.ClaimDueAsync("pg-worker-b", TimeSpan.FromMinutes(2), 1)));
+        try
+        {
+            var results = await RaceAsync(
+                () => WithTenant(_tenant1, TenantId, () => _repository1.ClaimDueAsync("pg-worker-a", TimeSpan.FromMinutes(2), 1)),
+                () => WithTenant(_tenant2, TenantId, () => _repository2.ClaimDueAsync("pg-worker-b", TimeSpan.FromMinutes(2), 1)));
 
-        Assert.Equal(1, results.Sum(rows => rows.Count));
-        var claimed = Assert.Single(results.SelectMany(rows => rows));
-        Assert.Equal(jobId, claimed.BasicId);
-        Assert.NotEqual(Guid.Empty, claimed.LeaseToken);
-        Assert.Equal(1, claimed.FencingVersion);
-        Assert.Equal(TenantId, claimed.TenantId);
+            Assert.Equal(1, results.Sum(rows => rows.Count));
+            var claimed = Assert.Single(results.SelectMany(rows => rows));
+            Assert.Equal(jobId, claimed.BasicId);
+            Assert.NotEqual(Guid.Empty, claimed.LeaseToken);
+            Assert.Equal(1, claimed.FencingVersion);
+            Assert.Equal(TenantId, claimed.TenantId);
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
     }
 
     [Fact(SkipUnless = nameof(PostgresConfigured))]
     public async Task ClaimDue_FromAnotherTenant_CannotClaimOrReadTheJob()
     {
         var jobId = await InsertDueJobAsync(TenantId, "tenant-isolation");
-
-        var wrongTenant = await WithTenant(
-            _tenant2,
-            OtherTenantId,
-            () => _repository2.ClaimDueAsync("wrong-tenant-worker", TimeSpan.FromMinutes(2), 1));
-        Assert.Empty(wrongTenant);
-
-        using (_tenant1.Change(TenantId))
+        try
         {
-            var visible = await _db1.Queryable<SysCrmProspectingExtractionJob>()
-                .Where(row => row.BasicId == jobId)
-                .SingleAsync();
-            Assert.Equal(TenantId, visible.TenantId);
-            Assert.Null(visible.LeaseToken);
+            var wrongTenant = await WithTenant(
+                _tenant2,
+                OtherTenantId,
+                () => _repository2.ClaimDueAsync("wrong-tenant-worker", TimeSpan.FromMinutes(2), 1));
+            Assert.Empty(wrongTenant);
+
+            using (_tenant1.Change(TenantId))
+            {
+                var visible = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Equal(TenantId, visible.TenantId);
+                Assert.Null(visible.LeaseToken);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
         }
     }
 
@@ -114,6 +127,16 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         var secondTask = Task.Run(async () => { await start.Task; return await second(); });
         start.SetResult();
         return await Task.WhenAll(firstTask, secondTask);
+    }
+
+    private async Task DeleteJobAsync(long jobId)
+    {
+        using (_tenant1.Change(TenantId))
+        {
+            await _db1.Deleteable<SysCrmProspectingExtractionJob>()
+                .Where(row => row.BasicId == jobId)
+                .ExecuteCommandAsync();
+        }
     }
 
     private static async Task<T> WithTenant<T>(ICurrentTenant tenant, long tenantId, Func<Task<T>> action)
