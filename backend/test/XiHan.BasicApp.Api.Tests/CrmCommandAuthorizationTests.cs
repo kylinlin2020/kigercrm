@@ -177,4 +177,35 @@ public sealed class CrmCommandAuthorizationTests
 
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
+
+    [Fact]
+    public void CsvPreviewEndpoints_ShouldShareGenericRequestContract()
+    {
+        var root = RepositoryRoot();
+        var crm = Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm");
+        var contracts = new[]
+        {
+            Path.Combine(crm, "Application", "Contracts", "ICrmLeadImportPreviewAppService.cs"),
+            Path.Combine(crm, "Application", "Contracts", "ICrmCustomerImportPreviewAppService.cs"),
+            Path.Combine(crm, "Application", "Contracts", "ICrmContactImportPreviewAppService.cs")
+        };
+        var services = new[]
+        {
+            Path.Combine(crm, "Application", "AppServices", "CrmLeadImportPreviewAppService.cs"),
+            Path.Combine(crm, "Application", "AppServices", "CrmCustomerImportPreviewAppService.cs"),
+            Path.Combine(crm, "Application", "AppServices", "CrmContactImportPreviewAppService.cs")
+        };
+
+        foreach (var path in contracts.Concat(services))
+        {
+            var source = File.ReadAllText(path);
+            Assert.Contains("CrmCsvImportPreviewRequestDto", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("CrmLeadImportPreviewRequestDto", source, StringComparison.Ordinal);
+        }
+
+        var sharedDto = File.ReadAllText(Path.Combine(
+            crm, "Application", "Importing", "CrmCsvImportPreviewRequestDto.cs"));
+        Assert.Contains("byte[] FileBytes", sharedDto, StringComparison.Ordinal);
+        Assert.Contains("Dictionary<string, string>? FieldMapping", sharedDto, StringComparison.Ordinal);
+    }
 }
