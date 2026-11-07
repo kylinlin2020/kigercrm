@@ -21,7 +21,8 @@ public static class CrmCsvImportPreviewService
         IReadOnlyCollection<string> allowedTargetFields,
         IReadOnlyCollection<string> requiredTargetFields,
         IReadOnlyDictionary<string, string>? fieldMapping = null,
-        int previewLimit = 100)
+        int previewLimit = 100,
+        IReadOnlyDictionary<string, Func<string, bool>>? fieldValidators = null)
     {
         ArgumentNullException.ThrowIfNull(allowedTargetFields);
         ArgumentNullException.ThrowIfNull(requiredTargetFields);
@@ -121,6 +122,17 @@ public static class CrmCsvImportPreviewService
             {
                 if (!values.TryGetValue(field, out var value) || string.IsNullOrWhiteSpace(value))
                     errors.Add($"必填字段 {field} 不能为空。");
+            }
+
+            if (fieldValidators is not null)
+            {
+                foreach (var validator in fieldValidators)
+                {
+                    if (values.TryGetValue(validator.Key, out var value) &&
+                        !string.IsNullOrWhiteSpace(value) &&
+                        !validator.Value(value))
+                        errors.Add($"字段 {validator.Key} 的格式无效。");
+                }
             }
 
             if (errors.Count > 0) errorCount++;
