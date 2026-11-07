@@ -37,6 +37,7 @@ public sealed class WhatsAppMetaWebhookEndpointContractTests
         Assert.Contains("catch (DecoderFallbackException)", source, StringComparison.Ordinal);
         Assert.Contains("WhatsAppMetaWebhookSignatureValidator.IsValid(rawBody, signature, appSecret)", source, StringComparison.Ordinal);
         Assert.Contains("WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(rawJson, out var messages)", source, StringComparison.Ordinal);
+        Assert.Contains("WhatsAppMetaWebhookPayloadParser.TryParseStatuses(rawJson, out var statuses)", source, StringComparison.Ordinal);
         Assert.Contains("Status503ServiceUnavailable", source, StringComparison.Ordinal);
         Assert.Contains("Do not return 200 here", source, StringComparison.Ordinal);
     }
