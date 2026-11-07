@@ -5,5 +5,5 @@ namespace XiHan.BasicApp.Crm.Application.Contracts;
 
 public interface ICrmContactImportPreviewAppService : IApplicationService
 {
-    Task<CrmCsvImportPreviewResult> PreviewAsync(CrmLeadImportPreviewRequestDto input, CancellationToken cancellationToken = default);
+    Task<CrmCsvImportPreviewResult> PreviewAsync(CrmCsvImportPreviewRequestDto input, CancellationToken cancellationToken = default);
 }
