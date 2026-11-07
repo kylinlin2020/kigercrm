@@ -78,6 +78,13 @@ public static class CrmCsvImportPreviewService
         if (headers.Distinct(StringComparer.OrdinalIgnoreCase).Count() != headers.Length)
             throw new ArgumentException("CSV 存在重复表头，请先整理文件。", nameof(fileBytes));
 
+        // Reject stale or misspelled source-header mappings instead of silently ignoring them.
+        // A preview must make it explicit when the caller's mapping does not match this file.
+        if (fieldMapping is not null && fieldMapping.Keys.Any(sourceHeader =>
+                string.IsNullOrWhiteSpace(sourceHeader) ||
+                !headers.Contains(sourceHeader.Trim(), StringComparer.OrdinalIgnoreCase)))
+            throw new ArgumentException("字段映射包含当前 CSV 中不存在的源列表头。", nameof(fieldMapping));
+
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var header in headers)
         {
