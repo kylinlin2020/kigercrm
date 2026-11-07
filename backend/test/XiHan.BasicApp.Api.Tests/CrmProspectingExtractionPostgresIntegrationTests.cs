@@ -321,6 +321,52 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task ExpireDue_ExpiredProviderJob_ReleasesLeaseAndCannotBeClaimed()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "expired-provider-job");
+        var leaseToken = Guid.NewGuid();
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => new SysCrmProspectingExtractionJob
+                    {
+                        Status = CrmProspectingExtractionStatus.Running.ToString(),
+                        ProviderExtractionId = "provider-expired-job",
+                        ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+                        LeaseOwner = "expired-worker",
+                        LeaseToken = leaseToken,
+                        LeaseExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(2),
+                        FencingVersion = 9
+                    })
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+
+                var expiredCount = await _repository1.ExpireDueAsync();
+                Assert.Equal(1, expiredCount);
+
+                var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Equal(CrmProspectingExtractionStatus.Expired.ToString(), persisted.Status);
+                Assert.Equal("provider_extraction_expired", persisted.FailureCode);
+                Assert.Null(persisted.LeaseOwner);
+                Assert.Null(persisted.LeaseToken);
+                Assert.Null(persisted.LeaseExpiresAtUtc);
+
+                var claimable = await _repository1.ClaimDueAsync(
+                    "replacement-worker", TimeSpan.FromMinutes(2), 10);
+                Assert.DoesNotContain(claimable, row => row.BasicId == jobId);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
