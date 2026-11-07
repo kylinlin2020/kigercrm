@@ -141,6 +141,62 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task AdvanceCursor_RollsBackWithTheResultPageTransaction()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "cursor-transaction-rollback");
+        var leaseToken = Guid.NewGuid();
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => new SysCrmProspectingExtractionJob
+                    {
+                        Status = CrmProspectingExtractionStatus.FetchingResults.ToString(),
+                        LeaseOwner = "pg-transaction-test",
+                        LeaseToken = leaseToken,
+                        LeaseExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(2),
+                        FencingVersion = 7
+                    })
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+
+                _db1.Ado.BeginTran();
+                try
+                {
+                    var advanced = await _repository1.TryAdvanceCursorAsync(
+                        jobId, leaseToken, 7, expectedCursor: null, nextCursor: "page-2",
+                        persistedRecordCount: 3);
+                    Assert.True(advanced);
+
+                    var insideTransaction = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                        .Where(row => row.BasicId == jobId)
+                        .SingleAsync();
+                    Assert.Equal("page-2", insideTransaction.ResultCursor);
+                    Assert.Equal(3, insideTransaction.ResultRecordCount);
+
+                    _db1.Ado.RollbackTran();
+                }
+                catch
+                {
+                    _db1.Ado.RollbackTran();
+                    throw;
+                }
+
+                var afterRollback = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Null(afterRollback.ResultCursor);
+                Assert.Equal(0, afterRollback.ResultRecordCount);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
