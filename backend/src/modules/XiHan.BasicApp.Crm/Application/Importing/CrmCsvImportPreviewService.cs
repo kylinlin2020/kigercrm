@@ -1,0 +1,219 @@
+// Copyright (c) 2026 KIGER contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using System.Text;
+
+namespace XiHan.BasicApp.Crm.Application.Importing;
+
+/// <summary>
+/// Bounded, side-effect-free CSV import preview. The caller supplies the resource's
+/// allow-listed target fields and required fields; this service never writes CRM data.
+/// </summary>
+public static class CrmCsvImportPreviewService
+{
+    public const int MaxFileBytes = 5 * 1024 * 1024;
+    public const int MaxRows = 5_000;
+    public const int MaxColumns = 100;
+    public const int MaxCellCharacters = 4_000;
+
+    public static CrmCsvImportPreviewResult Preview(
+        ReadOnlyMemory<byte> fileBytes,
+        IReadOnlyCollection<string> allowedTargetFields,
+        IReadOnlyCollection<string> requiredTargetFields,
+        IReadOnlyDictionary<string, string>? fieldMapping = null,
+        int previewLimit = 100)
+    {
+        ArgumentNullException.ThrowIfNull(allowedTargetFields);
+        ArgumentNullException.ThrowIfNull(requiredTargetFields);
+        if (fileBytes.Length == 0 || fileBytes.Length > MaxFileBytes)
+            throw new ArgumentException($"CSV 文件必须为 1 到 {MaxFileBytes} 字节。", nameof(fileBytes));
+
+        var allowed = new HashSet<string>(allowedTargetFields, StringComparer.OrdinalIgnoreCase);
+        if (allowed.Count == 0 || allowed.Any(string.IsNullOrWhiteSpace))
+            throw new ArgumentException("必须提供有效的目标字段白名单。", nameof(allowedTargetFields));
+        var required = new HashSet<string>(requiredTargetFields, StringComparer.OrdinalIgnoreCase);
+        if (!required.IsSubsetOf(allowed))
+            throw new ArgumentException("必填字段必须属于目标字段白名单。", nameof(requiredTargetFields));
+
+        string csv;
+        try
+        {
+            csv = new UTF8Encoding(false, true).GetString(fileBytes.Span);
+        }
+        catch (DecoderFallbackException exception)
+        {
+            throw new ArgumentException("CSV 文件必须使用有效 UTF-8 编码。", nameof(fileBytes), exception);
+        }
+
+        if (csv.Length > 0 && csv[0] == '\uFEFF')
+            csv = csv[1..];
+
+        var records = ParseRecords(csv);
+        if (records.Count < 2)
+            throw new ArgumentException("CSV 至少需要一行表头和一行数据。", nameof(fileBytes));
+        if (records[0].Count > MaxColumns)
+            throw new ArgumentException($"CSV 列数不能超过 {MaxColumns}。", nameof(fileBytes));
+
+        var headers = records[0].Select((value, index) =>
+        {
+            var header = value.Trim();
+            if (header.Length == 0)
+                throw new ArgumentException($"第 {index + 1} 列表头为空。", nameof(fileBytes));
+            if (header.Length > 128)
+                throw new ArgumentException($"第 {index + 1} 列表头过长。", nameof(fileBytes));
+            return header;
+        }).ToArray();
+        if (headers.Distinct(StringComparer.OrdinalIgnoreCase).Count() != headers.Length)
+            throw new ArgumentException("CSV 存在重复表头，请先整理文件。", nameof(fileBytes));
+
+        var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var header in headers)
+        {
+            var target = fieldMapping is not null && fieldMapping.TryGetValue(header, out var mapped)
+                ? mapped?.Trim()
+                : header;
+            if (string.IsNullOrWhiteSpace(target) || !allowed.Contains(target))
+                continue;
+            if (mapping.Values.Contains(target, StringComparer.OrdinalIgnoreCase))
+                throw new ArgumentException($"多个 CSV 列不能同时映射到字段 {target}。", nameof(fieldMapping));
+            mapping[header] = target;
+        }
+
+        var mappedTargets = new HashSet<string>(mapping.Values, StringComparer.OrdinalIgnoreCase);
+        var missingRequired = required.Where(field => !mappedTargets.Contains(field)).ToArray();
+        var dataRows = records.Skip(1).ToArray();
+        if (dataRows.Length > MaxRows)
+            throw new ArgumentException($"CSV 数据行数不能超过 {MaxRows}。", nameof(fileBytes));
+
+        var rows = new List<CrmCsvImportPreviewRow>(Math.Min(dataRows.Length, Math.Clamp(previewLimit, 1, 500)));
+        var errorCount = 0;
+        for (var index = 0; index < dataRows.Length; index++)
+        {
+            var source = dataRows[index];
+            var errors = new List<string>();
+            if (source.Count != headers.Length)
+                errors.Add($"列数不匹配：预期 {headers.Length} 列，实际 {source.Count} 列。");
+
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            for (var column = 0; column < Math.Min(source.Count, headers.Length); column++)
+            {
+                var value = source[column];
+                if (value.Length > MaxCellCharacters)
+                {
+                    errors.Add($"第 {column + 1} 列内容超过 {MaxCellCharacters} 个字符。");
+                    continue;
+                }
+                if (mapping.TryGetValue(headers[column], out var target))
+                    values[target] = value.Trim();
+            }
+
+            foreach (var field in required)
+            {
+                if (!values.TryGetValue(field, out var value) || string.IsNullOrWhiteSpace(value))
+                    errors.Add($"必填字段 {field} 不能为空。");
+            }
+
+            if (errors.Count > 0) errorCount++;
+            if (rows.Count < Math.Clamp(previewLimit, 1, 500))
+                rows.Add(new CrmCsvImportPreviewRow(index + 2, values, errors));
+        }
+
+        return new CrmCsvImportPreviewResult(
+            headers,
+            mapping,
+            missingRequired,
+            dataRows.Length,
+            errorCount,
+            dataRows.Length - errorCount,
+            rows);
+    }
+
+    private static List<List<string>> ParseRecords(string csv)
+    {
+        var records = new List<List<string>>();
+        var row = new List<string>();
+        var cell = new StringBuilder();
+        var quoted = false;
+        var afterQuote = false;
+
+        for (var index = 0; index < csv.Length; index++)
+        {
+            var character = csv[index];
+            if (quoted)
+            {
+                if (character == '"')
+                {
+                    if (index + 1 < csv.Length && csv[index + 1] == '"')
+                    {
+                        cell.Append('"');
+                        index++;
+                    }
+                    else
+                    {
+                        quoted = false;
+                        afterQuote = true;
+                    }
+                }
+                else
+                {
+                    cell.Append(character);
+                }
+                continue;
+            }
+
+            if (afterQuote && character != ',' && character != '\r' && character != '\n' && !char.IsWhiteSpace(character))
+                throw new ArgumentException("CSV 引号闭合后存在非法字符。", nameof(csv));
+            if (character == '"' && cell.Length == 0 && !afterQuote)
+            {
+                quoted = true;
+                continue;
+            }
+            if (character == ',')
+            {
+                row.Add(cell.ToString());
+                cell.Clear();
+                afterQuote = false;
+                continue;
+            }
+            if (character is '\r' or '\n')
+            {
+                if (character == '\r' && index + 1 < csv.Length && csv[index + 1] == '\n') index++;
+                row.Add(cell.ToString());
+                cell.Clear();
+                afterQuote = false;
+                if (row.Any(value => value.Length > 0) || records.Count > 0)
+                    records.Add(row);
+                row = [];
+                if (records.Count > MaxRows + 1)
+                    throw new ArgumentException($"CSV 数据行数不能超过 {MaxRows}。", nameof(csv));
+                continue;
+            }
+            if (afterQuote && char.IsWhiteSpace(character))
+                continue;
+            cell.Append(character);
+        }
+
+        if (quoted)
+            throw new ArgumentException("CSV 包含未闭合的引号。", nameof(csv));
+        if (cell.Length > 0 || row.Count > 0)
+        {
+            row.Add(cell.ToString());
+            records.Add(row);
+        }
+        return records;
+    }
+}
+
+public sealed record CrmCsvImportPreviewRow(
+    int SourceRowNumber,
+    IReadOnlyDictionary<string, string> Values,
+    IReadOnlyList<string> Errors);
+
+public sealed record CrmCsvImportPreviewResult(
+    IReadOnlyList<string> Headers,
+    IReadOnlyDictionary<string, string> FieldMapping,
+    IReadOnlyList<string> MissingRequiredFields,
+    int TotalRows,
+    int InvalidRows,
+    int ValidRows,
+    IReadOnlyList<CrmCsvImportPreviewRow> PreviewRows);
