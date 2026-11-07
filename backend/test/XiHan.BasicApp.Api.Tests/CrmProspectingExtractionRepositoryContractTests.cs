@@ -34,8 +34,8 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
         Assert.True(start >= 0 && end > start);
         var method = source[start..end];
 
-        Assert.Contains("LeaseToken", method, StringComparison.Ordinal);
-        Assert.Contains("FencingVersion", method, StringComparison.Ordinal);
+        Assert.Contains("lease_token", method, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("fencing_version", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("lease_expires_at_utc", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("clock_timestamp()", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("TenantId", method, StringComparison.Ordinal);
@@ -52,7 +52,7 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
 
         Assert.Contains("LeaseToken", method, StringComparison.Ordinal);
         Assert.Contains("FencingVersion", method, StringComparison.Ordinal);
-        Assert.Contains("LeaseExpiresAtUtc", method, StringComparison.Ordinal);
+        Assert.Contains("lease_expires_at_utc", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("expectedCursor", method, StringComparison.Ordinal);
         Assert.Contains("nextCursor", method, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid", method, StringComparison.Ordinal);
