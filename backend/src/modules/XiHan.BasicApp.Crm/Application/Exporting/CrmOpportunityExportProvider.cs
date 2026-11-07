@@ -18,7 +18,7 @@ public sealed class CrmOpportunityExportProvider : QueryServiceExportProviderBas
 
     // Keep the same authorization boundary as the opportunity list until a dedicated export
     // permission is introduced together with permission catalog and UI enforcement.
-    public override string RequiredPermission => CrmPermissionCodes.Read;
+    public override string RequiredPermission => CrmPermissionCodes.Execute;
 
     protected override Task<PageResultDtoBase<CrmOpportunityListItemDto>> QueryPageAsync(
         CrmOpportunityPageQueryDto query,
