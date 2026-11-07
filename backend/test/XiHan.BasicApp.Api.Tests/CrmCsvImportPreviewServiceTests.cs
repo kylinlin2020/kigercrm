@@ -90,4 +90,22 @@ public sealed class CrmCsvImportPreviewServiceTests
             Encoding.UTF8.GetBytes(csv), Allowed, Required,
             new Dictionary<string, string> { ["A"] = "Email", ["B"] = "Email" }));
     }
+
+    [Fact]
+    public void Preview_ShouldApplyResourceSpecificFieldValidators()
+    {
+        const string csv = "CustomerId,FirstName,LastName\n0,Ada,Lovelace\n42,Grace,Hopper\n";
+        var result = CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv),
+            new[] { "CustomerId", "FirstName", "LastName" },
+            new[] { "CustomerId", "FirstName", "LastName" },
+            fieldValidators: new Dictionary<string, Func<string, bool>>
+            {
+                ["CustomerId"] = value => long.TryParse(value, out var id) && id > 0
+            });
+
+        Assert.Equal(1, result.ValidRows);
+        Assert.Equal(1, result.InvalidRows);
+        Assert.Contains(result.PreviewRows[0].Errors, error => error.Contains("CustomerId", StringComparison.Ordinal));
+    }
 }
