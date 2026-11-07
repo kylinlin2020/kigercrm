@@ -53,7 +53,8 @@ public sealed class CrmCsvImportPreviewServiceTests
 
     [Theory]
     [InlineData("CompanyName,Email\n\"Acme,sales@acme.test\n")]
-    
+    [InlineData("CompanyName,Email\nAcme \"Ltd\",sales@acme.test\n")]
+    [InlineData("CompanyName,Email\nAcme,sales@acme.test\"oops\n")]
     [InlineData("CompanyName,CompanyName\nAcme,Other\n")]
     public void Preview_ShouldRejectMalformedCsvStructure(string csv)
     {
