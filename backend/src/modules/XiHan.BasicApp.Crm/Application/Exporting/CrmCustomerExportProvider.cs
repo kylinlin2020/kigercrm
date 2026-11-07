@@ -15,7 +15,7 @@ public sealed class CrmCustomerExportProvider : QueryServiceExportProviderBase<C
         => _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
 
     public override string BusinessType => "crm.customer";
-    public override string RequiredPermission => CrmPermissionCodes.Read;
+    public override string RequiredPermission => CrmPermissionCodes.Execute;
 
     protected override Task<PageResultDtoBase<CrmCustomerListItemDto>> QueryPageAsync(
         CrmCustomerPageQueryDto query,
