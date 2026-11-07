@@ -53,12 +53,21 @@ public sealed class CrmCsvImportPreviewServiceTests
 
     [Theory]
     [InlineData("CompanyName,Email\n\"Acme,sales@acme.test\n")]
-    [InlineData("CompanyName,Email\nAcme,sales@acme.test,Extra\n")]
+    
     [InlineData("CompanyName,CompanyName\nAcme,Other\n")]
     public void Preview_ShouldRejectMalformedCsvStructure(string csv)
     {
         Assert.Throws<ArgumentException>(() =>
             CrmCsvImportPreviewService.Preview(Encoding.UTF8.GetBytes(csv), Allowed, Required));
+    }
+
+    [Fact]
+    public void Preview_ShouldReportRowsWithDifferentColumnCountsAsInvalid()
+    {
+        const string csv = "CompanyName,Email\\nAcme,sales@acme.test,Extra\\n";
+        var result = CrmCsvImportPreviewService.Preview(Encoding.UTF8.GetBytes(csv), Allowed, Required);
+        Assert.Equal(1, result.InvalidRows);
+        Assert.Contains(result.PreviewRows[0].Errors, error => error.Contains("列数不匹配", StringComparison.Ordinal));
     }
 
     [Fact]
