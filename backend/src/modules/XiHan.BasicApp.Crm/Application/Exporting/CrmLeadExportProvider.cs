@@ -23,7 +23,7 @@ public sealed class CrmLeadExportProvider : QueryServiceExportProviderBase<CrmLe
 
     // The existing CRM read permission is the authoritative permission for lead rows.
     // The query service repeats its own permission and field/data-scope checks at execution time.
-    public override string RequiredPermission => CrmPermissionCodes.Read;
+    public override string RequiredPermission => CrmPermissionCodes.Execute;
 
     protected override Task<PageResultDtoBase<CrmLeadListItemDto>> QueryPageAsync(
         CrmLeadPageQueryDto query,
