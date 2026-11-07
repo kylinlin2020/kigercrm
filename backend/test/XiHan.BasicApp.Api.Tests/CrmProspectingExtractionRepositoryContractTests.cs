@@ -18,7 +18,7 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
         var method = source[start..end];
 
         Assert.Contains("FOR UPDATE SKIP LOCKED", method, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("CURRENT_TIMESTAMP", method, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("clock_timestamp()", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("FencingVersion", method, StringComparison.Ordinal);
         Assert.Contains("LeaseToken", method, StringComparison.Ordinal);
         Assert.Contains("TenantId", method, StringComparison.Ordinal);
@@ -37,7 +37,7 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
         Assert.Contains("LeaseToken", method, StringComparison.Ordinal);
         Assert.Contains("FencingVersion", method, StringComparison.Ordinal);
         Assert.Contains("LeaseExpiresAtUtc", method, StringComparison.Ordinal);
-        Assert.Contains("CURRENT_TIMESTAMP", method, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("clock_timestamp()", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("TenantId", method, StringComparison.Ordinal);
     }
 
@@ -55,8 +55,8 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
         Assert.Contains("LeaseExpiresAtUtc", method, StringComparison.Ordinal);
         Assert.Contains("expectedCursor", method, StringComparison.Ordinal);
         Assert.Contains("nextCursor", method, StringComparison.Ordinal);
-        Assert.Contains("MaxCursorLength", method, StringComparison.Ordinal);
-        Assert.Contains("MaxRecordsPerPage", method, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid", method, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingExtractionPageValidator.MaxRecordsPerPage", method, StringComparison.Ordinal);
         Assert.Contains("TenantId", method, StringComparison.Ordinal);
     }
 
