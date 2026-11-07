@@ -153,6 +153,28 @@ public sealed class CrmCommandAuthorizationTests
         Assert.Contains("PreviewAsync(", contract, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CustomerAndContactCsvPreviews_ShouldUseExecuteAndResourceSpecificAllowLists()
+    {
+        var root = RepositoryRoot();
+        var crm = Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm");
+        var customer = File.ReadAllText(Path.Combine(crm, "Application", "AppServices", "CrmCustomerImportPreviewAppService.cs"));
+        var contact = File.ReadAllText(Path.Combine(crm, "Application", "AppServices", "CrmContactImportPreviewAppService.cs"));
+
+        foreach (var service in new[] { customer, contact })
+        {
+            Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", service, StringComparison.Ordinal);
+            Assert.Contains("CrmCsvImportPreviewService.Preview(", service, StringComparison.Ordinal);
+            Assert.DoesNotContain("CreateAsync(", service, StringComparison.Ordinal);
+            Assert.DoesNotContain("UpdateAsync(", service, StringComparison.Ordinal);
+        }
+
+        Assert.Contains("RequiredFields = [\"Name\"]", customer, StringComparison.Ordinal);
+        Assert.Contains("RequiredFields = [\"CustomerId\", \"FirstName\", \"LastName\"]", contact, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"OwnerUserId\"", customer, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"OwnerUserId\"", contact, StringComparison.Ordinal);
+    }
+
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
 }
