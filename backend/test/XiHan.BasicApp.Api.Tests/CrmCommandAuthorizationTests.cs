@@ -132,6 +132,27 @@ public sealed class CrmCommandAuthorizationTests
         }
     }
 
+    [Fact]
+    public void LeadCsvPreview_ShouldRequireExecuteAndRemainPreviewOnly()
+    {
+        var root = RepositoryRoot();
+        var service = File.ReadAllText(Path.Combine(
+            root, "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "AppServices", "CrmLeadImportPreviewAppService.cs"));
+        var contract = File.ReadAllText(Path.Combine(
+            root, "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "Contracts", "ICrmLeadImportPreviewAppService.cs"));
+
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", service, StringComparison.Ordinal);
+        Assert.Contains("CrmCsvImportPreviewService.Preview(", service, StringComparison.Ordinal);
+        Assert.Contains("RequiredFields = [\"CompanyName\"]", service, StringComparison.Ordinal);
+        Assert.Contains("\"DuplicateEmailNormalized\"", service, StringComparison.Ordinal) is false;
+        Assert.DoesNotContain("ICrmLeadDomainService", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("ICrmLeadRepository", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("CreateAsync(", service, StringComparison.Ordinal);
+        Assert.Contains("PreviewAsync(", contract, StringComparison.Ordinal);
+    }
+
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
 }
