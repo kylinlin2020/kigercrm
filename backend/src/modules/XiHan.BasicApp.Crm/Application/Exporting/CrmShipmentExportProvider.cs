@@ -17,7 +17,7 @@ public sealed class CrmShipmentExportProvider : QueryServiceExportProviderBase<C
     public override string BusinessType => "crm.shipment";
 
     // Query service re-applies its existing authorization and data-scope checks during export.
-    public override string RequiredPermission => CrmPermissionCodes.Read;
+    public override string RequiredPermission => CrmPermissionCodes.Execute;
 
     protected override Task<PageResultDtoBase<CrmShipmentListItemDto>> QueryPageAsync(
         CrmShipmentPageQueryDto query,
