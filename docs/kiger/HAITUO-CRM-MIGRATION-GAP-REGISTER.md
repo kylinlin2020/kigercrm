@@ -58,3 +58,25 @@
 5. 实机 Windows 原生部署验收完成。
 
 静态搜索、设计文档、代码存在或一次成功请求，均不足以单独关闭迁移项。
+
+## 2026-11-08 implementation checkpoint
+
+This checkpoint reconciles the gap register against the current four work branches. It is a source review only; it does not upgrade any item to runtime-accepted.
+
+### Current verified source boundaries
+
+- **Async extraction (A):** the durable job entity/repository, PostgreSQL SKIP LOCKED claims, lease token/fencing, submission intent, poll/status/page policies and expiry worker exist. The Run HostedService still preflights and rejects async-only providers before any synchronous provider I/O. No dedicated Submit/Poll/Fetch consumer or durable parent-Run continuation is wired. Keep async providers unavailable to production Run plans.
+- **PostgreSQL regressions (B):** the integration-test source now covers expired provider-job cleanup, expired submission acknowledgement rejection, expired lease renewal rejection, and expired final-page completion rejection. The latest test commit is 7bf293eae4f524285c5532eba12476869906078b. These tests have not been executed against a live PostgreSQL instance in this environment.
+- **WhatsApp Meta (C):** the public GET verification endpoint and POST signature/body/payload validation exist. The POST endpoint intentionally returns HTTP 503 after successful validation because tenant WABA/phone-number binding and atomic durable Inbox insertion are not yet connected. The inbox entity and unique tenant/WABA/message identity index are foundations, not proof of message ingestion. Do not return 200 until durable acceptance is implemented.
+- **CSV migration preview (D):** lead/contact/customer preview services validate bounded UTF-8 CSV, source-header mappings, target-field allowlists and required fields. They are side-effect-free previews. There is no confirmed-import command with immutable preview snapshot, explicit confirmation, transactional batch writes, rollback and import audit completion in this branch yet.
+
+### Next implementation gates
+
+1. A: implement a tenant-scoped extraction consumer with independent lease heartbeat, idempotent Submit, bounded Poll, page persistence before cursor advancement, and parent Run continuation. Keep async execution fail-closed until the entire path is covered.
+2. B: run the new integration tests against the actual PostgreSQL acceptance database and add two-connection crash/takeover scenarios; do not infer pass from test source.
+3. C: add server-owned WABA/phone-number tenant binding, Inbox repository atomic insert/dedupe, and a consumer that projects inbound messages/status receipts. Only then change POST acknowledgement from 503.
+4. D: design the confirmed-import transaction against the existing CRM repositories and tenant/permission model; preview must remain read-only and the import must never create a second CRM master-data store.
+
+### Validation status
+
+All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL execution is claimed here. Windows-native restore/build/test remains the final acceptance gate.
