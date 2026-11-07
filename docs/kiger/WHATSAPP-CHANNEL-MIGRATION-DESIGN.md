@@ -75,6 +75,35 @@ WhatsApp Web / Meta Cloud API
 
 只有 Meta/Baileys 账号可创建授权断开恢复；消息/媒体/回执/联系人映射正确；Webhook 重放不重复写入；原文不被译文覆盖；SignalR 按租户/成员授权；CRM 写入走应用层；凭据和媒体安全；数据库迁移、备份恢复、Windows 运维及真实渠道端到端测试均有证据，才可标记 WhatsApp 迁移完成。源码静态断言不能替代真实 Provider 测试。
 
-## 6. 本轮结果与下一步
+## 6. 当前实现状态（2026-11-08）
 
-已静态审阅源插件架构、部署手册、API 入口、CRM 身份中间件、Provider 类型、Baileys/Meta Provider、历史导入和 AES-GCM 加密实现；已确认目标 Chat 有内部会话/消息/SignalR 基础设施。尚未新增目标 Provider 或数据库实体。本轮先冻结正确集成边界；下一步检查目标租户、文件存储、后台任务、加密配置和 Chat 授权扩展点，再实现可独立测试的 Phase A 契约。
+已在目标 Chat 模块增加 Meta Webhook 的 GET challenge 与 POST 验签边界，并增加严格 UTF-8 解码、入站消息解析、状态回执解析和对应契约测试。POST 对签名及结构均有效的事件仍返回 503：这不是遗漏的成功路径，而是有意的 fail-closed 行为，因为 WABA/phone_number_id 租户绑定和 Inbox 原子持久化尚未接通。
+
+数据库侧并非“没有 Inbox 表”：升级脚本 `5.9.39/5.9.39.sql` 已为存量库创建 `sys_whatsapp_webhook_inbox`，含 tenant/WABA/provider-message 唯一索引、状态约束及待处理索引；实体 `SysWhatsAppWebhookInbox` 声明了对应的严格租户实体与唯一索引。脚本说明新库由实体 CodeFirst 建表。该表结构具备持久 Inbox 的基础，但当前尚未发现 Inbox repository、账号绑定实体/查询契约或消费 Worker，故“表存在”不能等同于“Webhook 已可靠入箱”。
+
+Chat 模块的 `ServiceCollectionExtensions` 当前只登记 Chat domain service、seeders 和事件处理器；CRM 的 `AddCrmFieldSecurityEntities` / SaaS 的 `AddSaasFieldSecurityEntities` 是字段安全实体登记，不应被误认为数据库实体发现机制。Inbox 的存量表创建由 5.9.39 SQL 明确保证；新库 CodeFirst 的实体发现路径仍需在框架初始化链中验证，不应通过把 Inbox 粗略加入字段安全白名单来替代。
+
+### 已有 / 未有
+
+| 能力 | 当前状态 |
+|---|---|
+| Meta GET challenge、POST HMAC 验签 | 已有边界实现 |
+| 严格 UTF-8、入站消息与状态回执解析 | 已有解析器及源码测试 |
+| Inbox 实体与存量库迁移脚本 5.9.39 | 已有 |
+| WABA/phone_number_id -> tenant/account 绑定 | 未实现 |
+| Webhook 入站消息与回执的原子幂等入箱 | 未实现 |
+| Inbox lease claim、消费、重试与 NeedsReview | 未实现 |
+| 入站消息标准化并写入 Chat | 未实现 |
+| 状态回执持久化并回写外发消息 | 未实现 |
+| Meta Graph API 持久 Outbox、发送审批 | 未实现 |
+| 凭据 Vault/轮换、速率限制、真实号码 E2E | 未实现 |
+
+### 下一步实现顺序
+
+1. 明确租户级 Meta Channel Account 模型，唯一绑定 WABA ID 与 phone_number_id；路由只读服务端配置，不信任 webhook 自带 tenant 标识。
+2. 为每条 inbound message 和 status receipt 设计 Inbox 记录与唯一幂等身份；考虑同一 webhook envelope 包含多条消息/回执，避免“一个 envelope 一个 ID”的错误模型。
+3. 在一个事务中完成 account binding 验证和 Inbox 插入；重复投递在独立事务/安全冲突处理路径中识别为已接收，不能在 PostgreSQL 唯一冲突后复用已中止事务。
+4. 仅在所有事件均持久入箱或确认重复后 ACK；任何未路由/未持久事件继续返回可重试错误。
+5. 再实现租约消费、Chat 投影、状态回执、Outbox 和人工审批，最后接真实 Meta 测试号码。
+
+Meta/Baileys 的完整迁移仍未完成。源码测试与静态审计不能替代 PostgreSQL 并发测试和真实 Provider 端到端验收。
