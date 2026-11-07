@@ -69,11 +69,20 @@ public static class CrmCsvImportPreviewService
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var header in headers)
         {
-            var target = fieldMapping is not null && fieldMapping.TryGetValue(header, out var mapped)
-                ? mapped?.Trim()
-                : header;
-            if (string.IsNullOrWhiteSpace(target) || !allowed.Contains(target))
+            var explicitlyMapped = fieldMapping is not null && fieldMapping.TryGetValue(header, out var mapped);
+            var target = explicitlyMapped ? mapped?.Trim() : header;
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                if (explicitlyMapped)
+                    throw new ArgumentException($"CSV 列 {header} 的目标字段映射不能为空。", nameof(fieldMapping));
                 continue;
+            }
+            if (!allowed.Contains(target))
+            {
+                if (explicitlyMapped)
+                    throw new ArgumentException($"目标字段 {target} 不在当前资源的导入白名单中。", nameof(fieldMapping));
+                continue;
+            }
             if (mapping.Values.Contains(target, StringComparer.OrdinalIgnoreCase))
                 throw new ArgumentException($"多个 CSV 列不能同时映射到字段 {target}。", nameof(fieldMapping));
             mapping[header] = target;
