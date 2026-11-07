@@ -29,6 +29,7 @@
 
 - No durable extraction consumer/hosted service is registered yet.
 - The current Run worker's immutable provider execution plan and extraction-job lifecycle are not yet connected by a durable parent/child coordinator.
+- **Current observable behavior:** the Run worker's async-provider preflight throws `InvalidOperationException`; its outer generic exception handler then calls `FailFencedWithDatabaseClockAsync`. Therefore an async-only provider plan currently fails the parent Run rather than pausing it for extraction. The preflight guard is safe against partial provider I/O, but it is not a waiting/continuation state. The parent/child coordinator must introduce a persisted, fenced waiting/resume lifecycle before any async plan is enabled.
 - The worker needs a canonical way to reconstruct the immutable `CrmProspectingProviderRequest` for a child extraction after process restart. It must come from the persisted Run snapshot, not mutable campaign/strategy configuration.
 - The current candidate page persistence service enforces extraction-job fencing, but the worker still needs the tenant-scoped duplicate matching and evidence-envelope construction path used by synchronous projection.
 - Parent Run finalization must wait for every persisted provider execution/extraction child and must not overwrite `CancelRequested`, terminal states, or a newer fencing generation.
