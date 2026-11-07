@@ -17,7 +17,7 @@ public sealed class CrmSalesOrderExportProvider : QueryServiceExportProviderBase
     public override string BusinessType => "crm.sales-order";
 
     // Query service re-applies its existing authorization and data-scope checks during export.
-    public override string RequiredPermission => CrmPermissionCodes.Read;
+    public override string RequiredPermission => CrmPermissionCodes.Execute;
 
     protected override Task<PageResultDtoBase<CrmSalesOrderListItemDto>> QueryPageAsync(
         CrmSalesOrderPageQueryDto query,
