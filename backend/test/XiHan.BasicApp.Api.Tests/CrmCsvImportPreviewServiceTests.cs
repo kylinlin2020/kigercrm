@@ -94,7 +94,7 @@ public sealed class CrmCsvImportPreviewServiceTests
     [Fact]
     public void Preview_ShouldRejectMappingsForSourceHeadersMissingFromTheCurrentFile()
     {
-        const string csv = "CompanyName,Email\\nAcme,sales@acme.test\\n";
+        const string csv = "CompanyName,Email\nAcme,sales@acme.test\n";
         Assert.Throws<ArgumentException>(() => CrmCsvImportPreviewService.Preview(
             Encoding.UTF8.GetBytes(csv),
             Allowed,
