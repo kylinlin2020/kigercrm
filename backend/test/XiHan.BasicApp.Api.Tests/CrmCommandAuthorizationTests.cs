@@ -67,6 +67,44 @@ public sealed class CrmCommandAuthorizationTests
         Assert.Contains("CrmPermissionCodes.Execute", pages, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void CrmExportProviders_ShouldRequireExecutePermissionRatherThanRead()
+    {
+        var root = RepositoryRoot();
+        var providerNames = new[]
+        {
+            "CrmLeadExportProvider.cs",
+            "CrmCustomerExportProvider.cs",
+            "CrmContactExportProvider.cs",
+            "CrmOpportunityExportProvider.cs",
+            "CrmQuoteExportProvider.cs",
+            "CrmSalesOrderExportProvider.cs",
+            "CrmShipmentExportProvider.cs"
+        };
+
+        foreach (var providerName in providerNames)
+        {
+            var source = File.ReadAllText(Path.Combine(
+                root, "backend", "src", "modules", "XiHan.BasicApp.Crm",
+                "Application", "Exporting", providerName));
+
+            Assert.Contains(
+                "public override string RequiredPermission => CrmPermissionCodes.Execute;",
+                source,
+                StringComparison.Ordinal);
+            Assert.DoesNotContain(
+                "RequiredPermission => CrmPermissionCodes.Read",
+                source,
+                StringComparison.Ordinal);
+        }
+
+        var catalog = File.ReadAllText(Path.Combine(
+            root, "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Seeders", "CrmPermissionCatalogSeeder.cs"));
+        Assert.Contains("OperationSeeds.Execute", catalog, StringComparison.Ordinal);
+    }
+
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
 }
