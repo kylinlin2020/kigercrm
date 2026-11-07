@@ -235,6 +235,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                     "postgres-test",
                     fingerprint,
                     DateTimeOffset.UtcNow);
+                firstJobId = first.BasicId;
             }
 
             using (_tenant2.Change(TenantId))
@@ -250,7 +251,6 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                 Assert.Equal(CrmProspectingExtractionStatus.Submitting.ToString(), second.Status);
             }
 
-            firstJobId = first.BasicId;
         }
         finally
         {
