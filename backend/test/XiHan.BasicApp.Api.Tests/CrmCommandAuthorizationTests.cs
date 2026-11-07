@@ -105,6 +105,33 @@ public sealed class CrmCommandAuthorizationTests
         Assert.Contains("OperationSeeds.Execute", catalog, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void CrmExportProviders_ShouldHavePageExportButtonsBoundToExecutePermission()
+    {
+        var root = RepositoryRoot();
+        var pages = File.ReadAllText(Path.Combine(
+            root, "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "Pages", "PageRegistry.cs"));
+        var providerPages = new[]
+        {
+            "crm_leads",
+            "crm_customers",
+            "crm_contacts",
+            "crm_opportunities",
+            "crm_quotes",
+            "crm_sales_orders",
+            "crm_shipments"
+        };
+
+        foreach (var pageCode in providerPages)
+        {
+            Assert.Contains(
+                $"new(\"{pageCode}.export\", \"Export\", \"{pageCode}\", CrmPermissionCodes.Execute",
+                pages,
+                StringComparison.Ordinal);
+        }
+    }
+
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
 }
