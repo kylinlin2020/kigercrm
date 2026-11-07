@@ -36,7 +36,7 @@ public sealed class CrmCsvImportPreviewServiceTests
             Required,
             new Dictionary<string, string> { ["Company"] = "CompanyName" });
 
-        Assert.Equal(["Email"], result.MissingRequiredFields);
+        Assert.Equal(new[] { "Email" }, result.MissingRequiredFields);
         Assert.Equal(0, result.ValidRows);
         Assert.Equal(1, result.InvalidRows);
     }
@@ -64,7 +64,7 @@ public sealed class CrmCsvImportPreviewServiceTests
     [Fact]
     public void Preview_ShouldReportRowsWithDifferentColumnCountsAsInvalid()
     {
-        const string csv = "CompanyName,Email\\nAcme,sales@acme.test,Extra\\n";
+        const string csv = "CompanyName,Email\nAcme,sales@acme.test,Extra\n";
         var result = CrmCsvImportPreviewService.Preview(Encoding.UTF8.GetBytes(csv), Allowed, Required);
         Assert.Equal(1, result.InvalidRows);
         Assert.Contains(result.PreviewRows[0].Errors, error => error.Contains("列数不匹配", StringComparison.Ordinal));
