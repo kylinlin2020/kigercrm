@@ -126,7 +126,8 @@ public sealed class CrmCsvImportPreviewServiceTests
     [Fact]
     public void Preview_ShouldRejectRowsExceedingTheMaximumColumnCount()
     {
-        var headers = string.Join(",", Enumerable.Range(0, CrmCsvImportPreviewService.MaxColumns + 1).Select(index => $"H{index}"));
+        var headers = string.Join(",", new[] { "CompanyName" }.Concat(
+            Enumerable.Range(1, CrmCsvImportPreviewService.MaxColumns - 1).Select(index => $"H{index}")));
         var row = string.Join(",", Enumerable.Repeat("x", CrmCsvImportPreviewService.MaxColumns + 1));
         var csv = $"{headers}\n{row}\n";
 
