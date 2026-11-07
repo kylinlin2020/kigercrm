@@ -19,9 +19,9 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
 
         Assert.Contains("FOR UPDATE SKIP LOCKED", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("clock_timestamp()", method, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("FencingVersion", method, StringComparison.Ordinal);
-        Assert.Contains("LeaseToken", method, StringComparison.Ordinal);
-        Assert.Contains("TenantId", method, StringComparison.Ordinal);
+        Assert.Contains("fencing_version", method, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("lease_token", method, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("tenant_id", method, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("NeedsReview", method, StringComparison.Ordinal);
     }
 
@@ -36,7 +36,7 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
 
         Assert.Contains("LeaseToken", method, StringComparison.Ordinal);
         Assert.Contains("FencingVersion", method, StringComparison.Ordinal);
-        Assert.Contains("LeaseExpiresAtUtc", method, StringComparison.Ordinal);
+        Assert.Contains("lease_expires_at_utc", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("clock_timestamp()", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("TenantId", method, StringComparison.Ordinal);
     }
