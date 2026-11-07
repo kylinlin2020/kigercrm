@@ -22,6 +22,7 @@ public sealed class WhatsAppMetaWebhookEndpointContractTests
         Assert.Contains("MapGet(\"/api/chat/webhooks/whatsapp/meta\", VerifySubscriptionAsync).AllowAnonymous()", endpointSource, StringComparison.Ordinal);
         Assert.Contains("MapPost(\"/api/chat/webhooks/whatsapp/meta\", ReceiveWebhookAsync).AllowAnonymous()", endpointSource, StringComparison.Ordinal);
         Assert.Contains("endpoints.MapWhatsAppMetaWebhookEndpoints()", moduleSource, StringComparison.Ordinal);
+        Assert.Contains("services.AddChatFieldSecurityEntities()", moduleSource, StringComparison.Ordinal);
     }
 
     [Fact]
