@@ -80,16 +80,26 @@ public static class CrmCsvImportPreviewService
 
         // Reject stale or misspelled source-header mappings instead of silently ignoring them.
         // A preview must make it explicit when the caller's mapping does not match this file.
-        if (fieldMapping is not null && fieldMapping.Keys.Any(sourceHeader =>
-                string.IsNullOrWhiteSpace(sourceHeader) ||
-                !headers.Contains(sourceHeader.Trim(), StringComparer.OrdinalIgnoreCase)))
-            throw new ArgumentException("字段映射包含当前 CSV 中不存在的源列表头。", nameof(fieldMapping));
+        Dictionary<string, string>? normalizedFieldMapping = null;
+        if (fieldMapping is not null)
+        {
+            normalizedFieldMapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in fieldMapping)
+            {
+                var sourceHeader = pair.Key?.Trim();
+                if (string.IsNullOrWhiteSpace(sourceHeader) ||
+                    !headers.Contains(sourceHeader, StringComparer.OrdinalIgnoreCase))
+                    throw new ArgumentException("字段映射包含当前 CSV 中不存在的源列表头。", nameof(fieldMapping));
+                if (!normalizedFieldMapping.TryAdd(sourceHeader, pair.Value))
+                    throw new ArgumentException("字段映射包含重复的源列表头。", nameof(fieldMapping));
+            }
+        }
 
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var header in headers)
         {
             string? mapped = null;
-            var explicitlyMapped = fieldMapping is not null && fieldMapping.TryGetValue(header, out mapped);
+            var explicitlyMapped = normalizedFieldMapping is not null && normalizedFieldMapping.TryGetValue(header, out mapped);
             var target = explicitlyMapped ? mapped?.Trim() : header;
             if (string.IsNullOrWhiteSpace(target))
             {
