@@ -460,6 +460,55 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task CompleteResults_ExpiredLease_CannotMarkExtractionSucceeded()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "expired-final-page-commit");
+        var leaseToken = Guid.NewGuid();
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => new SysCrmProspectingExtractionJob
+                    {
+                        Status = CrmProspectingExtractionStatus.FetchingResults.ToString(),
+                        LeaseOwner = "expired-final-page-worker",
+                        LeaseToken = leaseToken,
+                        LeaseExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+                        FencingVersion = 23
+                    })
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+
+                var completed = await _repository1.TryCompleteResultsAsync(
+                    jobId,
+                    leaseToken,
+                    fencingVersion: 23,
+                    isLastPage: true,
+                    isComplete: true,
+                    failureCount: 0,
+                    persistedRecordCount: 4,
+                    expectedCursor: null);
+
+                Assert.False(completed);
+
+                var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Equal(CrmProspectingExtractionStatus.FetchingResults.ToString(), persisted.Status);
+                Assert.Equal(0, persisted.ResultRecordCount);
+                Assert.Equal(leaseToken, persisted.LeaseToken);
+                Assert.Equal(23, persisted.FencingVersion);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
