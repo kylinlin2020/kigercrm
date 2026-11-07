@@ -416,6 +416,50 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task RenewLease_ExpiredLease_CannotBeResurrected()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "expired-lease-renewal");
+        var leaseToken = Guid.NewGuid();
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => new SysCrmProspectingExtractionJob
+                    {
+                        Status = CrmProspectingExtractionStatus.Running.ToString(),
+                        LeaseOwner = "expired-renewal-worker",
+                        LeaseToken = leaseToken,
+                        LeaseExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+                        FencingVersion = 17
+                    })
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+
+                var renewed = await _repository1.TryRenewLeaseAsync(
+                    jobId,
+                    leaseToken,
+                    fencingVersion: 17,
+                    leaseDuration: TimeSpan.FromMinutes(2));
+
+                Assert.False(renewed);
+
+                var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Equal(leaseToken, persisted.LeaseToken);
+                Assert.Equal(17, persisted.FencingVersion);
+                Assert.True(persisted.LeaseExpiresAtUtc <= DateTimeOffset.UtcNow);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
