@@ -63,6 +63,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExportProvider, CrmCustomerExportProvider>();
         services.AddScoped<IExportProvider, CrmContactExportProvider>();
         services.AddScoped<IExportProvider, CrmOpportunityExportProvider>();
+        services.AddScoped<IExportProvider, CrmQuoteExportProvider>();
+        services.AddScoped<IExportProvider, CrmSalesOrderExportProvider>();
+        services.AddScoped<IExportProvider, CrmShipmentExportProvider>();
         services.AddScoped<ICrmProspectingCampaignRepository, CrmProspectingCampaignRepository>();
         services.AddScoped<ICrmProspectingStrategyRepository, CrmProspectingStrategyRepository>();
         services.AddScoped<ICrmProspectingRunRepository, CrmProspectingRunRepository>();
