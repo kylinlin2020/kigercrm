@@ -580,4 +580,30 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.DoesNotContain("SET fencing_version =", method, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void ExtractionFinalPages_ShouldAccumulateCountsWithoutReplacingEarlierPages()
+    {
+        var tree = new DirectoryInfo(AppContext.BaseDirectory);
+        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+            tree = tree.Parent;
+        Assert.NotNull(tree);
+        var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
+            "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
+
+        var failedStart = source.IndexOf("public async Task<bool> TryFailIncompleteResultsAsync", StringComparison.Ordinal);
+        var completeStart = source.IndexOf("public async Task<bool> TryCompleteResultsAsync", failedStart, StringComparison.Ordinal);
+        var transitionStart = source.IndexOf("public async Task<bool> TryTransitionAsync", completeStart, StringComparison.Ordinal);
+        Assert.True(failedStart >= 0 && completeStart > failedStart && transitionStart > completeStart);
+
+        var failed = source[failedStart..completeStart];
+        var complete = source[completeStart..transitionStart];
+        Assert.Contains("result_record_count = result_record_count + @persistedRecordCount", failed, StringComparison.Ordinal);
+        Assert.Contains("result_record_count = result_record_count + @persistedRecordCount", complete, StringComparison.Ordinal);
+        Assert.Contains("result_failure_count = result_failure_count + @pageFailureCount", failed, StringComparison.Ordinal);
+        Assert.Contains("result_failure_count + @failureCount = 0", complete, StringComparison.Ordinal);
+        Assert.Contains("result_cursor IS NOT DISTINCT FROM @expectedCursor", failed, StringComparison.Ordinal);
+        Assert.Contains("result_cursor IS NOT DISTINCT FROM @expectedCursor", complete, StringComparison.Ordinal);
+    }
+
 }
