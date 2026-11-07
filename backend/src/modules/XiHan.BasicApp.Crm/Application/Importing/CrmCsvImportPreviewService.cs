@@ -69,7 +69,8 @@ public static class CrmCsvImportPreviewService
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var header in headers)
         {
-            var explicitlyMapped = fieldMapping is not null && fieldMapping.TryGetValue(header, out var mapped);
+            string? mapped = null;
+            var explicitlyMapped = fieldMapping is not null && fieldMapping.TryGetValue(header, out mapped);
             var target = explicitlyMapped ? mapped?.Trim() : header;
             if (string.IsNullOrWhiteSpace(target))
             {
