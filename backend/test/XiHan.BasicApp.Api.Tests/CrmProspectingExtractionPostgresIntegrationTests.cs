@@ -262,6 +262,65 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task CreateSubmissionIntent_ConcurrentFirstRequests_UsesUniqueIndexAsFinalArbiter()
+    {
+        const string fingerprint = "B5C9E4F3D2A109876543210FEDCBA987B5C9E4F3D2A109876543210FEDCBA987";
+        var runId = SnowFlakeSingle.Instance.NextId();
+        long persistedJobId = 0;
+
+        async Task<(SysCrmProspectingExtractionJob? Job, Exception? Error)> CaptureAsync(
+            ICurrentTenant tenant,
+            CrmProspectingExtractionJobRepository repository)
+        {
+            try
+            {
+                var job = await WithTenant(tenant, TenantId, () =>
+                    repository.CreateSubmissionIntentAsync(
+                        runId, "postgres-race", fingerprint, DateTimeOffset.UtcNow));
+                return (job, null);
+            }
+            catch (Exception exception)
+            {
+                return (null, exception);
+            }
+        }
+
+        try
+        {
+            // Two independent clients may both observe no row. The database unique index,
+            // not an in-process lock, must arbitrate the first insert.
+            var outcomes = await Task.WhenAll(
+                CaptureAsync(_tenant1, _repository1),
+                CaptureAsync(_tenant2, _repository2));
+
+            var winner = Assert.Single(outcomes.Where(outcome => outcome.Job is not null)).Job!;
+            var loser = Assert.Single(outcomes.Where(outcome => outcome.Error is not null));
+            persistedJobId = winner.BasicId;
+
+            Assert.NotNull(loser.Error);
+
+            // The failed PostgreSQL transaction is not reused for reconciliation.
+            // A fresh operation on the other client must now read the committed winner.
+            var replay = await WithTenant(_tenant2, TenantId, () =>
+                _repository2.CreateSubmissionIntentAsync(
+                    runId, "POSTGRES-RACE", fingerprint.ToLowerInvariant(),
+                    DateTimeOffset.UtcNow.AddMinutes(1)));
+
+            Assert.Equal(winner.BasicId, replay.BasicId);
+            Assert.Equal(winner.SubmissionIdempotencyKey, replay.SubmissionIdempotencyKey);
+            Assert.Equal(winner.ProviderCode, replay.ProviderCode);
+            Assert.Equal(winner.RequestFingerprint, replay.RequestFingerprint);
+            Assert.Equal(winner.NextPollAtUtc, replay.NextPollAtUtc);
+            Assert.Equal(CrmProspectingExtractionStatus.Submitting.ToString(), replay.Status);
+        }
+        finally
+        {
+            if (persistedJobId > 0)
+                await DeleteJobAsync(persistedJobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
