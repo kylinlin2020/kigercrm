@@ -92,6 +92,54 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task ClaimDue_AfterLeaseExpiry_FencesOutThePreviousWorker()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "fencing-takeover");
+        try
+        {
+            var first = Assert.Single(await WithTenant(
+                _tenant1,
+                TenantId,
+                () => _repository1.ClaimDueAsync("pg-worker-old", TimeSpan.FromMinutes(2), 1)));
+
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => row.LeaseExpiresAtUtc == DateTimeOffset.UtcNow.AddMinutes(-1))
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+            }
+
+            var second = Assert.Single(await WithTenant(
+                _tenant2,
+                TenantId,
+                () => _repository2.ClaimDueAsync("pg-worker-new", TimeSpan.FromMinutes(2), 1)));
+
+            Assert.Equal(first.BasicId, second.BasicId);
+            Assert.NotEqual(first.LeaseToken, second.LeaseToken);
+            Assert.Equal(first.FencingVersion + 1, second.FencingVersion);
+
+            var oldLeaseRenewed = await WithTenant(
+                _tenant1,
+                TenantId,
+                () => _repository1.TryRenewLeaseAsync(
+                    jobId, first.LeaseToken!.Value, first.FencingVersion, TimeSpan.FromMinutes(2)));
+            Assert.False(oldLeaseRenewed);
+
+            var newLeaseRenewed = await WithTenant(
+                _tenant2,
+                TenantId,
+                () => _repository2.TryRenewLeaseAsync(
+                    jobId, second.LeaseToken!.Value, second.FencingVersion, TimeSpan.FromMinutes(2)));
+            Assert.True(newLeaseRenewed);
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
