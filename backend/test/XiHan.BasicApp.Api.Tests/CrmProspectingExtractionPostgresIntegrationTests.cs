@@ -367,6 +367,55 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task AcknowledgeSubmission_ExpiredLease_CannotPersistRemoteAcknowledgement()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "expired-submission-ack");
+        var leaseToken = Guid.NewGuid();
+        var submittedAt = DateTimeOffset.UtcNow;
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => new SysCrmProspectingExtractionJob
+                    {
+                        Status = CrmProspectingExtractionStatus.Submitting.ToString(),
+                        LeaseOwner = "expired-submit-worker",
+                        LeaseToken = leaseToken,
+                        LeaseExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+                        FencingVersion = 11
+                    })
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+
+                var acknowledged = await _repository1.TryAcknowledgeSubmissionAsync(
+                    jobId,
+                    leaseToken,
+                    fencingVersion: 11,
+                    providerExtractionId: "provider-accepted-after-lease-expiry",
+                    submittedAtUtc: submittedAt,
+                    nextPollAtUtc: submittedAt.AddMinutes(1),
+                    expiresAtUtc: submittedAt.AddHours(1));
+
+                Assert.False(acknowledged);
+
+                var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Equal(CrmProspectingExtractionStatus.Submitting.ToString(), persisted.Status);
+                Assert.Null(persisted.ProviderExtractionId);
+                Assert.Equal(leaseToken, persisted.LeaseToken);
+                Assert.Equal(11, persisted.FencingVersion);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
