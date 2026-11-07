@@ -219,6 +219,46 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task CreateSubmissionIntent_RepeatedRequest_ReusesStableIdempotencyKey()
+    {
+        const string fingerprint = "A4B8D3E2C1F0A9876543210FEDCBA987A4B8D3E2C1F0A9876543210FEDCBA987";
+        long firstJobId = 0;
+        try
+        {
+            SysCrmProspectingExtractionJob first;
+            using (_tenant1.Change(TenantId))
+            {
+                first = await _repository1.CreateSubmissionIntentAsync(
+                    SnowFlakeSingle.Instance.NextId(),
+                    "postgres-test",
+                    fingerprint,
+                    DateTimeOffset.UtcNow);
+            }
+
+            using (_tenant2.Change(TenantId))
+            {
+                var second = await _repository2.CreateSubmissionIntentAsync(
+                    first.RunId,
+                    "POSTGRES-TEST",
+                    fingerprint.ToLowerInvariant(),
+                    DateTimeOffset.UtcNow.AddMinutes(1));
+
+                Assert.Equal(first.BasicId, second.BasicId);
+                Assert.Equal(first.SubmissionIdempotencyKey, second.SubmissionIdempotencyKey);
+                Assert.Equal(CrmProspectingExtractionStatus.Submitting.ToString(), second.Status);
+            }
+
+            firstJobId = first.BasicId;
+        }
+        finally
+        {
+            if (firstJobId > 0)
+                await DeleteJobAsync(firstJobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
