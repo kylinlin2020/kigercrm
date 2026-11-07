@@ -33,6 +33,19 @@ public sealed class WhatsAppWebhookInboxEntityContractTests
     }
 
     [Fact]
+    public void Inbox_ShouldHaveStandardCreationAuditIndexes()
+    {
+        var indexes = typeof(SysWhatsAppWebhookInbox)
+            .GetCustomAttributes(typeof(SugarIndexAttribute), inherit: false)
+            .Cast<SugarIndexAttribute>()
+            .Select(attribute => attribute.IndexName)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("IX_{table}_TeId_CrTi", indexes);
+        Assert.Contains("IX_{table}_CrId", indexes);
+    }
+
+    [Fact]
     public void Inbox_ShouldRetainReplayAndRetryMetadata()
     {
         var properties = typeof(SysWhatsAppWebhookInbox).GetProperties()
