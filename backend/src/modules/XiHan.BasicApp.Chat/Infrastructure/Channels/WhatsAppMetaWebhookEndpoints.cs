@@ -79,15 +79,17 @@ public static class WhatsAppMetaWebhookEndpoints
             return Results.BadRequest();
         }
 
-        if (!WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(rawJson, out var messages))
+        if (!WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(rawJson, out var messages) ||
+            !WhatsAppMetaWebhookPayloadParser.TryParseStatuses(rawJson, out var statuses))
             return Results.BadRequest();
 
         // Do not return 200 here. Until a server-owned WABA/phone_number_id -> tenant binding
         // and atomic unique-key inbox insert are available, the event is not durably accepted.
         // Meta should retry rather than the application silently acknowledging and losing it.
         loggerFactory.CreateLogger("WhatsAppMetaWebhookEndpoints").LogWarning(
-            "Verified Meta webhook received {MessageCount} messages, but durable inbox routing is not configured; returning 503 for provider retry.",
-            messages.Count);
+            "Verified Meta webhook received {MessageCount} messages and {StatusCount} status receipts, but durable inbox routing is not configured; returning 503 for provider retry.",
+            messages.Count,
+            statuses.Count);
         return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
     }
 }
