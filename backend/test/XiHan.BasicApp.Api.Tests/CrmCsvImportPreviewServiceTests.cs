@@ -103,6 +103,35 @@ public sealed class CrmCsvImportPreviewServiceTests
     }
 
     [Fact]
+    public void Preview_ShouldNormalizeWhitespaceAroundSourceMappingHeaders()
+    {
+        const string csv = "Company,Email\nAcme,sales@acme.test\n";
+        var result = CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv),
+            Allowed,
+            Required,
+            new Dictionary<string, string> { [" Company "] = "CompanyName" });
+
+        Assert.Equal("Acme", result.PreviewRows[0].Values["CompanyName"]);
+        Assert.Equal(1, result.ValidRows);
+    }
+
+    [Fact]
+    public void Preview_ShouldRejectSourceMappingsThatCollideAfterNormalization()
+    {
+        const string csv = "Company,Email\nAcme,sales@acme.test\n";
+        Assert.Throws<ArgumentException>(() => CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv),
+            Allowed,
+            Required,
+            new Dictionary<string, string>
+            {
+                ["Company"] = "CompanyName",
+                [" company "] = "Country"
+            }));
+    }
+
+    [Fact]
     public void Preview_ShouldApplyResourceSpecificFieldValidators()
     {
         const string csv = "CustomerId,FirstName,LastName\n0,Ada,Lovelace\n42,Grace,Hopper\n";
