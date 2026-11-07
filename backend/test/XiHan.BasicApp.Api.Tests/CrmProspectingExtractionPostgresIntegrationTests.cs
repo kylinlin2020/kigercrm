@@ -128,12 +128,34 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                     jobId, first.LeaseToken!.Value, first.FencingVersion, TimeSpan.FromMinutes(2)));
             Assert.False(oldLeaseRenewed);
 
+            var staleWorkerTransitioned = await WithTenant(
+                _tenant1,
+                TenantId,
+                () => _repository1.TryTransitionAsync(
+                    jobId,
+                    CrmProspectingExtractionStatus.Pending,
+                    CrmProspectingExtractionStatus.Running,
+                    first.LeaseToken!.Value,
+                    first.FencingVersion));
+            Assert.False(staleWorkerTransitioned);
+
             var newLeaseRenewed = await WithTenant(
                 _tenant2,
                 TenantId,
                 () => _repository2.TryRenewLeaseAsync(
                     jobId, second.LeaseToken!.Value, second.FencingVersion, TimeSpan.FromMinutes(2)));
             Assert.True(newLeaseRenewed);
+
+            var currentWorkerTransitioned = await WithTenant(
+                _tenant2,
+                TenantId,
+                () => _repository2.TryTransitionAsync(
+                    jobId,
+                    CrmProspectingExtractionStatus.Pending,
+                    CrmProspectingExtractionStatus.Running,
+                    second.LeaseToken!.Value,
+                    second.FencingVersion));
+            Assert.True(currentWorkerTransitioned);
         }
         finally
         {
