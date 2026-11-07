@@ -108,4 +108,31 @@ public sealed class CrmCsvImportPreviewServiceTests
         Assert.Equal(1, result.InvalidRows);
         Assert.Contains(result.PreviewRows[0].Errors, error => error.Contains("CustomerId", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Preview_ShouldRejectValidatorsOutsideTheResourceAllowList()
+    {
+        const string csv = "CompanyName,Email\nAcme,sales@acme.test\n";
+        Assert.Throws<ArgumentException>(() => CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv),
+            Allowed,
+            Required,
+            fieldValidators: new Dictionary<string, Func<string, bool>>
+            {
+                ["TenantId"] = _ => true
+            }));
+    }
+
+    [Fact]
+    public void Preview_ShouldRejectRowsExceedingTheMaximumColumnCount()
+    {
+        var headers = string.Join(",", Enumerable.Range(0, CrmCsvImportPreviewService.MaxColumns + 1).Select(index => $"H{index}"));
+        var row = string.Join(",", Enumerable.Repeat("x", CrmCsvImportPreviewService.MaxColumns + 1));
+        var csv = $"{headers}\n{row}\n";
+
+        Assert.Throws<ArgumentException>(() => CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv),
+            new[] { "CompanyName" },
+            new[] { "CompanyName" }));
+    }
 }
