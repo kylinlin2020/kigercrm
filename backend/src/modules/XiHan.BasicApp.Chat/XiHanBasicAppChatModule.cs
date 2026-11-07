@@ -35,10 +35,6 @@ public class XiHanBasicAppChatModule : XiHanModule
     {
         var services = context.Services;
 
-        // Register the strict-tenant webhook inbox explicitly; it is not discovered through
-        // Chat's service registrations and must exist before the webhook can return success.
-        services.AddChatFieldSecurityEntities();
-
         // 种子（权限 → 菜单 → 角色授权 → 任务 → 配置）+ 领域服务 + 事件处理器
         services.AddChatDataSeeders();
         services.AddChatDomainServices();
