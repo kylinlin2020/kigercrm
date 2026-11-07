@@ -1,0 +1,51 @@
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using SqlSugar;
+using XiHan.BasicApp.Chat.Domain.Entities;
+using XiHan.Framework.Domain.Entities.Abstracts;
+
+namespace XiHan.BasicApp.Api.Tests;
+
+/// <summary>
+/// Guards the durable WhatsApp inbox against cross-tenant and duplicate-delivery regressions.
+/// </summary>
+public sealed class WhatsAppWebhookInboxEntityContractTests
+{
+    [Fact]
+    public void Inbox_ShouldBeStrictlyTenantScoped()
+    {
+        Assert.True(typeof(IStrictMultiTenantEntity).IsAssignableFrom(typeof(SysWhatsAppWebhookInbox)));
+    }
+
+    [Fact]
+    public void Inbox_ShouldHaveTenantScopedProviderMessageUniqueness()
+    {
+        var index = typeof(SysWhatsAppWebhookInbox)
+            .GetCustomAttributes(typeof(SugarIndexAttribute), inherit: false)
+            .Cast<SugarIndexAttribute>()
+            .Single(attribute => attribute.IndexName == "UX_{table}_TeId_WaId_MeId");
+
+        Assert.True(index.IsUnique);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.TenantId), index.IndexFields.Keys);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.WhatsAppBusinessAccountId), index.IndexFields.Keys);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.ProviderMessageId), index.IndexFields.Keys);
+    }
+
+    [Fact]
+    public void Inbox_ShouldRetainReplayAndRetryMetadata()
+    {
+        var properties = typeof(SysWhatsAppWebhookInbox).GetProperties()
+            .Select(property => property.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.PhoneNumberId), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.SenderWhatsAppId), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.ProviderTimestamp), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.PayloadJson), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.Status), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.AttemptCount), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.NextAttemptTime), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.ProcessedTime), properties);
+    }
+}
