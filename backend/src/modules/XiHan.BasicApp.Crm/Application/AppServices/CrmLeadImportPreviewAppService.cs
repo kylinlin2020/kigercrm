@@ -30,7 +30,7 @@ public sealed class CrmLeadImportPreviewAppService : CrmApplicationService, ICrm
 
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public Task<CrmCsvImportPreviewResult> PreviewAsync(
-        CrmLeadImportPreviewRequestDto input,
+        CrmCsvImportPreviewRequestDto input,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(input);
