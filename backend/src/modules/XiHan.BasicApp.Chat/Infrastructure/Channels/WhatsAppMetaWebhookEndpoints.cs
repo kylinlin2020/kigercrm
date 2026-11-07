@@ -67,7 +67,18 @@ public static class WhatsAppMetaWebhookEndpoints
         if (!WhatsAppMetaWebhookSignatureValidator.IsValid(rawBody, signature, appSecret))
             return Results.Unauthorized();
 
-        var rawJson = Encoding.UTF8.GetString(rawBody);
+        string rawJson;
+        try
+        {
+            // Reject invalid UTF-8 instead of silently replacing bytes before JSON parsing.
+            rawJson = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)
+                .GetString(rawBody);
+        }
+        catch (DecoderFallbackException)
+        {
+            return Results.BadRequest();
+        }
+
         if (!WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(rawJson, out var messages))
             return Results.BadRequest();
 
