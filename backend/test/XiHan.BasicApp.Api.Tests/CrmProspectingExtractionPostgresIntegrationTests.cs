@@ -781,8 +781,11 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                     _db1.Ado.RollbackTran();
                     if (secondAttempt is not null)
                     {
-                        try { await secondAttempt.WaitAsync(TimeSpan.FromSeconds(5)); }
-                        catch { /* Preserve the original failure; release the competing transaction before cleanup. */ }
+                        // Rollback releases the first writer's lock. Drain the competing task
+                        // completely before the outer finally block deletes the fixture row;
+                        // a timeout here would let background SQL race fixture cleanup.
+                        try { await secondAttempt; }
+                        catch { /* Preserve the original failure after the competing transaction has exited. */ }
                     }
                     throw;
                 }
