@@ -31,4 +31,51 @@ public sealed class CrmServiceRegistrationTests
             descriptor.ServiceType == typeof(CrmProspectingProviderRegistry)));
         Assert.Equal(ServiceLifetime.Scoped, registry.Lifetime);
     }
+
+    [Fact]
+    public void AddCrmServices_ShouldRegisterEveryExplicitlyEnabledProspectingCapability()
+    {
+        var providerKeys = new[]
+        {
+            "EnableBraveSearchProvider",
+            "EnableBrazilPncpProvider",
+            "EnableCompaniesHouseProvider",
+            "EnableContractsFinderProvider",
+            "EnableFakeProvider",
+            "EnableFindTenderProvider",
+            "EnableFmcsaQcmobileProvider",
+            "EnableFranceCompanySearchProvider",
+            "EnableGleifIdentityResolver",
+            "EnableHunterDiscoverProvider",
+            "EnableKvkProvider",
+            "EnableMexicoDenueProvider",
+            "EnableNppesProvider",
+            "EnableOpenFda510kProvider",
+            "EnableRorProvider",
+            "EnableSamGovProvider",
+            "EnableSecEdgarProvider",
+            "EnableSerpApiProvider",
+            "EnableSerperProvider",
+            "EnableSingaporeGebizProvider",
+            "EnableTedProvider",
+            "EnableUnComtradeProvider",
+            "EnableUsCensusTradeProvider",
+            "EnableUsaSpendingProvider",
+            "EnableWikidataProvider",
+            "EnableWorldBankProcurementProvider"
+        };
+
+        var configuration = new ConfigurationManager();
+        foreach (var key in providerKeys)
+            configuration[$"XiHan:CRM:Prospecting:{key}"] = "true";
+
+        var services = new ServiceCollection();
+        services.AddCrmServices(configuration);
+
+        Assert.Equal(25, services.Count(descriptor =>
+            descriptor.ServiceType.Name == "ICrmProspectingProvider"));
+        Assert.Single(services.Where(descriptor =>
+            descriptor.ServiceType.Name == "ICrmProspectingIdentityResolver"));
+    }
+
 }
