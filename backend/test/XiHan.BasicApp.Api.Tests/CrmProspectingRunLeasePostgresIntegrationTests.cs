@@ -335,6 +335,30 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task TryLockLeaseForWrite_WithoutTransaction_ShouldFailClosed()
+    {
+        var runId = await InsertRunAsync(TenantId, "write-fence-requires-transaction");
+        try
+        {
+            var claimed = await WithTenant(_tenant1, TenantId, () =>
+                _repository1.TryClaimLeaseAsync(runId, "nontransactional-writer", TimeSpan.FromMinutes(2)));
+            Assert.NotNull(claimed);
+
+            using (_tenant1.Change(TenantId))
+            {
+                var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    _repository1.TryLockLeaseForWriteAsync(
+                        runId, claimed!.LeaseToken!.Value, claimed.FencingVersion));
+                Assert.Contains("active transactional UnitOfWork", exception.Message, StringComparison.Ordinal);
+            }
+        }
+        finally
+        {
+            await DeleteRunAsync(runId);
+        }
+    }
+
     private async Task<long> InsertRunAsync(long tenantId, string identity)
     {
         var runId = SnowFlakeSingle.Instance.NextId();
