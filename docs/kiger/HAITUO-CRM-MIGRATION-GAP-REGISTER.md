@@ -158,3 +158,13 @@ Added a focused regression case for a quoted field containing bare-CR (`\r`) lin
 ### 2026-11-08 contact CustomerId format boundary checkpoint
 
 Added CSV preview regression coverage for CustomerId numeric boundaries: positive Int64 values are accepted, while zero, negative values, explicit plus signs, decimal notation, and Int64 overflow are rejected using invariant-culture NumberStyles.None parsing. This remains format validation only. It does not prove that the referenced customer exists in the current tenant; a bounded tenant-scoped batch lookup is still required before confirmed import. The tests have not been executed in this environment.
+
+
+### 2026-11-08 tenant-scoped Contact CustomerId preview validation
+
+- Implemented ICrmCustomerLookupRepository backed by the existing SaasRepository<SysCrmCustomer> so the platform's current-tenant and soft-delete query filters remain in force.
+- Customer IDs are deduplicated and queried in bounded batches of 500, with a hard request cap of 5,000 distinct IDs. No per-row database lookup is performed.
+- Contact preview now parses the full bounded CSV row set (up to 5,000) for relationship validation and aggregate valid/invalid counts, while returning only the first 100 preview rows.
+- Missing customer IDs are reported as row-level errors without exposing whether an ID exists in another tenant.
+- Added app-service tests for missing tenant customer references and for invalid rows beyond the first 100 preview rows.
+- This remains read-only preview validation. Immutable preview snapshots, explicit human confirmation, idempotent transactional import and rollback are still not implemented. Tests have not been executed.
