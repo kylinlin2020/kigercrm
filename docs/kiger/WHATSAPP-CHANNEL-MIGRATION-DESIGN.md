@@ -149,3 +149,8 @@ The inbox schema prerequisite is now implemented in source:
 - The parser now rejects non-array `errors`, non-object array entries, and error JSON deeper than the event-key canonicalizer's supported depth. This prevents a signed but malformed status event from throwing later while constructing its idempotency key.
 - Added parser regression cases for object, null, and primitive-array error shapes. The webhook still returns 503 until tenant binding and durable inbox persistence are implemented.
 - Source and tests committed; execution remains pending Windows-native build/test validation.
+
+ 
+### 2026-11-08 status-receipt participant schema correction
+
+Meta status receipts identify the recipient of the outbound message, not an inbound sender. The inbox schema therefore cannot require `sender_wa_id` for every event. Migration `5.9.41` adds nullable `recipient_wa_id`, relaxes `sender_wa_id`, and enforces that at least one participant identity is present. Inbound events continue to populate sender; status receipts populate recipient. This is a schema correction only: the webhook writer and runtime migration still require implementation and PostgreSQL validation.
