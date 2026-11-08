@@ -254,8 +254,9 @@ public static class CrmCsvImportPreviewService
 
         if (quoted)
             throw new ArgumentException("CSV 包含未闭合的引号。", nameof(csv));
-        if (cell.Length > 0 || row.Count > 0)
+        if (cell.Length > 0 || row.Count > 0 || afterQuote)
         {
+            // An explicitly quoted empty final field is a real CSV record even without a trailing newline.
             row.Add(cell.ToString());
             records.Add(row);
         }
