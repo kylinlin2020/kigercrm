@@ -100,10 +100,13 @@ public sealed class CrmProspectingExtractionStateMachineTests
 
         var leaseCheck = source.IndexOf("job.LeaseToken != message.LeaseToken", StringComparison.Ordinal);
         var fenceCheck = source.IndexOf("job.FencingVersion != message.FencingVersion", StringComparison.Ordinal);
+        var renewBeforeWork = source.IndexOf(
+            "if (!await jobs.TryRenewLeaseAsync(", fenceCheck, StringComparison.Ordinal);
         var heartbeatStart = source.IndexOf("var heartbeat = MaintainLeaseAsync", StringComparison.Ordinal);
         Assert.True(leaseCheck >= 0);
         Assert.True(fenceCheck > leaseCheck);
-        Assert.True(heartbeatStart > fenceCheck);
+        Assert.True(renewBeforeWork > fenceCheck);
+        Assert.True(heartbeatStart > renewBeforeWork);
     }
 
     private static string FindRepositoryRoot()
