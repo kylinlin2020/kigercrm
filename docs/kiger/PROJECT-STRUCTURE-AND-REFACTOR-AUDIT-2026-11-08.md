@@ -271,3 +271,12 @@ No parent/child extraction continuation state exists yet. Therefore this review 
 ### Remaining verification gap
 
 The source-level state transitions are coherent, but no .NET tests or PostgreSQL integration tests were run in this environment. The next A-line regression work should add database-backed coverage for: (1) expired Running takeover increments fencing and invalidates the old token; (2) expired CancelRequested becomes Cancelled and is never requeued; (3) legacy Running with null lease metadata follows only the explicit legacy recovery path; and (4) two concurrent claimers yield one lease owner. These are test targets, not claimed passing results.
+
+
+## 2026-11-08 parallel follow-up: A/C/D regression hardening
+
+- **A / async prospecting:** expanded the design contract with a parent continuation crash-window matrix covering pre-transaction, child-intent rollback, post-wait/pre-enqueue, remote-submit ambiguous timeout, child-terminal/pre-signal, continuation finalization, and cancellation races. It remains design-only; no WaitingForExtractions state or parent coordinator has been implemented.
+- **C / WhatsApp:** added explicit regression coverage that the legacy migration-key helper rejects whitespace-only WABA/message IDs while retaining exact bytes for non-empty stored values. This does not implement Inbox lookup or persistence; POST remains 503.
+- **D / CSV contact preview:** added CustomerId format boundary cases for positive Int64, zero, negative, explicit plus, decimal, and overflow. This does not prove tenant-scoped customer existence; bounded batch lookup remains required before import.
+- **B / PostgreSQL:** re-reviewed the cursor CAS lock-wait test. It captures the competing backend PID, observes that exact session in pg_stat_activity, filters for the extraction table UPDATE, rolls back on failure, and drains the competing task before fixture cleanup.
+- Tests remain unexecuted. The current environment still has no .NET SDK / configured PostgreSQL validation evidence; no runtime pass is claimed.
