@@ -69,6 +69,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrmRepositories(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.AddScoped<ICrmCustomerLookupRepository, CrmCustomerLookupRepository>();
         services.AddScoped<ICrmProspectingCampaignRepository, CrmProspectingCampaignRepository>();
         services.AddScoped<ICrmProspectingStrategyRepository, CrmProspectingStrategyRepository>();
         services.AddScoped<ICrmProspectingRunRepository, CrmProspectingRunRepository>();
