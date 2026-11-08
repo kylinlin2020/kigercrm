@@ -41,12 +41,20 @@ public static class WhatsAppMetaWebhookEventKeyFactory
         if (tenantId <= 0)
             throw new ArgumentOutOfRangeException(nameof(tenantId));
 
+        // Migration 5.9.40 hashes the stored column values verbatim. Do not trim here:
+        // even though new event keys normalize identity fields, compatibility lookup must
+        // reproduce the exact bytes used for legacy rows.
+        if (string.IsNullOrWhiteSpace(whatsappBusinessAccountId))
+            throw new ArgumentException("Event identity fields must be non-empty.", nameof(whatsappBusinessAccountId));
+        if (string.IsNullOrWhiteSpace(providerMessageId))
+            throw new ArgumentException("Event identity fields must be non-empty.", nameof(providerMessageId));
+
         var identity = string.Concat(
             tenantId.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ":",
-            Required(whatsappBusinessAccountId, nameof(whatsappBusinessAccountId)),
+            whatsappBusinessAccountId,
             ":",
-            Required(providerMessageId, nameof(providerMessageId)));
+            providerMessageId);
         return Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(identity))).ToLowerInvariant();
     }
 
