@@ -1,4 +1,4 @@
-# Haituo CRM → KIGER CRM Function Parity Audit — 2026-11-06
+# Haituo CRM → KIGER CRM 功能等价审计 — 2026-11-08
 
 ## Scope and method
 
@@ -74,3 +74,37 @@ The most important remaining functional gaps found in this pass are:
 - This audit used repository tree and source-file inspection only.
 - No .NET restore/build/test, frontend install/build/test, PostgreSQL migration/integration test or Windows real-machine acceptance is claimed.
 - PR #1 remains Draft and GitHub reports `mergeable=false`; this audit does not attempt a merge or rebase.
+
+ 
+## Target platform reuse findings (2026-11-08)
+
+The following platform services were checked before proposing new CRM infrastructure. This section supersedes separate one-off "target reuse" and "second-pass" notes.
+
+| Reusable capability | Existing target entry point | What it provides | What it does not prove |
+|---|---|---|---|
+| File storage | Saas FileAppService / IFileAppService and file transfer/query services | Upload, download, storage metadata and access boundary | OCR, confidence scoring, field correction or reviewed Lead/Shipment creation |
+| Asynchronous export | Saas ExportTaskAppService, SysExportTask, IExportProvider, ExportTaskHostedService, Csv/Xlsx writers | Generic export job execution and file writing | CRM-specific columns, query filters, permission parity or frontend workflow |
+| Import history | Saas ImportHistoryAppService / SysImportHistory | Append-only record of completed import outcomes | Parser, preview, mapping, validation, retry worker or transaction import engine |
+| Workflow/task | Saas task/workflow services and business handler contracts | Assignment, task lifecycle and approval-task building blocks | Outreach sequence scheduler, suppression/opt-out, send ledger or channel approval |
+| Knowledge documents | AI KnowledgeDocument application/query/domain/repository family | Document metadata and knowledge-ingestion foundation | Source asset review/version/attachments/tags/ACL/citation parity |
+
+PR #5 adds CRM-specific export providers using the generic query-service export base, and adds read-only CSV preview endpoints for Lead/Customer/Contact. These are useful adapters, not a complete import pipeline. The current PR diff does not add a CRM import UI or a confirmed write endpoint.
+
+## Source-side technical evidence to retain
+
+| Capability | Source-side entry points to compare | Required target boundary |
+|---|---|---|
+| Prospecting | `prospect-search-planner.ts`, `prospect-provider-dispatcher.ts`, `prospect-provider-request-ledger.ts`, `prospect-coverage-memory.ts`, `prospect-worker.ts`, `prospect-scheduler.ts`, `prospect-queue-coordinator.ts` | Reuse CRM Campaign/Strategy/Run/Candidate/Evidence; compare schedule, async recovery, coverage and feedback semantics |
+| Outreach | `outreach-sequences.ts`, `prospect-outreach.ts`, `prospect-outreach-eligibility.ts`, outreach SKILL | Sequence/touchpoint/suppression/reply workflow; every external send requires human approval |
+| WhatsApp | `whatsapp-plugin/src/server/providers/meta-provider.ts`, `baileys-provider.ts`, `provider-manager.ts`, `db/repository.ts`, `security/encryption.ts`, `services/whatsapp-history-import.ts` | Chat channel adapter, tenant-owned account binding, encrypted credentials, durable Inbox/Outbox and replay; internal Chat alone is not parity |
+| WeCom | `wecom-command-gateway.ts`, `integration-worker/src/drivers/wecom-connector-driver.ts` | OAuth/callback signature, identity mapping, command authorization and audit |
+| OCR / trade documents | `business-card-ocr.ts`, `shipment-ocr.ts`, `trade-document-import.ts` | File service reuse plus OCR provider, confidence/provenance, human correction and confirmed CRM transaction |
+| Learning / knowledge | `exam-system-test.ts`, `knowledge-assets-test.ts` | Separate bounded exam domain; reuse AI knowledge only after ACL/version/review parity |
+
+## Corrected current workstream status
+
+- **A**: durable Extraction Job and repository foundations exist; Run Hosted Service still fails closed for async providers. Parent waiting state, atomic child creation and continuation worker are not implemented.
+- **B**: PostgreSQL tests cover claim, tenant isolation, lease expiry, idempotency and cursor races; they require a live PostgreSQL run. One cursor race test still relies on a short delay and should be made deterministic.
+- **C**: PR #4 contains challenge verification, raw-body HMAC verification, strict parser, event-level idempotency key and Inbox schema migrations. It deliberately returns 503 because tenant routing and durable Inbox insert/consumer are not yet implemented.
+- **D**: CRM export providers and side-effect-free Lead/Customer/Contact CSV previews exist in the PR branch. CustomerId preview validation currently checks only positive integer shape, not tenant-scoped customer existence. No actual CRM write import endpoint is present.
+- **Validation**: no .NET build/test, live PostgreSQL migration/integration, frontend check/build or Windows acceptance is claimed in this audit.
