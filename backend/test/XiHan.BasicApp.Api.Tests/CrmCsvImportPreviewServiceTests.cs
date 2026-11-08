@@ -285,7 +285,7 @@ public sealed class CrmCsvImportPreviewServiceTests
     [InlineData("9223372036854775808", false)]
     public void ContactCustomerIdPreview_ShouldAcceptOnlyPositiveInvariantInt64Values(string rawValue, bool expectedValid)
     {
-        var csv = $"CustomerId,FirstName,LastName\\n{rawValue},Ada,Lovelace\\n";
+        var csv = $"CustomerId,FirstName,LastName\n{rawValue},Ada,Lovelace\n";
         var result = CrmCsvImportPreviewService.Preview(
             Encoding.UTF8.GetBytes(csv),
             new[] { "CustomerId", "FirstName", "LastName" },
