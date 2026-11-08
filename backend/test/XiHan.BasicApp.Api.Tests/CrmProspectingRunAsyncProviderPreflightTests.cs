@@ -1,10 +1,23 @@
 using System.Runtime.CompilerServices;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 
 namespace XiHan.BasicApp.Api.Tests;
 
 /// <summary>Protects the synchronous Run worker from partially executing mixed sync/async plans.</summary>
 public sealed class CrmProspectingRunAsyncProviderPreflightTests
 {
+    [Fact]
+    public void RunStatusValues_ShouldRemainStableBecauseTheyArePersistedAsIntegers()
+    {
+        Assert.Equal(0, (int)CrmProspectingRunStatus.Queued);
+        Assert.Equal(1, (int)CrmProspectingRunStatus.Running);
+        Assert.Equal(2, (int)CrmProspectingRunStatus.Succeeded);
+        Assert.Equal(3, (int)CrmProspectingRunStatus.PartiallySucceeded);
+        Assert.Equal(4, (int)CrmProspectingRunStatus.Failed);
+        Assert.Equal(5, (int)CrmProspectingRunStatus.CancelRequested);
+        Assert.Equal(6, (int)CrmProspectingRunStatus.Cancelled);
+    }
+
     [Fact]
     public void RunWorker_ShouldRejectAsyncPlanBeforeStartingAnySynchronousProvider()
     {
