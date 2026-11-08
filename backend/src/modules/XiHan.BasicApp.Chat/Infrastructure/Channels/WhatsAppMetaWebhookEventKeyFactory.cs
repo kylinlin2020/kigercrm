@@ -27,6 +27,29 @@ public static class WhatsAppMetaWebhookEventKeyFactory
             Required(message.ProviderMessageId, nameof(message.ProviderMessageId)));
     }
 
+    /// <summary>
+    /// Reproduces the pre-event-key inbox identity used by migration 5.9.40.
+    /// A future inbox writer must check this legacy key before inserting a new SHA-256
+    /// inbound key, otherwise webhook retries for rows created before migration 5.9.40
+    /// can be accepted a second time after the key-format upgrade.
+    /// </summary>
+    public static string LegacyInboundMessageKey(
+        long tenantId,
+        string whatsappBusinessAccountId,
+        string providerMessageId)
+    {
+        if (tenantId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(tenantId));
+
+        var identity = string.Concat(
+            tenantId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ":",
+            Required(whatsappBusinessAccountId, nameof(whatsappBusinessAccountId)),
+            ":",
+            Required(providerMessageId, nameof(providerMessageId)));
+        return Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(identity))).ToLowerInvariant();
+    }
+
     public static string ForMessageStatus(WhatsAppMetaMessageStatus status)
     {
         ArgumentNullException.ThrowIfNull(status);
