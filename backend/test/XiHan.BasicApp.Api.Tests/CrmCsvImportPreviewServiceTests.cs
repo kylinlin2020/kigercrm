@@ -306,9 +306,9 @@ public sealed class CrmCsvImportPreviewServiceTests
     [Fact]
     public void Preview_ShouldFingerprintExactUploadedBytesForLaterConfirmation()
     {
-        var original = Encoding.UTF8.GetBytes("CompanyName,Email\\nAcme,sales@acme.test\\n");
-        var same = Encoding.UTF8.GetBytes("CompanyName,Email\\nAcme,sales@acme.test\\n");
-        var changed = Encoding.UTF8.GetBytes("CompanyName,Email\\nAcme,sales2@acme.test\\n");
+        var original = Encoding.UTF8.GetBytes("CompanyName,Email\nAcme,sales@acme.test\n");
+        var same = Encoding.UTF8.GetBytes("CompanyName,Email\nAcme,sales@acme.test\n");
+        var changed = Encoding.UTF8.GetBytes("CompanyName,Email\nAcme,sales2@acme.test\n");
 
         var first = CrmCsvImportPreviewService.Preview(original, Allowed, Required);
         var repeated = CrmCsvImportPreviewService.Preview(same, Allowed, Required);
