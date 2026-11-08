@@ -54,7 +54,7 @@ public sealed class CrmProspectingExtractionHostedService
             using var tenantScope = _scopeFactory.CreateScope();
             var repository = tenantScope.ServiceProvider.GetRequiredService<ICrmProspectingExtractionJobRepository>();
             var claimed = await repository.ClaimDueAsync(
-                LeaseOwner, LeaseDuration, Math.Min(10, maxCount - messages.Count), cancellationToken);
+                LeaseOwner, LeaseDuration, 1, cancellationToken);
             messages.AddRange(claimed.Select(job => new CrmProspectingExtractionMessage
             {
                 JobId = job.BasicId,
