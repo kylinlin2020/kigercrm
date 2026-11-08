@@ -560,6 +560,66 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task AdvanceCursor_ExpiredLease_CannotAdvanceCursorOrAccumulatePageCounts()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "expired-cursor-advance");
+        var leaseToken = Guid.NewGuid();
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => new SysCrmProspectingExtractionJob
+                    {
+                        Status = CrmProspectingExtractionStatus.FetchingResults.ToString(),
+                        LeaseOwner = "expired-cursor-worker",
+                        LeaseToken = leaseToken,
+                        LeaseExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+                        FencingVersion = 31,
+                        ResultCursor = "cursor-before"
+                    })
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+
+                _db1.Ado.BeginTran();
+                try
+                {
+                    var advanced = await _repository1.TryAdvanceCursorAsync(
+                        jobId,
+                        leaseToken,
+                        fencingVersion: 31,
+                        expectedCursor: "cursor-before",
+                        nextCursor: "cursor-after",
+                        persistedRecordCount: 5,
+                        pageFailureCount: 0);
+
+                    Assert.False(advanced);
+                    await _db1.Ado.RollbackTranAsync();
+                }
+                catch
+                {
+                    await _db1.Ado.RollbackTranAsync();
+                    throw;
+                }
+
+                var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Equal(CrmProspectingExtractionStatus.FetchingResults.ToString(), persisted.Status);
+                Assert.Equal("cursor-before", persisted.ResultCursor);
+                Assert.Equal(0, persisted.ResultRecordCount);
+                Assert.Equal(0, persisted.ResultFailureCount);
+                Assert.Equal(leaseToken, persisted.LeaseToken);
+                Assert.Equal(31, persisted.FencingVersion);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
