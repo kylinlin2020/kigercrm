@@ -163,7 +163,7 @@ Source Inventory、Target Reuse、Second Pass 的独有事实应并入上述三�
 
 - 当前四个工作 PR 均以 `kiger-dev` 为 base，且各自与该 base 无 behind；这是本轮工作的集成基线。
 - 仓库 `main` 与 `kiger-dev` 的 compare 显示 diverged（`kiger-dev` 相对 main 约 ahead 2,628、behind 6）。这不是普通的小型分支落后；不得把本轮工作直接改基线或合并到 `main`。先由仓库维护者确定主干收敛策略。
-- PR #2/#3/#4/#5 当前仍为 Open/Draft。按 PR 对比提交数约为 9/27/61/92；提交粒度过细会让审阅历史噪声上升。验收前不要强行重写远程历史；达到可合并状态后再按仓库策略 squash。
+- PR #2/#3/#4/#5 当前仍为 Open/Draft。各 PR 提交历史仍较多且粒度偏细，会让审阅历史噪声上升。验收前不要强行重写远程历史；达到可合并状态后再按仓库策略 squash。
 - 当前 PR #4 的 5.9.41 SQL 和迁移测试源码曾出现换行损坏，已在 PR 分支修复；仍需真实编译和 PostgreSQL migration test 验证。
 
 ## 7. 本轮确认的功能状态
@@ -202,3 +202,15 @@ Source Inventory、Target Reuse、Second Pass 的独有事实应并入上述三�
 - CRM Module 的 ConfigureServices 现在按服务注册与 Seeder 注册两个步骤接线。
 
 这轮只移动和命名既有注册逻辑，没有更改 Provider 的配置键、生命周期、endpoint、timeout 或注册接口。由于当前执行环境缺少 .NET SDK，尚未编译；后续必须用服务注册测试和完整解决方案 build 验证，再考虑继续拆 Provider 分类。
+
+
+## 10. DI 注册复核与回归保护（2026-11-08）
+
+对 `kiger-dev` 原始注册实现与 `work/d-migration-audit` 拆分后的实现进行了逐个配置块比较：
+
+- 26 个 `XiHan:CRM:Prospecting:Enable*` 配置键全部保留，无缺失、无新增。
+- 26 个 Provider/identity-resolver 条件注册代码块逐块比较后内容一致，Provider endpoint、认证读取方式、timeout、服务生命周期和接口映射未发现变化。
+- 7 个 CRM `IExportProvider` 注册仍全部为 Scoped。
+- 新增 `CrmServiceRegistrationTests`，保护 7 个导出 Provider、默认关闭 prospecting provider 和 Scoped Provider Registry 的注册边界。
+
+验证边界：这是源码逐块比对和新增测试代码；当前没有对应 GitHub Actions workflow run，也没有 .NET SDK 执行测试。因此不能把该测试标记为已运行或通过。后续 Windows/.NET 环境应先运行该测试，再运行 CRM/API 测试项目。
