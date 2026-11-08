@@ -61,6 +61,32 @@ public sealed class CrmProspectingRunAsyncProviderPreflightTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void AsyncPreflightFailure_ShouldRemainFencedAndMustNotBeSilentlyConvertedToWaiting()
+    {
+        var source = Read(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+
+        var cancellationCatch = source.IndexOf(
+            "catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)",
+            StringComparison.Ordinal);
+        var genericCatch = source.IndexOf(
+            "catch (Exception ex)", cancellationCatch,
+            StringComparison.Ordinal);
+        var fencedFailure = source.IndexOf(
+            "FailFencedWithDatabaseClockAsync", genericCatch,
+            StringComparison.Ordinal);
+
+        Assert.True(cancellationCatch >= 0);
+        Assert.True(genericCatch > cancellationCatch);
+        Assert.True(fencedFailure > genericCatch);
+        Assert.Contains(
+            "message.RunId, failureLeaseToken, activeFencingVersion, BuildFailureSummary(ex), cancellationToken",
+            source,
+            StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
