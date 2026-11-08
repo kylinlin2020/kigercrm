@@ -234,3 +234,10 @@ Source Inventory、Target Reuse、Second Pass 的独有事实应并入上述三�
 - 这比仅按表名匹配更稳健：并行运行的其他集成测试即使同时更新同一张表，也不能误触发本测试释放首个事务。
 - 本改动已提交到 `work/b-postgres-regression`（`24eb12abf38bfa9f2f8e03f44d98d5beb9a8bc82`），PR #3 仍为 Draft。
 - 仍需真实 PostgreSQL 环境验证 backend PID 可见性、活动查询文本匹配和竞争 UPDATE 的锁等待行为；本次没有执行数据库测试或 .NET 编译。
+
+
+## 2026-11-08 follow-up: PostgreSQL cursor-race cleanup
+
+The B-line cursor compare-and-swap integration test now observes the exact competing backend PID in `pg_stat_activity` and waits for PostgreSQL to report a lock wait before releasing the first transaction. A follow-up review found that a bounded wait while draining the competing task could still allow fixture deletion to race a background SQL operation if that wait timed out. The failure path now rolls back the first transaction and awaits the competing task to exit before the fixture cleanup runs. This is a test-lifecycle hardening change only; it does not alter production repository behavior.
+
+**Verification remains pending:** no .NET SDK or configured PostgreSQL test instance is available in this environment. The real PostgreSQL run must verify `pg_stat_activity` visibility and the actual generated UPDATE query text.
