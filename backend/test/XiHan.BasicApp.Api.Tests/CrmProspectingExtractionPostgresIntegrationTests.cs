@@ -776,6 +776,11 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                 catch
                 {
                     _db1.Ado.RollbackTran();
+                    if (secondAttempt is not null)
+                    {
+                        try { await secondAttempt.WaitAsync(TimeSpan.FromSeconds(5)); }
+                        catch { /* Preserve the original failure; release the competing transaction before cleanup. */ }
+                    }
                     throw;
                 }
             }
