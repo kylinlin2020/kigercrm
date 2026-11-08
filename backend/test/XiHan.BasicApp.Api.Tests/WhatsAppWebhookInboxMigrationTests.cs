@@ -41,6 +41,17 @@ public sealed class WhatsAppWebhookInboxMigrationTests
         Assert.Contains("ON sys_whatsapp_webhook_inbox (tenant_id, whatsapp_business_account_id, event_key)", sql, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void StatusReceiptMigration_ShouldAllowRecipientIdentityWithoutSenderIdentity()
+    {
+        var sql = ReadMigration("5.9.41", "5.9.41.sql");
+
+        Assert.Contains("ADD COLUMN IF NOT EXISTS recipient_wa_id varchar(100)", sql, StringComparison.Ordinal);
+        Assert.Contains("ALTER COLUMN sender_wa_id DROP NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("ck_sys_whatsapp_webhook_inbox_participant", sql, StringComparison.Ordinal);
+        Assert.Contains("sender_wa_id IS NOT NULL OR recipient_wa_id IS NOT NULL", sql, StringComparison.Ordinal);
+    }
+
     private static string ReadMigration(string version, string fileName) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(
             RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
