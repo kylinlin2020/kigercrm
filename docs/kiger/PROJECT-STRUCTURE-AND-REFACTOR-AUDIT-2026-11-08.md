@@ -340,3 +340,8 @@ A follow-up review corrected the preceding static finding: PostgreSQL folds unqu
 ### Correction: C / Chat Inbox field-security catalog registration
 
 The earlier attempt to register `SysWhatsAppWebhookInbox` through `AddFieldSecurityEntities` was not a valid database entity-discovery mechanism. The WhatsApp migration design already distinguishes field-security metadata from entity/table discovery. Removed that registration and its source-contract assertion to avoid broadening the field-security catalog incorrectly. This does not remove the existing Inbox entity or migration. New-database CodeFirst discovery still needs verification against the framework's actual entity initialization path; do not infer it from field-security registration.
+
+
+### A / Run lease write-fencing takeover regression
+
+Added a PostgreSQL-gated integration test that claims a Run lease, expires and takes it over through a second independent client, then exercises `TryLockLeaseForWriteAsync` inside a transaction. The superseded token/fencing version must be rejected while the replacement live lease must be accepted. This closes a gap between renewal/claim coverage and the transactional write-lock gate. The test requires `KIGER_TEST_POSTGRES_CONNECTION_STRING` and has not been executed; no build or PostgreSQL pass is claimed.
