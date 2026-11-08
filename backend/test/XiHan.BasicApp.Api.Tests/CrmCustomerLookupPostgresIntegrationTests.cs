@@ -39,20 +39,25 @@ public sealed class CrmCustomerLookupPostgresIntegrationTests : IDisposable
     [Fact(SkipUnless = nameof(PostgresConfigured))]
     public async Task GetExistingIdsAsync_ReturnsOnlyCustomersOwnedByCurrentTenant()
     {
-        var ownId = await InsertCustomerAsync(TenantId, "tenant-owned");
-        var foreignId = await InsertCustomerAsync(OtherTenantId, "foreign-tenant");
+        long? ownId = null;
+        long? foreignId = null;
         try
         {
+            ownId = await InsertCustomerAsync(TenantId, "tenant-owned");
+            foreignId = await InsertCustomerAsync(OtherTenantId, "foreign-tenant");
             var result = await WithTenant(_tenant1, TenantId, () =>
-                _repository.GetExistingIdsAsync(new[] { ownId, foreignId, ownId }));
+                _repository.GetExistingIdsAsync(new[] { ownId.Value, foreignId.Value, ownId.Value }));
 
-            Assert.Contains(ownId, result);
-            Assert.DoesNotContain(foreignId, result);
+            Assert.Contains(ownId.Value, result);
+            Assert.DoesNotContain(foreignId.Value, result);
             Assert.Single(result);
         }
         finally
         {
-            await DeleteCustomersAsync(ownId, foreignId);
+            await DeleteCustomersAsync(new[] { ownId, foreignId }
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .ToArray());
         }
     }
 
@@ -74,8 +79,10 @@ public sealed class CrmCustomerLookupPostgresIntegrationTests : IDisposable
                             Name = $"lookup-batch-{Guid.NewGuid():N}-{index}"
                         })
                         .ToArray();
-                    await _db1.Insertable(batch).ExecuteCommandAsync();
+                    // Record fixture IDs before issuing SQL so partial insert failures can
+                    // still clean up every generated identity in the finally block.
                     ids.AddRange(batch.Select(customer => customer.BasicId));
+                    await _db1.Insertable(batch).ExecuteCommandAsync();
                 }
             }
 
