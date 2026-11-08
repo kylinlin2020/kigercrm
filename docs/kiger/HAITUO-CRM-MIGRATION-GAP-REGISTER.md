@@ -173,3 +173,15 @@ Added CSV preview regression coverage for CustomerId numeric boundaries: positiv
 ### 2026-11-08 PostgreSQL tenant isolation and bounded lookup tests
 
 Added PostgreSQL-gated repository integration tests for the new contact CustomerId lookup. The tests assert that a customer ID owned by another tenant is not returned under the current tenant scope, duplicate input IDs are collapsed, and 501 existing IDs are retrieved across the repository's 500-ID query boundary. Tests require KIGER_TEST_POSTGRES_CONNECTION_STRING and have not been executed. Preview remains read-only; snapshot confirmation and transactional import are still outstanding.
+
+
+## 2026-11-08 integration checkpoint — four workstreams merged
+
+The four reviewed workstream PRs have now been merged into `kiger-dev` in sequence:
+
+- PR #2 (async prospecting execution contracts): merge commit `449f97134249461958e62ddab02067112c397948`.
+- PR #3 (PostgreSQL extraction regression guards): merge commit `95d6270c95b62dbfffddf92cb17e1a581f83b1f1`.
+- PR #4 (WhatsApp Meta webhook verification and event inbox schema): merge commit `d4790351a99dd8144b4693c4d366125028bca92a`.
+- PR #5 (CRM import/export preview and module registration cleanup): merge commit `4cd24f4a94a729aa0ed7b63c784192f9e572b7ab`.
+
+The branch integration is complete; feature acceptance is not. The functional gates above remain open: async parent/child continuation and consumer, PostgreSQL execution, WhatsApp tenant binding plus atomic Inbox processing, and confirmed transactional CRM import. The webhook remains fail-closed (503), async providers remain disabled, and CSV remains preview-only. No .NET build/test or live PostgreSQL run is claimed. Do not treat the PR merge status as a migration-completion status.
