@@ -201,10 +201,29 @@ public static class WhatsAppMetaWebhookPayloadParser
                             return false;
                         }
 
-                        var errorJson = status.TryGetProperty("errors", out var errors) &&
-                            errors.ValueKind == JsonValueKind.Array
-                            ? errors.GetRawText()
-                            : null;
+                        string? errorJson = null;
+                        if (status.TryGetProperty("errors", out var errors))
+                        {
+                            if (errors.ValueKind != JsonValueKind.Array)
+                                return false;
+
+                            errorJson = errors.GetRawText();
+                            try
+                            {
+                                // The event-key canonicalizer has a bounded depth; reject deeper
+                                // error payloads here so a validly signed webhook cannot fail later
+                                // during persistence-key construction.
+                                using var errorDocument = JsonDocument.Parse(
+                                    errorJson,
+                                    new JsonDocumentOptions { MaxDepth = 16 });
+                                if (errorDocument.RootElement.ValueKind != JsonValueKind.Array)
+                                    return false;
+                            }
+                            catch (JsonException)
+                            {
+                                return false;
+                            }
+                        }
 
                         parsed.Add(new WhatsAppMetaMessageStatus(
                             wabaId,
