@@ -235,4 +235,14 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
             () => WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(status));
     }
 
+
+    [Theory]
+    [InlineData(" ", "wamid-1")]
+    [InlineData("waba-1", "  ")]
+    public void LegacyInboundKey_ShouldRejectBlankStoredIdentity(string wabaId, string providerMessageId)
+    {
+        Assert.Throws<ArgumentException>(() =>
+            WhatsAppMetaWebhookEventKeyFactory.LegacyInboundMessageKey(7, wabaId, providerMessageId));
+    }
+
 }
