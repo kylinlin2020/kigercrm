@@ -30,6 +30,10 @@ public sealed class CrmServiceRegistrationTests
         var registry = Assert.Single(services.Where(descriptor =>
             descriptor.ServiceType == typeof(CrmProspectingProviderRegistry)));
         Assert.Equal(ServiceLifetime.Scoped, registry.Lifetime);
+
+        var customerLookup = Assert.Single(services.Where(descriptor =>
+            descriptor.ServiceType.Name == "ICrmCustomerLookupRepository"));
+        Assert.Equal(ServiceLifetime.Scoped, customerLookup.Lifetime);
     }
 
     [Fact]
