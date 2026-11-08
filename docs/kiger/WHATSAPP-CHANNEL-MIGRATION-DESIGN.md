@@ -170,3 +170,8 @@ The event-key factory now exposes `LegacyInboundMessageKey(tenantId, WabaId, Pro
 ### 2026-11-08 legacy-key byte-for-byte compatibility hardening
 
 A follow-up review found that the first compatibility helper trimmed WABA and provider message IDs, while migration 5.9.40 hashes the stored column values verbatim. That normalization would fail to match any historical row containing leading/trailing whitespace. The helper now rejects blank identities but preserves non-empty input bytes exactly, and a regression test covers whitespace-bearing stored values. New SHA-256 event-key normalization remains unchanged; only the legacy lookup path mirrors the SQL backfill byte-for-byte.
+
+
+### 2026-11-08 status-key fixture correction
+
+Static review found that two status-key test fixtures encoded literal backslashes before JSON quotes inside JSON arrays. Those strings were invalid JSON, so the intended error-array canonicalization and distinction assertions would throw during parsing instead of testing key behavior. Corrected the C# escaping so the fixtures are valid JSON objects/arrays. This is a test-fixture correction only; runtime parser/factory behavior is unchanged. Test execution remains pending the Windows/.NET validation checkpoint.
