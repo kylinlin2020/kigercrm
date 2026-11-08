@@ -16,6 +16,7 @@ namespace XiHan.BasicApp.Chat.Domain.Entities;
 [SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 [SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
 [SugarIndex("IX_{table}_TeId_St_NeAt", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(NextAttemptTime), OrderByType.Asc)]
+[SugarIndex("IX_{table}_TeId_St_NeAt_Lease", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(NextAttemptTime), OrderByType.Asc, nameof(LeaseExpiresAt), OrderByType.Asc)]
 public partial class SysWhatsAppWebhookInbox : BasicAppCreationEntity, IStrictMultiTenantEntity
 {
     /// <summary>Meta WABA ID used to route the event to a tenant-owned channel account.</summary>
