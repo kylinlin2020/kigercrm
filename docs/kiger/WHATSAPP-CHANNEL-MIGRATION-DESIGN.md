@@ -107,3 +107,23 @@ Chat 模块的 `ServiceCollectionExtensions` 当前只登记 Chat domain service
 5. 再实现租约消费、Chat 投影、状态回执、Outbox 和人工审批，最后接真实 Meta 测试号码。
 
 Meta/Baileys 的完整迁移仍未完成。源码测试与静态审计不能替代 PostgreSQL 并发测试和真实 Provider 端到端验收。
+
+### 2026-11-08 inbox idempotency decision
+
+A single Meta webhook envelope may contain multiple messages and/or status receipts. A single `ProviderMessageId` column is not a sufficient idempotency key for the envelope or for all event items:
+
+- The same envelope can contain several different `wamid` values and must be split into independently durable event rows.
+- A status receipt refers to the same `wamid` as the original inbound message; a unique key on `(TenantId, WABA, ProviderMessageId)` would incorrectly reject the receipt.
+- A message may receive multiple legitimate status transitions (for example sent, delivered, read); deduplicating only by `wamid` would lose later transitions.
+- Retrying the same webhook must not create duplicate event rows, while a later status transition must remain admissible.
+
+**Required persistence shape before changing POST from 503:**
+
+1. Parse and normalize each message and each status receipt as an independent inbox event. Preserve the verified original envelope for forensic replay, plus the individual normalized event payload.
+2. Add a server-generated deterministic `EventKey` (SHA-256 hex) and a bounded `EventType` discriminator. The unique idempotency boundary is `(TenantId, WhatsAppBusinessAccountId, EventKey)`, not `ProviderMessageId` alone.
+3. For inbound messages, derive the key from the event type and stable provider message identity (`wamid`). For status receipts, include event type, `wamid`, status value, provider timestamp, recipient identity, and normalized error identity/details when present. Canonicalize fields before hashing; do not hash arbitrary JSON property order.
+4. Keep `ProviderMessageId` as a query/correlation field, not the sole unique key. A duplicate key is an acknowledged duplicate only after the winning row is visible outside the failed PostgreSQL transaction; never query in a transaction aborted by a unique violation.
+5. Insert all event rows from one verified envelope in a single transaction. Return 200 only if every event row is committed or already exists by the deterministic key. Unknown WABA/phone binding, malformed event identity, or any failed insert remains retryable and must not be acknowledged.
+6. Add tests for a multi-message envelope, message plus status for the same `wamid`, repeated identical status, later status transition, two concurrent deliveries, and partial transaction failure rollback.
+
+This is a design gate, not an implementation claim. The current inbox entity's unique index on `(TenantId, WABA, ProviderMessageId)` must be revised before it can safely store both messages and status receipts.
