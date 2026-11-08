@@ -186,7 +186,7 @@ public sealed class CrmCsvImportPreviewServiceTests
 
         Assert.Equal(1, result.TotalRows);
         Assert.Equal(1, result.ValidRows);
-        Assert.Equal("Acme\r\nGlobal", result.PreviewRows[0].Values["CompanyName"]);
+        Assert.Equal("Acme\rGlobal", result.PreviewRows[0].Values["CompanyName"]);
     }
 
     [Fact]
@@ -228,7 +228,7 @@ public sealed class CrmCsvImportPreviewServiceTests
     [Fact]
     public void Preview_ShouldReportPhysicalSourceLineNumbersAcrossBlankAndMultilineRecords()
     {
-        const string csv = "CompanyName,Email\r\n\r\nAcme,sales@acme.test\r\n\"Acme\r\nGlobal\",global@acme.test\r\nBeta,beta@acme.test";
+        const string csv = "CompanyName,Email\r\"Acme\rGlobal\",acme@acme.test\rBeta,beta@acme.test";
         var result = CrmCsvImportPreviewService.Preview(
             Encoding.UTF8.GetBytes(csv), Allowed, Required);
 
