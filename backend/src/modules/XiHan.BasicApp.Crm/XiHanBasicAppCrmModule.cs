@@ -16,6 +16,7 @@ public sealed class XiHanBasicAppCrmModule : XiHanModule
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
         context.Services.AddCrmFieldSecurityEntities();
-        context.Services.AddCrmDataSeeders(context.Configuration);
+        context.Services.AddCrmServices(context.Configuration);
+        context.Services.AddCrmDataSeeders();
     }
 }
