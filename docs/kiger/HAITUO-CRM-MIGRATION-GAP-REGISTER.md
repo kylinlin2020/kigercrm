@@ -96,3 +96,9 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 - Added a deterministic SHA-256 event-key factory for inbound messages and status receipts. Status keys include the provider message ID, recipient, normalized status, timestamp, and canonicalized error JSON; repeated identical status events deduplicate while later transitions remain distinct.
 - Added source tests for deterministic output, same-wamid message/status separation, duplicate receipt handling, later transitions, canonical JSON, and invalid identity rejection.
 - The factory is not wired to a durable Inbox writer yet. Account routing, atomic persistence, and provider acknowledgement remain blocked.
+
+### 2026-11-08 WhatsApp event identity regression increment
+
+- Added source tests confirming inbound-message identity normalization trims WABA/phone/message identifiers, while a different `phone_number_id` yields a distinct event key.
+- Added a status-key regression asserting materially different error arrays do not collapse into one event identity.
+- These tests cover the deterministic key factory only; they do not establish tenant binding, durable inbox insertion, or PostgreSQL behavior. The Meta webhook remains fail-closed with HTTP 503 until the durable acceptance path is implemented and tested.
