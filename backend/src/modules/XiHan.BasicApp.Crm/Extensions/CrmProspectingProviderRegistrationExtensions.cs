@@ -22,7 +22,7 @@ public static class CrmProspectingProviderRegistrationExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFakeProvider"], out var enableFakeProvider)
+        if (bool.TryParse(configuration["XiHan:CRM:Prospecting:EnableFakeProvider"], out var enableFakeProvider)
             && enableFakeProvider)
         {
             services.AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();
