@@ -241,3 +241,8 @@ Source Inventory、Target Reuse、Second Pass 的独有事实应并入上述三�
 The B-line cursor compare-and-swap integration test now observes the exact competing backend PID in `pg_stat_activity` and waits for PostgreSQL to report a lock wait before releasing the first transaction. A follow-up review found that a bounded wait while draining the competing task could still allow fixture deletion to race a background SQL operation if that wait timed out. The failure path now rolls back the first transaction and awaits the competing task to exit before the fixture cleanup runs. This is a test-lifecycle hardening change only; it does not alter production repository behavior.
 
 **Verification remains pending:** no .NET SDK or configured PostgreSQL test instance is available in this environment. The real PostgreSQL run must verify `pg_stat_activity` visibility and the actual generated UPDATE query text.
+
+
+## 2026-11-08 follow-up: WhatsApp legacy idempotency compatibility
+
+Review of the 5.9.40 backfill against the new event-key factory identified a replay-compatibility boundary: old inbound rows carry the migration's MD5 key (`tenant_id:WABA:wamid`), whereas new inbound keys are SHA-256 over a length-prefixed tuple that also includes phone_number_id. The factory now exposes a compatibility helper that exactly reproduces the legacy MD5 key, with a regression test. The future Inbox writer must check both legacy and new keys within the resolved tenant/WABA scope before insert; concurrency-safe persistence and PostgreSQL replay tests remain unimplemented. Webhook POST remains 503 until that path is complete.
