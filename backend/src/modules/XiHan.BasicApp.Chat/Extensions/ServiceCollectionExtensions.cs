@@ -4,6 +4,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Chat.Application.EventHandlers;
 using XiHan.BasicApp.Chat.Domain.DomainServices;
+using XiHan.BasicApp.Chat.Domain.Repositories;
+using XiHan.BasicApp.Chat.Infrastructure.Repositories;
 using XiHan.BasicApp.Chat.Infrastructure.Seeders;
 using XiHan.Framework.Data.Extensions.DependencyInjection;
 using XiHan.Framework.EventBus.Local;
@@ -25,6 +27,15 @@ public static class ServiceCollectionExtensions
         _ = services.AddDataSeeder<ChatMenuSeeder>();
         _ = services.AddDataSeeder<ChatSettingSeeder>();
         _ = services.AddDataSeeder<ChatTaskSeeder>();
+        return services;
+    }
+
+    /// <summary>
+    /// 注册聊天模块持久化仓储
+    /// </summary>
+    public static IServiceCollection AddChatRepositories(this IServiceCollection services)
+    {
+        services.AddScoped<IWhatsAppWebhookInboxRepository, WhatsAppWebhookInboxRepository>();
         return services;
     }
 
