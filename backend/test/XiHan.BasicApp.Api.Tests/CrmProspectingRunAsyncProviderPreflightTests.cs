@@ -71,9 +71,11 @@ public sealed class CrmProspectingRunAsyncProviderPreflightTests
         var cancellationCatch = source.IndexOf(
             "catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)",
             StringComparison.Ordinal);
-        var genericCatch = source.IndexOf(
-            "catch (Exception ex)", cancellationCatch,
-            StringComparison.Ordinal);
+        var genericCatch = cancellationCatch < 0
+            ? -1
+            : source.IndexOf(
+                "catch (Exception ex)", cancellationCatch,
+                StringComparison.Ordinal);
         var fencedFailure = source.IndexOf(
             "FailFencedWithDatabaseClockAsync", genericCatch,
             StringComparison.Ordinal);
