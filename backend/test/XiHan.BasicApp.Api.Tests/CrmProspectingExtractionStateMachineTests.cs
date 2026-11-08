@@ -110,6 +110,37 @@ public sealed class CrmProspectingExtractionStateMachineTests
         Assert.True(heartbeatStart > renewBeforeWork);
     }
 
+
+    [Fact]
+    public void CancelledParentRun_ShouldStopRemoteExtractionWork()
+    {
+        var root = FindRepositoryRoot();
+        var path = Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingExtractionHostedService.cs");
+        var source = File.ReadAllText(path);
+
+        var parentCancellation = source.IndexOf(
+            "run.Status is CrmProspectingRunStatus.CancelRequested or CrmProspectingRunStatus.Cancelled",
+            StringComparison.Ordinal);
+        var ambiguousSubmitGuard = source.IndexOf(
+            "status == CrmProspectingExtractionStatus.Submitting",
+            parentCancellation,
+            StringComparison.Ordinal);
+        var providerCancellation = source.IndexOf(
+            "provider.CancelExtractionAsync",
+            parentCancellation,
+            StringComparison.Ordinal);
+        var requestReconstruction = source.IndexOf(
+            "CrmProspectingProviderRequestFactory.Create",
+            parentCancellation,
+            StringComparison.Ordinal);
+
+        Assert.True(parentCancellation >= 0);
+        Assert.True(ambiguousSubmitGuard > parentCancellation);
+        Assert.True(providerCancellation > ambiguousSubmitGuard);
+        Assert.True(requestReconstruction > providerCancellation);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
