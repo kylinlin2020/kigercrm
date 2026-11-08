@@ -76,9 +76,11 @@ public sealed class CrmProspectingRunAsyncProviderPreflightTests
             : source.IndexOf(
                 "catch (Exception ex)", cancellationCatch,
                 StringComparison.Ordinal);
-        var fencedFailure = source.IndexOf(
-            "FailFencedWithDatabaseClockAsync", genericCatch,
-            StringComparison.Ordinal);
+        var fencedFailure = genericCatch < 0
+            ? -1
+            : source.IndexOf(
+                "FailFencedWithDatabaseClockAsync", genericCatch,
+                StringComparison.Ordinal);
 
         Assert.True(cancellationCatch >= 0);
         Assert.True(genericCatch > cancellationCatch);
