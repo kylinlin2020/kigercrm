@@ -73,6 +73,43 @@ public sealed class WhatsAppWebhookInboxRepository(ISqlSugarClientResolver clien
             new SugarParameter("@batchSize", batchSize));
     }
 
+    public async Task<bool> TryRenewLeaseAsync(
+        long inboxId,
+        Guid leaseToken,
+        long fencingVersion,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateLease(inboxId, leaseToken, fencingVersion);
+        if (leaseDuration <= TimeSpan.Zero || leaseDuration > TimeSpan.FromMinutes(15))
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration));
+        cancellationToken.ThrowIfCancellationRequested();
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for WhatsApp inbox lease renewal.");
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("WhatsApp inbox lease renewal requires PostgreSQL.");
+
+        const string sql = """
+            UPDATE sys_whatsapp_webhook_inbox
+            SET lease_expires_at = clock_timestamp() + (@leaseDurationMilliseconds * INTERVAL '1 millisecond')
+            WHERE tenant_id = @tenantId AND basic_id = @inboxId
+              AND status IN (@pendingStatus, @retryableStatus)
+              AND lease_token = @leaseToken
+              AND fencing_version = @fencingVersion
+              AND lease_expires_at > clock_timestamp();
+            """;
+        var affected = await client.Ado.ExecuteCommandAsync(sql,
+            new SugarParameter("@leaseDurationMilliseconds", checked((long)Math.Ceiling(leaseDuration.TotalMilliseconds))),
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@inboxId", inboxId),
+            new SugarParameter("@pendingStatus", WhatsAppWebhookInboxStatus.Pending),
+            new SugarParameter("@retryableStatus", WhatsAppWebhookInboxStatus.Retryable),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+        return affected == 1;
+    }
+
     public async Task<bool> TryMarkProcessedAsync(
         long inboxId,
         Guid leaseToken,
