@@ -158,3 +158,10 @@ Meta status receipts identify the recipient of the outbound message, not an inbo
 ### 2026-11-08 participant identity constraint hardening
 
 The participant CHECK now rejects empty or whitespace-only sender/recipient values, not merely SQL NULL. This makes the database invariant match the parser's required non-empty identity contract and prevents malformed rows from entering the durable inbox.
+
+
+### 2026-11-08 legacy idempotency compatibility review
+
+A migration compatibility gap was identified between the existing inbox rows and the new event-key algorithm. Migration `5.9.40` backfills existing inbound rows with the legacy MD5 identity `md5(tenant_id || ':' || WABA || ':' || provider_message_id)`, while new inbound event keys use a length-prefixed SHA-256 tuple that also includes `phone_number_id`. Those values intentionally differ, so a future writer that checks only the new SHA-256 key could reinsert a pre-migration message when Meta retries it.
+
+The event-key factory now exposes `LegacyInboundMessageKey(tenantId, WabaId, ProviderMessageId)` to reproduce the exact migration backfill identity, with a regression test for the byte-level MD5 format. **Implementation gate for the future Inbox writer:** for inbound messages, resolve the tenant/WABA binding, check both the legacy key and the new SHA-256 key within the same tenant/WABA scope, and only then insert; status receipts use the new event-level SHA-256 key. Do not treat this helper alone as a complete deduplication implementation. PostgreSQL concurrency tests must cover a pre-migration row replay racing with another delivery.
