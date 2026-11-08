@@ -36,6 +36,22 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
     }
 
     [Fact]
+    public void LegacyInboundKey_ShouldPreserveStoredIdentityWhitespaceLikeMigrationSql()
+    {
+        var storedWaba = " waba-1 ";
+        var storedMessageId = " wamid-1 ";
+        var expected = Convert.ToHexString(
+            System.Security.Cryptography.MD5.HashData(
+                System.Text.Encoding.UTF8.GetBytes($"7:{storedWaba}:{storedMessageId}")))
+            .ToLowerInvariant();
+
+        Assert.Equal(
+            expected,
+            WhatsAppMetaWebhookEventKeyFactory.LegacyInboundMessageKey(
+                7, storedWaba, storedMessageId));
+    }
+
+    [Fact]
     public void MessageAndStatusEventsForSameWamid_ShouldHaveDifferentKeys()
     {
         var message = new WhatsAppMetaInboundMessage(
