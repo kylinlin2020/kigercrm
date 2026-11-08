@@ -69,3 +69,14 @@ Before implementing the consumer, add an explicit parent lifecycle rather than o
 Required repository/API additions include a fenced `TryWaitForExtractions` transition, a continuation claim/renew/finalize path, and a tenant-scoped query for parents whose complete child set is terminal. Do not implement these as unfenced status assignments.
 
 **Gate:** keep async providers disabled until the new parent state is included in schema/enum serialization, API status handling, queue recovery, cancellation, migration scripts, and PostgreSQL integration tests. This decision record is a design clarification; it does not claim these code changes are implemented.
+### 2026-11-08 persisted Run status compatibility note
+
+Source inspection confirms `SysCrmProspectingRun.Status` is persisted as an integer enum, and the repository lease claim currently admits only `Queued` or expired `Running` rows. Adding `WaitingForExtractions` does not require widening the database column, but it is not a one-line enum-only change:
+
+- Reserve a new stable numeric enum value without renumbering existing values.
+- Ensure API DTOs, frontend status labels/filters, reporting, and serialization treat it as non-terminal and non-claimable.
+- Keep `TryClaimLeaseAsync` restricted to `Queued` and expired `Running`; a waiting parent must never be reclaimed by the synchronous worker.
+- Add a fenced transition that writes the complete child execution set and parent waiting state in the same transaction. A status-only transition is forbidden because it can strand the Run without durable children.
+- Add a separate parent continuation claim/lease and recovery query before any waiting state can be emitted in production.
+
+No enum or repository change is made in this checkpoint because the transactionally complete parent/child coordinator is not yet present. This avoids introducing a state that can strand live Runs.
