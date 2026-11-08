@@ -80,3 +80,16 @@ Source inspection confirms `SysCrmProspectingRun.Status` is persisted as an inte
 - Add a separate parent continuation claim/lease and recovery query before any waiting state can be emitted in production.
 
 No enum or repository change is made in this checkpoint because the transactionally complete parent/child coordinator is not yet present. This avoids introducing a state that can strand live Runs.
+
+### 2026-11-08 async preflight failure semantics
+
+Source review confirms that the async-provider preflight exception currently reaches the Run worker's generic exception handler, which persists the parent Run as `Failed` under the active fencing lease. This is fail-closed (no provider is invoked and no in-memory result is discarded), but it is not a resumable async workflow and must not be presented as one.
+
+Implementation requirement for the next A-line slice:
+
+- Replace the generic preflight exception only after the parent/child transaction and durable continuation path exist.
+- The transition into `WaitingForExtractions` must be a dedicated fenced repository operation, not a catch-filter that merely suppresses `Failed`.
+- If child-intent creation or the parent waiting transition fails, preserve the current fenced failure behavior; never leave a parent Run `Running` without a valid worker lease or waiting without its complete child set.
+- Add tests proving async-only and mixed plans create no synchronous provider ledger/network activity before the atomic wait transition, and that rollback leaves no orphan child intents.
+
+No production behavior is changed in this decision record. Async providers remain unavailable to the Run worker.
