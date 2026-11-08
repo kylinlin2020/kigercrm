@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace XiHan.BasicApp.Api.Tests;
 
 public sealed class WhatsAppWebhookInboxLeaseMigrationTests
@@ -7,7 +5,6 @@ public sealed class WhatsAppWebhookInboxLeaseMigrationTests
     [Fact]
     public void LeaseMigration_ShouldAddFencingColumnsAndDueWorkIndex()
     {
-        var assembly = typeof(WhatsAppWebhookInboxLeaseMigrationTests).Assembly;
         var root = FindRepositoryRoot();
         var path = Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost",
             "UpdateScripts", "5.9.42", "5.9.42.sql");
