@@ -127,3 +127,12 @@ A single Meta webhook envelope may contain multiple messages and/or status recei
 6. Add tests for a multi-message envelope, message plus status for the same `wamid`, repeated identical status, later status transition, two concurrent deliveries, and partial transaction failure rollback.
 
 This is a design gate, not an implementation claim. The current inbox entity's unique index on `(TenantId, WABA, ProviderMessageId)` must be revised before it can safely store both messages and status receipts.
+### 2026-11-08 schema implementation checkpoint
+
+The inbox schema prerequisite is now implemented in source:
+
+- `SysWhatsAppWebhookInbox` has `EventKey` (up to 64 hex characters) and `EventType`; the unique index is `(TenantId, WhatsAppBusinessAccountId, EventKey)`. `ProviderMessageId` remains a non-unique correlation field.
+- Incremental migration `5.9.40` adds the columns, backfills pre-existing rows as `InboundMessage`, makes the columns non-null, and replaces the prior message-only unique index.
+- Entity and migration contract tests were updated to assert the new model and migration shape.
+
+**Not implemented:** canonical event-key generation, WABA/phone tenant binding, Inbox repository, atomic multi-event insert, duplicate-conflict reconciliation, Inbox consumer, Chat projection, or status receipt processing. The SHA-256 canonicalization rules above remain the application contract. Webhook POST must continue returning 503 until these runtime paths and PostgreSQL integration tests are complete.
