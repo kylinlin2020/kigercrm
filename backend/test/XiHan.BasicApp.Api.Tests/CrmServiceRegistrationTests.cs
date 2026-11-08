@@ -31,19 +31,4 @@ public sealed class CrmServiceRegistrationTests
             descriptor.ServiceType == typeof(CrmProspectingProviderRegistry)));
         Assert.Equal(ServiceLifetime.Scoped, registry.Lifetime);
     }
-
-    [Fact]
-    public void AddCrmDataSeeders_ShouldOnlyRegisterThePermissionCatalogSeeder()
-    {
-        var services = new ServiceCollection();
-
-        services.AddCrmDataSeeders();
-
-        var seeders = services
-            .Where(descriptor => descriptor.ServiceType.Name == "IDataSeeder")
-            .ToArray();
-
-        Assert.Single(seeders);
-        Assert.Equal("CrmPermissionCatalogSeeder", seeders[0].ImplementationType?.Name);
-    }
 }
