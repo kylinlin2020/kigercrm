@@ -80,13 +80,27 @@ public sealed class CrmProspectingExtractionHostedService
         if (job is null || job.LeaseToken is not Guid leaseToken || leaseToken == Guid.Empty || job.FencingVersion <= 0)
             return;
 
+        using var workCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var heartbeatStop = new CancellationTokenSource();
+        var heartbeat = MaintainLeaseAsync(
+            message.TenantId, job.BasicId, leaseToken, job.FencingVersion,
+            workCancellation, heartbeatStop.Token);
+
         try
         {
-            await ProcessClaimedJobAsync(services, jobs, job, leaseToken, cancellationToken);
+            await ProcessClaimedJobAsync(services, jobs, job, leaseToken, workCancellation.Token);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (OperationCanceledException) when (workCancellation.IsCancellationRequested)
+        {
+            // The heartbeat cancels work when the exact lease can no longer be renewed.
+            // Do not attempt any compensating writes with a stale fencing generation.
+            Logger.LogWarning(
+                "Asynchronous extraction job {JobId} stopped because its lease is no longer renewable",
+                job.BasicId);
         }
         catch (Exception exception)
         {
@@ -96,6 +110,64 @@ public sealed class CrmProspectingExtractionHostedService
             Logger.LogWarning(exception,
                 "Asynchronous extraction job {JobId} failed during {Status}; it will be recovered after its lease expires",
                 job.BasicId, job.Status);
+        }
+        finally
+        {
+            heartbeatStop.Cancel();
+            try
+            {
+                await heartbeat;
+            }
+            catch (OperationCanceledException) when (heartbeatStop.IsCancellationRequested)
+            {
+                // Expected shutdown of the renewal loop after the work item finishes.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Renews a claimed job from an isolated tenant scope so heartbeat I/O never races
+    /// the provider/page transaction using the work item's scoped repository.
+    /// Losing or being unable to verify the lease cancels all in-flight provider work.
+    /// </summary>
+    private async Task MaintainLeaseAsync(
+        long tenantId,
+        long jobId,
+        Guid leaseToken,
+        long fencingVersion,
+        CancellationTokenSource workCancellation,
+        CancellationToken stopToken)
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1), stopToken);
+                using var scope = _scopeFactory.CreateScope();
+                using var tenantScope = scope.ServiceProvider
+                    .GetRequiredService<ICurrentTenant>().Change(tenantId);
+                var jobs = scope.ServiceProvider.GetRequiredService<ICrmProspectingExtractionJobRepository>();
+                var renewed = await jobs.TryRenewLeaseAsync(
+                    jobId, leaseToken, fencingVersion, LeaseDuration, stopToken);
+                if (renewed) continue;
+
+                Logger.LogWarning(
+                    "Lease renewal rejected for asynchronous extraction job {JobId}; cancelling in-flight work",
+                    jobId);
+                workCancellation.Cancel();
+                return;
+            }
+        }
+        catch (OperationCanceledException) when (stopToken.IsCancellationRequested)
+        {
+            // Normal item completion or host shutdown.
+        }
+        catch (Exception exception)
+        {
+            Logger.LogWarning(exception,
+                "Lease renewal failed for asynchronous extraction job {JobId}; cancelling in-flight work",
+                jobId);
+            workCancellation.Cancel();
         }
     }
 
