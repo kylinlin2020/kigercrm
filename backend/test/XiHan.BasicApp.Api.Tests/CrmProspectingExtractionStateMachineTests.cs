@@ -95,6 +95,7 @@ public sealed class CrmProspectingExtractionStateMachineTests
 
         Assert.Contains("public Guid LeaseToken { get; init; }", source, StringComparison.Ordinal);
         Assert.Contains("public long FencingVersion { get; init; }", source, StringComparison.Ordinal);
+        Assert.Contains("FencingVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)", source, StringComparison.Ordinal);
         Assert.Contains("LeaseToken = job.LeaseToken", source, StringComparison.Ordinal);
         Assert.Contains("FencingVersion = job.FencingVersion", source, StringComparison.Ordinal);
 
