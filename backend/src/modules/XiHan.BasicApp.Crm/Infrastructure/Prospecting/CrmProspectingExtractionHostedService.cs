@@ -305,16 +305,22 @@ public sealed class CrmProspectingExtractionHostedService
         return values;
     }
 
-    private static Task MoveToNeedsReviewAsync(
+    private static Task<bool> MoveToNeedsReviewAsync(
         ICrmProspectingExtractionJobRepository jobs,
         SysCrmProspectingExtractionJob job,
         Guid leaseToken,
         string failureCode,
         string summary,
         CancellationToken cancellationToken)
-        => jobs.TryTransitionAsync(job.BasicId, Enum.Parse<CrmProspectingExtractionStatus>(job.Status),
-            CrmProspectingExtractionStatus.NeedsReview, leaseToken, job.FencingVersion,
+    {
+        if (!Enum.TryParse<CrmProspectingExtractionStatus>(job.Status, out var current) || !Enum.IsDefined(current))
+            return Task.FromResult(false);
+        var next = CrmProspectingExtractionStateMachine.CanTransition(current, CrmProspectingExtractionStatus.NeedsReview)
+            ? CrmProspectingExtractionStatus.NeedsReview
+            : CrmProspectingExtractionStatus.Failed;
+        return jobs.TryTransitionAsync(job.BasicId, current, next, leaseToken, job.FencingVersion,
             failureCode: failureCode, safeFailureSummary: summary, cancellationToken: cancellationToken);
+    }
 
     private static Task MoveToFailedAsync(
         ICrmProspectingExtractionJobRepository jobs,
