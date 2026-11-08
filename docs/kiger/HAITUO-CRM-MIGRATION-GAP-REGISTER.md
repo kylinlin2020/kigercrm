@@ -80,3 +80,10 @@ This checkpoint reconciles the gap register against the current four work branch
 ### Validation status
 
 All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL execution is claimed here. Windows-native restore/build/test remains the final acceptance gate.
+
+### 2026-11-08 WhatsApp inbox schema correction
+
+- Added `EventKey` and `EventType` to the Chat inbox entity. The unique boundary is now tenant + WABA + event key; `ProviderMessageId` is retained for correlation rather than being treated as the sole event identity.
+- Added incremental database script `5.9.40`: existing inbox rows are backfilled as `InboundMessage`, then the old message-only unique index is replaced by the event-key index.
+- Added entity/migration source contract tests. These are source changes only; the migration has not been executed against PostgreSQL, and no Inbox repository, account binding, or consumer is implemented.
+- **Important:** the event-key schema is only a prerequisite. The application must still produce canonical deterministic keys for each message and each status transition, and atomically persist every event before the webhook may return 200. POST remains 503.
