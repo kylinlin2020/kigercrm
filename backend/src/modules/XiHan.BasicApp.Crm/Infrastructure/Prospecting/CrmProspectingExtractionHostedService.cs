@@ -24,7 +24,7 @@ public sealed class CrmProspectingExtractionMessage : IBackgroundTaskItem
     /// <summary>The fencing generation associated with LeaseToken.</summary>
     public long FencingVersion { get; init; }
 
-    public string TaskId => JobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public string TaskId => $"{JobId.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{FencingVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
     public object? Data => null;
 }
 
