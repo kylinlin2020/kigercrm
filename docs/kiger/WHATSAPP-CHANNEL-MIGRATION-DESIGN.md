@@ -142,3 +142,10 @@ The inbox schema prerequisite is now implemented in source:
 - Object properties in error JSON are sorted before hashing; arrays preserve order. Raw `StatusJson` formatting is not part of the key, so whitespace/property-order differences do not create duplicate status events.
 - Added source tests for deterministic SHA-256 output, message-vs-status separation for the same wamid, duplicate status delivery, later status transitions, canonical error JSON, and missing identity rejection.
 - This factory is not yet called by an Inbox writer because tenant account binding and atomic persistence are still absent. Do not acknowledge webhook POSTs yet.
+
+### 2026-11-08 status error payload validation
+
+- Status receipt parsing previously treated a present non-array `errors` property as if the property were absent. This could collapse malformed failure receipts into a different event identity and allow invalid provider payloads to move farther into processing.
+- The parser now rejects non-array `errors`, non-object array entries, and error JSON deeper than the event-key canonicalizer's supported depth. This prevents a signed but malformed status event from throwing later while constructing its idempotency key.
+- Added parser regression cases for object, null, and primitive-array error shapes. The webhook still returns 503 until tenant binding and durable inbox persistence are implemented.
+- Source and tests committed; execution remains pending Windows-native build/test validation.
