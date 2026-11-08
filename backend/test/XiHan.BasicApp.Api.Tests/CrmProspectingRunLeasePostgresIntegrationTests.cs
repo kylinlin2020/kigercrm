@@ -66,6 +66,71 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
     }
 
     [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task TryClaimLease_FromAnotherTenant_CannotClaimRun()
+    {
+        var runId = await InsertRunAsync(TenantId, "tenant-isolation");
+        try
+        {
+            var foreignClaim = await WithTenant(_tenant2, OtherTenantId, () =>
+                _repository2.TryClaimLeaseAsync(runId, "foreign-worker", TimeSpan.FromMinutes(2)));
+            Assert.Null(foreignClaim);
+
+            var ownerClaim = await WithTenant(_tenant1, TenantId, () =>
+                _repository1.TryClaimLeaseAsync(runId, "owner-worker", TimeSpan.FromMinutes(2)));
+            Assert.NotNull(ownerClaim);
+            Assert.Equal(TenantId, ownerClaim.TenantId);
+        }
+        finally
+        {
+            await DeleteRunAsync(runId);
+        }
+    }
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task RecoverExpiredLeases_ExpiredRunningRun_RequeuesForNewClaim()
+    {
+        var runId = await InsertRunAsync(TenantId, "expired-running-recovery");
+        var token = Guid.NewGuid();
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingRun>()
+                    .SetColumns(run => new SysCrmProspectingRun
+                    {
+                        Status = CrmProspectingRunStatus.Running,
+                        LeaseOwner = "dead-worker",
+                        LeaseToken = token,
+                        LeaseExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+                        LeaseHeartbeatAt = DateTimeOffset.UtcNow.AddMinutes(-2),
+                        FencingVersion = 3
+                    })
+                    .Where(run => run.BasicId == runId)
+                    .ExecuteCommandAsync();
+
+                var recovered = await _repository1.RecoverExpiredLeasesAsync();
+                Assert.True(recovered >= 1);
+
+                var persisted = await _db1.Queryable<SysCrmProspectingRun>()
+                    .Where(run => run.BasicId == runId)
+                    .SingleAsync();
+                Assert.Equal(CrmProspectingRunStatus.Queued, persisted.Status);
+                Assert.Null(persisted.LeaseToken);
+                Assert.Null(persisted.LeaseOwner);
+
+                var reclaimed = await _repository1.TryClaimLeaseAsync(
+                    runId, "replacement-worker", TimeSpan.FromMinutes(2));
+                Assert.NotNull(reclaimed);
+                Assert.Equal(4, reclaimed.FencingVersion);
+            }
+        }
+        finally
+        {
+            await DeleteRunAsync(runId);
+        }
+    }
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
     public async Task TryClaimLease_ExpiredRun_TakesOverWithNewTokenAndHigherFence()
     {
         var runId = await InsertRunAsync(TenantId, "lease-takeover");
