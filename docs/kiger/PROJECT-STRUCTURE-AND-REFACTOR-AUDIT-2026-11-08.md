@@ -308,3 +308,8 @@ The source-level state transitions are coherent, but no .NET tests or PostgreSQL
 - **D / Contact CustomerId lookup:** added PostgreSQL-gated repository tests proving tenant isolation, deduplication, and retrieval across the 500-ID batch boundary with 501 IDs.
 - Both test groups require KIGER_TEST_POSTGRES_CONNECTION_STRING. They have not been executed; no compile or runtime pass is claimed.
 - Parent/child extraction continuation, WhatsApp WABA/phone tenant routing and durable Inbox persistence, and confirmed transactional CSV import remain incomplete.
+
+
+### B / PostgreSQL observer query hardening
+
+The cursor-CAS race test now binds the competing PostgreSQL backend PID as a query parameter when polling pg_stat_activity, rather than interpolating it into SQL. The test comment records the observer-role visibility requirement: same-role session visibility is expected; deployments using a different observer role need pg_read_all_stats. This is test synchronization hardening only. PostgreSQL execution remains pending.
