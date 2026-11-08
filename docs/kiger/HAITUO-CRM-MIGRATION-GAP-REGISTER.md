@@ -91,3 +91,8 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 
 - **B PostgreSQL test source:** added `Transition_ExpiredLease_CannotChangeExtractionLifecycle` to prove a worker with an expired lease cannot move an extraction from `Running` to `NeedsReview`. This joins the existing stale-lease tests for acknowledgement, renewal, result completion, incomplete-page commit, and cursor advancement. The test has not been executed against PostgreSQL.
 - **C Inbox schema:** the Chat branch now carries event-level `EventKey`/`EventType` and migration `5.9.40`; the old `ProviderMessageId`-only unique index is replaced. Runtime migration and inbox processing remain unverified/unimplemented.
+### 2026-11-08 WhatsApp event-key factory increment
+
+- Added a deterministic SHA-256 event-key factory for inbound messages and status receipts. Status keys include the provider message ID, recipient, normalized status, timestamp, and canonicalized error JSON; repeated identical status events deduplicate while later transitions remain distinct.
+- Added source tests for deterministic output, same-wamid message/status separation, duplicate receipt handling, later transitions, canonical JSON, and invalid identity rejection.
+- The factory is not wired to a durable Inbox writer yet. Account routing, atomic persistence, and provider acknowledgement remain blocked.
