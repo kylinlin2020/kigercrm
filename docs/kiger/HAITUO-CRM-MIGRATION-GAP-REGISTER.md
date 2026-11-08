@@ -140,3 +140,7 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 - Added a regression case for legacy CSV files that use bare carriage return (`CR`) record separators rather than LF or CRLF.
 - The preview parser's physical source-line tracking is expected to report data records on lines 2 and 3 for this fixture. This complements the existing blank-line and quoted-multiline CRLF coverage.
 - This is source-level regression coverage only; compilation and execution remain pending the Windows-native acceptance run.
+
+### CSV physical-line regression follow-up — 2026-11-08
+
+Added a focused regression case for a quoted field containing bare-CR (`\r`) line breaks. The fixture verifies that the embedded carriage return remains part of the field value and that the following record is reported at physical source line 4. This complements the existing CR-only record-separator test; source changes are committed, but compilation and test execution remain pending.
