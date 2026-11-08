@@ -313,3 +313,8 @@ The source-level state transitions are coherent, but no .NET tests or PostgreSQL
 ### B / PostgreSQL observer query hardening
 
 The cursor-CAS race test now binds the competing PostgreSQL backend PID as a query parameter when polling pg_stat_activity, rather than interpolating it into SQL. The test comment records the observer-role visibility requirement: same-role session visibility is expected; deployments using a different observer role need pg_read_all_stats. This is test synchronization hardening only. PostgreSQL execution remains pending.
+
+
+### D / PostgreSQL fixture cleanup hardening
+
+Customer lookup integration fixtures now register generated IDs before executing batch inserts and clean up partially created rows in finally blocks, including the case where the second tenant's fixture insertion fails. This improves failure isolation and avoids contaminating subsequent PostgreSQL integration runs. Execution remains pending.
