@@ -248,4 +248,17 @@ public sealed class CrmCsvImportPreviewServiceTests
         Assert.Equal(new[] { 2, 3 }, result.PreviewRows.Select(row => row.SourceRowNumber));
     }
 
+
+    [Fact]
+    public void Preview_ShouldPreserveCarriageReturnOnlyQuotedMultilineCellsAndPhysicalLineNumbers()
+    {
+        const string csv = "CompanyName,Email\\r\\\"Acme\\rGlobal\\",acme@acme.test\\rBeta,beta@acme.test";
+        var result = CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv), Allowed, Required);
+
+        Assert.Equal(2, result.TotalRows);
+        Assert.Equal("Acme\\rGlobal", result.PreviewRows[0].Values["CompanyName"]);
+        Assert.Equal(new[] { 2, 4 }, result.PreviewRows.Select(row => row.SourceRowNumber));
+    }
+
 }
