@@ -345,3 +345,8 @@ The earlier attempt to register `SysWhatsAppWebhookInbox` through `AddFieldSecur
 ### A / Run lease write-fencing takeover regression
 
 Added a PostgreSQL-gated integration test that claims a Run lease, expires and takes it over through a second independent client, then exercises `TryLockLeaseForWriteAsync` inside a transaction. The superseded token/fencing version must be rejected while the replacement live lease must be accepted. This closes a gap between renewal/claim coverage and the transactional write-lock gate. The test requires `KIGER_TEST_POSTGRES_CONNECTION_STRING` and has not been executed; no build or PostgreSQL pass is claimed.
+
+
+### A / Run lease write-lock expiry boundary
+
+Added a separate PostgreSQL-gated regression proving that even the matching token and fencing version cannot acquire the Run write lock after its lease expiry. This complements the takeover test (stale owner rejected, replacement owner accepted) by covering the no-takeover expiry window. Requires `KIGER_TEST_POSTGRES_CONNECTION_STRING`; not executed in this environment.
