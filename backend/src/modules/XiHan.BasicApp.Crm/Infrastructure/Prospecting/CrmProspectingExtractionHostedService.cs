@@ -262,11 +262,19 @@ public sealed class CrmProspectingExtractionHostedService
             emails, websites, cancellationToken);
 
         var items = new List<CrmProspectingCandidatePageItem>(page.Records.Count);
+        var seenExternalIds = new HashSet<string>(StringComparer.Ordinal);
         var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenWebsites = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var record in page.Records)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var identity = CrmProspectingRecordIdentity.NormalizeExternalId(record);
+            // The page persistence boundary requires one candidate per external identity.
+            // Treat repeated provider identities as a bounded mapping failure rather than
+            // allowing the whole page transaction to fail on a duplicate item.
+            if (!seenExternalIds.Add(identity))
+                continue;
+
             var companyName = string.IsNullOrWhiteSpace(record.CompanyName) ? record.Title : record.CompanyName;
             if (string.IsNullOrWhiteSpace(companyName))
                 continue;
@@ -276,7 +284,6 @@ public sealed class CrmProspectingExtractionHostedService
             var lead = leadMatches.FirstOrDefault(match =>
                 (normalizedEmail is not null && string.Equals(match.DuplicateEmailNormalized, normalizedEmail, StringComparison.OrdinalIgnoreCase)) ||
                 (websiteHost is not null && string.Equals(match.WebsiteHost, websiteHost, StringComparison.OrdinalIgnoreCase)));
-            var identity = CrmProspectingRecordIdentity.NormalizeExternalId(record);
             var priorCandidate = crossRun.FirstOrDefault(match =>
                 (string.Equals(match.ProviderCode, job.ProviderCode, StringComparison.OrdinalIgnoreCase) &&
                  string.Equals(match.ExternalId, identity, StringComparison.Ordinal)) ||
