@@ -153,3 +153,8 @@ Added a focused regression case for a quoted field containing bare-CR (`\r`) lin
 - **C**: PR #4 now contains Meta challenge verification, HMAC signature verification, strict inbound/status parsing, event-level SHA-256 identity, Inbox entity and migrations `5.9.39`–`5.9.41`. The endpoint intentionally returns 503 until tenant binding and atomic Inbox persistence exist. The `5.9.41` participant constraint and its migration test were repaired in commit `964dd61`; PostgreSQL execution is still required.
 - **D**: CRM Export providers and read-only CSV Preview endpoints exist in this branch. Preview is not an import. Contact CustomerId validation does not yet establish tenant-owned customer existence; implement a bounded batch lookup before any confirmed import.
 - **No duplicate CRM**: use the target's existing CRM customer/contact/lead/opportunity/order/shipment records; do not introduce a second CRM integration/data model.
+
+
+### 2026-11-08 contact CustomerId format boundary checkpoint
+
+Added CSV preview regression coverage for CustomerId numeric boundaries: positive Int64 values are accepted, while zero, negative values, explicit plus signs, decimal notation, and Int64 overflow are rejected using invariant-culture NumberStyles.None parsing. This remains format validation only. It does not prove that the referenced customer exists in the current tenant; a bounded tenant-scoped batch lookup is still required before confirmed import. The tests have not been executed in this environment.
