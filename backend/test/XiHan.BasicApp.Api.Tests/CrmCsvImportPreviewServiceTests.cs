@@ -176,4 +176,37 @@ public sealed class CrmCsvImportPreviewServiceTests
             new[] { "CompanyName" },
             new[] { "CompanyName" }));
     }
+
+    [Fact]
+    public void Preview_ShouldPreserveQuotedMultilineCellContent()
+    {
+        const string csv = "CompanyName,Email,Country\r\n\"Acme\r\nGlobal\",sales@acme.test,US\r\n";
+        var result = CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv), Allowed, Required);
+
+        Assert.Equal(1, result.TotalRows);
+        Assert.Equal(1, result.ValidRows);
+        Assert.Equal("Acme\r\nGlobal", result.PreviewRows[0].Values["CompanyName"]);
+    }
+
+    [Fact]
+    public void Preview_ShouldRejectQuotedFieldWithTrailingNonWhitespaceAfterClosingQuote()
+    {
+        const string csv = "CompanyName,Email\n\"Acme\"suffix,sales@acme.test\n";
+        Assert.Throws<ArgumentException>(() => CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv), Allowed, Required));
+    }
+
+    [Fact]
+    public void Preview_ShouldNotTreatBlankPhysicalLinesAsDataRows()
+    {
+        const string csv = "CompanyName,Email\r\nAcme,sales@acme.test\r\n\r\n";
+        var result = CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv), Allowed, Required);
+
+        Assert.Equal(1, result.TotalRows);
+        Assert.Equal(1, result.ValidRows);
+        Assert.Single(result.PreviewRows);
+    }
+
 }
