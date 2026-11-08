@@ -211,6 +211,6 @@ Source Inventory、Target Reuse、Second Pass 的独有事实应并入上述三�
 - 26 个 `XiHan:CRM:Prospecting:Enable*` 配置键全部保留，无缺失、无新增。
 - 26 个 Provider/identity-resolver 条件注册代码块逐块比较后内容一致，Provider endpoint、认证读取方式、timeout、服务生命周期和接口映射未发现变化。
 - 7 个 CRM `IExportProvider` 注册仍全部为 Scoped。
-- 新增 `CrmServiceRegistrationTests`，保护 7 个导出 Provider、默认关闭 prospecting provider 和 Scoped Provider Registry 的注册边界。
+- 新增 `CrmServiceRegistrationTests`，保护 7 个导出 Provider、默认关闭 prospecting provider、全部 25 个 prospecting provider 注册、GLEIF identity resolver 和 Scoped Provider Registry 的注册边界。
 
 验证边界：这是源码逐块比对和新增测试代码；当前没有对应 GitHub Actions workflow run，也没有 .NET SDK 执行测试。因此不能把该测试标记为已运行或通过。后续 Windows/.NET 环境应先运行该测试，再运行 CRM/API 测试项目。
