@@ -127,3 +127,10 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 - EOF finalization now treats `afterQuote` as record content, preserving the explicitly quoted empty row so required-field validation can reject it accurately rather than silently omitting it.
 - Added a regression test asserting the final row is counted, retained in preview, and marked invalid when the required CompanyName is empty.
 - Source changes are committed; compilation and test execution remain pending on the Windows-native acceptance machine.
+
+### 2026-11-08 CSV physical source row numbering
+
+- Follow-up review found preview diagnostics used logical data-row index (index + 2) as the source row number. This becomes misleading when blank physical lines are ignored or quoted fields span multiple physical lines.
+- CSV parsing now retains each logical record's starting physical line number. Preview rows report that source line, while total/valid/invalid counts remain based on logical CSV records.
+- Added regression coverage for a blank physical line and a quoted multiline field; expected source line numbers are 3, 4, and 6.
+- Changes are committed but remain uncompiled and unexecuted pending Windows-native validation.
