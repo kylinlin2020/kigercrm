@@ -733,7 +733,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
             }
 
             Task<bool>? secondAttempt = null;
-            var secondAttemptStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondAttemptStarted = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (_tenant1.Change(TenantId))
             {
                 _db1.Ado.BeginTran();
@@ -751,7 +751,10 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                             _db2.Ado.BeginTran();
                             try
                             {
-                                secondAttemptStarted.TrySetResult();
+                                var backendPids = await _db2.Ado.SqlQueryAsync<int>("SELECT pg_backend_pid()");
+                                if (backendPids.Count == 0)
+                                    throw new InvalidOperationException("PostgreSQL did not return the competing transaction backend PID.");
+                                secondAttemptStarted.TrySetResult(backendPids[0]);
                                 var advanced = await _repository2.TryAdvanceCursorAsync(
                                     jobId, leaseToken, 23, expectedCursor: null, nextCursor: "other-page-2",
                                     persistedRecordCount: 9);
@@ -769,8 +772,8 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
 
                     // Do not guess with a fixed delay: observe PostgreSQL itself reporting that
                     // the competing UPDATE is blocked on a lock before releasing the first writer.
-                    await secondAttemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-                    await WaitForCursorUpdateLockWaitAsync(TimeSpan.FromSeconds(5));
+                    var competingBackendPid = await secondAttemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                    await WaitForCursorUpdateLockWaitAsync(competingBackendPid, TimeSpan.FromSeconds(5));
                     _db1.Ado.CommitTran();
                 }
                 catch
@@ -804,14 +807,18 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     }
 
 
-    private async Task WaitForCursorUpdateLockWaitAsync(TimeSpan timeout)
+    private async Task WaitForCursorUpdateLockWaitAsync(int backendPid, TimeSpan timeout)
     {
+        if (backendPid <= 0) throw new ArgumentOutOfRangeException(nameof(backendPid));
+
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
+            // Pin the observation to the exact competing connection so another parallel
+            // integration test touching the same table cannot satisfy this synchronization.
             var waiting = await _dbObserver.Ado.SqlQueryAsync<long>(
                 "SELECT COUNT(*) FROM pg_stat_activity " +
-                "WHERE wait_event_type = 'Lock' AND state = 'active' " +
+                $"WHERE pid = {backendPid} AND wait_event_type = 'Lock' AND state = 'active' " +
                 "AND query ILIKE '%Crm_Prospecting_Extraction_Job%'");
             if (waiting.Count > 0 && waiting[0] > 0) return;
             await Task.Delay(20);
