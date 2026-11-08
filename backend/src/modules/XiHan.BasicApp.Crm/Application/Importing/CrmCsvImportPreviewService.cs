@@ -124,7 +124,7 @@ public static class CrmCsvImportPreviewService
         if (dataRows.Length > MaxRows)
             throw new ArgumentException($"CSV 数据行数不能超过 {MaxRows}。", nameof(fileBytes));
 
-        var rows = new List<CrmCsvImportPreviewRow>(Math.Min(dataRows.Length, Math.Clamp(previewLimit, 1, 500)));
+        var rows = new List<CrmCsvImportPreviewRow>(Math.Min(dataRows.Length, Math.Clamp(previewLimit, 1, MaxRows)));
         var errorCount = 0;
         for (var index = 0; index < dataRows.Length; index++)
         {
