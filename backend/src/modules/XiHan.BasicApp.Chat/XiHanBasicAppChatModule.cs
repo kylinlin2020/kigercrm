@@ -4,6 +4,7 @@
 using Microsoft.AspNetCore.Builder;
 using XiHan.BasicApp.Chat.Extensions;
 using XiHan.BasicApp.Chat.Hubs;
+using XiHan.BasicApp.Chat.Infrastructure.Channels;
 using XiHan.BasicApp.Saas;
 using XiHan.Framework.Core.Application;
 using XiHan.Framework.Core.Modularity;
@@ -48,6 +49,10 @@ public class XiHanBasicAppChatModule : XiHanModule
     {
         var app = context.GetApplicationBuilder();
 
-        app.UseEndpoints(endpoints => endpoints.MapXiHanHub<BasicAppChatHub>(SignalRConstants.HubPaths.Chat));
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapXiHanHub<BasicAppChatHub>(SignalRConstants.HubPaths.Chat);
+            endpoints.MapWhatsAppMetaWebhookEndpoints();
+        });
     }
 }

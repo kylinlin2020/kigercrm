@@ -75,6 +75,108 @@ WhatsApp Web / Meta Cloud API
 
 只有 Meta/Baileys 账号可创建授权断开恢复；消息/媒体/回执/联系人映射正确；Webhook 重放不重复写入；原文不被译文覆盖；SignalR 按租户/成员授权；CRM 写入走应用层；凭据和媒体安全；数据库迁移、备份恢复、Windows 运维及真实渠道端到端测试均有证据，才可标记 WhatsApp 迁移完成。源码静态断言不能替代真实 Provider 测试。
 
-## 6. 本轮结果与下一步
+## 6. 当前实现状态（2026-11-08）
 
-已静态审阅源插件架构、部署手册、API 入口、CRM 身份中间件、Provider 类型、Baileys/Meta Provider、历史导入和 AES-GCM 加密实现；已确认目标 Chat 有内部会话/消息/SignalR 基础设施。尚未新增目标 Provider 或数据库实体。本轮先冻结正确集成边界；下一步检查目标租户、文件存储、后台任务、加密配置和 Chat 授权扩展点，再实现可独立测试的 Phase A 契约。
+已在目标 Chat 模块增加 Meta Webhook 的 GET challenge 与 POST 验签边界，并增加严格 UTF-8 解码、入站消息解析、状态回执解析和对应契约测试。POST 对签名及结构均有效的事件仍返回 503：这不是遗漏的成功路径，而是有意的 fail-closed 行为，因为 WABA/phone_number_id 租户绑定和 Inbox 原子持久化尚未接通。
+
+数据库侧并非“没有 Inbox 表”：升级脚本 `5.9.39/5.9.39.sql` 已为存量库创建 `sys_whatsapp_webhook_inbox`，含 tenant/WABA/provider-message 唯一索引、状态约束及待处理索引；实体 `SysWhatsAppWebhookInbox` 声明了对应的严格租户实体与唯一索引。脚本说明新库由实体 CodeFirst 建表。该表结构具备持久 Inbox 的基础，但当前尚未发现 Inbox repository、账号绑定实体/查询契约或消费 Worker，故“表存在”不能等同于“Webhook 已可靠入箱”。
+
+Chat 模块的 `ServiceCollectionExtensions` 当前只登记 Chat domain service、seeders 和事件处理器；CRM 的 `AddCrmFieldSecurityEntities` / SaaS 的 `AddSaasFieldSecurityEntities` 是字段安全实体登记，不应被误认为数据库实体发现机制。Inbox 的存量表创建由 5.9.39 SQL 明确保证；新库 CodeFirst 的实体发现路径仍需在框架初始化链中验证，不应通过把 Inbox 粗略加入字段安全白名单来替代。
+
+### 已有 / 未有
+
+| 能力 | 当前状态 |
+|---|---|
+| Meta GET challenge、POST HMAC 验签 | 已有边界实现 |
+| 严格 UTF-8、入站消息与状态回执解析 | 已有解析器及源码测试 |
+| Inbox 实体与存量库迁移脚本 5.9.39 | 已有 |
+| WABA/phone_number_id -> tenant/account 绑定 | 未实现 |
+| Webhook 入站消息与回执的原子幂等入箱 | 未实现 |
+| Inbox lease claim、消费、重试与 NeedsReview | 未实现 |
+| 入站消息标准化并写入 Chat | 未实现 |
+| 状态回执持久化并回写外发消息 | 未实现 |
+| Meta Graph API 持久 Outbox、发送审批 | 未实现 |
+| 凭据 Vault/轮换、速率限制、真实号码 E2E | 未实现 |
+
+### 下一步实现顺序
+
+1. 明确租户级 Meta Channel Account 模型，唯一绑定 WABA ID 与 phone_number_id；路由只读服务端配置，不信任 webhook 自带 tenant 标识。
+2. 为每条 inbound message 和 status receipt 设计 Inbox 记录与唯一幂等身份；考虑同一 webhook envelope 包含多条消息/回执，避免“一个 envelope 一个 ID”的错误模型。
+3. 在一个事务中完成 account binding 验证和 Inbox 插入；重复投递在独立事务/安全冲突处理路径中识别为已接收，不能在 PostgreSQL 唯一冲突后复用已中止事务。
+4. 仅在所有事件均持久入箱或确认重复后 ACK；任何未路由/未持久事件继续返回可重试错误。
+5. 再实现租约消费、Chat 投影、状态回执、Outbox 和人工审批，最后接真实 Meta 测试号码。
+
+Meta/Baileys 的完整迁移仍未完成。源码测试与静态审计不能替代 PostgreSQL 并发测试和真实 Provider 端到端验收。
+
+### 2026-11-08 inbox idempotency decision
+
+A single Meta webhook envelope may contain multiple messages and/or status receipts. A single `ProviderMessageId` column is not a sufficient idempotency key for the envelope or for all event items:
+
+- The same envelope can contain several different `wamid` values and must be split into independently durable event rows.
+- A status receipt refers to the same `wamid` as the original inbound message; a unique key on `(TenantId, WABA, ProviderMessageId)` would incorrectly reject the receipt.
+- A message may receive multiple legitimate status transitions (for example sent, delivered, read); deduplicating only by `wamid` would lose later transitions.
+- Retrying the same webhook must not create duplicate event rows, while a later status transition must remain admissible.
+
+**Required persistence shape before changing POST from 503:**
+
+1. Parse and normalize each message and each status receipt as an independent inbox event. Preserve the verified original envelope for forensic replay, plus the individual normalized event payload.
+2. Add a server-generated deterministic `EventKey` (SHA-256 hex) and a bounded `EventType` discriminator. The unique idempotency boundary is `(TenantId, WhatsAppBusinessAccountId, EventKey)`, not `ProviderMessageId` alone.
+3. For inbound messages, derive the key from the event type and stable provider message identity (`wamid`). For status receipts, include event type, `wamid`, status value, provider timestamp, recipient identity, and normalized error identity/details when present. Canonicalize fields before hashing; do not hash arbitrary JSON property order.
+4. Keep `ProviderMessageId` as a query/correlation field, not the sole unique key. A duplicate key is an acknowledged duplicate only after the winning row is visible outside the failed PostgreSQL transaction; never query in a transaction aborted by a unique violation.
+5. Insert all event rows from one verified envelope in a single transaction. Return 200 only if every event row is committed or already exists by the deterministic key. Unknown WABA/phone binding, malformed event identity, or any failed insert remains retryable and must not be acknowledged.
+6. Add tests for a multi-message envelope, message plus status for the same `wamid`, repeated identical status, later status transition, two concurrent deliveries, and partial transaction failure rollback.
+
+This is a design gate, not an implementation claim. The current inbox entity's unique index on `(TenantId, WABA, ProviderMessageId)` must be revised before it can safely store both messages and status receipts.
+### 2026-11-08 schema implementation checkpoint
+
+The inbox schema prerequisite is now implemented in source:
+
+- `SysWhatsAppWebhookInbox` has `EventKey` (up to 64 hex characters) and `EventType`; the unique index is `(TenantId, WhatsAppBusinessAccountId, EventKey)`. `ProviderMessageId` remains a non-unique correlation field.
+- Incremental migration `5.9.40` adds the columns, backfills pre-existing rows as `InboundMessage`, makes the columns non-null, and replaces the prior message-only unique index.
+- Entity and migration contract tests were updated to assert the new model and migration shape.
+
+**Not implemented:** canonical event-key generation, WABA/phone tenant binding, Inbox repository, atomic multi-event insert, duplicate-conflict reconciliation, Inbox consumer, Chat projection, or status receipt processing. The SHA-256 canonicalization rules above remain the application contract. Webhook POST must continue returning 503 until these runtime paths and PostgreSQL integration tests are complete.
+### 2026-11-08 deterministic event-key implementation increment
+
+- Added `WhatsAppMetaWebhookEventKeyFactory`: inbound message keys use a length-prefixed SHA-256 identity tuple; status receipt keys include WABA, phone, wamid, recipient, normalized status, provider timestamp, and canonicalized error JSON.
+- Object properties in error JSON are sorted before hashing; arrays preserve order. Raw `StatusJson` formatting is not part of the key, so whitespace/property-order differences do not create duplicate status events.
+- Added source tests for deterministic SHA-256 output, message-vs-status separation for the same wamid, duplicate status delivery, later status transitions, canonical error JSON, and missing identity rejection.
+- This factory is not yet called by an Inbox writer because tenant account binding and atomic persistence are still absent. Do not acknowledge webhook POSTs yet.
+
+### 2026-11-08 status error payload validation
+
+- Status receipt parsing previously treated a present non-array `errors` property as if the property were absent. This could collapse malformed failure receipts into a different event identity and allow invalid provider payloads to move farther into processing.
+- The parser now rejects non-array `errors`, non-object array entries, and error JSON deeper than the event-key canonicalizer's supported depth. This prevents a signed but malformed status event from throwing later while constructing its idempotency key.
+- Added parser regression cases for object, null, and primitive-array error shapes. The webhook still returns 503 until tenant binding and durable inbox persistence are implemented.
+- Source and tests committed; execution remains pending Windows-native build/test validation.
+
+ 
+### 2026-11-08 status-receipt participant schema correction
+
+Meta status receipts identify the recipient of the outbound message, not an inbound sender. The inbox schema therefore cannot require `sender_wa_id` for every event. Migration `5.9.41` adds nullable `recipient_wa_id`, relaxes `sender_wa_id`, and enforces that at least one participant identity is present. Inbound events continue to populate sender; status receipts populate recipient. This is a schema correction only: the webhook writer and runtime migration still require implementation and PostgreSQL validation.
+
+### 2026-11-08 participant identity constraint hardening
+
+The participant CHECK now rejects empty or whitespace-only sender/recipient values, not merely SQL NULL. This makes the database invariant match the parser's required non-empty identity contract and prevents malformed rows from entering the durable inbox.
+
+
+### 2026-11-08 legacy idempotency compatibility review
+
+A migration compatibility gap was identified between the existing inbox rows and the new event-key algorithm. Migration `5.9.40` backfills existing inbound rows with the legacy MD5 identity `md5(tenant_id || ':' || WABA || ':' || provider_message_id)`, while new inbound event keys use a length-prefixed SHA-256 tuple that also includes `phone_number_id`. Those values intentionally differ, so a future writer that checks only the new SHA-256 key could reinsert a pre-migration message when Meta retries it.
+
+The event-key factory now exposes `LegacyInboundMessageKey(tenantId, WabaId, ProviderMessageId)` to reproduce the exact migration backfill identity, with a regression test for the byte-level MD5 format. **Implementation gate for the future Inbox writer:** for inbound messages, resolve the tenant/WABA binding, check both the legacy key and the new SHA-256 key within the same tenant/WABA scope, and only then insert; status receipts use the new event-level SHA-256 key. Do not treat this helper alone as a complete deduplication implementation. PostgreSQL concurrency tests must cover a pre-migration row replay racing with another delivery.
+
+
+### 2026-11-08 legacy-key byte-for-byte compatibility hardening
+
+A follow-up review found that the first compatibility helper trimmed WABA and provider message IDs, while migration 5.9.40 hashes the stored column values verbatim. That normalization would fail to match any historical row containing leading/trailing whitespace. The helper now rejects blank identities but preserves non-empty input bytes exactly, and a regression test covers whitespace-bearing stored values. New SHA-256 event-key normalization remains unchanged; only the legacy lookup path mirrors the SQL backfill byte-for-byte.
+
+
+### 2026-11-08 status-key fixture correction
+
+Static review found that two status-key test fixtures encoded literal backslashes before JSON quotes inside JSON arrays. Those strings were invalid JSON, so the intended error-array canonicalization and distinction assertions would throw during parsing instead of testing key behavior. Corrected the C# escaping so the fixtures are valid JSON objects/arrays. This is a test-fixture correction only; runtime parser/factory behavior is unchanged. Test execution remains pending the Windows/.NET validation checkpoint.
+
+
+### 2026-11-08 legacy identity validation test checkpoint
+
+Added source regression cases asserting that LegacyInboundMessageKey rejects whitespace-only WABA and provider message identities while preserving non-empty stored bytes verbatim (including the previously covered leading/trailing whitespace case). This protects the helper's boundary contract; it does not implement dual-key lookup or durable Inbox insertion. Webhook POST remains fail-closed with HTTP 503 until tenant routing and atomic persistence are complete. Test execution remains pending.
