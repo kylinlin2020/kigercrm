@@ -23,6 +23,11 @@ public sealed class WhatsAppMetaWebhookEndpointContractTests
         Assert.Contains("MapPost(\"/api/chat/webhooks/whatsapp/meta\", ReceiveWebhookAsync).AllowAnonymous()", endpointSource, StringComparison.Ordinal);
         Assert.Contains("endpoints.MapWhatsAppMetaWebhookEndpoints()", moduleSource, StringComparison.Ordinal);
         Assert.Contains("services.AddChatFieldSecurityEntities()", moduleSource, StringComparison.Ordinal);
+
+        var registrationSource = File.ReadAllText(Path.Combine(
+            root, "backend", "src", "modules", "XiHan.BasicApp.Chat",
+            "Extensions", "ServiceCollectionExtensions.cs"));
+        Assert.Contains("Add<SysWhatsAppWebhookInbox>()", registrationSource, StringComparison.Ordinal);
     }
 
     [Fact]
