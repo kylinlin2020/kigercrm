@@ -300,3 +300,11 @@ The source-level state transitions are coherent, but no .NET tests or PostgreSQL
 - Added Chat entity registration and invoked it from Chat module ConfigureServices.
 - Extended the source contract test to assert the Inbox entity is part of that registration.
 - This is metadata/composition-root wiring only. No tenant account binding, Inbox writer, deduplication transaction, or consumer was added; webhook POST remains 503. Tests remain unexecuted.
+
+
+## 2026-11-08 parallel follow-up: PostgreSQL-backed lease and tenant lookup coverage
+
+- **A / Run lease state machine:** added PostgreSQL-gated tests using two independent clients for concurrent claim arbitration, expired lease takeover with token rotation/fencing increment, stale-owner renewal rejection, expired CancelRequested recovery to Cancelled without requeue, and explicit legacy lease-less Running recovery.
+- **D / Contact CustomerId lookup:** added PostgreSQL-gated repository tests proving tenant isolation, deduplication, and retrieval across the 500-ID batch boundary with 501 IDs.
+- Both test groups require KIGER_TEST_POSTGRES_CONNECTION_STRING. They have not been executed; no compile or runtime pass is claimed.
+- Parent/child extraction continuation, WhatsApp WABA/phone tenant routing and durable Inbox persistence, and confirmed transactional CSV import remain incomplete.
