@@ -168,3 +168,8 @@ Added CSV preview regression coverage for CustomerId numeric boundaries: positiv
 - Missing customer IDs are reported as row-level errors without exposing whether an ID exists in another tenant.
 - Added app-service tests for missing tenant customer references and for invalid rows beyond the first 100 preview rows.
 - This remains read-only preview validation. Immutable preview snapshots, explicit human confirmation, idempotent transactional import and rollback are still not implemented. Tests have not been executed.
+
+
+### 2026-11-08 PostgreSQL tenant isolation and bounded lookup tests
+
+Added PostgreSQL-gated repository integration tests for the new contact CustomerId lookup. The tests assert that a customer ID owned by another tenant is not returned under the current tenant scope, duplicate input IDs are collapsed, and 501 existing IDs are retrieved across the repository's 500-ID query boundary. Tests require KIGER_TEST_POSTGRES_CONNECTION_STRING and have not been executed. Preview remains read-only; snapshot confirmation and transactional import are still outstanding.
