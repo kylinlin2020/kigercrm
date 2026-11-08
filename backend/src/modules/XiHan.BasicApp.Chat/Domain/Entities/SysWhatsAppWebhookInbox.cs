@@ -8,11 +8,11 @@ using XiHan.Framework.Domain.Entities.Abstracts;
 namespace XiHan.BasicApp.Chat.Domain.Entities;
 
 /// <summary>
-/// Meta WhatsApp webhook durable inbox. The provider message ID is the idempotency boundary.
+/// Meta WhatsApp webhook durable inbox. EventKey is the event-level idempotency boundary; ProviderMessageId remains a correlation field because one message can have many status events.
 /// Raw payload is retained for replay/audit; processing is always tenant-scoped.
 /// </summary>
 [SugarTable(TableName = "Sys_WhatsApp_Webhook_Inbox", TableDescription = "WhatsApp Webhook 持久收件箱")]
-[SugarIndex("UX_{table}_TeId_WaId_MeId", nameof(TenantId), OrderByType.Asc, nameof(WhatsAppBusinessAccountId), OrderByType.Asc, nameof(ProviderMessageId), OrderByType.Asc, true)]
+[SugarIndex("UX_{table}_TeId_WaId_EvKe", nameof(TenantId), OrderByType.Asc, nameof(WhatsAppBusinessAccountId), OrderByType.Asc, nameof(EventKey), OrderByType.Asc, true)]
 [SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 [SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
 [SugarIndex("IX_{table}_TeId_St_NeAt", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(NextAttemptTime), OrderByType.Asc)]
