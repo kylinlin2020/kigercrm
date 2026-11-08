@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Saas.Domain.DomainServices;
@@ -122,14 +123,22 @@ public sealed class CrmProspectingExtractionHostedService
             return;
         }
 
-        if (run.Status == Domain.Entities.Enums.CrmProspectingRunStatus.CancelRequested)
+        if (run.Status == CrmProspectingRunStatus.CancelRequested)
         {
-            if (!string.IsNullOrWhiteSpace(job.ProviderExtractionId))
+            if (status == CrmProspectingExtractionStatus.Submitting)
+            {
+                await MoveToNeedsReviewAsync(jobs, job, leaseToken, "cancel_during_ambiguous_submission",
+                    "The parent Run was cancelled while remote submission acknowledgement was ambiguous.", cancellationToken);
+                return;
+            }
+            if (status is CrmProspectingExtractionStatus.Pending or CrmProspectingExtractionStatus.Running)
                 await provider.CancelExtractionAsync(
-                    new CrmProspectingExtractionReference(job.ProviderCode, job.ProviderExtractionId), cancellationToken);
-            await jobs.TryTransitionAsync(job.BasicId, Enum.Parse<CrmProspectingExtractionStatus>(job.Status),
-                CrmProspectingExtractionStatus.Cancelled, leaseToken, job.FencingVersion,
-                cancellationToken: cancellationToken);
+                    new CrmProspectingExtractionReference(job.ProviderCode, job.ProviderExtractionId!), cancellationToken);
+            if (status is CrmProspectingExtractionStatus.Pending or CrmProspectingExtractionStatus.Running
+                or CrmProspectingExtractionStatus.Succeeded or CrmProspectingExtractionStatus.FetchingResults)
+                await jobs.TryTransitionAsync(job.BasicId, status,
+                    CrmProspectingExtractionStatus.Cancelled, leaseToken, job.FencingVersion,
+                    cancellationToken: cancellationToken);
             return;
         }
 
@@ -143,7 +152,8 @@ public sealed class CrmProspectingExtractionHostedService
             return;
         }
 
-        var status = Enum.Parse<CrmProspectingExtractionStatus>(job.Status, ignoreCase: false);
+        if (!Enum.TryParse<CrmProspectingExtractionStatus>(job.Status, ignoreCase: false, out var status) || !Enum.IsDefined(status))
+            return;
         var decision = CrmProspectingExtractionWorkActionPolicy.Evaluate(status, job.ProviderExtractionId);
         switch (decision.Action)
         {
