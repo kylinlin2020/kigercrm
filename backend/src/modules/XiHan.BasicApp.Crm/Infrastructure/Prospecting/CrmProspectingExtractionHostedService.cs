@@ -282,8 +282,12 @@ public sealed class CrmProspectingExtractionHostedService
                  string.Equals(match.ExternalId, identity, StringComparison.Ordinal)) ||
                 (normalizedEmail is not null && string.Equals(match.NormalizedEmail, normalizedEmail, StringComparison.OrdinalIgnoreCase)) ||
                 (websiteHost is not null && string.Equals(match.WebsiteHost, websiteHost, StringComparison.OrdinalIgnoreCase)));
-            var pageDuplicate = (normalizedEmail is not null && !seenEmails.Add(normalizedEmail)) ||
-                                (websiteHost is not null && !seenWebsites.Add(websiteHost));
+            // Update both identity sets independently. Using a short-circuit OR here
+            // would skip recording the website whenever the email was already a duplicate,
+            // allowing a later row with that website to escape page-level duplicate detection.
+            var duplicateEmailOnPage = normalizedEmail is not null && !seenEmails.Add(normalizedEmail);
+            var duplicateWebsiteOnPage = websiteHost is not null && !seenWebsites.Add(websiteHost);
+            var pageDuplicate = duplicateEmailOnPage || duplicateWebsiteOnPage;
             var duplicateReason = lead is not null ? "Email or website matches an existing CRM lead"
                 : priorCandidate is not null ? "Matches a candidate from an earlier Run"
                 : pageDuplicate ? "Duplicate contact details within this extraction page" : null;
