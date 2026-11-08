@@ -250,6 +250,55 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task TryLockLeaseForWrite_ShouldRejectSupersededFenceAndAcceptCurrentLiveFence()
+    {
+        var runId = await InsertRunAsync(TenantId, "write-fence-lock");
+        try
+        {
+            var first = await WithTenant(_tenant1, TenantId, () =>
+                _repository1.TryClaimLeaseAsync(runId, "first-writer", TimeSpan.FromMinutes(2)));
+            Assert.NotNull(first);
+
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingRun>()
+                    .SetColumns(run => run.LeaseExpiresAt == DateTimeOffset.UtcNow.AddMinutes(-1))
+                    .Where(run => run.BasicId == runId)
+                    .ExecuteCommandAsync();
+            }
+
+            var replacement = await WithTenant(_tenant2, TenantId, () =>
+                _repository2.TryClaimLeaseAsync(runId, "replacement-writer", TimeSpan.FromMinutes(2)));
+            Assert.NotNull(replacement);
+            Assert.NotEqual(first!.LeaseToken, replacement!.LeaseToken);
+            Assert.True(replacement.FencingVersion > first.FencingVersion);
+
+            using (_tenant1.Change(TenantId))
+            {
+                _db1.Ado.BeginTran();
+                try
+                {
+                    var staleFenceAccepted = await _repository1.TryLockLeaseForWriteAsync(
+                        runId, first.LeaseToken!.Value, first.FencingVersion);
+                    var currentFenceAccepted = await _repository1.TryLockLeaseForWriteAsync(
+                        runId, replacement.LeaseToken!.Value, replacement.FencingVersion);
+
+                    Assert.False(staleFenceAccepted);
+                    Assert.True(currentFenceAccepted);
+                }
+                finally
+                {
+                    _db1.Ado.RollbackTran();
+                }
+            }
+        }
+        finally
+        {
+            await DeleteRunAsync(runId);
+        }
+    }
+
     private async Task<long> InsertRunAsync(long tenantId, string identity)
     {
         var runId = SnowFlakeSingle.Instance.NextId();
