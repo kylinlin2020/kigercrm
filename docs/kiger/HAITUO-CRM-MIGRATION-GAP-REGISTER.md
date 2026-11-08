@@ -120,3 +120,10 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 - Changed record finalization to skip a physical line only when it contains no field, no cell content, and no explicitly quoted field. Delimiter-only records and quoted empty cells remain real CSV records.
 - Added source tests for CRLF inside quoted fields, illegal characters after a closing quote, and trailing blank physical lines.
 - The parser/test changes have not been compiled or executed in this environment; Windows-native build/test remains an acceptance gate.
+
+### 2026-11-08 CSV EOF quoted-empty record regression
+
+- A second parser edge case was found during follow-up review: an explicitly quoted empty final field (`""`) without a trailing newline was dropped at EOF because finalization only checked cell text and prior columns.
+- EOF finalization now treats `afterQuote` as record content, preserving the explicitly quoted empty row so required-field validation can reject it accurately rather than silently omitting it.
+- Added a regression test asserting the final row is counted, retained in preview, and marked invalid when the required CompanyName is empty.
+- Source changes are committed; compilation and test execution remain pending on the Windows-native acceptance machine.
