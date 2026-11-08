@@ -292,3 +292,11 @@ The source-level state transitions are coherent, but no .NET tests or PostgreSQL
 - API response remains capped at 100 preview rows. Missing IDs produce a row-level error; no CRM data is written.
 - Added service tests for missing customer references and full-file count correctness. Not executed in this environment.
 - Remaining D-line work: immutable preview snapshot, human confirmation, idempotent transactional import/rollback, and export behavior acceptance.
+
+
+## 2026-11-08 C-line module registration correction
+
+- Source review found the WhatsApp Inbox entity and migrations existed, but Chat module setup did not register the Inbox entity through the platform field-security/entity metadata extension.
+- Added Chat entity registration and invoked it from Chat module ConfigureServices.
+- Extended the source contract test to assert the Inbox entity is part of that registration.
+- This is metadata/composition-root wiring only. No tenant account binding, Inbox writer, deduplication transaction, or consumer was added; webhook POST remains 503. Tests remain unexecuted.
