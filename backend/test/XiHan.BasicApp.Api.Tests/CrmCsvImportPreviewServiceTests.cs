@@ -274,4 +274,32 @@ public sealed class CrmCsvImportPreviewServiceTests
         Assert.Equal(new[] { 2, 4, 5 }, result.PreviewRows.Select(row => row.SourceRowNumber));
     }
 
+
+    [Theory]
+    [InlineData("42", true)]
+    [InlineData("9223372036854775807", true)]
+    [InlineData("0", false)]
+    [InlineData("-42", false)]
+    [InlineData("+42", false)]
+    [InlineData("42.0", false)]
+    [InlineData("9223372036854775808", false)]
+    public void ContactCustomerIdPreview_ShouldAcceptOnlyPositiveInvariantInt64Values(string rawValue, bool expectedValid)
+    {
+        var csv = $"CustomerId,FirstName,LastName\\n{rawValue},Ada,Lovelace\\n";
+        var result = CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv),
+            new[] { "CustomerId", "FirstName", "LastName" },
+            new[] { "CustomerId", "FirstName", "LastName" },
+            fieldValidators: new Dictionary<string, Func<string, bool>>
+            {
+                ["CustomerId"] = value =>
+                    long.TryParse(value, System.Globalization.NumberStyles.None,
+                        System.Globalization.CultureInfo.InvariantCulture, out var customerId) &&
+                    customerId > 0
+            });
+
+        Assert.Equal(expectedValid ? 1 : 0, result.ValidRows);
+        Assert.Equal(expectedValid ? 0 : 1, result.InvalidRows);
+    }
+
 }
