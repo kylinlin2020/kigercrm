@@ -254,3 +254,20 @@ The compatibility helper was further hardened after comparing it byte-for-byte w
 
 ### WhatsApp status-key test fixture review
 The status-key tests contained over-escaped JSON-array strings for error payloads. Those fixtures were invalid JSON and would fail in `JsonDocument.Parse` before exercising event-key canonicalization. The fixture escaping was corrected; no runtime implementation behavior changed. .NET test execution is still pending.
+
+
+## 2026-11-08 follow-up: prospecting Run lease-recovery state-machine review
+
+A focused source review of `CrmProspectingRunRepository` and `CrmProspectingRunHostedService.RecoverPendingAsync` confirmed these current invariants:
+
+- `TryClaimLeaseAsync` claims only Queued rows or Running rows with a non-null lease expiry at/before PostgreSQL `clock_timestamp()`; legacy Running rows with no lease expiry are not silently taken over.
+- Claim generates a fresh lease token and increments the fencing version in the same PostgreSQL UPDATE that returns the claimed row.
+- `RecoverExpiredLeasesAsync` requeues expired Running rows, but converts expired CancelRequested rows to Cancelled; it clears lease metadata using database time.
+- `RecoverInterruptedAsync` is restricted to rows with all lease metadata null. It requeues legacy Running rows and preserves cancellation intent by finalizing legacy CancelRequested rows as Cancelled.
+- The hosted service runs recovery inside the tenant data-scope runner, ensures request-ledger constraints first, and only enqueues queued IDs under the explicit tenant context.
+
+No parent/child extraction continuation state exists yet. Therefore this review does **not** authorize adding WaitingForExtractions or treating acknowledged extraction jobs as completed parent work. The next A-line implementation still needs a single transaction boundary for child submission intent plus parent waiting transition, and a fenced continuation/recovery path before any async Provider can be enabled.
+
+### Remaining verification gap
+
+The source-level state transitions are coherent, but no .NET tests or PostgreSQL integration tests were run in this environment. The next A-line regression work should add database-backed coverage for: (1) expired Running takeover increments fencing and invalidates the old token; (2) expired CancelRequested becomes Cancelled and is never requeued; (3) legacy Running with null lease metadata follows only the explicit legacy recovery path; and (4) two concurrent claimers yield one lease owner. These are test targets, not claimed passing results.
