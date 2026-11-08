@@ -226,3 +226,11 @@ Source Inventory、Target Reuse、Second Pass 的独有事实应并入上述三�
 - 增加超时失败路径的竞争任务收尾，避免回滚后竞争写仍在后台运行并与测试清理竞争。
 
 这比固定延时更接近真实数据库并发条件，但仍需真实 PostgreSQL 验证：确认测试数据库用户能观察同用户会话的 query/wait_event，确认 SqlSugar 异步查询 API 与 PostgreSQL 生成 SQL 符合预期。测试尚未执行，不标记为通过。
+
+
+## 2026-11-08 B 线并发测试隔离补充
+
+- PostgreSQL cursor CAS 集成测试的 lock-wait observer 现在先从竞争事务连接读取 `pg_backend_pid()`，再只观察该 PID 在 `pg_stat_activity` 中是否处于 `wait_event_type = 'Lock'`、`state = 'active'`，且当前 SQL 命中 extraction job 表。
+- 这比仅按表名匹配更稳健：并行运行的其他集成测试即使同时更新同一张表，也不能误触发本测试释放首个事务。
+- 本改动已提交到 `work/b-postgres-regression`（`24eb12abf38bfa9f2f8e03f44d98d5beb9a8bc82`），PR #3 仍为 Draft。
+- 仍需真实 PostgreSQL 环境验证 backend PID 可见性、活动查询文本匹配和竞争 UPDATE 的锁等待行为；本次没有执行数据库测试或 .NET 编译。
