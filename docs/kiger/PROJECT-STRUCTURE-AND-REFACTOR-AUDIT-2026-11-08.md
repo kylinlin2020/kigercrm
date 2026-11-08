@@ -282,3 +282,13 @@ The source-level state transitions are coherent, but no .NET tests or PostgreSQL
 - Tests remain unexecuted. The current environment still has no .NET SDK / configured PostgreSQL validation evidence; no runtime pass is claimed.
 
 - **D / fixture review:** corrected the newly added CustomerId boundary test fixture to emit actual CSV record newlines rather than literal backslash-n characters. The source was re-fetched and statically checked after the correction; execution remains pending.
+
+
+## 2026-11-08 D-line implementation follow-up: tenant-scoped Contact reference validation
+
+- Added a read-only customer lookup contract and implementation over the existing SaasRepository<SysCrmCustomer>, preserving tenant and soft-delete query filters.
+- IDs are distinct-filtered, queried in batches of 500, and capped at 5,000 per preview request.
+- Contact preview validates the complete bounded row set (not only the 100 rows displayed) so aggregate counts include missing tenant customer references beyond the visible sample.
+- API response remains capped at 100 preview rows. Missing IDs produce a row-level error; no CRM data is written.
+- Added service tests for missing customer references and full-file count correctness. Not executed in this environment.
+- Remaining D-line work: immutable preview snapshot, human confirmation, idempotent transactional import/rollback, and export behavior acceptance.
