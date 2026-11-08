@@ -148,4 +148,15 @@ public sealed class WhatsAppMetaWebhookPayloadParserTests
         Assert.False(WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(payload, out var parsed));
         Assert.Empty(parsed);
     }
+
+    [Theory]
+    [InlineData("{\"entry\":[{\"id\":\"waba\",\"changes\":[{\"value\":{\"metadata\":{\"phone_number_id\":\"phone\"},\"statuses\":[{\"id\":\"m\",\"status\":\"failed\",\"timestamp\":\"1794000000\",\"recipient_id\":\"r\",\"errors\":{}}]}}]}]}")]
+    [InlineData("{\"entry\":[{\"id\":\"waba\",\"changes\":[{\"value\":{\"metadata\":{\"phone_number_id\":\"phone\"},\"statuses\":[{\"id\":\"m\",\"status\":\"failed\",\"timestamp\":\"1794000000\",\"recipient_id\":\"r\",\"errors\":[\"not-an-error-object\"]}]}}]}]}")]
+    [InlineData("{\"entry\":[{\"id\":\"waba\",\"changes\":[{\"value\":{\"metadata\":{\"phone_number_id\":\"phone\"},\"statuses\":[{\"id\":\"m\",\"status\":\"failed\",\"timestamp\":\"1794000000\",\"recipient_id\":\"r\",\"errors\":null}]}}]}]}")]
+    public void TryParseStatuses_ShouldRejectMalformedErrorPayloadShape(string payload)
+    {
+        Assert.False(WhatsAppMetaWebhookPayloadParser.TryParseStatuses(payload, out var statuses));
+        Assert.Empty(statuses);
+    }
+
 }
