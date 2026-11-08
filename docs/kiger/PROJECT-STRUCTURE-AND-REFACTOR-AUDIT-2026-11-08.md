@@ -250,3 +250,7 @@ Review of the 5.9.40 backfill against the new event-key factory identified a rep
 
 ### WhatsApp legacy-key exact-byte follow-up
 The compatibility helper was further hardened after comparing it byte-for-byte with migration 5.9.40: SQL hashes the stored WABA/message ID values verbatim, so the legacy lookup must not trim non-empty values. It now rejects blank identities while preserving surrounding whitespace, with a regression test. This is distinct from the new SHA-256 event-key normalization and is required for exact replay compatibility with historical rows.
+
+
+### WhatsApp status-key test fixture review
+The status-key tests contained over-escaped JSON-array strings for error payloads. Those fixtures were invalid JSON and would fail in `JsonDocument.Parse` before exercising event-key canonicalization. The fixture escaping was corrected; no runtime implementation behavior changed. .NET test execution is still pending.
