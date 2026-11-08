@@ -16,6 +16,14 @@ public interface IWhatsAppWebhookInboxRepository : ISaasRepository<SysWhatsAppWe
         int batchSize,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Renews only the exact still-live lease; an expired lease cannot be resurrected.</summary>
+    Task<bool> TryRenewLeaseAsync(
+        long inboxId,
+        Guid leaseToken,
+        long fencingVersion,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Completes an event only while the exact unexpired lease still owns it.</summary>
     Task<bool> TryMarkProcessedAsync(
         long inboxId,
