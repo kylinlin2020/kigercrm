@@ -84,4 +84,33 @@ public sealed class CrmProspectingExtractionStateMachineTests
         Assert.DoesNotContain(typeof(ICrmProspectingProvider).GetMethods(),
             method => method.Name == nameof(ICrmProspectingAsyncExtractionProvider.SubmitExtractionAsync));
     }
+
+    [Fact]
+    public void ExtractionQueueMessage_ShouldBeBoundToClaimedLeaseGeneration()
+    {
+        var root = FindRepositoryRoot();
+        var path = Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingExtractionHostedService.cs");
+        var source = File.ReadAllText(path);
+
+        Assert.Contains("public Guid LeaseToken { get; init; }", source, StringComparison.Ordinal);
+        Assert.Contains("public long FencingVersion { get; init; }", source, StringComparison.Ordinal);
+        Assert.Contains("LeaseToken = job.LeaseToken", source, StringComparison.Ordinal);
+        Assert.Contains("FencingVersion = job.FencingVersion", source, StringComparison.Ordinal);
+
+        var leaseCheck = source.IndexOf("job.LeaseToken != message.LeaseToken", StringComparison.Ordinal);
+        var fenceCheck = source.IndexOf("job.FencingVersion != message.FencingVersion", StringComparison.Ordinal);
+        var heartbeatStart = source.IndexOf("var heartbeat = MaintainLeaseAsync", StringComparison.Ordinal);
+        Assert.True(leaseCheck >= 0);
+        Assert.True(fenceCheck > leaseCheck);
+        Assert.True(heartbeatStart > fenceCheck);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "global.json")))
+            directory = directory.Parent;
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Could not locate repository root.");
+    }
 }
