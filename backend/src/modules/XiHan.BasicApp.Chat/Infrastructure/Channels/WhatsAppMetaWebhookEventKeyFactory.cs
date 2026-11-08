@@ -1,0 +1,99 @@
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+namespace XiHan.BasicApp.Chat.Infrastructure.Channels;
+
+/// <summary>
+/// Creates deterministic event-level idempotency keys for Meta webhook items.
+/// The database uniqueness scope supplies tenant and WABA; this key distinguishes
+/// inbound messages from individual status transitions for the same provider message.
+/// </summary>
+public static class WhatsAppMetaWebhookEventKeyFactory
+{
+    public const string InboundMessageEventType = "InboundMessage";
+    public const string MessageStatusEventType = "MessageStatus";
+
+    public static string ForInboundMessage(WhatsAppMetaInboundMessage message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return Hash(
+            InboundMessageEventType,
+            Required(message.WhatsAppBusinessAccountId, nameof(message.WhatsAppBusinessAccountId)),
+            Required(message.PhoneNumberId, nameof(message.PhoneNumberId)),
+            Required(message.ProviderMessageId, nameof(message.ProviderMessageId)));
+    }
+
+    public static string ForMessageStatus(WhatsAppMetaMessageStatus status)
+    {
+        ArgumentNullException.ThrowIfNull(status);
+        return Hash(
+            MessageStatusEventType,
+            Required(status.WhatsAppBusinessAccountId, nameof(status.WhatsAppBusinessAccountId)),
+            Required(status.PhoneNumberId, nameof(status.PhoneNumberId)),
+            Required(status.ProviderMessageId, nameof(status.ProviderMessageId)),
+            Required(status.RecipientWhatsAppId, nameof(status.RecipientWhatsAppId)),
+            Required(status.ProviderStatus, nameof(status.ProviderStatus)).ToLowerInvariant(),
+            status.ProviderTimestamp.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture),
+            CanonicalizeOptionalJson(status.ErrorsJson));
+    }
+
+    private static string Hash(params string[] values)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
+        {
+            foreach (var value in values)
+                writer.Write(value);
+        }
+
+        return Convert.ToHexString(SHA256.HashData(stream.ToArray())).ToLowerInvariant();
+    }
+
+    private static string Required(string? value, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Event identity fields must be non-empty.", parameterName);
+        return value.Trim();
+    }
+
+    private static string CanonicalizeOptionalJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return string.Empty;
+
+        using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 16 });
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+            WriteCanonical(document.RootElement, writer);
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static void WriteCanonical(JsonElement element, Utf8JsonWriter writer)
+    {
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Object:
+                writer.WriteStartObject();
+                foreach (var property in element.EnumerateObject().OrderBy(property => property.Name, StringComparer.Ordinal))
+                {
+                    writer.WritePropertyName(property.Name);
+                    WriteCanonical(property.Value, writer);
+                }
+                writer.WriteEndObject();
+                break;
+            case JsonValueKind.Array:
+                writer.WriteStartArray();
+                foreach (var item in element.EnumerateArray())
+                    WriteCanonical(item, writer);
+                writer.WriteEndArray();
+                break;
+            default:
+                element.WriteTo(writer);
+                break;
+        }
+    }
+}
