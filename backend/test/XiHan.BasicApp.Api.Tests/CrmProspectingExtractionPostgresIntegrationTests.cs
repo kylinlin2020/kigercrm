@@ -809,7 +809,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         var deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
-            var waiting = await _dbObserver.Ado.SqlQueryAsync<int>(
+            var waiting = await _dbObserver.Ado.SqlQueryAsync<long>(
                 "SELECT COUNT(*) FROM pg_stat_activity " +
                 "WHERE wait_event_type = 'Lock' AND state = 'active' " +
                 "AND query ILIKE '%Crm_Prospecting_Extraction_Job%'");
