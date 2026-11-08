@@ -56,6 +56,7 @@ public sealed class WhatsAppWebhookInboxEntityContractTests
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.EventKey), properties);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.EventType), properties);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.SenderWhatsAppId), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.RecipientWhatsAppId), properties);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.ProviderTimestamp), properties);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.PayloadJson), properties);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.Status), properties);
