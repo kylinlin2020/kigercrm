@@ -33,6 +33,16 @@ public sealed class WhatsAppWebhookInboxEntityContractTests
     }
 
     [Fact]
+    public void Inbox_ShouldAllowDirectionSpecificParticipantIdentity()
+    {
+        var sender = typeof(SysWhatsAppWebhookInbox).GetProperty(nameof(SysWhatsAppWebhookInbox.SenderWhatsAppId))!;
+        var recipient = typeof(SysWhatsAppWebhookInbox).GetProperty(nameof(SysWhatsAppWebhookInbox.RecipientWhatsAppId))!;
+
+        Assert.True(sender.GetCustomAttributes(typeof(SugarColumn), false).Cast<SugarColumn>().Single().IsNullable);
+        Assert.True(recipient.GetCustomAttributes(typeof(SugarColumn), false).Cast<SugarColumn>().Single().IsNullable);
+    }
+
+    [Fact]
     public void Inbox_ShouldHaveStandardCreationAuditIndexes()
     {
         var indexes = typeof(SysWhatsAppWebhookInbox)
