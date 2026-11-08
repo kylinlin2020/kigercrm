@@ -24,6 +24,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     private readonly ICurrentTenant _tenant2 = new CurrentTenant(AsyncLocalCurrentTenantAccessor.Instance);
     private readonly SqlSugarScope _db1;
     private readonly SqlSugarScope _db2;
+    private readonly SqlSugarScope _dbObserver;
     private readonly CrmProspectingExtractionJobRepository _repository1;
     private readonly CrmProspectingExtractionJobRepository _repository2;
 
@@ -38,6 +39,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
 
         _db1 = CreateClient(connectionString);
         _db2 = CreateClient(connectionString);
+        _dbObserver = CreateClient(connectionString);
         _db1.CodeFirst.InitTables(typeof(SysCrmProspectingExtractionJob));
         _repository1 = CreateRepository(_db1);
         _repository2 = CreateRepository(_db2);
@@ -765,10 +767,10 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                         }
                     });
 
-                    // Ensure the second client has entered its transaction and is about to issue
-                    // the competing UPDATE before releasing the first transaction's row lock.
+                    // Do not guess with a fixed delay: observe PostgreSQL itself reporting that
+                    // the competing UPDATE is blocked on a lock before releasing the first writer.
                     await secondAttemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-                    await Task.Delay(100);
+                    await WaitForCursorUpdateLockWaitAsync(TimeSpan.FromSeconds(5));
                     _db1.Ado.CommitTran();
                 }
                 catch
@@ -796,6 +798,23 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+
+    private async Task WaitForCursorUpdateLockWaitAsync(TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            var waiting = await _dbObserver.Ado.SqlQuery<int>(
+                "SELECT COUNT(*) FROM pg_stat_activity " +
+                "WHERE wait_event_type = 'Lock' AND state = 'active' " +
+                "AND query ILIKE '%SysCrmProspectingExtractionJob%'");
+            if (waiting.Count > 0 && waiting[0] > 0) return;
+            await Task.Delay(20);
+        }
+
+        throw new TimeoutException(
+            "PostgreSQL did not report the competing extraction-job UPDATE waiting on a row lock.");
+    }
 
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
@@ -886,5 +905,6 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     {
         _db1.Dispose();
         _db2.Dispose();
+        _dbObserver.Dispose();
     }
 }
