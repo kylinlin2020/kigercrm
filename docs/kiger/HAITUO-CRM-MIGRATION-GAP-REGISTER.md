@@ -113,3 +113,10 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 
 - **A async orchestration:** documented that the current async preflight exception is persisted through the generic fenced Run failure path. This is intentionally fail-closed but not resumable; no async Provider is enabled and no parent waiting state is claimed implemented.
 - **B extraction scheduling:** added a PostgreSQL integration-test source case proving a job whose `NextPollAtUtc` is in the future must not be claimed or receive a lease. The test is guarded by `KIGER_TEST_POSTGRES_CONNECTION_STRING` and has not been executed against a live database.
+
+### 2026-11-08 CSV preview parser hardening
+
+- Found that the preview parser treated physically blank lines after the first record as empty data rows because it used the prior-record count as a reason to append each line.
+- Changed record finalization to skip a physical line only when it contains no field, no cell content, and no explicitly quoted field. Delimiter-only records and quoted empty cells remain real CSV records.
+- Added source tests for CRLF inside quoted fields, illegal characters after a closing quote, and trailing blank physical lines.
+- The parser/test changes have not been compiled or executed in this environment; Windows-native build/test remains an acceptance gate.
