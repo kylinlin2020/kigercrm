@@ -232,13 +232,16 @@ public static class CrmCsvImportPreviewService
             if (character is '\r' or '\n')
             {
                 if (character == '\r' && index + 1 < csv.Length && csv[index + 1] == '\n') index++;
-                row.Add(cell.ToString());
-                cell.Clear();
-                afterQuote = false;
                 // Ignore physically blank lines, including trailing blank lines. A line
                 // containing delimiters or an explicitly quoted empty field is still a record.
-                if (row.Count > 0 || cell.Length > 0 || afterQuote)
+                var hasRecordContent = row.Count > 0 || cell.Length > 0 || afterQuote;
+                if (hasRecordContent)
+                {
+                    row.Add(cell.ToString());
                     records.Add(row);
+                }
+                cell.Clear();
+                afterQuote = false;
                 row = [];
                 if (records.Count > MaxRows + 1)
                     throw new ArgumentException($"CSV 数据行数不能超过 {MaxRows}。", nameof(csv));
