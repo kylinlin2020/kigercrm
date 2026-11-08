@@ -462,6 +462,54 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
 
 
     [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task Transition_ExpiredLease_CannotChangeExtractionLifecycle()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "expired-transition");
+        var leaseToken = Guid.NewGuid();
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => new SysCrmProspectingExtractionJob
+                    {
+                        Status = CrmProspectingExtractionStatus.Running.ToString(),
+                        ProviderExtractionId = "remote-expired-transition",
+                        LeaseOwner = "expired-transition-worker",
+                        LeaseToken = leaseToken,
+                        LeaseExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+                        FencingVersion = 19
+                    })
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+
+                var transitioned = await _repository1.TryTransitionAsync(
+                    jobId,
+                    CrmProspectingExtractionStatus.Running,
+                    CrmProspectingExtractionStatus.NeedsReview,
+                    leaseToken,
+                    fencingVersion: 19,
+                    safeFailureSummary: "stale worker must not transition",
+                    cancellationToken: CancellationToken.None);
+
+                Assert.False(transitioned);
+
+                var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Equal(CrmProspectingExtractionStatus.Running.ToString(), persisted.Status);
+                Assert.Equal(leaseToken, persisted.LeaseToken);
+                Assert.Equal(19, persisted.FencingVersion);
+                Assert.True(persisted.LeaseExpiresAtUtc <= DateTimeOffset.UtcNow);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
     public async Task CompleteResults_ExpiredLease_CannotMarkExtractionSucceeded()
     {
         var jobId = await InsertDueJobAsync(TenantId, "expired-final-page-commit");
