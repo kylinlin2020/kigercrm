@@ -114,6 +114,9 @@ public sealed class CrmProspectingExtractionHostedService
             return;
         }
 
+        if (!Enum.TryParse<CrmProspectingExtractionStatus>(job.Status, ignoreCase: false, out var status) || !Enum.IsDefined(status))
+            return;
+
         var runRepository = services.GetRequiredService<ICrmProspectingRunRepository>();
         var run = await runRepository.GetByIdAsync(job.RunId, cancellationToken);
         if (run is null)
@@ -152,8 +155,6 @@ public sealed class CrmProspectingExtractionHostedService
             return;
         }
 
-        if (!Enum.TryParse<CrmProspectingExtractionStatus>(job.Status, ignoreCase: false, out var status) || !Enum.IsDefined(status))
-            return;
         var decision = CrmProspectingExtractionWorkActionPolicy.Evaluate(status, job.ProviderExtractionId);
         switch (decision.Action)
         {
