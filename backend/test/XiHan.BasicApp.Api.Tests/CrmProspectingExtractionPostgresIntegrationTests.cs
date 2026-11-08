@@ -807,7 +807,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
             var waiting = await _dbObserver.Ado.SqlQueryAsync<int>(
                 "SELECT COUNT(*) FROM pg_stat_activity " +
                 "WHERE wait_event_type = 'Lock' AND state = 'active' " +
-                "AND query ILIKE '%SysCrmProspectingExtractionJob%'");
+                "AND query ILIKE '%Crm_Prospecting_Extraction_Job%'");
             if (waiting.Count > 0 && waiting[0] > 0) return;
             await Task.Delay(20);
         }
