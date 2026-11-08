@@ -54,18 +54,11 @@ public static class ServiceCollectionExtensions
         
     }
 
-    /// <summary>Registers CRM services and seeders; synthetic prospecting is opt-in for local smoke tests only.</summary>
-    public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services, IConfiguration configuration)
+    /// <summary>Registers CRM application, domain, repository and opt-in provider services.</summary>
+    public static IServiceCollection AddCrmServices(this IServiceCollection services, IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
-        // CRM export providers reuse the existing permission-checked, tenant-scoped query services.
-        services.AddScoped<IExportProvider, CrmLeadExportProvider>();
-        services.AddScoped<IExportProvider, CrmCustomerExportProvider>();
-        services.AddScoped<IExportProvider, CrmContactExportProvider>();
-        services.AddScoped<IExportProvider, CrmOpportunityExportProvider>();
-        services.AddScoped<IExportProvider, CrmQuoteExportProvider>();
-        services.AddScoped<IExportProvider, CrmSalesOrderExportProvider>();
-        services.AddScoped<IExportProvider, CrmShipmentExportProvider>();
+        services.AddCrmExportProviders();
         services.AddScoped<ICrmProspectingCampaignRepository, CrmProspectingCampaignRepository>();
         services.AddScoped<ICrmProspectingStrategyRepository, CrmProspectingStrategyRepository>();
         services.AddScoped<ICrmProspectingRunRepository, CrmProspectingRunRepository>();
@@ -88,8 +81,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrmProspectingDomainService, CrmProspectingDomainService>();
         services.AddCrmProspectingProviders(configuration);
 
+        return services;
+    }
+
+    /// <summary>Registers CRM permission metadata. Menu seeding remains deferred until frontend routes ship.</summary>
+    public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
         services.AddDataSeeder<CrmPermissionCatalogSeeder>();
-        // Menu seeding is intentionally deferred until the corresponding frontend routes/components ship.
         return services;
     }
 }
