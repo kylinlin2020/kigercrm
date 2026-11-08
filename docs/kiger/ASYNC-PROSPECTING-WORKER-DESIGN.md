@@ -93,3 +93,23 @@ Implementation requirement for the next A-line slice:
 - Add tests proving async-only and mixed plans create no synchronous provider ledger/network activity before the atomic wait transition, and that rollback leaves no orphan child intents.
 
 No production behavior is changed in this decision record. Async providers remain unavailable to the Run worker.
+
+
+### 2026-11-08 parent continuation crash-window matrix
+
+The parent/child hand-off must be implemented and tested against each crash boundary below. The transaction is the only authority; queue messages are hints and must never be used to infer durable completion.
+
+| Crash point | Required durable outcome | Recovery owner |
+|---|---|---|
+| Before child-intent transaction begins | Parent remains Running under its live Run lease; no child intents exist | Run worker lease recovery |
+| During child-intent inserts, before commit | All child intents and parent status change roll back together | Run worker retries under a new valid lease |
+| After atomic child-intent + Waiting commit, before queue publish | Parent is WaitingForExtractions with the complete child set | Tenant-scoped parent recovery scanner |
+| After child claim, before provider submit | Child remains recoverable by its own lease expiry; submission key is unchanged | Extraction consumer |
+| Remote provider accepts submit, response lost | Retry uses the same persisted idempotency key; ambiguous non-idempotent providers are not eligible | Extraction consumer/provider adapter |
+| After child terminal commit, before continuation signal | Child is terminal; parent remains waiting until continuation is discovered | Parent recovery scanner |
+| During parent aggregation/finalization | Aggregation and terminal transition roll back together unless the exact continuation lease/fencing generation commits | Parent continuation worker |
+| Cancellation races finalization | One conditional fenced transition wins; success cannot overwrite CancelRequested/Cancelled | Parent coordinator |
+
+Implementation must keep child-set completeness check, cancellation re-check, aggregate counts, provider-step finalization, and parent terminal transition inside one fenced transaction. A signal/queue publish after commit may be duplicated safely. A missing signal must not strand a parent because recovery scans durable state.
+
+This matrix adds acceptance criteria only; no parent coordinator or WaitingForExtractions state is implemented yet.
