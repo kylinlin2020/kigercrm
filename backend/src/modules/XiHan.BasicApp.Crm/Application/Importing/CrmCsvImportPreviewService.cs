@@ -166,7 +166,7 @@ public static class CrmCsvImportPreviewService
             }
 
             if (errors.Count > 0) errorCount++;
-            if (rows.Count < Math.Clamp(previewLimit, 1, 500))
+            if (rows.Count < Math.Clamp(previewLimit, 1, MaxRows))
                 rows.Add(new CrmCsvImportPreviewRow(dataRows[index].SourceLineNumber, values, errors));
         }
 
