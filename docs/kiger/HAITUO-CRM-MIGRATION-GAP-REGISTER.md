@@ -108,3 +108,8 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 - Added factory-level tests for recursively reordered properties inside nested status-error arrays; equivalent JSON structures must produce the same event key.
 - Added a maximum-depth rejection test for status error JSON, matching the bounded JSON parser configuration.
 - These are source-level tests only. No runtime test execution, durable Inbox writer, tenant account binding, or Meta webhook acknowledgement change is claimed.
+
+### 2026-11-08 additional A/B regression checkpoints
+
+- **A async orchestration:** documented that the current async preflight exception is persisted through the generic fenced Run failure path. This is intentionally fail-closed but not resumable; no async Provider is enabled and no parent waiting state is claimed implemented.
+- **B extraction scheduling:** added a PostgreSQL integration-test source case proving a job whose `NextPollAtUtc` is in the future must not be claimed or receive a lease. The test is guarded by `KIGER_TEST_POSTGRES_CONNECTION_STRING` and has not been executed against a live database.
