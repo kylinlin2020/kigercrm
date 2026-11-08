@@ -18,6 +18,12 @@ public sealed class CrmProspectingExtractionMessage : IBackgroundTaskItem
     public long JobId { get; init; }
     public long TenantId { get; init; }
 
+    /// <summary>The exact claim token returned by PostgreSQL; a delayed queue item cannot adopt a later lease.</summary>
+    public Guid LeaseToken { get; init; }
+
+    /// <summary>The fencing generation associated with LeaseToken.</summary>
+    public long FencingVersion { get; init; }
+
     public string TaskId => JobId.ToString(System.Globalization.CultureInfo.InvariantCulture);
     public object? Data => null;
 }
@@ -58,7 +64,10 @@ public sealed class CrmProspectingExtractionHostedService
             messages.AddRange(claimed.Select(job => new CrmProspectingExtractionMessage
             {
                 JobId = job.BasicId,
-                TenantId = tenantId.Value
+                TenantId = tenantId.Value,
+                LeaseToken = job.LeaseToken
+                    ?? throw new InvalidOperationException("A claimed extraction job must include its lease token."),
+                FencingVersion = job.FencingVersion
             }));
         }, cancellationToken);
         return messages;
@@ -66,7 +75,11 @@ public sealed class CrmProspectingExtractionHostedService
 
     protected override async Task ProcessItemAsync(IBackgroundTaskItem item, CancellationToken cancellationToken)
     {
-        if (item is not CrmProspectingExtractionMessage message || message.JobId <= 0 || message.TenantId <= 0)
+        if (item is not CrmProspectingExtractionMessage message ||
+            message.JobId <= 0 ||
+            message.TenantId <= 0 ||
+            message.LeaseToken == Guid.Empty ||
+            message.FencingVersion <= 0)
         {
             Logger.LogWarning("Discarding malformed asynchronous extraction queue item");
             return;
@@ -77,8 +90,16 @@ public sealed class CrmProspectingExtractionHostedService
         var services = scope.ServiceProvider;
         var jobs = services.GetRequiredService<ICrmProspectingExtractionJobRepository>();
         var job = await jobs.GetByIdAsync(message.JobId, cancellationToken);
-        if (job is null || job.LeaseToken is not Guid leaseToken || leaseToken == Guid.Empty || job.FencingVersion <= 0)
+
+        // Queue messages are only wake-up signals. They must remain bound to the exact
+        // lease generation acquired by FetchWorkItemsAsync; never adopt a newer token
+        // from the database when a stale/duplicate queue message is delivered.
+        if (job is null ||
+            job.LeaseToken != message.LeaseToken ||
+            job.FencingVersion != message.FencingVersion)
             return;
+
+        var leaseToken = message.LeaseToken;
 
         using var workCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var heartbeatStop = new CancellationTokenSource();
