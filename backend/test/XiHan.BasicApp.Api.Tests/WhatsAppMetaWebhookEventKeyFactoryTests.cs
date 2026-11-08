@@ -124,4 +124,53 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
             () => WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(status));
     }
 
+
+    [Fact]
+    public void InboundMessageKey_ShouldNormalizeIdentityWhitespace()
+    {
+        var first = new WhatsAppMetaInboundMessage(
+            " waba-1 ", " phone-1 ", " wamid-1 ", "sender-1",
+            DateTimeOffset.FromUnixTimeSeconds(1794000000), "text", "{}");
+        var normalized = first with
+        {
+            WhatsAppBusinessAccountId = "waba-1",
+            PhoneNumberId = "phone-1",
+            ProviderMessageId = "wamid-1"
+        };
+
+        Assert.Equal(
+            WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(first),
+            WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(normalized));
+    }
+
+    [Fact]
+    public void InboundMessageKey_ShouldSeparateDifferentPhoneNumberBindings()
+    {
+        var first = new WhatsAppMetaInboundMessage(
+            "waba-1", "phone-1", "wamid-1", "sender-1",
+            DateTimeOffset.FromUnixTimeSeconds(1794000000), "text", "{}");
+        var otherPhone = first with { PhoneNumberId = "phone-2" };
+
+        Assert.NotEqual(
+            WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(first),
+            WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(otherPhone));
+    }
+
+    [Fact]
+    public void StatusKey_ShouldSeparateDifferentErrorArrays()
+    {
+        var first = new WhatsAppMetaMessageStatus(
+            "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001),
+            "[{\\"code\\":131000,\\"title\\":\\"Temporary\\"}]", "{}");
+        var otherError = first with
+        {
+            ErrorsJson = "[{\\"code\\":131001,\\"title\\":\\"Rejected\\"}]"
+        };
+
+        Assert.NotEqual(
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(first),
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(otherError));
+    }
+
 }
