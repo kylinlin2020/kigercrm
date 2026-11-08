@@ -216,7 +216,9 @@ public static class WhatsAppMetaWebhookPayloadParser
                                 using var errorDocument = JsonDocument.Parse(
                                     errorJson,
                                     new JsonDocumentOptions { MaxDepth = 16 });
-                                if (errorDocument.RootElement.ValueKind != JsonValueKind.Array)
+                                if (errorDocument.RootElement.ValueKind != JsonValueKind.Array ||
+                                    errorDocument.RootElement.EnumerateArray().Any(
+                                        error => error.ValueKind != JsonValueKind.Object))
                                     return false;
                             }
                             catch (JsonException)
