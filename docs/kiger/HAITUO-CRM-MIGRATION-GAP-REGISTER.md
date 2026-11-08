@@ -144,3 +144,12 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 ### CSV physical-line regression follow-up — 2026-11-08
 
 Added a focused regression case for a quoted field containing bare-CR (`\r`) line breaks. The fixture verifies that the embedded carriage return remains part of the field value and that the following record is reported at physical source line 4. This complements the existing CR-only record-separator test; source changes are committed, but compilation and test execution remain pending.
+
+ 
+## 2026-11-08 branch review correction
+
+- **A**: the current Run worker still rejects async-provider plans before synchronous provider execution. Do not add `WaitingForExtractions` as a status-only enum change; parent Run transition and complete child-intent creation must commit atomically, followed by an independently fenced continuation worker.
+- **B**: the new PostgreSQL integration suite has 15 cases for claim/tenant isolation/submission idempotency/lease expiry/cursor atomicity. It is gated by `KIGER_TEST_POSTGRES_CONNECTION_STRING` and has not been run against a live database.
+- **C**: PR #4 now contains Meta challenge verification, HMAC signature verification, strict inbound/status parsing, event-level SHA-256 identity, Inbox entity and migrations `5.9.39`–`5.9.41`. The endpoint intentionally returns 503 until tenant binding and atomic Inbox persistence exist. The `5.9.41` participant constraint and its migration test were repaired in commit `964dd61`; PostgreSQL execution is still required.
+- **D**: CRM Export providers and read-only CSV Preview endpoints exist in this branch. Preview is not an import. Contact CustomerId validation does not yet establish tenant-owned customer existence; implement a bounded batch lookup before any confirmed import.
+- **No duplicate CRM**: use the target's existing CRM customer/contact/lead/opportunity/order/shipment records; do not introduce a second CRM integration/data model.
