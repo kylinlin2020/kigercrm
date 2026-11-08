@@ -350,3 +350,8 @@ Added a PostgreSQL-gated integration test that claims a Run lease, expires and t
 ### A / Run lease write-lock expiry boundary
 
 Added a separate PostgreSQL-gated regression proving that even the matching token and fencing version cannot acquire the Run write lock after its lease expiry. This complements the takeover test (stale owner rejected, replacement owner accepted) by covering the no-takeover expiry window. Requires `KIGER_TEST_POSTGRES_CONNECTION_STRING`; not executed in this environment.
+
+
+### A / Run write-fencing transaction precondition
+
+Added a PostgreSQL-gated contract test proving `TryLockLeaseForWriteAsync` fails closed when called without an active transaction, even with a valid live lease. This protects the required same-transaction boundary for subsequent Candidate/Evidence/Score writes. Requires `KIGER_TEST_POSTGRES_CONNECTION_STRING`; not executed in this environment.
