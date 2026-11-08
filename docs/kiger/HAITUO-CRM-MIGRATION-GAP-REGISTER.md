@@ -134,3 +134,9 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 - CSV parsing now retains each logical record's starting physical line number. Preview rows report that source line, while total/valid/invalid counts remain based on logical CSV records.
 - Added regression coverage for a blank physical line and a quoted multiline field; expected source line numbers are 3, 4, and 6.
 - Changes are committed but remain uncompiled and unexecuted pending Windows-native validation.
+
+### 2026-11-08 CSV carriage-return line diagnostics
+
+- Added a regression case for legacy CSV files that use bare carriage return (`CR`) record separators rather than LF or CRLF.
+- The preview parser's physical source-line tracking is expected to report data records on lines 2 and 3 for this fixture. This complements the existing blank-line and quoted-multiline CRLF coverage.
+- This is source-level regression coverage only; compilation and execution remain pending the Windows-native acceptance run.
