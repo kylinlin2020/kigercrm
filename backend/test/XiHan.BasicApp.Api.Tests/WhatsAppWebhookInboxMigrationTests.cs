@@ -49,30 +49,8 @@ public sealed class WhatsAppWebhookInboxMigrationTests
         Assert.Contains("ADD COLUMN IF NOT EXISTS recipient_wa_id varchar(100)", sql, StringComparison.Ordinal);
         Assert.Contains("ALTER COLUMN sender_wa_id DROP NOT NULL", sql, StringComparison.Ordinal);
         Assert.Contains("ck_sys_whatsapp_webhook_inbox_participant", sql, StringComparison.Ordinal);
-        Assert.Contains("sender_wa_id !~ '^[[:space:]]*
-    }
-
-    private static string ReadMigration(string version, string fileName) =>
-        File.ReadAllText(Path.GetFullPath(Path.Combine(
-            RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
-            "UpdateScripts", version, fileName)));
-
-    private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string filePath = "") =>
-        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
-}
-", sql, StringComparison.Ordinal);
-        Assert.Contains("recipient_wa_id !~ '^[[:space:]]*
-    }
-
-    private static string ReadMigration(string version, string fileName) =>
-        File.ReadAllText(Path.GetFullPath(Path.Combine(
-            RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
-            "UpdateScripts", version, fileName)));
-
-    private static string RepositoryRoot([System.Runtime.CompilerServices.CallerFilePath] string filePath = "") =>
-        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
-}
-", sql, StringComparison.Ordinal);
+        Assert.Contains("btrim(sender_wa_id) <> ''", sql, StringComparison.Ordinal);
+        Assert.Contains("btrim(recipient_wa_id) <> ''", sql, StringComparison.Ordinal);
     }
 
     private static string ReadMigration(string version, string fileName) =>
