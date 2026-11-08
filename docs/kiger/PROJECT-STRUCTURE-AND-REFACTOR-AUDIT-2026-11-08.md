@@ -214,3 +214,15 @@ Source Inventory、Target Reuse、Second Pass 的独有事实应并入上述三�
 - 新增 `CrmServiceRegistrationTests`，保护 7 个导出 Provider、默认关闭 prospecting provider、全部 25 个 prospecting provider 注册、GLEIF identity resolver 和 Scoped Provider Registry 的注册边界。
 
 验证边界：这是源码逐块比对和新增测试代码；当前没有对应 GitHub Actions workflow run，也没有 .NET SDK 执行测试。因此不能把该测试标记为已运行或通过。后续 Windows/.NET 环境应先运行该测试，再运行 CRM/API 测试项目。
+
+
+## 11. PostgreSQL 游标并发测试同步优化（2026-11-08）
+
+在 `work/b-postgres-regression` 的双独立事务 cursor CAS 测试中，移除了固定 `Task.Delay(100)` 的调度假设：
+
+- 新增第三个独立 observer SQL client。
+- 第一个事务先执行 cursor CAS 并持有目标行锁；第二个事务发起竞争更新。
+- observer 轮询 PostgreSQL `pg_stat_activity`，只有在观察到针对 `Crm_Prospecting_Extraction_Job` 的活动查询确实处于 Lock wait 时，才释放第一个事务。
+- 增加超时失败路径的竞争任务收尾，避免回滚后竞争写仍在后台运行并与测试清理竞争。
+
+这比固定延时更接近真实数据库并发条件，但仍需真实 PostgreSQL 验证：确认测试数据库用户能观察同用户会话的 query/wait_event，确认 SqlSugar 异步查询 API 与 PostgreSQL 生成 SQL 符合预期。测试尚未执行，不标记为通过。
