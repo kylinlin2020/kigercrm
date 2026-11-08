@@ -51,3 +51,21 @@
 ## Safe rollout rule
 
 Keep the current Run preflight rejection for asynchronous providers until the consumer, parent coordinator, DI registration, and PostgreSQL integration suite are all present and passing. Do not silently allow mixed synchronous/asynchronous plans before durable parent aggregation exists.
+
+## 2026-11-08 parent Run continuation decision
+
+Source review confirms that `CrmProspectingRunStatus` currently has only `Queued`, `Running`, `Succeeded`, `PartiallySucceeded`, `Failed`, `CancelRequested`, and `Cancelled`. There is no persisted waiting-for-extractions state. The current Run worker throws on async-provider preflight, and its generic exception path persists `Failed`; this is fail-closed but not a resumable async workflow.
+
+Before implementing the consumer, add an explicit parent lifecycle rather than overloading `Queued` or `Running`:
+
+1. Add `WaitingForExtractions` as a non-terminal Run state. It must not be claimable by the synchronous Run worker or counted as completed.
+2. Under the current live Run lease and one database transaction, persist all child extraction intents/provider execution rows from the immutable Run snapshot, then transition the parent Run from `Running` to `WaitingForExtractions`. A crash must not leave a parent waiting with missing children or children without a parent transition.
+3. Release the Run lease only after the waiting transition commits. Child workers claim extraction jobs independently using their own lease/fencing tuple.
+4. Add a parent continuation claim/lease with its own fencing generation. It may resume only after every persisted child is terminal or explicitly `NeedsReview`; it must re-check cancellation and child counts inside the finalization transaction.
+5. On child completion, enqueue a durable continuation signal (or let a bounded recovery scanner discover eligible parents). The signal is an optimization only; the database child states remain authoritative.
+6. Cancellation from `WaitingForExtractions` must atomically mark the parent `CancelRequested`, signal child cancellation, and prevent a continuation worker from finalizing success. Remote cancellation remains best-effort.
+7. Recovery must cover the crash windows between child-intent creation, parent waiting transition, child completion, and parent continuation. Every transition must be conditional on tenant, expected state, lease token, and fencing version.
+
+Required repository/API additions include a fenced `TryWaitForExtractions` transition, a continuation claim/renew/finalize path, and a tenant-scoped query for parents whose complete child set is terminal. Do not implement these as unfenced status assignments.
+
+**Gate:** keep async providers disabled until the new parent state is included in schema/enum serialization, API status handling, queue recovery, cancellation, migration scripts, and PostgreSQL integration tests. This decision record is a design clarification; it does not claim these code changes are implemented.
