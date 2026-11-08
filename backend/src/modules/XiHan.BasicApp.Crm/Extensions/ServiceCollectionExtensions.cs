@@ -11,6 +11,7 @@ using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 using XiHan.BasicApp.Crm.Infrastructure.Repositories;
 using XiHan.BasicApp.Crm.Infrastructure.Seeders;
+using XiHan.BasicApp.Saas.Extensions;
 using XiHan.Framework.Data.Extensions.DependencyInjection;
 
 namespace XiHan.BasicApp.Crm.Extensions;
