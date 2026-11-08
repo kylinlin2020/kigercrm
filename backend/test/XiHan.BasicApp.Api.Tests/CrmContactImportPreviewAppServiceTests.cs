@@ -10,7 +10,7 @@ public sealed class CrmContactImportPreviewAppServiceTests
     [Fact]
     public async Task PreviewAsync_ShouldFlagCustomerIdsMissingFromCurrentTenantLookup()
     {
-        var lookup = new FakeCustomerLookupRepository([101]);
+        var lookup = new FakeCustomerLookupRepository(new HashSet<long> { 101 });
         var service = new CrmContactImportPreviewAppService(lookup);
         const string csv = "CustomerId,FirstName,LastName\n101,Ada,Lovelace\n202,Grace,Hopper\n";
 
