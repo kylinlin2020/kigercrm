@@ -87,3 +87,7 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 - Added incremental database script `5.9.40`: existing inbox rows are backfilled as `InboundMessage`, then the old message-only unique index is replaced by the event-key index.
 - Added entity/migration source contract tests. These are source changes only; the migration has not been executed against PostgreSQL, and no Inbox repository, account binding, or consumer is implemented.
 - **Important:** the event-key schema is only a prerequisite. The application must still produce canonical deterministic keys for each message and each status transition, and atomically persist every event before the webhook may return 200. POST remains 503.
+### 2026-11-08 additional lease and inbox regressions
+
+- **B PostgreSQL test source:** added `Transition_ExpiredLease_CannotChangeExtractionLifecycle` to prove a worker with an expired lease cannot move an extraction from `Running` to `NeedsReview`. This joins the existing stale-lease tests for acknowledgement, renewal, result completion, incomplete-page commit, and cursor advancement. The test has not been executed against PostgreSQL.
+- **C Inbox schema:** the Chat branch now carries event-level `EventKey`/`EventType` and migration `5.9.40`; the old `ProviderMessageId`-only unique index is replaced. Runtime migration and inbox processing remain unverified/unimplemented.
