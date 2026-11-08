@@ -154,3 +154,7 @@ The inbox schema prerequisite is now implemented in source:
 ### 2026-11-08 status-receipt participant schema correction
 
 Meta status receipts identify the recipient of the outbound message, not an inbound sender. The inbox schema therefore cannot require `sender_wa_id` for every event. Migration `5.9.41` adds nullable `recipient_wa_id`, relaxes `sender_wa_id`, and enforces that at least one participant identity is present. Inbound events continue to populate sender; status receipts populate recipient. This is a schema correction only: the webhook writer and runtime migration still require implementation and PostgreSQL validation.
+
+### 2026-11-08 participant identity constraint hardening
+
+The participant CHECK now rejects empty or whitespace-only sender/recipient values, not merely SQL NULL. This makes the database invariant match the parser's required non-empty identity contract and prevents malformed rows from entering the durable inbox.
