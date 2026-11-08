@@ -302,4 +302,22 @@ public sealed class CrmCsvImportPreviewServiceTests
         Assert.Equal(expectedValid ? 0 : 1, result.InvalidRows);
     }
 
+
+    [Fact]
+    public void Preview_ShouldFingerprintExactUploadedBytesForLaterConfirmation()
+    {
+        var original = Encoding.UTF8.GetBytes("CompanyName,Email\nAcme,sales@acme.test\n");
+        var same = Encoding.UTF8.GetBytes("CompanyName,Email\nAcme,sales@acme.test\n");
+        var changed = Encoding.UTF8.GetBytes("CompanyName,Email\nAcme,sales2@acme.test\n");
+
+        var first = CrmCsvImportPreviewService.Preview(original, Allowed, Required);
+        var repeated = CrmCsvImportPreviewService.Preview(same, Allowed, Required);
+        var modified = CrmCsvImportPreviewService.Preview(changed, Allowed, Required);
+
+        Assert.Matches("^[A-F0-9]{64}$", first.ContentSha256);
+        Assert.Equal(first.ContentSha256, repeated.ContentSha256);
+        Assert.NotEqual(first.ContentSha256, modified.ContentSha256);
+    }
+
+
 }
