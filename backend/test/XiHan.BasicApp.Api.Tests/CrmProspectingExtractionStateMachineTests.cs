@@ -122,6 +122,7 @@ public sealed class CrmProspectingExtractionStateMachineTests
         var parentCancellation = source.IndexOf(
             "run.Status is CrmProspectingRunStatus.CancelRequested or CrmProspectingRunStatus.Cancelled",
             StringComparison.Ordinal);
+        Assert.True(parentCancellation >= 0);
         var ambiguousSubmitGuard = source.IndexOf(
             "status == CrmProspectingExtractionStatus.Submitting",
             parentCancellation,
@@ -135,7 +136,6 @@ public sealed class CrmProspectingExtractionStateMachineTests
             parentCancellation,
             StringComparison.Ordinal);
 
-        Assert.True(parentCancellation >= 0);
         Assert.True(ambiguousSubmitGuard > parentCancellation);
         Assert.True(providerCancellation > ambiguousSubmitGuard);
         Assert.True(requestReconstruction > providerCancellation);
