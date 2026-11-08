@@ -189,3 +189,16 @@ Source Inventory、Target Reuse、Second Pass 的独有事实应并入上述三�
 7. **最终 Windows 验收**：用户机器拉取 `kiger-dev` 的已整合版本，执行 .NET restore/build/test、PostgreSQL migration/integration、前端 check/test/build 和核心业务实机验收。
 
 **重构纪律：** 每次只收敛一个边界；不为了抽象而抽象；不复制 CRM 主数据；不扩大权限；不提前确认外部发送或网站发布；不以静态测试替代真实运行证据。
+
+ 
+## 9. 已执行的第一轮结构收敛（2026-11-08）
+
+在 `work/d-migration-audit` 分支已完成一轮行为保持型 DI 注册拆分：
+
+- 原 `Crm/Extensions/ServiceCollectionExtensions.cs` 将实体字段安全、ExportProvider、仓储、Provider Registry、领域服务、26 个 opt-in Provider 和权限 Seeder 放在同一注册方法中，原文件约 425 行。
+- 现在核心 `ServiceCollectionExtensions.cs` 约 104 行，职责拆为 `AddCrmServices`、`AddCrmRepositories`、`AddCrmDomainServices`、`AddCrmDataSeeders`。
+- 新增 `CrmProspectingProviderRegistrationExtensions.cs`，集中保留 26 个显式配置开关和 Provider 专属 endpoint/auth/timeout/lifetime。
+- 新增 `CrmExportProviderRegistrationExtensions.cs`，单独注册 7 个 CRM ExportProvider。
+- CRM Module 的 ConfigureServices 现在按服务注册与 Seeder 注册两个步骤接线。
+
+这轮只移动和命名既有注册逻辑，没有更改 Provider 的配置键、生命周期、endpoint、timeout 或注册接口。由于当前执行环境缺少 .NET SDK，尚未编译；后续必须用服务注册测试和完整解决方案 build 验证，再考虑继续拆 Provider 分类。
