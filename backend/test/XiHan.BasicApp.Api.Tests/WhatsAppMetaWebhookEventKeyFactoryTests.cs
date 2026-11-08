@@ -173,4 +173,34 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
             WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(otherError));
     }
 
+
+    [Fact]
+    public void StatusKey_ShouldCanonicalizeNestedErrorArrayObjects()
+    {
+        var first = new WhatsAppMetaMessageStatus(
+            "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001),
+            "[{\\"code\\":131000,\\"details\\":{\\"title\\":\\"Temporary\\",\\"href\\":\\"help\\"}}]", "{}");
+        var reordered = first with
+        {
+            ErrorsJson = "[{\\"details\\":{\\"href\\":\\"help\\",\\"title\\":\\"Temporary\\"},\\"code\\":131000}]"
+        };
+
+        Assert.Equal(
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(first),
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(reordered));
+    }
+
+    [Fact]
+    public void StatusKey_ShouldRejectErrorJsonExceedingMaximumDepth()
+    {
+        var nested = new string('[', 18) + "0" + new string(']', 18);
+        var status = new WhatsAppMetaMessageStatus(
+            "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001), nested, "{}");
+
+        Assert.Throws<System.Text.Json.JsonException>(
+            () => WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(status));
+    }
+
 }
