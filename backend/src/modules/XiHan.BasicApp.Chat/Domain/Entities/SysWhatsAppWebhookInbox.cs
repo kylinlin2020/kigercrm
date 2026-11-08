@@ -73,4 +73,20 @@ public partial class SysWhatsAppWebhookInbox : BasicAppCreationEntity, IStrictMu
     /// <summary>Sanitized last processing error; never store access tokens or webhook secrets here.</summary>
     [SugarColumn(ColumnName = "Last_Error", Length = 1000, IsNullable = true)]
     public virtual string? LastError { get; set; }
+
+    /// <summary>Worker identity currently holding the inbox lease.</summary>
+    [SugarColumn(ColumnName = "Lease_Owner", Length = 160, IsNullable = true)]
+    public virtual string? LeaseOwner { get; set; }
+
+    /// <summary>Opaque ownership token rotated on every claim.</summary>
+    [SugarColumn(ColumnName = "Lease_Token", IsNullable = true)]
+    public virtual Guid? LeaseToken { get; set; }
+
+    /// <summary>Database-time expiry for the current consumer lease.</summary>
+    [SugarColumn(ColumnName = "Lease_Expires_At", IsNullable = true)]
+    public virtual DateTimeOffset? LeaseExpiresAt { get; set; }
+
+    /// <summary>Monotonically increasing fencing value; stale workers cannot complete reclaimed events.</summary>
+    [SugarColumn(ColumnName = "Fencing_Version", IsNullable = false, DefaultValue = "0")]
+    public virtual long FencingVersion { get; set; }
 }
