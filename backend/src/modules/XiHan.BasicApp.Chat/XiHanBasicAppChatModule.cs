@@ -35,8 +35,6 @@ public class XiHanBasicAppChatModule : XiHanModule
     {
         var services = context.Services;
 
-        services.AddChatFieldSecurityEntities();
-
         // 种子（权限 → 菜单 → 角色授权 → 任务 → 配置）+ 领域服务 + 事件处理器
         services.AddChatDataSeeders();
         services.AddChatDomainServices();
