@@ -26,7 +26,15 @@ public partial class SysWhatsAppWebhookInbox : BasicAppCreationEntity, IStrictMu
     [SugarColumn(ColumnName = "Phone_Number_Id", Length = 100, IsNullable = false)]
     public virtual string PhoneNumberId { get; set; } = string.Empty;
 
-    /// <summary>Provider's globally unique WhatsApp message ID (wamid), the idempotency key.</summary>
+    /// <summary>Stable event-level SHA-256 key; distinguishes message and status transitions.</summary>
+    [SugarColumn(ColumnName = "Event_Key", Length = 64, IsNullable = false)]
+    public virtual string EventKey { get; set; } = string.Empty;
+
+    /// <summary>Normalized event discriminator, for example InboundMessage or MessageStatus.</summary>
+    [SugarColumn(ColumnName = "Event_Type", Length = 32, IsNullable = false)]
+    public virtual string EventType { get; set; } = string.Empty;
+
+    /// <summary>Provider message ID (wamid) used for correlation; not the event idempotency key.</summary>
     [SugarColumn(ColumnName = "Provider_Message_Id", Length = 200, IsNullable = false)]
     public virtual string ProviderMessageId { get; set; } = string.Empty;
 
