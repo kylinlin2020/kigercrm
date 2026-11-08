@@ -235,7 +235,9 @@ public static class CrmCsvImportPreviewService
                 row.Add(cell.ToString());
                 cell.Clear();
                 afterQuote = false;
-                if (row.Any(value => value.Length > 0) || records.Count > 0)
+                // Ignore physically blank lines, including trailing blank lines. A line
+                // containing delimiters or an explicitly quoted empty field is still a record.
+                if (row.Count > 0 || cell.Length > 0 || afterQuote)
                     records.Add(row);
                 row = [];
                 if (records.Count > MaxRows + 1)
