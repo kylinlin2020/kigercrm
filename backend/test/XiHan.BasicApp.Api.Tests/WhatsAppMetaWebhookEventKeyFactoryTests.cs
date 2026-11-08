@@ -1,0 +1,79 @@
+using XiHan.BasicApp.Chat.Infrastructure.Channels;
+
+namespace XiHan.BasicApp.Api.Tests;
+
+public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
+{
+    [Fact]
+    public void InboundMessageKey_ShouldBeDeterministicAndBoundedSha256()
+    {
+        var message = new WhatsAppMetaInboundMessage(
+            "waba-1", "phone-1", "wamid-1", "sender-1",
+            DateTimeOffset.FromUnixTimeSeconds(1794000000), "text", "{\"text\":{\"body\":\"hi\"}}");
+
+        var first = WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(message);
+        var second = WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(message);
+
+        Assert.Equal(first, second);
+        Assert.Equal(64, first.Length);
+        Assert.All(first, character => Assert.Contains(character, "0123456789abcdef"));
+    }
+
+    [Fact]
+    public void MessageAndStatusEventsForSameWamid_ShouldHaveDifferentKeys()
+    {
+        var message = new WhatsAppMetaInboundMessage(
+            "waba-1", "phone-1", "wamid-1", "sender-1",
+            DateTimeOffset.FromUnixTimeSeconds(1794000000), "text", "{}");
+        var status = new WhatsAppMetaMessageStatus(
+            "waba-1", "phone-1", "wamid-1", "recipient-1", "delivered",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001), null, "{}");
+
+        Assert.NotEqual(
+            WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(message),
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(status));
+    }
+
+    [Fact]
+    public void RepeatedSameStatus_ShouldDeduplicateButLaterTransitionShouldNot()
+    {
+        var delivered = new WhatsAppMetaMessageStatus(
+            "waba-1", "phone-1", "wamid-1", "recipient-1", "delivered",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001), null, "{}");
+        var read = delivered with { ProviderStatus = "read", ProviderTimestamp = DateTimeOffset.FromUnixTimeSeconds(1794000002) };
+
+        Assert.Equal(
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(delivered),
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(delivered with { StatusJson = "{ \"status\": \"delivered\" }" }));
+        Assert.NotEqual(
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(delivered),
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(read));
+    }
+
+    [Fact]
+    public void StatusKey_ShouldCanonicalizeErrorJsonPropertyOrder()
+    {
+        var first = new WhatsAppMetaMessageStatus(
+            "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001),
+            "{\"code\":131000,\"title\":\"Temporary\"}", "{}");
+        var second = first with
+        {
+            ErrorsJson = "{ \"title\" : \"Temporary\", \"code\" : 131000 }"
+        };
+
+        Assert.Equal(
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(first),
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(second));
+    }
+
+    [Fact]
+    public void EventKeyFactory_ShouldRejectMissingIdentity()
+    {
+        var message = new WhatsAppMetaInboundMessage(
+            "waba-1", "phone-1", " ", "sender-1",
+            DateTimeOffset.FromUnixTimeSeconds(1794000000), "text", "{}");
+
+        Assert.Throws<ArgumentException>(() => WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(message));
+    }
+}
