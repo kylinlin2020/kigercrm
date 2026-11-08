@@ -730,14 +730,14 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                     .ExecuteCommandAsync();
             }
 
-            var firstApplied = false;
             Task<bool>? secondAttempt = null;
+            var secondAttemptStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             using (_tenant1.Change(TenantId))
             {
                 _db1.Ado.BeginTran();
                 try
                 {
-                    firstApplied = await _repository1.TryAdvanceCursorAsync(
+                    var firstApplied = await _repository1.TryAdvanceCursorAsync(
                         jobId, leaseToken, 23, expectedCursor: null, nextCursor: "page-2",
                         persistedRecordCount: 4);
                     Assert.True(firstApplied);
@@ -749,6 +749,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                             _db2.Ado.BeginTran();
                             try
                             {
+                                secondAttemptStarted.TrySetResult();
                                 var advanced = await _repository2.TryAdvanceCursorAsync(
                                     jobId, leaseToken, 23, expectedCursor: null, nextCursor: "other-page-2",
                                     persistedRecordCount: 9);
@@ -764,7 +765,9 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                         }
                     });
 
-                    // The competing UPDATE waits on the first transaction's row lock.
+                    // Ensure the second client has entered its transaction and is about to issue
+                    // the competing UPDATE before releasing the first transaction's row lock.
+                    await secondAttemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
                     await Task.Delay(100);
                     _db1.Ado.CommitTran();
                 }
