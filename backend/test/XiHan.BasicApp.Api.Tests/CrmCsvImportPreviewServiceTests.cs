@@ -236,4 +236,16 @@ public sealed class CrmCsvImportPreviewServiceTests
         Assert.Equal(new[] { 3, 4, 6 }, result.PreviewRows.Select(row => row.SourceRowNumber));
     }
 
+
+    [Fact]
+    public void Preview_ShouldReportPhysicalLineNumbersForCarriageReturnOnlyFiles()
+    {
+        const string csv = "CompanyName,Email\rAcme,sales@acme.test\rBeta,beta@acme.test";
+        var result = CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv), Allowed, Required);
+
+        Assert.Equal(2, result.TotalRows);
+        Assert.Equal(new[] { 2, 3 }, result.PreviewRows.Select(row => row.SourceRowNumber));
+    }
+
 }
