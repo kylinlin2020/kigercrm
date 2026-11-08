@@ -819,10 +819,14 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         {
             // Pin the observation to the exact competing connection so another parallel
             // integration test touching the same table cannot satisfy this synchronization.
+            // The observer connects with the same database role as both worker clients. PostgreSQL
+            // exposes query/wait metadata for sessions owned by that role without requiring
+            // pg_monitor; deployments with stricter role separation must grant pg_read_all_stats.
             var waiting = await _dbObserver.Ado.SqlQueryAsync<long>(
                 "SELECT COUNT(*) FROM pg_stat_activity " +
-                $"WHERE pid = {backendPid} AND wait_event_type = 'Lock' AND state = 'active' " +
-                "AND query ILIKE '%Crm_Prospecting_Extraction_Job%'");
+                "WHERE pid = @backendPid AND wait_event_type = 'Lock' AND state = 'active' " +
+                "AND query ILIKE '%Crm_Prospecting_Extraction_Job%'",
+                new SugarParameter("@backendPid", backendPid));
             if (waiting.Count > 0 && waiting[0] > 0) return;
             await Task.Delay(20);
         }
