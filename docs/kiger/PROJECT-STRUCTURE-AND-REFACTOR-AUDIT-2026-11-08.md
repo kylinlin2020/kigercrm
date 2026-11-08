@@ -318,3 +318,15 @@ The cursor-CAS race test now binds the competing PostgreSQL backend PID as a que
 ### D / PostgreSQL fixture cleanup hardening
 
 Customer lookup integration fixtures now register generated IDs before executing batch inserts and clean up partially created rows in finally blocks, including the case where the second tenant's fixture insertion fails. This improves failure isolation and avoids contaminating subsequent PostgreSQL integration runs. Execution remains pending.
+
+
+### A / lease integration schema-name contract review (follow-up)
+
+Static review found a schema-name contract that must be resolved before the new PostgreSQL lease tests can be treated as executable evidence:
+
+- `SysCrmProspectingRun` declares `[SugarTable(TableName = "Crm_Prospecting_Run")]`.
+- The lease repository's raw PostgreSQL statements address `crm_prospecting_run` and snake-case lowercase columns.
+- The integration fixture calls `CodeFirst.InitTables(typeof(SysCrmProspectingRun))` before invoking those raw statements.
+- Confirm the actual migration / SqlSugar PostgreSQL identifier mapping and align the fixture plus raw SQL with the one canonical physical table/column contract. Do not mask the mismatch by creating a second table or claiming the tests pass.
+
+This is a static finding only; the environment still lacks .NET/PostgreSQL execution evidence. Parent/child continuation remains unimplemented.
