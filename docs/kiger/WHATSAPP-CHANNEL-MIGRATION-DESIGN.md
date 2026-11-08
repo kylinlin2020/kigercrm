@@ -175,3 +175,8 @@ A follow-up review found that the first compatibility helper trimmed WABA and pr
 ### 2026-11-08 status-key fixture correction
 
 Static review found that two status-key test fixtures encoded literal backslashes before JSON quotes inside JSON arrays. Those strings were invalid JSON, so the intended error-array canonicalization and distinction assertions would throw during parsing instead of testing key behavior. Corrected the C# escaping so the fixtures are valid JSON objects/arrays. This is a test-fixture correction only; runtime parser/factory behavior is unchanged. Test execution remains pending the Windows/.NET validation checkpoint.
+
+
+### 2026-11-08 legacy identity validation test checkpoint
+
+Added source regression cases asserting that LegacyInboundMessageKey rejects whitespace-only WABA and provider message identities while preserving non-empty stored bytes verbatim (including the previously covered leading/trailing whitespace case). This protects the helper's boundary contract; it does not implement dual-key lookup or durable Inbox insertion. Webhook POST remains fail-closed with HTTP 503 until tenant routing and atomic persistence are complete. Test execution remains pending.
