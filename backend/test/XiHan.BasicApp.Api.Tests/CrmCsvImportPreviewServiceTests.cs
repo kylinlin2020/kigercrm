@@ -265,7 +265,7 @@ public sealed class CrmCsvImportPreviewServiceTests
     [Fact]
     public void Preview_ShouldTrackPhysicalLinesAcrossMixedRecordAndQuotedLineEndings()
     {
-        const string csv = "CompanyName,Email\r\n\\"Acme\r\nGlobal\",acme@acme.test\rBeta,beta@acme.test\nGamma,gamma@acme.test";
+        const string csv = "CompanyName,Email\r\n\"Acme\r\nGlobal\",acme@acme.test\rBeta,beta@acme.test\nGamma,gamma@acme.test";
         var result = CrmCsvImportPreviewService.Preview(
             Encoding.UTF8.GetBytes(csv), Allowed, Required);
 
