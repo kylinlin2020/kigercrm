@@ -20,6 +20,22 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
     }
 
     [Fact]
+    public void LegacyInboundKey_ShouldMatchPreEventMigrationBackfillFormat()
+    {
+        var expected = Convert.ToHexString(
+            System.Security.Cryptography.MD5.HashData(
+                System.Text.Encoding.UTF8.GetBytes("7:waba-1:wamid-1")))
+            .ToLowerInvariant();
+
+        Assert.Equal(
+            expected,
+            WhatsAppMetaWebhookEventKeyFactory.LegacyInboundMessageKey(7, "waba-1", "wamid-1"));
+        Assert.Equal(32, expected.Length);
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => WhatsAppMetaWebhookEventKeyFactory.LegacyInboundMessageKey(0, "waba-1", "wamid-1"));
+    }
+
+    [Fact]
     public void MessageAndStatusEventsForSameWamid_ShouldHaveDifferentKeys()
     {
         var message = new WhatsAppMetaInboundMessage(
