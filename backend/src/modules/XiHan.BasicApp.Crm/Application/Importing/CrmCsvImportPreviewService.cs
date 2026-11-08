@@ -63,10 +63,10 @@ public static class CrmCsvImportPreviewService
         var records = ParseRecords(csv);
         if (records.Count < 2)
             throw new ArgumentException("CSV 至少需要一行表头和一行数据。", nameof(fileBytes));
-        if (records[0].Count > MaxColumns)
+        if (records[0].Values.Count > MaxColumns)
             throw new ArgumentException($"CSV 列数不能超过 {MaxColumns}。", nameof(fileBytes));
 
-        var headers = records[0].Select((value, index) =>
+        var headers = records[0].Values.Select((value, index) =>
         {
             var header = value.Trim();
             if (header.Length == 0)
@@ -128,7 +128,7 @@ public static class CrmCsvImportPreviewService
         var errorCount = 0;
         for (var index = 0; index < dataRows.Length; index++)
         {
-            var source = dataRows[index];
+            var source = dataRows[index].Values;
             if (source.Count > MaxColumns)
                 throw new ArgumentException($"CSV 列数不能超过 {MaxColumns}。", nameof(fileBytes));
             var errors = new List<string>();
@@ -167,7 +167,7 @@ public static class CrmCsvImportPreviewService
 
             if (errors.Count > 0) errorCount++;
             if (rows.Count < Math.Clamp(previewLimit, 1, 500))
-                rows.Add(new CrmCsvImportPreviewRow(index + 2, values, errors));
+                rows.Add(new CrmCsvImportPreviewRow(dataRows[index].SourceLineNumber, values, errors));
         }
 
         return new CrmCsvImportPreviewResult(
@@ -180,13 +180,15 @@ public static class CrmCsvImportPreviewService
             rows);
     }
 
-    private static List<List<string>> ParseRecords(string csv)
+    private static List<(int SourceLineNumber, List<string> Values)> ParseRecords(string csv)
     {
-        var records = new List<List<string>>();
+        var records = new List<(int SourceLineNumber, List<string> Values)>();
         var row = new List<string>();
         var cell = new StringBuilder();
         var quoted = false;
         var afterQuote = false;
+        var physicalLine = 1;
+        var recordStartLine = 1;
 
         for (var index = 0; index < csv.Length; index++)
         {
@@ -209,6 +211,19 @@ public static class CrmCsvImportPreviewService
                 else
                 {
                     cell.Append(character);
+                    if (character == '\r')
+                    {
+                        if (index + 1 < csv.Length && csv[index + 1] == '\n')
+                        {
+                            cell.Append('\n');
+                            index++;
+                        }
+                        physicalLine++;
+                    }
+                    else if (character == '\n')
+                    {
+                        physicalLine++;
+                    }
                 }
                 continue;
             }
@@ -232,17 +247,17 @@ public static class CrmCsvImportPreviewService
             if (character is '\r' or '\n')
             {
                 if (character == '\r' && index + 1 < csv.Length && csv[index + 1] == '\n') index++;
-                // Ignore physically blank lines, including trailing blank lines. A line
-                // containing delimiters or an explicitly quoted empty field is still a record.
                 var hasRecordContent = row.Count > 0 || cell.Length > 0 || afterQuote;
                 if (hasRecordContent)
                 {
                     row.Add(cell.ToString());
-                    records.Add(row);
+                    records.Add((recordStartLine, row));
                 }
                 cell.Clear();
                 afterQuote = false;
                 row = [];
+                physicalLine++;
+                recordStartLine = physicalLine;
                 if (records.Count > MaxRows + 1)
                     throw new ArgumentException($"CSV 数据行数不能超过 {MaxRows}。", nameof(csv));
                 continue;
@@ -258,7 +273,7 @@ public static class CrmCsvImportPreviewService
         {
             // An explicitly quoted empty final field is a real CSV record even without a trailing newline.
             row.Add(cell.ToString());
-            records.Add(row);
+            records.Add((recordStartLine, row));
         }
         return records;
     }
