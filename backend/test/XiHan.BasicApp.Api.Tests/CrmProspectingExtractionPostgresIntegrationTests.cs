@@ -668,6 +668,45 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task ClaimDue_FuturePollTime_DoesNotAcquireLease()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "future-poll-not-due");
+        var futurePollAt = DateTimeOffset.UtcNow.AddMinutes(10);
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => row.NextPollAtUtc == futurePollAt)
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+            }
+
+            var claimed = await WithTenant(
+                _tenant2,
+                TenantId,
+                () => _repository2.ClaimDueAsync("future-poll-worker", TimeSpan.FromMinutes(2), 10));
+
+            Assert.DoesNotContain(claimed, row => row.BasicId == jobId);
+            using (_tenant1.Change(TenantId))
+            {
+                var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Null(persisted.LeaseToken);
+                Assert.Null(persisted.LeaseOwner);
+                Assert.Null(persisted.LeaseExpiresAtUtc);
+                Assert.Equal(futurePollAt, persisted.NextPollAtUtc);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
