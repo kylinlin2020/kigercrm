@@ -102,3 +102,9 @@ All four PRs remain Draft and unmerged. No .NET build/test or live PostgreSQL ex
 - Added source tests confirming inbound-message identity normalization trims WABA/phone/message identifiers, while a different `phone_number_id` yields a distinct event key.
 - Added a status-key regression asserting materially different error arrays do not collapse into one event identity.
 - These tests cover the deterministic key factory only; they do not establish tenant binding, durable inbox insertion, or PostgreSQL behavior. The Meta webhook remains fail-closed with HTTP 503 until the durable acceptance path is implemented and tested.
+
+### 2026-11-08 WhatsApp nested error canonicalization regressions
+
+- Added factory-level tests for recursively reordered properties inside nested status-error arrays; equivalent JSON structures must produce the same event key.
+- Added a maximum-depth rejection test for status error JSON, matching the bounded JSON parser configuration.
+- These are source-level tests only. No runtime test execution, durable Inbox writer, tenant account binding, or Meta webhook acknowledgement change is claimed.
