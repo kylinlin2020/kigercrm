@@ -228,7 +228,7 @@ public sealed class CrmCsvImportPreviewServiceTests
     [Fact]
     public void Preview_ShouldReportPhysicalSourceLineNumbersAcrossBlankAndMultilineRecords()
     {
-        const string csv = "CompanyName,Email\\r\\n\\r\\nAcme,sales@acme.test\\r\\n\\\"Acme\\r\\nGlobal\\\",global@acme.test\\r\\nBeta,beta@acme.test";
+        const string csv = "CompanyName,Email\r\n\r\nAcme,sales@acme.test\r\n\"Acme\r\nGlobal\",global@acme.test\r\nBeta,beta@acme.test";
         var result = CrmCsvImportPreviewService.Preview(
             Encoding.UTF8.GetBytes(csv), Allowed, Required);
 
