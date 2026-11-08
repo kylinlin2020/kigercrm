@@ -330,3 +330,8 @@ Static review found a schema-name contract that must be resolved before the new 
 - Confirm the actual migration / SqlSugar PostgreSQL identifier mapping and align the fixture plus raw SQL with the one canonical physical table/column contract. Do not mask the mismatch by creating a second table or claiming the tests pass.
 
 This is a static finding only; the environment still lacks .NET/PostgreSQL execution evidence. Parent/child continuation remains unimplemented.
+
+
+### Correction: A / PostgreSQL identifier folding review
+
+A follow-up review corrected the preceding static finding: PostgreSQL folds unquoted identifiers to lowercase. Therefore the SqlSugar table name `Crm_Prospecting_Run` (when emitted unquoted) resolves to `crm_prospecting_run`; explicitly mapped columns such as `Campaign_Id` similarly resolve to lowercase `campaign_id`. The entity/table spelling and repository's unquoted lowercase SQL are not, by themselves, a physical-name mismatch. The prior note is superseded and must not be treated as a confirmed defect. Runtime verification is still pending for the actual CodeFirst/migration schema, inherited base columns, and SqlSugar RETURNING-to-entity mapping.
