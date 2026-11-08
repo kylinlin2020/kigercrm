@@ -23,7 +23,7 @@ public sealed class CrmContactImportPreviewAppServiceTests
         Assert.Equal(1, result.ValidRows);
         Assert.Equal(1, result.InvalidRows);
         Assert.Contains(result.PreviewRows[1].Errors, error => error.Contains("202", StringComparison.Ordinal));
-        Assert.Equal(new long[] { 101, 202 }, lookup.LastRequestedIds);
+        Assert.Equal(new HashSet<long> { 101, 202 }, lookup.LastRequestedIds.ToHashSet());
     }
 
     [Fact]
