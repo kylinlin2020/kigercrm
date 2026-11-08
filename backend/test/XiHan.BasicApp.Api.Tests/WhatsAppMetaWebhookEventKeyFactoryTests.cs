@@ -76,4 +76,52 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
 
         Assert.Throws<ArgumentException>(() => WhatsAppMetaWebhookEventKeyFactory.ForInboundMessage(message));
     }
+
+    [Fact]
+    public void StatusKey_ShouldNormalizeCaseAndTrimIdentityFields()
+    {
+        var first = new WhatsAppMetaMessageStatus(
+            " waba-1 ", " phone-1 ", " wamid-1 ", " recipient-1 ", "DELIVERED",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001), null, "{}");
+        var second = first with
+        {
+            WhatsAppBusinessAccountId = "waba-1",
+            PhoneNumberId = "phone-1",
+            ProviderMessageId = "wamid-1",
+            RecipientWhatsAppId = "recipient-1",
+            ProviderStatus = "delivered"
+        };
+
+        Assert.Equal(
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(first),
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(second));
+    }
+
+    [Fact]
+    public void StatusKey_ShouldDistinguishDifferentProviderTimestamps()
+    {
+        var first = new WhatsAppMetaMessageStatus(
+            "waba-1", "phone-1", "wamid-1", "recipient-1", "delivered",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001), null, "{}");
+        var later = first with
+        {
+            ProviderTimestamp = DateTimeOffset.FromUnixTimeSeconds(1794000002)
+        };
+
+        Assert.NotEqual(
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(first),
+            WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(later));
+    }
+
+    [Fact]
+    public void StatusKey_ShouldRejectMalformedErrorJson()
+    {
+        var status = new WhatsAppMetaMessageStatus(
+            "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
+            DateTimeOffset.FromUnixTimeSeconds(1794000001), "{invalid", "{}");
+
+        Assert.Throws<System.Text.Json.JsonException>(
+            () => WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(status));
+    }
+
 }
