@@ -16,6 +16,7 @@ namespace XiHan.BasicApp.Chat.Domain.Entities;
 [SugarIndex("IX_{table}_TeId_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 [SugarIndex("IX_{table}_CrId", nameof(CreatedId), OrderByType.Asc)]
 [SugarIndex("IX_{table}_TeId_St_NeAt", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(NextAttemptTime), OrderByType.Asc)]
+[SugarIndex("IX_{table}_TeId_St_NeAt_Lease", nameof(TenantId), OrderByType.Asc, nameof(Status), OrderByType.Asc, nameof(NextAttemptTime), OrderByType.Asc, nameof(LeaseExpiresAt), OrderByType.Asc)]
 public partial class SysWhatsAppWebhookInbox : BasicAppCreationEntity, IStrictMultiTenantEntity
 {
     /// <summary>Meta WABA ID used to route the event to a tenant-owned channel account.</summary>
@@ -73,4 +74,20 @@ public partial class SysWhatsAppWebhookInbox : BasicAppCreationEntity, IStrictMu
     /// <summary>Sanitized last processing error; never store access tokens or webhook secrets here.</summary>
     [SugarColumn(ColumnName = "Last_Error", Length = 1000, IsNullable = true)]
     public virtual string? LastError { get; set; }
+
+    /// <summary>Worker identity currently holding the inbox lease.</summary>
+    [SugarColumn(ColumnName = "Lease_Owner", Length = 160, IsNullable = true)]
+    public virtual string? LeaseOwner { get; set; }
+
+    /// <summary>Opaque ownership token rotated on every claim.</summary>
+    [SugarColumn(ColumnName = "Lease_Token", IsNullable = true)]
+    public virtual Guid? LeaseToken { get; set; }
+
+    /// <summary>Database-time expiry for the current consumer lease.</summary>
+    [SugarColumn(ColumnName = "Lease_Expires_At", IsNullable = true)]
+    public virtual DateTimeOffset? LeaseExpiresAt { get; set; }
+
+    /// <summary>Monotonically increasing fencing value; stale workers cannot complete reclaimed events.</summary>
+    [SugarColumn(ColumnName = "Fencing_Version", IsNullable = false, DefaultValue = "0")]
+    public virtual long FencingVersion { get; set; }
 }
