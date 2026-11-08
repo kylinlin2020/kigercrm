@@ -280,3 +280,5 @@ The source-level state transitions are coherent, but no .NET tests or PostgreSQL
 - **D / CSV contact preview:** added CustomerId format boundary cases for positive Int64, zero, negative, explicit plus, decimal, and overflow. This does not prove tenant-scoped customer existence; bounded batch lookup remains required before import.
 - **B / PostgreSQL:** re-reviewed the cursor CAS lock-wait test. It captures the competing backend PID, observes that exact session in pg_stat_activity, filters for the extraction table UPDATE, rolls back on failure, and drains the competing task before fixture cleanup.
 - Tests remain unexecuted. The current environment still has no .NET SDK / configured PostgreSQL validation evidence; no runtime pass is claimed.
+
+- **D / fixture review:** corrected the newly added CustomerId boundary test fixture to emit actual CSV record newlines rather than literal backslash-n characters. The source was re-fetched and statically checked after the correction; execution remains pending.
