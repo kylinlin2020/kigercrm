@@ -11,4 +11,6 @@ ALTER TABLE sys_whatsapp_webhook_inbox
 
 ALTER TABLE sys_whatsapp_webhook_inbox
     ADD CONSTRAINT ck_sys_whatsapp_webhook_inbox_participant
-    CHECK (NULLIF(BTRIM(sender_wa_id), '') IS NOT NULL OR NULLIF(BTRIM(recipient_wa_id), '') IS NOT NULL);
+    CHECK ((sender_wa_id IS NOT NULL AND sender_wa_id !~ '^[[:space:]]*
+) OR (recipient_wa_id IS NOT NULL AND recipient_wa_id !~ '^[[:space:]]*
+));
