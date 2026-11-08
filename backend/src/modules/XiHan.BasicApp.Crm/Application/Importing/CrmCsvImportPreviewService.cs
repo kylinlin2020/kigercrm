@@ -1,6 +1,7 @@
 // Copyright (c) 2026 KIGER contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Security.Cryptography;
 using System.Text;
 
 namespace XiHan.BasicApp.Crm.Application.Importing;
@@ -177,7 +178,12 @@ public static class CrmCsvImportPreviewService
             dataRows.Length,
             errorCount,
             dataRows.Length - errorCount,
-            rows);
+            rows)
+        {
+            // Hash the exact uploaded bytes (not normalized text) so a later explicit
+            // confirmation can prove it refers to the same file that was previewed.
+            ContentSha256 = Convert.ToHexString(SHA256.HashData(fileBytes.Span))
+        };
     }
 
     private static List<(int SourceLineNumber, List<string> Values)> ParseRecords(string csv)
@@ -291,4 +297,8 @@ public sealed record CrmCsvImportPreviewResult(
     int TotalRows,
     int InvalidRows,
     int ValidRows,
-    IReadOnlyList<CrmCsvImportPreviewRow> PreviewRows);
+    IReadOnlyList<CrmCsvImportPreviewRow> PreviewRows)
+{
+    /// <summary>SHA-256 of the exact uploaded bytes; bind explicit import confirmation to this value.</summary>
+    public string ContentSha256 { get; init; } = string.Empty;
+}
