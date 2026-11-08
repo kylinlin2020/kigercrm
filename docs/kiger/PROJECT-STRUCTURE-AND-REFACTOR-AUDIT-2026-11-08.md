@@ -246,3 +246,7 @@ The B-line cursor compare-and-swap integration test now observes the exact compe
 ## 2026-11-08 follow-up: WhatsApp legacy idempotency compatibility
 
 Review of the 5.9.40 backfill against the new event-key factory identified a replay-compatibility boundary: old inbound rows carry the migration's MD5 key (`tenant_id:WABA:wamid`), whereas new inbound keys are SHA-256 over a length-prefixed tuple that also includes phone_number_id. The factory now exposes a compatibility helper that exactly reproduces the legacy MD5 key, with a regression test. The future Inbox writer must check both legacy and new keys within the resolved tenant/WABA scope before insert; concurrency-safe persistence and PostgreSQL replay tests remain unimplemented. Webhook POST remains 503 until that path is complete.
+
+
+### WhatsApp legacy-key exact-byte follow-up
+The compatibility helper was further hardened after comparing it byte-for-byte with migration 5.9.40: SQL hashes the stored WABA/message ID values verbatim, so the legacy lookup must not trim non-empty values. It now rejects blank identities while preserving surrounding whitespace, with a regression test. This is distinct from the new SHA-256 event-key normalization and is required for exact replay compatibility with historical rows.
