@@ -299,6 +299,42 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task TryLockLeaseForWrite_ShouldRejectMatchingTokenAfterLeaseExpires()
+    {
+        var runId = await InsertRunAsync(TenantId, "write-fence-expired");
+        try
+        {
+            var claimed = await WithTenant(_tenant1, TenantId, () =>
+                _repository1.TryClaimLeaseAsync(runId, "expired-write-worker", TimeSpan.FromMinutes(2)));
+            Assert.NotNull(claimed);
+
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingRun>()
+                    .SetColumns(run => run.LeaseExpiresAt == DateTimeOffset.UtcNow.AddMinutes(-1))
+                    .Where(run => run.BasicId == runId)
+                    .ExecuteCommandAsync();
+
+                _db1.Ado.BeginTran();
+                try
+                {
+                    var accepted = await _repository1.TryLockLeaseForWriteAsync(
+                        runId, claimed!.LeaseToken!.Value, claimed.FencingVersion);
+                    Assert.False(accepted);
+                }
+                finally
+                {
+                    _db1.Ado.RollbackTran();
+                }
+            }
+        }
+        finally
+        {
+            await DeleteRunAsync(runId);
+        }
+    }
+
     private async Task<long> InsertRunAsync(long tenantId, string identity)
     {
         var runId = SnowFlakeSingle.Instance.NextId();
