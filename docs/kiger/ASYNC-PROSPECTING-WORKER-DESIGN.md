@@ -113,3 +113,8 @@ The parent/child hand-off must be implemented and tested against each crash boun
 Implementation must keep child-set completeness check, cancellation re-check, aggregate counts, provider-step finalization, and parent terminal transition inside one fenced transaction. A signal/queue publish after commit may be duplicated safely. A missing signal must not strand a parent because recovery scans durable state.
 
 This matrix adds acceptance criteria only; no parent coordinator or WaitingForExtractions state is implemented yet.
+
+
+### 2026-11-08 Run lease PostgreSQL integration coverage
+
+Added PostgreSQL-gated integration tests using two independent SqlSugar clients and the real AsyncLocal tenant accessor. Coverage includes (1) exactly one concurrent queued-Run claimant, (2) expired-lease takeover with a fresh token and incremented fencing version plus stale-owner renewal rejection, (3) expired CancelRequested finalization to Cancelled without requeue, and (4) explicit legacy Running-with-null-lease recovery. These tests require KIGER_TEST_POSTGRES_CONNECTION_STRING and have not been executed in this environment. They do not implement parent/child extraction continuation.
