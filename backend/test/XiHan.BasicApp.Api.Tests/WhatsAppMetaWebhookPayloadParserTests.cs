@@ -159,4 +159,20 @@ public sealed class WhatsAppMetaWebhookPayloadParserTests
         Assert.Empty(statuses);
     }
 
+
+    [Fact]
+    public void TryParseStatuses_ShouldRejectErrorPayloadBeyondCanonicalizationDepth()
+    {
+        var nestedErrors = new string('[', 17) + "{}" + new string(']', 17);
+        var payload = $"""
+            {"entry":[{"id":"waba","changes":[{"value":{
+              "metadata":{"phone_number_id":"phone"},
+              "statuses":[{"id":"m","status":"failed","timestamp":"1794000000","recipient_id":"r","errors":{{nestedErrors}}}]
+            }}]}]}
+            """;
+
+        Assert.False(WhatsAppMetaWebhookPayloadParser.TryParseStatuses(payload, out var statuses));
+        Assert.Empty(statuses);
+    }
+
 }
