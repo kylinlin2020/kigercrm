@@ -707,6 +707,93 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
+
+    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    public async Task AdvanceCursor_TwoIndependentTransactions_OnlyOneCanCommitExpectedCursor()
+    {
+        var jobId = await InsertDueJobAsync(TenantId, "cursor-cas-race");
+        var leaseToken = Guid.NewGuid();
+        try
+        {
+            using (_tenant1.Change(TenantId))
+            {
+                await _db1.Updateable<SysCrmProspectingExtractionJob>()
+                    .SetColumns(row => new SysCrmProspectingExtractionJob
+                    {
+                        Status = CrmProspectingExtractionStatus.FetchingResults.ToString(),
+                        LeaseOwner = "cursor-race-worker",
+                        LeaseToken = leaseToken,
+                        LeaseExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(2),
+                        FencingVersion = 23
+                    })
+                    .Where(row => row.BasicId == jobId)
+                    .ExecuteCommandAsync();
+            }
+
+            var firstApplied = false;
+            Task<bool>? secondAttempt = null;
+            using (_tenant1.Change(TenantId))
+            {
+                _db1.Ado.BeginTran();
+                try
+                {
+                    firstApplied = await _repository1.TryAdvanceCursorAsync(
+                        jobId, leaseToken, 23, expectedCursor: null, nextCursor: "page-2",
+                        persistedRecordCount: 4);
+                    Assert.True(firstApplied);
+
+                    secondAttempt = Task.Run(async () =>
+                    {
+                        using (_tenant2.Change(TenantId))
+                        {
+                            _db2.Ado.BeginTran();
+                            try
+                            {
+                                var advanced = await _repository2.TryAdvanceCursorAsync(
+                                    jobId, leaseToken, 23, expectedCursor: null, nextCursor: "other-page-2",
+                                    persistedRecordCount: 9);
+                                if (advanced) _db2.Ado.CommitTran();
+                                else _db2.Ado.RollbackTran();
+                                return advanced;
+                            }
+                            catch
+                            {
+                                _db2.Ado.RollbackTran();
+                                throw;
+                            }
+                        }
+                    });
+
+                    // The competing UPDATE waits on the first transaction's row lock.
+                    await Task.Delay(100);
+                    _db1.Ado.CommitTran();
+                }
+                catch
+                {
+                    _db1.Ado.RollbackTran();
+                    throw;
+                }
+            }
+
+            Assert.NotNull(secondAttempt);
+            Assert.False(await secondAttempt);
+
+            using (_tenant1.Change(TenantId))
+            {
+                var persisted = await _db1.Queryable<SysCrmProspectingExtractionJob>()
+                    .Where(row => row.BasicId == jobId)
+                    .SingleAsync();
+                Assert.Equal("page-2", persisted.ResultCursor);
+                Assert.Equal(4, persisted.ResultRecordCount);
+            }
+        }
+        finally
+        {
+            await DeleteJobAsync(jobId);
+        }
+    }
+
+
     private async Task<long> InsertDueJobAsync(long tenantId, string identity)
     {
         var jobId = SnowFlakeSingle.Instance.NextId();
