@@ -3,10 +3,8 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Chat.Application.EventHandlers;
-using XiHan.BasicApp.Chat.Domain.Entities;
 using XiHan.BasicApp.Chat.Domain.DomainServices;
 using XiHan.BasicApp.Chat.Infrastructure.Seeders;
-using XiHan.Framework.Data.Extensions.DependencyInjection;
 using XiHan.Framework.EventBus.Local;
 using XiHan.Framework.Utils.Collections;
 
@@ -17,20 +15,9 @@ namespace XiHan.BasicApp.Chat.Extensions;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
-
-    /// <summary>Registers Chat entities with the platform field-security/entity metadata system.</summary>
-    public static IServiceCollection AddChatFieldSecurityEntities(this IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        return services.AddFieldSecurityEntities(entities => entities
-            .Add<SysWhatsAppWebhookInbox>());
-    }
-
     /// <summary>
     /// 添加聊天模块种子：权限目录、菜单、参数配置、内建定时任务
     /// </summary>
-    /// <param name="services">服务集合</param>
-    /// <returns>服务集合</returns>
     public static IServiceCollection AddChatDataSeeders(this IServiceCollection services)
     {
         _ = services.AddDataSeeder<ChatPermissionCatalogSeeder>();
@@ -43,8 +30,6 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// 添加聊天模块领域服务
     /// </summary>
-    /// <param name="services">服务集合</param>
-    /// <returns>服务集合</returns>
     public static IServiceCollection AddChatDomainServices(this IServiceCollection services)
     {
         services.AddScoped<IChatDomainService, ChatDomainService>();
@@ -54,8 +39,6 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// 添加聊天模块领域事件处理器（须显式加入本地事件总线订阅列表，裸注册不会被订阅）
     /// </summary>
-    /// <param name="services">服务集合</param>
-    /// <returns>服务集合</returns>
     public static IServiceCollection AddChatEventHandlers(this IServiceCollection services)
     {
         // 部门归属变更 → 部门群成员同步（入部门进群/移出踢群）
