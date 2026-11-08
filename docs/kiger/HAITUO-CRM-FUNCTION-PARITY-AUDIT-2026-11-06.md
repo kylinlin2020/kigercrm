@@ -108,3 +108,12 @@ PR #5 adds CRM-specific export providers using the generic query-service export 
 - **C**: PR #4 contains challenge verification, raw-body HMAC verification, strict parser, event-level idempotency key and Inbox schema migrations. It deliberately returns 503 because tenant routing and durable Inbox insert/consumer are not yet implemented.
 - **D**: CRM export providers and side-effect-free Lead/Customer/Contact CSV previews exist in the PR branch. CustomerId preview validation currently checks only positive integer shape, not tenant-scoped customer existence. No actual CRM write import endpoint is present.
 - **Validation**: no .NET build/test, live PostgreSQL migration/integration, frontend check/build or Windows acceptance is claimed in this audit.
+
+
+## 2026-11-08 integration status correction
+
+The four workstream PRs #2–#5 are now merged into `kiger-dev`; their merge commits are recorded in `HAITUO-CRM-MIGRATION-GAP-REGISTER.md`. Earlier statements in this audit describing those PRs as Draft/unmerged are historical and superseded by this checkpoint. This changes branch integration status only, not functional parity status.
+
+The next implementation priority remains the durable async prospecting lifecycle because the current Run Hosted Service still rejects async-provider plans. Do not enable async providers until parent/child intent creation is atomic, a dedicated extraction consumer and fenced parent continuation are registered, and the PostgreSQL acceptance suite passes. The next independent P0 priorities remain WhatsApp tenant binding/Inbox consumption and confirmed transactional CSV import. External email, WhatsApp and website publishing must remain behind explicit human approval.
+
+No .NET restore/build/test, frontend build, PostgreSQL migration/integration test, Meta live test or Windows real-machine acceptance is claimed by this source review.
