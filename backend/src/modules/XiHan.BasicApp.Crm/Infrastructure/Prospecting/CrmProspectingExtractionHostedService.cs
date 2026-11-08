@@ -101,6 +101,12 @@ public sealed class CrmProspectingExtractionHostedService
 
         var leaseToken = message.LeaseToken;
 
+        // Queue latency can outlive the claim lease. Prove that this exact generation
+        // is still live and extend it before any provider network operation begins.
+        if (!await jobs.TryRenewLeaseAsync(
+            job.BasicId, leaseToken, message.FencingVersion, LeaseDuration, cancellationToken))
+            return;
+
         using var workCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         using var heartbeatStop = new CancellationTokenSource();
         var heartbeat = MaintainLeaseAsync(
