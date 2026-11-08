@@ -19,17 +19,17 @@ public sealed class WhatsAppWebhookInboxEntityContractTests
     }
 
     [Fact]
-    public void Inbox_ShouldHaveTenantScopedProviderMessageUniqueness()
+    public void Inbox_ShouldHaveTenantScopedEventUniqueness()
     {
         var index = typeof(SysWhatsAppWebhookInbox)
             .GetCustomAttributes(typeof(SugarIndexAttribute), inherit: false)
             .Cast<SugarIndexAttribute>()
-            .Single(attribute => attribute.IndexName == "UX_{table}_TeId_WaId_MeId");
+            .Single(attribute => attribute.IndexName == "UX_{table}_TeId_WaId_EvKe");
 
         Assert.True(index.IsUnique);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.TenantId), index.IndexFields.Keys);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.WhatsAppBusinessAccountId), index.IndexFields.Keys);
-        Assert.Contains(nameof(SysWhatsAppWebhookInbox.ProviderMessageId), index.IndexFields.Keys);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.EventKey), index.IndexFields.Keys);
     }
 
     [Fact]
@@ -53,6 +53,8 @@ public sealed class WhatsAppWebhookInboxEntityContractTests
             .ToHashSet(StringComparer.Ordinal);
 
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.PhoneNumberId), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.EventKey), properties);
+        Assert.Contains(nameof(SysWhatsAppWebhookInbox.EventType), properties);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.SenderWhatsAppId), properties);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.ProviderTimestamp), properties);
         Assert.Contains(nameof(SysWhatsAppWebhookInbox.PayloadJson), properties);
