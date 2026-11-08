@@ -335,3 +335,8 @@ This is a static finding only; the environment still lacks .NET/PostgreSQL execu
 ### Correction: A / PostgreSQL identifier folding review
 
 A follow-up review corrected the preceding static finding: PostgreSQL folds unquoted identifiers to lowercase. Therefore the SqlSugar table name `Crm_Prospecting_Run` (when emitted unquoted) resolves to `crm_prospecting_run`; explicitly mapped columns such as `Campaign_Id` similarly resolve to lowercase `campaign_id`. The entity/table spelling and repository's unquoted lowercase SQL are not, by themselves, a physical-name mismatch. The prior note is superseded and must not be treated as a confirmed defect. Runtime verification is still pending for the actual CodeFirst/migration schema, inherited base columns, and SqlSugar RETURNING-to-entity mapping.
+
+
+### Correction: C / Chat Inbox field-security catalog registration
+
+The earlier attempt to register `SysWhatsAppWebhookInbox` through `AddFieldSecurityEntities` was not a valid database entity-discovery mechanism. The WhatsApp migration design already distinguishes field-security metadata from entity/table discovery. Removed that registration and its source-contract assertion to avoid broadening the field-security catalog incorrectly. This does not remove the existing Inbox entity or migration. New-database CodeFirst discovery still needs verification against the framework's actual entity initialization path; do not infer it from field-security registration.
