@@ -209,4 +209,19 @@ public sealed class CrmCsvImportPreviewServiceTests
         Assert.Single(result.PreviewRows);
     }
 
+
+    [Fact]
+    public void Preview_ShouldRetainQuotedEmptyFinalRecordWithoutTrailingNewline()
+    {
+        const string csv = "CompanyName,Email\n\"\",sales@acme.test";
+        var result = CrmCsvImportPreviewService.Preview(
+            Encoding.UTF8.GetBytes(csv), Allowed, Required);
+
+        Assert.Equal(1, result.TotalRows);
+        Assert.Equal(0, result.ValidRows);
+        Assert.Equal(1, result.InvalidRows);
+        Assert.Single(result.PreviewRows);
+        Assert.Equal(string.Empty, result.PreviewRows[0].Values["CompanyName"]);
+    }
+
 }
