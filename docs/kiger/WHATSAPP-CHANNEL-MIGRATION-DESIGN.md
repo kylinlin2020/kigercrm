@@ -136,3 +136,9 @@ The inbox schema prerequisite is now implemented in source:
 - Entity and migration contract tests were updated to assert the new model and migration shape.
 
 **Not implemented:** canonical event-key generation, WABA/phone tenant binding, Inbox repository, atomic multi-event insert, duplicate-conflict reconciliation, Inbox consumer, Chat projection, or status receipt processing. The SHA-256 canonicalization rules above remain the application contract. Webhook POST must continue returning 503 until these runtime paths and PostgreSQL integration tests are complete.
+### 2026-11-08 deterministic event-key implementation increment
+
+- Added `WhatsAppMetaWebhookEventKeyFactory`: inbound message keys use a length-prefixed SHA-256 identity tuple; status receipt keys include WABA, phone, wamid, recipient, normalized status, provider timestamp, and canonicalized error JSON.
+- Object properties in error JSON are sorted before hashing; arrays preserve order. Raw `StatusJson` formatting is not part of the key, so whitespace/property-order differences do not create duplicate status events.
+- Added source tests for deterministic SHA-256 output, message-vs-status separation for the same wamid, duplicate status delivery, later status transitions, canonical error JSON, and missing identity rejection.
+- This factory is not yet called by an Inbox writer because tenant account binding and atomic persistence are still absent. Do not acknowledge webhook POSTs yet.
