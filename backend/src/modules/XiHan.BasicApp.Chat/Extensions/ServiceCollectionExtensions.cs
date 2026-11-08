@@ -3,6 +3,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Chat.Application.EventHandlers;
+using XiHan.BasicApp.Chat.Domain.Entities;
 using XiHan.BasicApp.Chat.Domain.DomainServices;
 using XiHan.BasicApp.Chat.Infrastructure.Seeders;
 using XiHan.Framework.Data.Extensions.DependencyInjection;
@@ -16,6 +17,15 @@ namespace XiHan.BasicApp.Chat.Extensions;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+
+    /// <summary>Registers Chat entities with the platform field-security/entity metadata system.</summary>
+    public static IServiceCollection AddChatFieldSecurityEntities(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        return services.AddFieldSecurityEntities(entities => entities
+            .Add<SysWhatsAppWebhookInbox>());
+    }
+
     /// <summary>
     /// 添加聊天模块种子：权限目录、菜单、参数配置、内建定时任务
     /// </summary>
