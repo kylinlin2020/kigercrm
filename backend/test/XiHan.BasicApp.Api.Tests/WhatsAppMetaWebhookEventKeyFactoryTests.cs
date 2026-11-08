@@ -194,10 +194,10 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
         var first = new WhatsAppMetaMessageStatus(
             "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
             DateTimeOffset.FromUnixTimeSeconds(1794000001),
-            "[{\\"code\\":131000,\\"title\\":\\"Temporary\\"}]", "{}");
+            "[{\"code\":131000,\"title\":\"Temporary\"}]", "{}");
         var otherError = first with
         {
-            ErrorsJson = "[{\\"code\\":131001,\\"title\\":\\"Rejected\\"}]"
+            ErrorsJson = "[{\"code\":131001,\"title\":\"Rejected\"}]"
         };
 
         Assert.NotEqual(
@@ -212,10 +212,10 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
         var first = new WhatsAppMetaMessageStatus(
             "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
             DateTimeOffset.FromUnixTimeSeconds(1794000001),
-            "[{\\"code\\":131000,\\"details\\":{\\"title\\":\\"Temporary\\",\\"href\\":\\"help\\"}}]", "{}");
+            "[{\"code\":131000,\"details\":{\"title\":\"Temporary\",\"href\":\"help\"}}]", "{}");
         var reordered = first with
         {
-            ErrorsJson = "[{\\"details\\":{\\"href\\":\\"help\\",\\"title\\":\\"Temporary\\"},\\"code\\":131000}]"
+            ErrorsJson = "[{\"details\":{\"href\":\"help\",\"title\":\"Temporary\"},\"code\":131000}]"
         };
 
         Assert.Equal(
