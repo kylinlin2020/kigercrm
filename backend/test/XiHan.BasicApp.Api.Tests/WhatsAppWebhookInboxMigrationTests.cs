@@ -49,7 +49,7 @@ public sealed class WhatsAppWebhookInboxMigrationTests
         Assert.Contains("ADD COLUMN IF NOT EXISTS recipient_wa_id varchar(100)", sql, StringComparison.Ordinal);
         Assert.Contains("ALTER COLUMN sender_wa_id DROP NOT NULL", sql, StringComparison.Ordinal);
         Assert.Contains("ck_sys_whatsapp_webhook_inbox_participant", sql, StringComparison.Ordinal);
-        Assert.Contains("sender_wa_id IS NOT NULL OR recipient_wa_id IS NOT NULL", sql, StringComparison.Ordinal);
+        Assert.Contains("NULLIF(BTRIM(sender_wa_id), '') IS NOT NULL OR NULLIF(BTRIM(recipient_wa_id), '') IS NOT NULL", sql, StringComparison.Ordinal);
     }
 
     private static string ReadMigration(string version, string fileName) =>
