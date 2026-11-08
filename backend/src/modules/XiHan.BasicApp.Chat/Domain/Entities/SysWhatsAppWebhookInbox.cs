@@ -38,9 +38,13 @@ public partial class SysWhatsAppWebhookInbox : BasicAppCreationEntity, IStrictMu
     [SugarColumn(ColumnName = "Provider_Message_Id", Length = 200, IsNullable = false)]
     public virtual string ProviderMessageId { get; set; } = string.Empty;
 
-    /// <summary>Sender's WhatsApp address as received from Meta.</summary>
-    [SugarColumn(ColumnName = "Sender_Wa_Id", Length = 100, IsNullable = false)]
-    public virtual string SenderWhatsAppId { get; set; } = string.Empty;
+    /// <summary>Sender address for inbound messages; null for outbound-message status receipts.</summary>
+    [SugarColumn(ColumnName = "Sender_Wa_Id", Length = 100, IsNullable = true)]
+    public virtual string? SenderWhatsAppId { get; set; }
+
+    /// <summary>Recipient address for outbound-message status receipts; null for inbound messages.</summary>
+    [SugarColumn(ColumnName = "Recipient_Wa_Id", Length = 100, IsNullable = true)]
+    public virtual string? RecipientWhatsAppId { get; set; }
 
     /// <summary>Provider timestamp, preserved as UTC.</summary>
     [SugarColumn(ColumnName = "Provider_Timestamp", IsNullable = false)]
