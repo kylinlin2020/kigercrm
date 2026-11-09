@@ -932,6 +932,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.True(start >= 0 && existingLookup > start);
         Assert.True(activePlanGuard > existingLookup && createRun > activePlanGuard);
         Assert.True(snapshotGuard > createRun && enqueue > snapshotGuard);
+        Assert.Contains("strategies.GetLatestByCampaignAsync(", service, StringComparison.Ordinal);
         Assert.Contains("providerRegistry.Asynchronous.ContainsKey(code)", service, StringComparison.Ordinal);
         Assert.Contains("providerRegistry.Synchronous.ContainsKey(code)", service, StringComparison.Ordinal);
         Assert.Contains("if (runBlockers.Length == 0)", service, StringComparison.Ordinal);
