@@ -916,4 +916,27 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("existingLead.OwnerUserId != campaignOwnerUserId", service, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void StartRun_ShouldRejectUnsupportedProviderPlansBeforePersistingOrQueueing()
+    {
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "AppServices", "CrmProspectingAppService.cs");
+        var start = service.IndexOf("private async Task<CrmProspectingRunDto> StartRunInUnitOfWorkAsync", StringComparison.Ordinal);
+        var existingLookup = service.IndexOf("runs.GetByRequestKeyAsync(input.RequestKey", start, StringComparison.Ordinal);
+        var activePlanGuard = service.IndexOf("GetProviderPlanStartBlockers(activeStrategy.ProviderPlanJson)", start, StringComparison.Ordinal);
+        var createRun = service.IndexOf("domain.CreateRunAsync(input.CampaignId", start, StringComparison.Ordinal);
+        var snapshotGuard = service.IndexOf("GetProviderPlanStartBlockers(run.SnapshotProviderPlanJson)", createRun, StringComparison.Ordinal);
+        var enqueue = service.IndexOf("runQueue.EnqueueAsync(message", snapshotGuard, StringComparison.Ordinal);
+
+        Assert.True(start >= 0 && existingLookup > start);
+        Assert.True(activePlanGuard > existingLookup && createRun > activePlanGuard);
+        Assert.True(snapshotGuard > createRun && enqueue > snapshotGuard);
+        Assert.Contains("providerRegistry.Asynchronous.ContainsKey(code)", service, StringComparison.Ordinal);
+        Assert.Contains("providerRegistry.Synchronous.ContainsKey(code)", service, StringComparison.Ordinal);
+        Assert.Contains("if (runBlockers.Length == 0)", service, StringComparison.Ordinal);
+        Assert.Contains("existing idempotent requests are returned as-is", service, StringComparison.Ordinal);
+        Assert.Contains("durable parent Run orchestration", service, StringComparison.Ordinal);
+    }
+
 }
