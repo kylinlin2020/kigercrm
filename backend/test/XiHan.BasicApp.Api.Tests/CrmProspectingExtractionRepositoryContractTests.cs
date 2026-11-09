@@ -73,6 +73,26 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
         Assert.Contains("Fencing_Version", entity, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void GetByRun_ShouldBeTenantScopedAndReturnStableOrder()
+    {
+        var source = Read(RepositoryPath);
+        var start = source.IndexOf("public async Task<IReadOnlyList<SysCrmProspectingExtractionJob>> GetByRunAsync", StringComparison.Ordinal);
+        var end = source.IndexOf("public async Task<IReadOnlyList<SysCrmProspectingExtractionJob>> ClaimDueAsync", start, StringComparison.Ordinal);
+        Assert.True(start >= 0 && end > start);
+        var method = source[start..end];
+
+        Assert.Contains("row.TenantId == tenant.TenantId && row.RunId == runId", method, StringComparison.Ordinal);
+        Assert.Contains(".OrderBy(row => row.BasicId)", method, StringComparison.Ordinal);
+        Assert.Contains("cancellationToken.ThrowIfCancellationRequested()", method, StringComparison.Ordinal);
+        Assert.Contains("runId <= 0", method, StringComparison.Ordinal);
+
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "Repositories", "ICrmProspectingExtractionJobRepository.cs");
+        Assert.Contains("Task<IReadOnlyList<SysCrmProspectingExtractionJob>> GetByRunAsync(", contract, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
