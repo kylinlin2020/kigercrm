@@ -225,7 +225,11 @@ public sealed class CrmProspectingExtractionHostedService
             return;
         }
 
-        if (run.Status is CrmProspectingRunStatus.CancelRequested or CrmProspectingRunStatus.Cancelled)
+        if (run.Status is CrmProspectingRunStatus.CancelRequested
+            or CrmProspectingRunStatus.Cancelled
+            or CrmProspectingRunStatus.Succeeded
+            or CrmProspectingRunStatus.PartiallySucceeded
+            or CrmProspectingRunStatus.Failed)
         {
             if (status == CrmProspectingExtractionStatus.Submitting)
             {
