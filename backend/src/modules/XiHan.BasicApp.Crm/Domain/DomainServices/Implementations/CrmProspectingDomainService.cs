@@ -199,6 +199,18 @@ public sealed class CrmProspectingDomainService(
             run.Status = CrmProspectingRunStatus.Cancelled;
             run.CompletedAt = DateTimeOffset.UtcNow;
         }
+        else if (run.Status == CrmProspectingRunStatus.WaitingForExtractions)
+        {
+            // Invalidate any coordinator lease immediately. Child workers observe the terminal
+            // parent state and cancel remote extractions without allowing stale parent finalization.
+            run.Status = CrmProspectingRunStatus.Cancelled;
+            run.CompletedAt = DateTimeOffset.UtcNow;
+            run.LeaseOwner = null;
+            run.LeaseToken = null;
+            run.LeaseExpiresAt = null;
+            run.LeaseHeartbeatAt = null;
+            run.FencingVersion = checked(run.FencingVersion + 1);
+        }
         else if (run.Status == CrmProspectingRunStatus.Running)
         {
             run.Status = CrmProspectingRunStatus.CancelRequested;
