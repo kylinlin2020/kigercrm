@@ -194,8 +194,10 @@ public sealed class CrmProspectingDomainService(
         if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
         var run = await runs.GetByIdAsync(runId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting run does not exist.");
-        if (run.Status == CrmProspectingRunStatus.Queued)
+        if (run.Status is CrmProspectingRunStatus.Queued or CrmProspectingRunStatus.WaitingForExtractions)
         {
+            // Waiting Runs have no active parent lease. Mark them terminal immediately so
+            // extraction workers stop remote work on their next parent-state check.
             run.Status = CrmProspectingRunStatus.Cancelled;
             run.CompletedAt = DateTimeOffset.UtcNow;
         }
