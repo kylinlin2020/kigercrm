@@ -141,6 +141,33 @@ public sealed class CrmProspectingExtractionStateMachineTests
         Assert.True(requestReconstruction > providerCancellation);
     }
 
+    [Fact]
+    public void TerminalParentRun_ShouldStopRemoteExtractionWork()
+    {
+        var root = FindRepositoryRoot();
+        var path = Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingExtractionHostedService.cs");
+        var source = File.ReadAllText(path);
+
+        var parentGuard = source.IndexOf(
+            "run.Status is CrmProspectingRunStatus.CancelRequested",
+            StringComparison.Ordinal);
+        Assert.True(parentGuard >= 0);
+        var requestReconstruction = source.IndexOf(
+            "CrmProspectingProviderRequestFactory.Create",
+            parentGuard,
+            StringComparison.Ordinal);
+        Assert.True(requestReconstruction > parentGuard);
+
+        var guard = source[parentGuard..requestReconstruction];
+        Assert.Contains("CrmProspectingRunStatus.Cancelled", guard, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRunStatus.Succeeded", guard, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRunStatus.PartiallySucceeded", guard, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingRunStatus.Failed", guard, StringComparison.Ordinal);
+        Assert.Contains("provider.CancelExtractionAsync", guard, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingExtractionStatus.Cancelled", guard, StringComparison.Ordinal);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
