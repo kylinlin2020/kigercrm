@@ -202,12 +202,10 @@ public sealed class CrmProspectingAppService(
         var existingRun = await runs.GetByRequestKeyAsync(input.RequestKey, cancellationToken);
         if (existingRun is null && campaign.ActiveStrategyVersion is int activeVersion)
         {
-            var activeStrategies = await strategies.GetListAsync(
-                row => row.CampaignId == campaign.BasicId
-                    && row.Version == activeVersion
-                    && row.ActivatedAt != null,
-                cancellationToken);
-            var activeStrategy = activeStrategies.SingleOrDefault();
+            var activeStrategies = await strategies.GetLatestByCampaignAsync(
+                campaign.BasicId, 500, cancellationToken);
+            var activeStrategy = activeStrategies.SingleOrDefault(
+                row => row.Version == activeVersion && row.ActivatedAt != null);
             if (activeStrategy is not null)
             {
                 var blockers = GetProviderPlanStartBlockers(activeStrategy.ProviderPlanJson);
