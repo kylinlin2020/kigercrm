@@ -16,6 +16,36 @@ public sealed class CrmProspectingRunAsyncProviderPreflightTests
         Assert.Equal(4, (int)CrmProspectingRunStatus.Failed);
         Assert.Equal(5, (int)CrmProspectingRunStatus.CancelRequested);
         Assert.Equal(6, (int)CrmProspectingRunStatus.Cancelled);
+        Assert.Equal(7, (int)CrmProspectingRunStatus.WaitingForExtractions);
+    }
+
+    [Fact]
+    public void WaitingForExtractions_ShouldBeAnExplicitNonQueuedLifecycleState()
+    {
+        var enumSource = Read(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "Entities", "Enums", "CrmProspectingRunStatus.cs");
+        var repositorySource = Read(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+
+        Assert.Contains("WaitingForExtractions = 7", enumSource, StringComparison.Ordinal);
+        Assert.Contains("run.Status == CrmProspectingRunStatus.Queued", repositorySource, StringComparison.Ordinal);
+        Assert.DoesNotContain("run.Status == CrmProspectingRunStatus.WaitingForExtractions", repositorySource, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WaitingRunCancellation_ShouldTransitionDirectlyToCancelled()
+    {
+        var source = Read(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "DomainServices", "Implementations", "CrmProspectingDomainService.cs");
+
+        Assert.Contains(
+            "run.Status is CrmProspectingRunStatus.Queued or CrmProspectingRunStatus.WaitingForExtractions",
+            source,
+            StringComparison.Ordinal);
+        Assert.Contains("run.Status = CrmProspectingRunStatus.Cancelled", source, StringComparison.Ordinal);
     }
 
     [Fact]
