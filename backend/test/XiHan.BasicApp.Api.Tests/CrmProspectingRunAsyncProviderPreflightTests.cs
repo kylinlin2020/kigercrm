@@ -30,8 +30,13 @@ public sealed class CrmProspectingRunAsyncProviderPreflightTests
             "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
 
         Assert.Contains("WaitingForExtractions = 7", enumSource, StringComparison.Ordinal);
-        Assert.Contains("run.Status == CrmProspectingRunStatus.Queued", repositorySource, StringComparison.Ordinal);
-        Assert.DoesNotContain("run.Status == CrmProspectingRunStatus.WaitingForExtractions", repositorySource, StringComparison.Ordinal);
+        var queuedRecoveryStart = repositorySource.IndexOf("GetQueuedIdsAsync", StringComparison.Ordinal);
+        var queuedRecoveryEnd = repositorySource.IndexOf("RecoverExpiredLeasesAsync", queuedRecoveryStart, StringComparison.Ordinal);
+        Assert.True(queuedRecoveryStart >= 0);
+        Assert.True(queuedRecoveryEnd > queuedRecoveryStart);
+        var queuedRecovery = repositorySource[queuedRecoveryStart..queuedRecoveryEnd];
+        Assert.Contains(".Where(run => run.Status == CrmProspectingRunStatus.Queued)", queuedRecovery, StringComparison.Ordinal);
+        Assert.DoesNotContain("WaitingForExtractions", queuedRecovery, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -46,6 +51,30 @@ public sealed class CrmProspectingRunAsyncProviderPreflightTests
             source,
             StringComparison.Ordinal);
         Assert.Contains("run.Status = CrmProspectingRunStatus.Cancelled", source, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void ParentRunCompletion_ShouldWaitForEveryExtractionIncludingNeedsReview()
+    {
+        var source = Read(
+            "backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs");
+
+        var completionStart = source.IndexOf("CompleteFencedWithDatabaseClockAsync", StringComparison.Ordinal);
+        var completionEnd = source.IndexOf("CancelFencedWithDatabaseClockAsync", completionStart, StringComparison.Ordinal);
+        Assert.True(completionStart >= 0);
+        Assert.True(completionEnd > completionStart);
+        var completion = source[completionStart..completionEnd];
+
+        Assert.Contains("NOT EXISTS (", completion, StringComparison.Ordinal);
+        Assert.Contains("pending_job.status NOT IN (", completion, StringComparison.Ordinal);
+        Assert.Contains("@completedExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("@failedExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("@expiredExtractionStatus", completion, StringComparison.Ordinal);
+        Assert.Contains("@cancelledExtractionStatus", completion, StringComparison.Ordinal);
+        // NeedsReview is intentionally absent from the terminal allow-list, so it blocks parent completion.
+        Assert.DoesNotContain("@needsReviewStatus", completion, StringComparison.Ordinal);
     }
 
     [Fact]
