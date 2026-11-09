@@ -9,5 +9,7 @@ public enum CrmProspectingRunStatus
     PartiallySucceeded = 3,
     Failed = 4,
     CancelRequested = 5,
-    Cancelled = 6
+    Cancelled = 6,
+    /// <summary>The Run has durable asynchronous extraction jobs and is waiting for them to reach a terminal state.</summary>
+    WaitingForExtractions = 7
 }
