@@ -7,6 +7,8 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Crm.Domain.Prospecting;
+using System.Text.Json;
 using XiHan.BasicApp.Saas.Application.QueryServices;
 using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.Framework.Application.Attributes;
@@ -25,6 +27,7 @@ public sealed class CrmProspectingAppService(
     ICrmProspectingCampaignRepository campaigns,
     ICrmProspectingStrategyRepository strategies,
     ICrmProspectingRunRepository runs,
+    CrmProspectingProviderRegistry providerRegistry,
     ICrmProspectingCandidateRepository candidates,
     ICrmProspectingEvidenceRepository evidence,
     ICrmProspectingScoreRepository scores,
@@ -191,17 +194,74 @@ public sealed class CrmProspectingAppService(
         var campaign = await campaigns.GetByIdAsync(input.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
-        var run = await domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken);
-        var message = new CrmProspectingRunMessage
+
+        // A newly accepted Run must never be placed on the synchronous queue when its immutable
+        // active plan contains an async or unavailable provider. Until parent continuation is
+        // implemented, reject before creating the Run row. Existing idempotent requests are
+        // returned as-is but are not re-enqueued into a worker that cannot execute their plan.
+        var existingRun = await runs.GetByRequestKeyAsync(input.RequestKey, cancellationToken);
+        if (existingRun is null && campaign.ActiveStrategyVersion is int activeVersion)
         {
-            RunId = run.BasicId,
-            TenantId = run.TenantId,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-        uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero));
+            var activeStrategies = await strategies.GetListAsync(
+                row => row.CampaignId == campaign.BasicId
+                    && row.Version == activeVersion
+                    && row.ActivatedAt != null,
+                cancellationToken);
+            var activeStrategy = activeStrategies.SingleOrDefault();
+            if (activeStrategy is not null)
+            {
+                var blockers = GetProviderPlanStartBlockers(activeStrategy.ProviderPlanJson);
+                if (blockers.Length > 0)
+                    throw new InvalidOperationException(
+                        $"The active prospecting provider plan cannot be started yet: {string.Join(", ", blockers)}. " +
+                        "Asynchronous providers require durable parent Run orchestration; unregistered providers must be registered first.");
+            }
+        }
+
+        var run = await domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken);
+        var runBlockers = GetProviderPlanStartBlockers(run.SnapshotProviderPlanJson);
+        if (existingRun is null && runBlockers.Length > 0)
+            throw new InvalidOperationException(
+                $"The immutable prospecting provider plan changed during Run creation and is not executable: {string.Join(", ", runBlockers)}.");
+
+        if (runBlockers.Length == 0)
+        {
+            var message = new CrmProspectingRunMessage
+            {
+                RunId = run.BasicId,
+                TenantId = run.TenantId,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero));
+        }
         var result = ToDto(run);
         await uow.CompleteAsync(cancellationToken);
         return result;
+    }
+
+    private string[] GetProviderPlanStartBlockers(string providerPlanJson)
+    {
+        using var document = JsonDocument.Parse(providerPlanJson);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException("The immutable prospecting provider plan must be a JSON array.");
+
+        var blockers = new List<string>();
+        foreach (var entry in document.RootElement.EnumerateArray())
+        {
+            if (entry.ValueKind != JsonValueKind.String)
+                throw new InvalidOperationException("Every prospecting provider plan entry must be a string.");
+
+            var code = entry.GetString()?.Trim();
+            if (string.IsNullOrWhiteSpace(code))
+                throw new InvalidOperationException("Prospecting provider plan entries cannot be blank.");
+
+            if (providerRegistry.Asynchronous.ContainsKey(code))
+                blockers.Add($"{code} (async orchestration pending)");
+            else if (!providerRegistry.Synchronous.ContainsKey(code))
+                blockers.Add($"{code} (provider not registered)");
+        }
+
+        return blockers.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     private static bool IsRunRequestKeyUniqueViolation(Exception exception)
