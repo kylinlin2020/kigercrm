@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Application.Mappers;
@@ -6,6 +8,7 @@ using XiHan.BasicApp.Crm.Domain.Services;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Permissions;
+using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Saas.Application.QueryServices;
 using XiHan.BasicApp.Saas.Application.Services;
@@ -33,7 +36,10 @@ public sealed class CrmProspectingAppService(
     IFieldSecurityService fieldSecurity,
     IUserDataScopeFilterService dataScope,
     IRedisDelayQueue<CrmProspectingRunMessage> runQueue,
-    IUnitOfWorkManager unitOfWorkManager)
+    IUnitOfWorkManager unitOfWorkManager,
+    ICrmProspectingExtractionJobRepository extractionJobs,
+    CrmProspectingProviderRegistry providerRegistry,
+    IConfiguration configuration)
     : CrmApplicationService, ICrmProspectingAppService
 {
     [UnitOfWork(true)]
@@ -192,16 +198,109 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
         var run = await domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken);
-        var message = new CrmProspectingRunMessage
+        var providerCodes = ParseProviderPlan(run.SnapshotProviderPlanJson);
+        var asyncCodes = providerCodes
+            .Where(code => providerRegistry.Asynchronous.ContainsKey(code))
+            .ToArray();
+        var syncCodes = providerCodes
+            .Where(code => providerRegistry.Synchronous.ContainsKey(code))
+            .ToArray();
+        var unknownCodes = providerCodes
+            .Where(code => !providerRegistry.Asynchronous.ContainsKey(code)
+                && !providerRegistry.Synchronous.ContainsKey(code))
+            .ToArray();
+
+        if (unknownCodes.Length > 0)
+            throw new InvalidOperationException(
+                $"The approved provider plan contains unregistered provider(s): {string.Join(", ", unknownCodes)}.");
+        if (asyncCodes.Length > 0 && syncCodes.Length > 0)
+            throw new InvalidOperationException(
+                "Mixed synchronous/asynchronous provider plans remain unsupported; no provider work was queued.");
+        if (asyncCodes.Length > 0 &&
+            !string.Equals(
+                configuration["CrmProspecting:AsyncExecution:Enabled"],
+                "true",
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "Asynchronous prospecting execution is disabled until automated and PostgreSQL acceptance tests pass.");
+
+        if (asyncCodes.Length > 0)
         {
-            RunId = run.BasicId,
-            TenantId = run.TenantId,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
-        uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero));
+            if (run.Status == CrmProspectingRunStatus.Queued)
+            {
+                if (!await runs.TrySetWaitingForExtractionsAsync(run.BasicId, cancellationToken))
+                    throw new InvalidOperationException(
+                        "The Run was claimed by another worker before asynchronous extraction intents could be committed.");
+                run.Status = CrmProspectingRunStatus.WaitingForExtractions;
+            }
+            else if (run.Status != CrmProspectingRunStatus.WaitingForExtractions)
+            {
+                if (run.Status is CrmProspectingRunStatus.Succeeded
+                    or CrmProspectingRunStatus.PartiallySucceeded
+                    or CrmProspectingRunStatus.Failed
+                    or CrmProspectingRunStatus.Cancelled)
+                    return ToDto(run);
+                throw new InvalidOperationException(
+                    "The asynchronous Run is already owned by another execution path and cannot be rescheduled.");
+            }
+
+            var excludedDomains = ParseExcludedDomainsForExtraction(run.SnapshotExcludedDomainsJson);
+            var request = CrmProspectingProviderRequestFactory.Create(run, excludedDomains);
+            var createdAt = DateTimeOffset.UtcNow;
+            foreach (var providerCode in asyncCodes)
+            {
+                var fingerprint = CrmProspectingRequestFingerprint.Create(providerCode, request);
+                await extractionJobs.CreateSubmissionIntentAsync(
+                    run.BasicId, providerCode, fingerprint, createdAt, cancellationToken);
+            }
+        }
+        else
+        {
+            if (run.Status == CrmProspectingRunStatus.WaitingForExtractions)
+                throw new InvalidOperationException(
+                    "The persisted Run is waiting for asynchronous providers, but its current provider registry no longer matches that plan.");
+            if (run.Status == CrmProspectingRunStatus.Queued)
+            {
+                var message = new CrmProspectingRunMessage
+                {
+                    RunId = run.BasicId,
+                    TenantId = run.TenantId,
+                    CreatedAt = DateTimeOffset.UtcNow
+                };
+                uow.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero));
+            }
+        }
+
         var result = ToDto(run);
         await uow.CompleteAsync(cancellationToken);
         return result;
+    }
+
+    private static string[] ParseProviderPlan(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException("The immutable Run provider plan is not a JSON array.");
+        var codes = document.RootElement.EnumerateArray()
+            .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString()?.Trim() : null)
+            .ToArray();
+        if (codes.Length == 0 || codes.Any(string.IsNullOrWhiteSpace))
+            throw new InvalidOperationException("The immutable Run provider plan contains an invalid provider code.");
+        return codes.Select(code => code!).ToArray();
+    }
+
+    private static IReadOnlyList<string> ParseExcludedDomainsForExtraction(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException("The immutable excluded-domain snapshot is not a JSON array.");
+        var values = document.RootElement.EnumerateArray()
+            .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString()?.Trim() : null)
+            .ToArray();
+        if (values.Length > 500 || values.Any(value => string.IsNullOrWhiteSpace(value) || value!.Length > 253))
+            throw new InvalidOperationException("The immutable excluded-domain snapshot exceeds its bounds.");
+        return values.Select(value => value!).ToArray();
     }
 
     private static bool IsRunRequestKeyUniqueViolation(Exception exception)
