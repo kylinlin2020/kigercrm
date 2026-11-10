@@ -6,6 +6,7 @@ import type {
   CrmProspectingCandidateDto,
   CrmProspectingCandidateReviewDetailDto,
   CrmProspectingCandidateReviewDto,
+  CrmProspectingProviderCatalogDto,
   CrmProspectingRunDto,
   CrmProspectingRunStartDto,
   CrmProspectingStrategyDecisionDto,
@@ -15,8 +16,13 @@ import type {
 import { createDynamicApiClient } from '../../base'
 
 const api = createDynamicApiClient('CrmProspecting')
+// Read-side catalog lives in its own DynamicApi service (QueryServices convention).
+const catalogApi = createDynamicApiClient('CrmProspectingProviderCatalogQuery')
 
 export const crmProspectingApi = {
+  providerCatalog() {
+    return catalogApi.get<CrmProspectingProviderCatalogDto>('Providers')
+  },
   campaigns() {
     return api.get<CrmProspectingCampaignDto[]>('Campaigns')
   },

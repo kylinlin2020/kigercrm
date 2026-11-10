@@ -117,7 +117,6 @@ export interface CrmProspectingCandidateReviewDto {
   overrideDuplicate: boolean
 }
 
-
 export interface CrmProspectingEvidenceDto {
   basicId: ApiId
   providerCode: string
@@ -153,4 +152,31 @@ export interface CrmProspectingCandidateReviewDetailDto {
   candidate: CrmProspectingCandidateDto
   evidence: CrmProspectingEvidenceDto[]
   scoreHistory: CrmProspectingScoreDto[]
+}
+
+/** Catalog row returned by the backend, merging static metadata with DI registration facts. */
+export interface CrmProspectingProviderCatalogItemDto {
+  code: string
+  label: string
+  group: string
+  needsKey: boolean
+  keyOptional: boolean
+  configKey: string
+  note: string
+  /** Adapter is registered on this server (opt-in switch on and construction succeeded). */
+  isRegistered: boolean
+  /** Durable Run worker can execute it now (synchronous adapters only). */
+  isExecutable: boolean
+  /** synchronous | asynchronous | unavailable. */
+  capability: string
+}
+
+export interface CrmProspectingProviderCatalogDto {
+  providers: CrmProspectingProviderCatalogItemDto[]
+  totalCount: number
+  registeredCount: number
+  executableCount: number
+  asynchronousCount: number
+  metadataSource: string
+  registrationSource: string
 }

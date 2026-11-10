@@ -20,6 +20,7 @@ describe('crmProspectingApi', () => {
 
   it('uses the Prospecting dynamic API route for campaign and history reads', async () => {
     await crmProspectingApi.campaigns()
+    await crmProspectingApi.providerCatalog()
     await crmProspectingApi.campaign('10')
     await crmProspectingApi.strategies('10')
     await crmProspectingApi.runs('10')
@@ -27,6 +28,7 @@ describe('crmProspectingApi', () => {
     await crmProspectingApi.candidateReviewDetail('30')
 
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Campaigns', { params: undefined })
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingProviderCatalogQuery/Providers', { params: undefined })
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Campaign', expect.objectContaining({ params: { id: '10' } }))
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Strategies', expect.objectContaining({ params: { campaignId: '10' } }))
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/CampaignRuns', expect.objectContaining({ params: { campaignId: '10' } }))
