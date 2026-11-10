@@ -23,7 +23,7 @@ const formData = ref({
   email: '',
 })
 
-const rules = computed<FormRules>(() => ({
+const rules = computed<FormRules<typeof formData.value>>(() => ({
   email: [
     { required: true, message: t('page.auth.email_placeholder') },
     { type: 'email', message: t('page.auth.email_invalid') },

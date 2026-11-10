@@ -27,7 +27,7 @@ const formData = ref({
   confirmPassword: '',
 })
 
-const rules = computed<FormRules>(() => ({
+const rules = computed<FormRules<typeof formData.value>>(() => ({
   newPassword: [
     { required: true, message: '请输入新密码' },
     { min: 8, max: 128, message: '密码长度需为 8-128 位' },

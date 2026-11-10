@@ -73,7 +73,7 @@ const strengthColor = computed(() => {
   return colors[passwordStrength.value] || 'var(--xh-fg-danger)'
 })
 
-const rules = computed<FormRules>(() => ({
+const rules = computed<FormRules<typeof formData.value>>(() => ({
   username: [
     { required: true, message: t('page.auth.username_placeholder') },
     { min: 3, message: t('page.auth.username_min_length') },

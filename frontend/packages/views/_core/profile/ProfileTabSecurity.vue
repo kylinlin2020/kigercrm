@@ -34,7 +34,7 @@ const pwdForm = ref({
   confirmPassword: '',
 })
 // 校验时机由表单的 validate-on 统一定；确认密码挂 deps，先填它、再改新密码时跟着重验
-const pwdRules = computed<FormRules>(() => ({
+const pwdRules = computed<FormRules<typeof pwdForm.value>>(() => ({
   oldPassword: [{ required: true, message: t('component.profile.security.rule_old_password_required') }],
   newPassword: [
     { required: true, message: t('component.profile.security.rule_new_password_required') },
