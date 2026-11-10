@@ -101,7 +101,6 @@ export interface CrmSalesOrderCreateDto {
   lines: CrmSalesOrderLineCreateDto[]
 }
 
-
 export interface CrmSalesOrderLineUpdateDto extends CrmSalesOrderLineCreateDto {
   id: ApiId
   sourceQuoteLineId?: ApiId | null
@@ -117,6 +116,7 @@ export interface CrmSalesOrderUpdateDto {
   customerPurchaseOrderNumber?: string | null
   paymentTerms?: string | null
   deliveryTerms?: string | null
+  termsAndConditions?: string | null
   notes?: string | null
   lines: CrmSalesOrderLineUpdateDto[]
 }

@@ -21,6 +21,7 @@ export interface CrmLeadListItemDto extends BasicDto {
   contactName?: string | null
   email?: string | null
   phone?: string | null
+  website?: string | null
   countryRegion?: string | null
   source?: string | null
   status: CrmLeadStatus

@@ -135,13 +135,15 @@ function walk(facade: string, prefix: string, node: Record<string, unknown>, see
 beforeAll(() => {
   // 排除 *.types.ts：它们不导出门面对象，且 src/modules/chat/api/chat.types.ts 会值转出
   // `~/chat`（链到没有构建产物的 @xihan-ui），直接 glob 会让整份用例文件解析失败。
+  // 同样排除 *.test.ts：eager 加载会把用例里的 describe 注册进本文件，且用例内
+  // vi.mock('../../request') 的相对路径会按本文件解析，导致 mock 串台、断言全落空。
   const globbed = {
     ...import.meta.glob<Record<string, unknown>>(
-      ['/src/api/modules/**/*.ts', '!/src/api/modules/**/*.types.ts'],
+      ['/src/api/modules/**/*.ts', '!/src/api/modules/**/*.types.ts', '!/src/api/modules/**/*.test.ts'],
       { eager: true },
     ),
     ...import.meta.glob<Record<string, unknown>>(
-      ['/src/modules/*/api/**/*.ts', '!/src/modules/*/api/**/*.types.ts'],
+      ['/src/modules/*/api/**/*.ts', '!/src/modules/*/api/**/*.types.ts', '!/src/modules/**/*.test.ts'],
       { eager: true },
     ),
   }

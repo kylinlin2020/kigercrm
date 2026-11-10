@@ -1,4 +1,4 @@
-import type { ApiId, PageResult } from '../../types'
+import type { ApiId } from '../../types'
 import type {
   CrmLeadCreateDto,
   CrmLeadDetailDto,
@@ -9,12 +9,12 @@ import type {
   CrmLeadUpdateDto,
 } from './lead.types'
 import {
-  createCommandApi,
   createDynamicApiClient,
 } from '../../base'
+import { createCrmCommandClient, createCrmReadClient } from './crud-client'
 
-const leadQueryApi = createDynamicApiClient('CrmLeadQuery')
-const leadCommandApi = createCommandApi<CrmLeadCreateDto, CrmLeadUpdateDto, CrmLeadDetailDto>('CrmLead', 'CrmLead')
+const leadReadApi = createCrmReadClient<CrmLeadListItemDto, CrmLeadDetailDto, CrmLeadPageQueryDto>('CrmLeadQuery')
+const leadCommandApi = createCrmCommandClient<CrmLeadCreateDto, CrmLeadUpdateDto, CrmLeadDetailDto>('CrmLead')
 const leadCommandRouteApi = createDynamicApiClient('CrmLead')
 
 const duplicateQueryApi = createDynamicApiClient('CrmLeadDuplicateQuery')
@@ -27,24 +27,20 @@ export const crmLeadApi = {
     return leadCommandApi.update(input)
   },
   delete(id: ApiId) {
-    return leadCommandApiDelete(id)
+    return leadCommandApi.delete(id)
   },
   convert(id: ApiId) {
     return leadCommandApiAction<CrmLeadDetailDto>('Convert', { id })
   },
   detail(id: ApiId) {
-    return leadQueryApi.get<CrmLeadDetailDto | null>('CrmLeadDetail', { id })
+    return leadReadApi.detail(id)
   },
   page(input: CrmLeadPageQueryDto) {
-    return leadQueryApi.post<PageResult<CrmLeadListItemDto>, CrmLeadPageQueryDto>('CrmLeadPage', input)
+    return leadReadApi.page(input)
   },
   findPotentialDuplicates(input: CrmLeadDuplicateCheckDto) {
-    return duplicateQueryApi.post<CrmLeadDuplicateCandidateDto[], CrmLeadDuplicateCheckDto>('FindPotentialDuplicates', input)
+    return duplicateQueryApi.post<CrmLeadDuplicateCandidateDto[], CrmLeadDuplicateCheckDto>('PotentialDuplicates', input)
   },
-}
-
-function leadCommandApiDelete(id: ApiId) {
-  return leadCommandRouteApi.delete<void>('CrmLead', { id })
 }
 
 function leadCommandApiAction<TResult>(action: string, params: { id: ApiId }) {

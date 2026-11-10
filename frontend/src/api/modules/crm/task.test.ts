@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { crmTaskApi } from './task'
+
 const requestMocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -10,8 +12,6 @@ const requestMocks = vi.hoisted(() => ({
 vi.mock('../../request', () => ({
   requestClient: requestMocks,
 }))
-
-import { crmTaskApi } from './task'
 
 describe('crmTaskApi', () => {
   beforeEach(() => {
@@ -28,8 +28,8 @@ describe('crmTaskApi', () => {
     await crmTaskApi.page(query)
     await crmTaskApi.detail('42')
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmTaskQuery/CrmTaskPage', query, undefined)
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmTaskQuery/CrmTaskDetail', expect.objectContaining({
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmTaskQuery/Page', query, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmTaskQuery/Detail', expect.objectContaining({
       params: { id: '42' },
     }))
   })
@@ -42,12 +42,12 @@ describe('crmTaskApi', () => {
     await crmTaskApi.delete('42')
     await crmTaskApi.changeStatus({ id: '42', status: 2 })
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmTask/CrmTask', create, undefined)
-    expect(requestMocks.put).toHaveBeenCalledWith('/CrmTask/CrmTask', expect.objectContaining({
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmTask/Create', create, undefined)
+    expect(requestMocks.put).toHaveBeenCalledWith('/CrmTask/Update', expect.objectContaining({
       basicId: '42',
       title: 'Follow up',
     }), undefined)
-    expect(requestMocks.delete).toHaveBeenCalledWith('/CrmTask/CrmTask', expect.objectContaining({
+    expect(requestMocks.delete).toHaveBeenCalledWith('/CrmTask/Delete', expect.objectContaining({
       params: { id: '42' },
     }))
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmTask/ChangeStatus', { id: '42', status: 2 }, undefined)

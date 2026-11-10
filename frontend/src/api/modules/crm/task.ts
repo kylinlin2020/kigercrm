@@ -7,13 +7,11 @@ import type {
   CrmTaskStatusUpdateDto,
   CrmTaskUpdateDto,
 } from './task.types'
-import { createCommandApi, createDynamicApiClient, createReadApi } from '../../base'
+import { createDynamicApiClient } from '../../base'
+import { createCrmCommandClient, createCrmReadClient } from './crud-client'
 
-const taskReadApi = createReadApi<CrmTaskListItemDto, CrmTaskDetailDto, CrmTaskPageQueryDto>(
-  'CrmTaskQuery',
-  'CrmTask',
-)
-const taskCommandApi = createCommandApi<CrmTaskCreateDto, CrmTaskUpdateDto, CrmTaskDetailDto>('CrmTask', 'CrmTask')
+const taskReadApi = createCrmReadClient<CrmTaskListItemDto, CrmTaskDetailDto, CrmTaskPageQueryDto>('CrmTaskQuery')
+const taskCommandApi = createCrmCommandClient<CrmTaskCreateDto, CrmTaskUpdateDto, CrmTaskDetailDto>('CrmTask')
 const taskCommandRouteApi = createDynamicApiClient('CrmTask')
 
 export const crmTaskApi = {
@@ -24,7 +22,7 @@ export const crmTaskApi = {
     return taskCommandApi.update(input)
   },
   delete(id: ApiId) {
-    return taskCommandRouteApi.delete<void>('CrmTask', { id })
+    return taskCommandApi.delete(id)
   },
   detail(id: ApiId) {
     return taskReadApi.detail(id)

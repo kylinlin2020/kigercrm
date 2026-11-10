@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { crmProspectingApi } from './prospecting'
+
 const requestMocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -8,8 +10,6 @@ const requestMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../request', () => ({ requestClient: requestMocks }))
-
-import { crmProspectingApi } from './prospecting'
 
 describe('crmProspectingApi', () => {
   beforeEach(() => {
@@ -26,12 +26,12 @@ describe('crmProspectingApi', () => {
     await crmProspectingApi.candidates('20', 1)
     await crmProspectingApi.candidateReviewDetail('30')
 
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/GetCampaigns', { params: undefined })
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/GetCampaign', expect.objectContaining({ params: { id: '10' } }))
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/GetStrategies', expect.objectContaining({ params: { campaignId: '10' } }))
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/GetCampaignRuns', expect.objectContaining({ params: { campaignId: '10' } }))
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/GetRunCandidates', expect.objectContaining({ params: { runId: '20', status: 1 } }))
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/GetCandidateReviewDetail', expect.objectContaining({ params: { candidateId: '30' } }))
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Campaigns', { params: undefined })
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Campaign', expect.objectContaining({ params: { id: '10' } }))
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Strategies', expect.objectContaining({ params: { campaignId: '10' } }))
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/CampaignRuns', expect.objectContaining({ params: { campaignId: '10' } }))
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/RunCandidates', expect.objectContaining({ params: { runId: '20', status: 1 } }))
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/CandidateReviewDetail', expect.objectContaining({ params: { candidateId: '30' } }))
   })
 
   it('uses explicit command routes for approval, review and conversion', async () => {
@@ -40,7 +40,7 @@ describe('crmProspectingApi', () => {
     await crmProspectingApi.reviewCandidate({ candidateId: '30', approve: true, overrideDuplicate: false })
     await crmProspectingApi.convertCandidate('30')
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/CreateCampaign', { name: 'Generator buyers' }, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/Campaign', { name: 'Generator buyers' }, undefined)
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/StartRun', { campaignId: '10', requestKey: 'run-1' }, undefined)
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/ReviewCandidate', { candidateId: '30', approve: true, overrideDuplicate: false }, undefined)
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/ConvertApprovedCandidateToLead', undefined, expect.objectContaining({ params: { candidateId: '30' } }))

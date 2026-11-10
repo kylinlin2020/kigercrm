@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { crmLeadApi } from './lead'
+
 const requestMocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -10,8 +12,6 @@ const requestMocks = vi.hoisted(() => ({
 vi.mock('../../request', () => ({
   requestClient: requestMocks,
 }))
-
-import { crmLeadApi } from './lead'
 
 describe('crmLeadApi', () => {
   beforeEach(() => {
@@ -26,11 +26,11 @@ describe('crmLeadApi', () => {
     const query = { page: { pageIndex: 1, pageSize: 20 }, keyword: 'Acme' } as never
 
     await crmLeadApi.page(query)
-    await crmLeadApi.detail(42)
+    await crmLeadApi.detail('42')
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLeadQuery/CrmLeadPage', query, undefined)
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmLeadQuery/CrmLeadDetail', expect.objectContaining({
-      params: { id: 42 },
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLeadQuery/Page', query, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmLeadQuery/Detail', expect.objectContaining({
+      params: { id: '42' },
     }))
   })
 
@@ -39,15 +39,15 @@ describe('crmLeadApi', () => {
     const duplicate = { email: 'sales@acme.example' }
 
     await crmLeadApi.create(create)
-    await crmLeadApi.update({ basicId: 42, companyName: 'Acme Updated', status: 0 } as never)
-    await crmLeadApi.delete(42)
-    await crmLeadApi.convert(42)
+    await crmLeadApi.update({ basicId: '42', companyName: 'Acme Updated', status: 0 } as never)
+    await crmLeadApi.delete('42')
+    await crmLeadApi.convert('42')
     await crmLeadApi.findPotentialDuplicates(duplicate)
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLead/CrmLead', create, undefined)
-    expect(requestMocks.put).toHaveBeenCalledWith('/CrmLead/CrmLead', expect.objectContaining({ basicId: 42 }), undefined)
-    expect(requestMocks.delete).toHaveBeenCalledWith('/CrmLead/CrmLead', expect.objectContaining({ params: { id: 42 } }))
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLead/Convert', undefined, expect.objectContaining({ params: { id: 42 } }))
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLeadDuplicateQuery/FindPotentialDuplicates', duplicate, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLead/Create', create, undefined)
+    expect(requestMocks.put).toHaveBeenCalledWith('/CrmLead/Update', expect.objectContaining({ basicId: '42' }), undefined)
+    expect(requestMocks.delete).toHaveBeenCalledWith('/CrmLead/Delete', expect.objectContaining({ params: { id: '42' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLead/Convert', undefined, expect.objectContaining({ params: { id: '42' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmLeadDuplicateQuery/PotentialDuplicates', duplicate, undefined)
   })
 })

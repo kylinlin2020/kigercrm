@@ -17,7 +17,7 @@ const quoteCommandApi = createDynamicApiClient('CrmQuote')
 
 export const crmQuoteApi = {
   create(input: CrmQuoteCreateDto) {
-    return quoteCommandApi.post<CrmQuoteCommandResultDto, CrmQuoteCreateDto>('CrmQuote', input)
+    return quoteCommandApi.post<CrmQuoteCommandResultDto, CrmQuoteCreateDto>('Create', input)
   },
   revise(sourceQuoteId: ApiId, input: CrmQuoteCreateDto) {
     return quoteCommandApi.post<CrmQuoteDetailDto, CrmQuoteCreateDto>('Revise', input, { params: { sourceQuoteId } })
@@ -29,12 +29,12 @@ export const crmQuoteApi = {
     return quoteCommandApi.post<CrmSalesOrderListItemDto, never>('ConvertToSalesOrder', undefined as never, { params: { quoteId } })
   },
   page(input: CrmQuotePageQueryDto) {
-    return quoteQueryApi.post<PageResult<CrmQuoteListItemDto>, CrmQuotePageQueryDto>('CrmQuotePage', input)
+    return quoteQueryApi.post<PageResult<CrmQuoteListItemDto>, CrmQuotePageQueryDto>('Page', input)
   },
   detail(id: ApiId) {
-    return quoteQueryApi.get<CrmQuoteDetailDto | null>('CrmQuoteDetail', { id })
+    return quoteQueryApi.get<CrmQuoteDetailDto | null>('Detail', { id })
   },
   lines(input: CrmQuoteLinePageQueryDto) {
-    return quoteQueryApi.post<PageResult<CrmQuoteLineDto>, CrmQuoteLinePageQueryDto>('CrmQuoteLinesPage', input)
+    return quoteQueryApi.post<PageResult<CrmQuoteLineDto>, CrmQuoteLinePageQueryDto>('LinesPage', input)
   },
 }

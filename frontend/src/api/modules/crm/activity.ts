@@ -6,17 +6,10 @@ import type {
   CrmActivityPageQueryDto,
   CrmActivityUpdateDto,
 } from './activity.types'
-import { createCommandApi, createDynamicApiClient, createReadApi } from '../../base'
+import { createCrmCommandClient, createCrmReadClient } from './crud-client'
 
-const activityReadApi = createReadApi<CrmActivityListItemDto, CrmActivityDetailDto, CrmActivityPageQueryDto>(
-  'CrmActivityQuery',
-  'CrmActivity',
-)
-const activityCommandApi = createCommandApi<CrmActivityCreateDto, CrmActivityUpdateDto, CrmActivityDetailDto>(
-  'CrmActivity',
-  'CrmActivity',
-)
-const activityCommandRouteApi = createDynamicApiClient('CrmActivity')
+const activityReadApi = createCrmReadClient<CrmActivityListItemDto, CrmActivityDetailDto, CrmActivityPageQueryDto>('CrmActivityQuery')
+const activityCommandApi = createCrmCommandClient<CrmActivityCreateDto, CrmActivityUpdateDto, CrmActivityDetailDto>('CrmActivity')
 
 export const crmActivityApi = {
   create(input: CrmActivityCreateDto) {
@@ -26,7 +19,7 @@ export const crmActivityApi = {
     return activityCommandApi.update(input)
   },
   delete(id: ApiId) {
-    return activityCommandRouteApi.delete<void>('CrmActivity', { id })
+    return activityCommandApi.delete(id)
   },
   detail(id: ApiId) {
     return activityReadApi.detail(id)

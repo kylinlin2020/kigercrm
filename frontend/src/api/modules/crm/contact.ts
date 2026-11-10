@@ -6,17 +6,10 @@ import type {
   CrmContactPageQueryDto,
   CrmContactUpdateDto,
 } from './contact.types'
-import { createCommandApi, createDynamicApiClient, createReadApi } from '../../base'
+import { createCrmCommandClient, createCrmReadClient } from './crud-client'
 
-const contactQueryApi = createReadApi<CrmContactListItemDto, CrmContactDetailDto, CrmContactPageQueryDto>(
-  'CrmContactQuery',
-  'CrmContact',
-)
-const contactCommandApi = createCommandApi<CrmContactCreateDto, CrmContactUpdateDto, CrmContactDetailDto>(
-  'CrmContact',
-  'CrmContact',
-)
-const contactCommandRouteApi = createDynamicApiClient('CrmContact')
+const contactQueryApi = createCrmReadClient<CrmContactListItemDto, CrmContactDetailDto, CrmContactPageQueryDto>('CrmContactQuery')
+const contactCommandApi = createCrmCommandClient<CrmContactCreateDto, CrmContactUpdateDto, CrmContactDetailDto>('CrmContact')
 
 export const crmContactApi = {
   create(input: CrmContactCreateDto) {
@@ -26,7 +19,7 @@ export const crmContactApi = {
     return contactCommandApi.update(input)
   },
   delete(id: ApiId) {
-    return contactCommandRouteApi.delete<void>('CrmContact', { id })
+    return contactCommandApi.delete(id)
   },
   detail(id: ApiId) {
     return contactQueryApi.detail(id)

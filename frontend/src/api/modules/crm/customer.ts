@@ -6,11 +6,10 @@ import type {
   CrmCustomerPageQueryDto,
   CrmCustomerUpdateDto,
 } from './customer.types'
-import { createCommandApi, createDynamicApiClient, createReadApi } from '../../base'
+import { createCrmCommandClient, createCrmReadClient } from './crud-client'
 
-const customerQueryApi = createReadApi<CrmCustomerListItemDto, CrmCustomerDetailDto, CrmCustomerPageQueryDto>('CrmCustomerQuery', 'CrmCustomer')
-const customerCommandRouteApi = createDynamicApiClient('CrmCustomer')
-const customerCommandApi = createCommandApi<CrmCustomerCreateDto, CrmCustomerUpdateDto, CrmCustomerDetailDto>('CrmCustomer', 'CrmCustomer')
+const customerQueryApi = createCrmReadClient<CrmCustomerListItemDto, CrmCustomerDetailDto, CrmCustomerPageQueryDto>('CrmCustomerQuery')
+const customerCommandApi = createCrmCommandClient<CrmCustomerCreateDto, CrmCustomerUpdateDto, CrmCustomerDetailDto>('CrmCustomer')
 
 export const crmCustomerApi = {
   create(input: CrmCustomerCreateDto) {
@@ -20,7 +19,7 @@ export const crmCustomerApi = {
     return customerCommandApi.update(input)
   },
   delete(id: ApiId) {
-    return customerCommandRouteApi.delete<void>('CrmCustomer', { id })
+    return customerCommandApi.delete(id)
   },
   detail(id: ApiId) {
     return customerQueryApi.detail(id)

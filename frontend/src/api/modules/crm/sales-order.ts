@@ -19,16 +19,16 @@ export const crmSalesOrderApi = {
     return orderCommandApi.post<CrmSalesOrderListItemDto, CrmSalesOrderCreateDto>('Create', input)
   },
   updateDraft(input: CrmSalesOrderUpdateDto) {
-    return orderCommandApi.post<CrmSalesOrderListItemDto, CrmSalesOrderUpdateDto>('UpdateDraft', input)
+    return orderCommandApi.put<CrmSalesOrderListItemDto, CrmSalesOrderUpdateDto>('Draft', input)
   },
   page(input: CrmSalesOrderPageQueryDto) {
-    return orderQueryApi.post<PageResult<CrmSalesOrderListItemDto>, CrmSalesOrderPageQueryDto>('CrmSalesOrderPage', input)
+    return orderQueryApi.post<PageResult<CrmSalesOrderListItemDto>, CrmSalesOrderPageQueryDto>('Page', input)
   },
   detail(id: ApiId) {
-    return orderQueryApi.get<CrmSalesOrderDetailDto | null>('CrmSalesOrderDetail', { id })
+    return orderQueryApi.get<CrmSalesOrderDetailDto | null>('Detail', { id })
   },
   lines(input: CrmSalesOrderLinePageQueryDto) {
-    return orderQueryApi.post<PageResult<CrmSalesOrderLineDto>, CrmSalesOrderLinePageQueryDto>('CrmSalesOrderLinesPage', input)
+    return orderQueryApi.post<PageResult<CrmSalesOrderLineDto>, CrmSalesOrderLinePageQueryDto>('LinesPage', input)
   },
   changeStatus(input: CrmSalesOrderStatusUpdateDto) {
     return orderCommandApi.post<CrmSalesOrderListItemDto, CrmSalesOrderStatusUpdateDto>('ChangeStatus', input)

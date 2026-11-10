@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { crmShipmentApi } from './shipment'
+
 const requestMocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
 vi.mock('../../request', () => ({ requestClient: requestMocks }))
-
-import { crmShipmentApi } from './shipment'
 
 describe('crmShipmentApi', () => {
   beforeEach(() => {
@@ -18,9 +18,9 @@ describe('crmShipmentApi', () => {
     await crmShipmentApi.page(page)
     await crmShipmentApi.detail('9')
     await crmShipmentApi.lines(lines)
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmShipmentQuery/CrmShipmentPage', page, undefined)
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmShipmentQuery/CrmShipmentDetail', expect.objectContaining({ params: { id: '9' } }))
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmShipmentQuery/CrmShipmentLinesPage', lines, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmShipmentQuery/Page', page, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmShipmentQuery/Detail', expect.objectContaining({ params: { id: '9' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmShipmentQuery/LinesPage', lines, undefined)
   })
 
   it('uses shipment creation and lifecycle command routes', async () => {
@@ -28,7 +28,7 @@ describe('crmShipmentApi', () => {
     const status = { id: '9', status: 1 } as never
     await crmShipmentApi.create(input)
     await crmShipmentApi.changeStatus(status)
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmShipment/CrmShipment', input, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmShipment/Create', input, undefined)
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmShipment/ChangeStatus', status, undefined)
   })
 })

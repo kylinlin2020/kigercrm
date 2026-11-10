@@ -6,17 +6,10 @@ import type {
   CrmOpportunityPageQueryDto,
   CrmOpportunityUpdateDto,
 } from './opportunity.types'
-import { createCommandApi, createDynamicApiClient, createReadApi } from '../../base'
+import { createCrmCommandClient, createCrmReadClient } from './crud-client'
 
-const opportunityReadApi = createReadApi<CrmOpportunityListItemDto, CrmOpportunityDetailDto, CrmOpportunityPageQueryDto>(
-  'CrmOpportunityQuery',
-  'CrmOpportunity',
-)
-const opportunityCommandApi = createCommandApi<CrmOpportunityCreateDto, CrmOpportunityUpdateDto, CrmOpportunityDetailDto>(
-  'CrmOpportunity',
-  'CrmOpportunity',
-)
-const opportunityCommandRouteApi = createDynamicApiClient('CrmOpportunity')
+const opportunityReadApi = createCrmReadClient<CrmOpportunityListItemDto, CrmOpportunityDetailDto, CrmOpportunityPageQueryDto>('CrmOpportunityQuery')
+const opportunityCommandApi = createCrmCommandClient<CrmOpportunityCreateDto, CrmOpportunityUpdateDto, CrmOpportunityDetailDto>('CrmOpportunity')
 
 export const crmOpportunityApi = {
   create(input: CrmOpportunityCreateDto) {
@@ -26,7 +19,7 @@ export const crmOpportunityApi = {
     return opportunityCommandApi.update(input)
   },
   delete(id: ApiId) {
-    return opportunityCommandRouteApi.delete<void>('CrmOpportunity', { id })
+    return opportunityCommandApi.delete(id)
   },
   detail(id: ApiId) {
     return opportunityReadApi.detail(id)

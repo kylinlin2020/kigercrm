@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { crmSalesOrderApi } from './sales-order'
+
 const requestMocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }))
 vi.mock('../../request', () => ({ requestClient: requestMocks }))
-
-import { crmSalesOrderApi } from './sales-order'
 
 describe('crmSalesOrderApi', () => {
   beforeEach(() => {
@@ -18,9 +18,9 @@ describe('crmSalesOrderApi', () => {
     await crmSalesOrderApi.page(page)
     await crmSalesOrderApi.detail('9')
     await crmSalesOrderApi.lines(lines)
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrderQuery/CrmSalesOrderPage', page, undefined)
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmSalesOrderQuery/CrmSalesOrderDetail', expect.objectContaining({ params: { id: '9' } }))
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrderQuery/CrmSalesOrderLinesPage', lines, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrderQuery/Page', page, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmSalesOrderQuery/Detail', expect.objectContaining({ params: { id: '9' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrderQuery/LinesPage', lines, undefined)
   })
 
   it('uses the direct order creation command route', async () => {
@@ -29,18 +29,16 @@ describe('crmSalesOrderApi', () => {
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrder/Create', input, undefined)
   })
 
-
   it('uses the draft-only update command route', async () => {
     const input = { id: '9', customerId: '5', currency: 'USD', lines: [{ id: '12', description: 'Generator', quantity: 2, unitPrice: 100 }] } as never
     await crmSalesOrderApi.updateDraft(input)
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrder/UpdateDraft', input, undefined)
+    expect(requestMocks.put).toHaveBeenCalledWith('/CrmSalesOrder/Draft', input, undefined)
   })
-
 
   it('passes new draft line ID zero through the update command unchanged', async () => {
     const input = { id: '9', customerId: '5', currency: 'USD', lines: [{ id: '0', description: 'Replacement pump', quantity: 1, unitPrice: 250 }] } as never
     await crmSalesOrderApi.updateDraft(input)
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmSalesOrder/UpdateDraft', input, undefined)
+    expect(requestMocks.put).toHaveBeenCalledWith('/CrmSalesOrder/Draft', input, undefined)
   })
 
   it('uses the order lifecycle command route', async () => {

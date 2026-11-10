@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { crmOpportunityApi } from './opportunity'
+
 const requestMocks = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -10,8 +12,6 @@ const requestMocks = vi.hoisted(() => ({
 vi.mock('../../request', () => ({
   requestClient: requestMocks,
 }))
-
-import { crmOpportunityApi } from './opportunity'
 
 describe('crmOpportunityApi', () => {
   beforeEach(() => {
@@ -26,11 +26,11 @@ describe('crmOpportunityApi', () => {
     const query = { page: { pageIndex: 1, pageSize: 20 }, keyword: 'Expansion' } as never
 
     await crmOpportunityApi.page(query)
-    await crmOpportunityApi.detail(42)
+    await crmOpportunityApi.detail('42')
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOpportunityQuery/CrmOpportunityPage', query, undefined)
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmOpportunityQuery/CrmOpportunityDetail', expect.objectContaining({
-      params: { id: 42 },
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOpportunityQuery/Page', query, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmOpportunityQuery/Detail', expect.objectContaining({
+      params: { id: '42' },
     }))
   })
 
@@ -41,12 +41,12 @@ describe('crmOpportunityApi', () => {
     await crmOpportunityApi.update({ ...create, basicId: '42' } as never)
     await crmOpportunityApi.delete('42')
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOpportunity/CrmOpportunity', create, undefined)
-    expect(requestMocks.put).toHaveBeenCalledWith('/CrmOpportunity/CrmOpportunity', expect.objectContaining({
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOpportunity/Create', create, undefined)
+    expect(requestMocks.put).toHaveBeenCalledWith('/CrmOpportunity/Update', expect.objectContaining({
       basicId: '42',
       name: 'Expansion',
     }), undefined)
-    expect(requestMocks.delete).toHaveBeenCalledWith('/CrmOpportunity/CrmOpportunity', expect.objectContaining({
+    expect(requestMocks.delete).toHaveBeenCalledWith('/CrmOpportunity/Delete', expect.objectContaining({
       params: { id: '42' },
     }))
   })
