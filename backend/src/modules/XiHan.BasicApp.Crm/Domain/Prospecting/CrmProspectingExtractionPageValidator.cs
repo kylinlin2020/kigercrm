@@ -111,8 +111,8 @@ public static class CrmProspectingExtractionPageValidator
             }
 
             if (record.SourceUrl is { Length: > 0 } sourceUrl &&
-                (ContainsControlCharacters(sourceUrl) ||
-                 !Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) ||
+                (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) ||
+                 ContainsControlCharacters(sourceUrl) ||
                  (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp) ||
                  !string.IsNullOrEmpty(uri.UserInfo)))
             {
@@ -157,4 +157,8 @@ public static class CrmProspectingExtractionPageValidator
         return !string.IsNullOrWhiteSpace(page.NextCursor)
             && !string.Equals(currentCursor, page.NextCursor, StringComparison.Ordinal);
     }
+
+    /// <summary>Rejects control characters in untrusted provider text fields.</summary>
+    private static bool ContainsControlCharacters(string? value)
+        => value is not null && value.Any(char.IsControl);
 }

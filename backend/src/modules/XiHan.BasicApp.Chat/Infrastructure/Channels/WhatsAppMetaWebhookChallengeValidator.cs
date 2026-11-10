@@ -1,3 +1,6 @@
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
 using System.Security.Cryptography;
 using System.Text;
 
@@ -9,6 +12,7 @@ namespace XiHan.BasicApp.Chat.Infrastructure.Channels;
 /// </summary>
 public static class WhatsAppMetaWebhookChallengeValidator
 {
+    /// <summary>Validates a subscription handshake using a fixed-time token comparison and returns the challenge on success.</summary>
     public static bool TryValidate(
         string? mode,
         string? suppliedVerifyToken,

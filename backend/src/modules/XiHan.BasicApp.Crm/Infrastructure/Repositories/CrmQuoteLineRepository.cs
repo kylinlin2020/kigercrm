@@ -16,7 +16,7 @@ public sealed class CrmQuoteLineRepository(ISqlSugarClientResolver clientResolve
         return await CreateQueryable()
             .Where(line => line.QuoteId == quoteId)
             .OrderBy(line => line.SortOrder)
-            .ThenBy(line => line.BasicId)
+            .OrderBy(line => line.BasicId)
             .ToListAsync(cancellationToken);
     }
 }

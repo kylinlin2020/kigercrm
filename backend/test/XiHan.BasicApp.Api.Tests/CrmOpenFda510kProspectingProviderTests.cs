@@ -48,8 +48,8 @@ public sealed class CrmOpenFda510kProspectingProviderTests
         var entries = string.Join(",", Enumerable.Range(1, 100)
             .Select(i => $$"""{"k_number":"K24{{i:D4}}","device_name":"Medical Pump {{i}}","applicant":"Applicant {{i}}","decision_date":"20240101"}"""));
         var handler = new StubHandler((request, _) => Ok(request,
-            $$"""{"meta":{"results":{"total":500}},"results":[{{entries}}]}"""));
-        using var provider = new CrmOpenFda510kProspectingProvider(new HttpClient(handler), null);
+            $$$"""{"meta":{"results":{"total":500}},"results":[{{{entries}}}]}"""));
+        using var provider = new CrmOpenFda510kProspectingProvider(new HttpClient(handler), (string?)null);
 
         var result = await provider.SearchAsync(Request(product: "medical pump"));
 
@@ -68,7 +68,7 @@ public sealed class CrmOpenFda510kProspectingProviderTests
             response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromMinutes(1));
             return response;
         });
-        using var provider = new CrmOpenFda510kProspectingProvider(new HttpClient(handler), null);
+        using var provider = new CrmOpenFda510kProspectingProvider(new HttpClient(handler), (string?)null);
 
         await Assert.ThrowsAsync<CrmProspectingProviderRateLimitException>(() => provider.SearchAsync(Request()));
     }

@@ -128,7 +128,7 @@ public sealed class AiServiceRegistrationTests
         {
             var schema = tool.GetType().GetProperty("JsonSchema")?.GetValue(tool);
             Assert.NotNull(schema);
-            var schemaText = schema!.ToString();
+            var schemaText = schema!.ToString() ?? string.Empty;
             Assert.True(schemaText.Length > 0);
             Assert.False(schemaText.Contains("tenantId", StringComparison.OrdinalIgnoreCase));
             Assert.False(schemaText.Contains("userId", StringComparison.OrdinalIgnoreCase));

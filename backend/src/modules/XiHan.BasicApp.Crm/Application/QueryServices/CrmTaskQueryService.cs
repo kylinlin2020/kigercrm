@@ -51,14 +51,14 @@ public sealed class CrmTaskQueryService(ICrmTaskRepository repository, IFieldSec
             if (input.AssigneeUserId.Value <= 0) throw new ArgumentOutOfRangeException(nameof(input.AssigneeUserId));
             request.Conditions.AddFilter((SysCrmTask x) => x.AssigneeUserId, input.AssigneeUserId.Value);
         }
-        if (input.DueFrom.HasValue) request.Conditions.AddFilter((SysCrmTask x) => x.DueAt, SqlSugar.ConditionalType.GreaterThanOrEqual, input.DueFrom.Value);
-        if (input.DueTo.HasValue) request.Conditions.AddFilter((SysCrmTask x) => x.DueAt, SqlSugar.ConditionalType.LessThanOrEqual, input.DueTo.Value);
+        if (input.DueFrom.HasValue) request.Conditions.AddFilter((SysCrmTask x) => x.DueAt, input.DueFrom.Value, QueryOperator.GreaterThanOrEqual);
+        if (input.DueTo.HasValue) request.Conditions.AddFilter((SysCrmTask x) => x.DueAt, input.DueTo.Value, QueryOperator.LessThanOrEqual);
         if (input.DueFrom > input.DueTo && input.DueTo.HasValue) throw new ArgumentException("DueFrom must not be later than DueTo.");
         if (input.OverdueOnly == true)
         {
-            request.Conditions.AddFilter((SysCrmTask x) => x.DueAt, SqlSugar.ConditionalType.LessThan, DateTime.UtcNow);
-            request.Conditions.AddFilter((SysCrmTask x) => x.Status, SqlSugar.ConditionalType.NotEqual, CrmTaskStatus.Completed);
-            request.Conditions.AddFilter((SysCrmTask x) => x.Status, SqlSugar.ConditionalType.NotEqual, CrmTaskStatus.Cancelled);
+            request.Conditions.AddFilter((SysCrmTask x) => x.DueAt, DateTime.UtcNow, QueryOperator.LessThan);
+            request.Conditions.AddFilter((SysCrmTask x) => x.Status, CrmTaskStatus.Completed, QueryOperator.NotEqual);
+            request.Conditions.AddFilter((SysCrmTask x) => x.Status, CrmTaskStatus.Cancelled, QueryOperator.NotEqual);
         }
         if (!string.IsNullOrWhiteSpace(input.Keyword)) request.Conditions.SetKeyword<SysCrmTask>(input.Keyword.Trim(), x => x.Title, x => x.Description);
         if (input.Conditions?.Sorts is { Count: > 0 } sorts) _ = request.Conditions.AddSorts(sorts);

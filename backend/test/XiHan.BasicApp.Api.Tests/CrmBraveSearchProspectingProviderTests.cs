@@ -48,7 +48,7 @@ public sealed class CrmBraveSearchProspectingProviderTests
     public async Task SearchAsync_UsesBoundedOffsetPaginationAndMarksRemainingResultsIncomplete()
     {
         var handler = new StubHandler((request, call) => Ok(request,
-            $$"""{"query":{"more_results_available":true},"web":{"results":[{"title":"Supplier {{call}}","url":"https://supplier{{call}}.nl","description":"Pump supplier"}]}}"""));
+            $$$"""{"query":{"more_results_available":true},"web":{"results":[{"title":"Supplier {{{call}}}","url":"https://supplier{{{call}}}.nl","description":"Pump supplier"}]}}"""));
         using var provider = new CrmBraveSearchProspectingProvider(new HttpClient(handler), "test-token");
 
         var result = await provider.SearchAsync(Request());

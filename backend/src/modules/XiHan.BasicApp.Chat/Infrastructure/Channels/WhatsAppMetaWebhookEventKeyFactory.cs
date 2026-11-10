@@ -14,9 +14,12 @@ namespace XiHan.BasicApp.Chat.Infrastructure.Channels;
 /// </summary>
 public static class WhatsAppMetaWebhookEventKeyFactory
 {
+    /// <summary>Event discriminator for an inbound message webhook item.</summary>
     public const string InboundMessageEventType = "InboundMessage";
+    /// <summary>Event discriminator for a message status transition webhook item.</summary>
     public const string MessageStatusEventType = "MessageStatus";
 
+    /// <summary>Builds the idempotency key for an inbound message using its canonical provider identity.</summary>
     public static string ForInboundMessage(WhatsAppMetaInboundMessage message)
     {
         ArgumentNullException.ThrowIfNull(message);
@@ -58,6 +61,7 @@ public static class WhatsAppMetaWebhookEventKeyFactory
         return Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(identity))).ToLowerInvariant();
     }
 
+    /// <summary>Builds the idempotency key for one status transition, including its canonicalized error payload.</summary>
     public static string ForMessageStatus(WhatsAppMetaMessageStatus status)
     {
         ArgumentNullException.ThrowIfNull(status);

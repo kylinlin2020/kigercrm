@@ -49,8 +49,8 @@ public sealed class CrmHunterDiscoverProspectingProviderTests
     public async Task SearchAsync_FullPageMarksCoverageIncompleteWithoutPremiumPagination()
     {
         var companies = string.Join(",", Enumerable.Range(1, 100)
-            .Select(i => $$"""{"domain":"company{{i}}.example","organization":"Company {{i}}","emails_count":{"personal":0,"generic":0,"total":0}}"""));
-        var handler = new StubHandler((request, _) => Ok(request, $$"""{"data":[{{companies}}],"meta":{"results":250}}"""));
+            .Select(i => $$$"""{"domain":"company{{{i}}}.example","organization":"Company {{{i}}}","emails_count":{"personal":0,"generic":0,"total":0}}"""));
+        var handler = new StubHandler((request, _) => Ok(request, $$$"""{"data":[{{{companies}}}],"meta":{"results":250}}"""));
         using var provider = new CrmHunterDiscoverProspectingProvider(new HttpClient(handler), "key");
 
         var result = await provider.SearchAsync(Request());

@@ -47,8 +47,8 @@ public sealed class CrmActivityQueryService(ICrmActivityRepository repository, I
             if (input.OwnerUserId.Value <= 0) throw new ArgumentOutOfRangeException(nameof(input.OwnerUserId));
             request.Conditions.AddFilter((SysCrmActivity x) => x.OwnerUserId, input.OwnerUserId.Value);
         }
-        if (input.OccurredFrom.HasValue) request.Conditions.AddFilter((SysCrmActivity x) => x.OccurredAt, SqlSugar.ConditionalType.GreaterThanOrEqual, input.OccurredFrom.Value);
-        if (input.OccurredTo.HasValue) request.Conditions.AddFilter((SysCrmActivity x) => x.OccurredAt, SqlSugar.ConditionalType.LessThanOrEqual, input.OccurredTo.Value);
+        if (input.OccurredFrom.HasValue) request.Conditions.AddFilter((SysCrmActivity x) => x.OccurredAt, input.OccurredFrom.Value, QueryOperator.GreaterThanOrEqual);
+        if (input.OccurredTo.HasValue) request.Conditions.AddFilter((SysCrmActivity x) => x.OccurredAt, input.OccurredTo.Value, QueryOperator.LessThanOrEqual);
         if (input.OccurredFrom > input.OccurredTo && input.OccurredTo.HasValue) throw new ArgumentException("OccurredFrom must not be later than OccurredTo.");
         if (!string.IsNullOrWhiteSpace(input.Keyword)) request.Conditions.SetKeyword<SysCrmActivity>(input.Keyword.Trim(), x => x.Subject, x => x.Content, x => x.ExternalId);
         if (input.Conditions?.Sorts is { Count: > 0 } sorts) _ = request.Conditions.AddSorts(sorts);

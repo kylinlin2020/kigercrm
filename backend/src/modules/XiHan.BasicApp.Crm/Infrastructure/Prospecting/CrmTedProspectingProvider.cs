@@ -48,7 +48,7 @@ public sealed class CrmTedProspectingProvider : ICrmProspectingProvider, IDispos
         var now = DateTimeOffset.UtcNow;
         var from = (request.CoverageSinceUtc ?? now.AddDays(-30)).ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var to = now.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-        var terms = string.Join(" OR ", keywords.Select(keyword => $"\\"{keyword}\\""));
+        var terms = string.Join(" OR ", keywords.Select(keyword => $"\"{keyword}\""));
         var expertQuery = $"FT=({terms}) AND PD=({from} <> {to})";
         var records = new List<CrmProspectingRawRecord>();
         var warnings = new List<string>();

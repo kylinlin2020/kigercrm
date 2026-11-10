@@ -21,7 +21,7 @@ public sealed class CrmChatToolFactoryTests
         var function = GetFunction(factory, "crm_search_customers");
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "   " }));
+            await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = "   " })));
 
         Assert.Equal("keyword", exception.ParamName);
     }
@@ -33,7 +33,7 @@ public sealed class CrmChatToolFactoryTests
         var function = GetFunction(factory, "crm_search_customers");
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = new string('x', 201) }));
+            await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = new string('x', 201) })));
 
         Assert.Equal("keyword", exception.ParamName);
     }
@@ -47,7 +47,7 @@ public sealed class CrmChatToolFactoryTests
         var function = GetFunction(factory, "crm_search_customers");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "Acme" }));
+            await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = "Acme" })));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class CrmChatToolFactoryTests
         var factory = new CrmChatToolFactory(query, null!, null!, fieldSecurity, permissionGuard);
         var function = GetFunction(factory, "crm_search_customers");
 
-        _ = await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "  Acme  " });
+        _ = await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = "  Acme  " }));
 
         Assert.Equal("Acme", query.LastInput?.Keyword);
         Assert.Equal([XiHan.BasicApp.Crm.Domain.Permissions.CrmPermissionCodes.Read], permissionGuard.GrantedPermissions);
@@ -74,7 +74,7 @@ public sealed class CrmChatToolFactoryTests
         var function = GetFunction(factory, "crm_search_leads");
 
         var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = " " }));
+            await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = " " })));
 
         Assert.Equal("keyword", exception.ParamName);
     }
@@ -86,7 +86,7 @@ public sealed class CrmChatToolFactoryTests
         var function = GetFunction(factory, "crm_search_leads");
 
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = new string('x', 201) }));
+            await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = new string('x', 201) })));
 
         Assert.Equal("keyword", exception.ParamName);
     }
@@ -100,7 +100,7 @@ public sealed class CrmChatToolFactoryTests
         var function = GetFunction(factory, "crm_search_leads");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "Acme" }));
+            await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = "Acme" })));
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class CrmChatToolFactoryTests
         var factory = new CrmChatToolFactory(null!, query, null!, fieldSecurity, permissionGuard);
         var function = GetFunction(factory, "crm_search_leads");
 
-        _ = await function.InvokeAsync(new Dictionary<string, object?> { ["keyword"] = "  Acme  " });
+        _ = await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = "  Acme  " }));
 
         Assert.Equal("Acme", query.LastInput?.Keyword);
         Assert.Equal([XiHan.BasicApp.Crm.Domain.Permissions.CrmPermissionCodes.Read], permissionGuard.GrantedPermissions);
@@ -140,7 +140,7 @@ public sealed class CrmChatToolFactoryTests
         {
             var function = GetFunction(factory, call.Name);
             await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
-                await function.InvokeAsync(call.Arguments));
+                await function.InvokeAsync(new AIFunctionArguments(call.Arguments)));
             Assert.Equal(XiHan.BasicApp.Crm.Domain.Permissions.CrmPermissionCodes.Read, guard.LastPermissionCode);
         }
 
@@ -156,11 +156,11 @@ public sealed class CrmChatToolFactoryTests
         var candidates = GetFunction(factory, "crm_prospecting_list_candidates");
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await strategies.InvokeAsync(new Dictionary<string, object?> { ["campaignId"] = 0L }));
+            await strategies.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["campaignId"] = 0L })));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await runs.InvokeAsync(new Dictionary<string, object?> { ["campaignId"] = 0L }));
+            await runs.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["campaignId"] = 0L })));
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await candidates.InvokeAsync(new Dictionary<string, object?> { ["runId"] = -1L }));
+            await candidates.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["runId"] = -1L })));
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public sealed class CrmChatToolFactoryTests
         var review = GetFunction(factory, "crm_prospecting_get_candidate_review");
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await review.InvokeAsync(new Dictionary<string, object?> { ["candidateId"] = 0L }));
+            await review.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["candidateId"] = 0L })));
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public sealed class CrmChatToolFactoryTests
                     string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, call.Name, StringComparison.Ordinal)));
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-                await function.InvokeAsync(call.Arguments));
+                await function.InvokeAsync(new AIFunctionArguments(call.Arguments)));
         }
 
         Assert.Empty(permissionGuard.GrantedPermissions);

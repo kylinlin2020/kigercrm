@@ -61,7 +61,7 @@ public sealed class CrmProspectingProviderPlanValidationTests
         var service = new CrmProspectingDomainService(campaigns.Object, strategies.Object, runs.Object);
 
         await Assert.ThrowsAnyAsync<ArgumentException>(
-            () => service.CreateStrategyVersionAsync(CreateStrategy("[\\"provider-a\\",\\"PROVIDER-A\\"]")));
+            () => service.CreateStrategyVersionAsync(CreateStrategy("[\"provider-a\",\"PROVIDER-A\"]")));
 
         campaigns.VerifyNoOtherCalls();
         strategies.VerifyNoOtherCalls();

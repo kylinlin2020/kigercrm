@@ -61,7 +61,7 @@ public sealed class CrmFmcsaQcmobileProspectingProviderTests
     public async Task SearchAsync_MarksMoreThanOneHundredRowsIncomplete()
     {
         var rows = string.Join(",", Enumerable.Range(1, 101).Select(index =>
-            $$"""{"carrier":{"dotNumber":"{{(7000000 + index)}}","legalName":"Carrier {{index}}"}}"""));
+            $$$"""{"carrier":{"dotNumber":"{{{(7000000 + index)}}}","legalName":"Carrier {{{index}}}"}}"""));
         var handler = new StubHandler((request, _) => Ok(request, $$"""{"content":[{{rows}}]}"""));
         using var provider = new CrmFmcsaQcmobileProspectingProvider(new HttpClient(handler), "test-web-key");
 

@@ -43,7 +43,7 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
 
         var entity = new SysCrmProspectingExtractionJob
         {
-            TenantId = tenant.TenantId, RunId = runId, ProviderCode = providerCode,
+            TenantId = tenant.TenantId ?? 0, RunId = runId, ProviderCode = providerCode,
             RequestFingerprint = fingerprint, SubmissionIdempotencyKey = Guid.NewGuid(),
             ProviderExtractionId = null, Status = CrmProspectingExtractionStatus.Submitting.ToString(),
             SubmittedAtUtc = null, NextPollAtUtc = nextAttemptAtUtc, PollAttemptCount = 0,

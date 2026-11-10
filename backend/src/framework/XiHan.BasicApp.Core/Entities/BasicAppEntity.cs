@@ -59,6 +59,8 @@ public abstract class BasicAppEntityWithIdentity : SugarMultiTenantEntityWithIde
 /// </summary>
 public abstract class BasicAppCreationEntity : SugarMultiTenantCreationEntity<long>
 {
+    /// <summary>Sets the primary key for test fixtures; the framework base setter is protected.</summary>
+    public void SetBasicId(long basicId) => base.BasicId = basicId;
 }
 
 /// <summary>
@@ -95,6 +97,9 @@ public abstract class BasicAppFullAuditedEntity : SugarMultiTenantFullAuditedEnt
         : base(basicId)
     {
     }
+
+    /// <summary>Sets the primary key for update-shaped DTO mapping and test fixtures; the base setter is protected.</summary>
+    public void SetBasicId(long basicId) => BasicId = basicId;
 }
 
 /// <summary>

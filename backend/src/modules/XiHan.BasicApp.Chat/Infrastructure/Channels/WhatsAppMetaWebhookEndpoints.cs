@@ -20,6 +20,7 @@ public static class WhatsAppMetaWebhookEndpoints
     private const string ConfigurationPrefix = "XiHan:Chat:WhatsApp:Meta";
     private const int MaxWebhookBodyBytes = 1_048_576;
 
+    /// <summary>Maps the anonymous Meta WhatsApp webhook verification and receipt endpoints.</summary>
     public static IEndpointRouteBuilder MapWhatsAppMetaWebhookEndpoints(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapGet("/api/chat/webhooks/whatsapp/meta", VerifySubscriptionAsync).AllowAnonymous();

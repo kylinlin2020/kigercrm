@@ -29,6 +29,9 @@ public sealed class CrmProspectingRunMessage : IBackgroundTaskItem
 
     [JsonIgnore]
     public object? Data => null;
+
+    /// <summary>已重试次数（框架 IBackgroundTaskItem 契约）。</summary>
+    public int RetryCount { get; set; }
 }
 
 /// <summary>
@@ -170,14 +173,14 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 }
                 else if (executionStep.State is "Checkpointed" or "Projecting")
                 {
-                    var checkpointJson = executionStep.CheckpointJson
+                    var interruptedCheckpointJson = executionStep.CheckpointJson
                         ?? throw new InvalidOperationException($"Provider checkpoint is missing for '{providerCode}'.");
-                    var checkpointBytes = System.Text.Encoding.UTF8.GetByteCount(checkpointJson);
-                    var checkpointHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(checkpointJson)));
-                    if (checkpointBytes != executionStep.CheckpointBytes ||
+                    var interruptedCheckpointBytes = System.Text.Encoding.UTF8.GetByteCount(interruptedCheckpointJson);
+                    var checkpointHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(interruptedCheckpointJson)));
+                    if (interruptedCheckpointBytes != executionStep.CheckpointBytes ||
                         !string.Equals(checkpointHash, executionStep.CheckpointHash, StringComparison.Ordinal))
                         throw new InvalidOperationException($"Provider checkpoint integrity validation failed for '{providerCode}'.");
-                    var checkpoint = JsonSerializer.Deserialize<CrmProspectingProviderResultCheckpoint>(checkpointJson)
+                    var checkpoint = JsonSerializer.Deserialize<CrmProspectingProviderResultCheckpoint>(interruptedCheckpointJson)
                         ?? throw new InvalidOperationException($"Provider checkpoint payload is invalid for '{providerCode}'.");
                     if (checkpoint.Records is null || checkpoint.Records.Count != executionStep.RawRecordCount ||
                         checkpoint.Records.Any(record => record is null) || checkpoint.FailureCount < 0)
@@ -828,7 +831,6 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                                 throw new InvalidOperationException("Could not finalize the successful GLEIF request attempt.");
                         }
                     }
-                }
 
                     if (identity is not null &&
                         CrmProspectingEvidenceFactory.TryGetCanonicalSourceUrl(identity.SourceUrl, out var canonicalSourceUrl))

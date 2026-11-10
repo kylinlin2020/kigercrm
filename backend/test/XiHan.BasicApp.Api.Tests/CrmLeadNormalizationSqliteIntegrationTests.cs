@@ -6,6 +6,7 @@ using XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Crm.Infrastructure.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.Data.SqlSugar.Extensions;
 using XiHan.Framework.Domain.Entities.Abstracts;

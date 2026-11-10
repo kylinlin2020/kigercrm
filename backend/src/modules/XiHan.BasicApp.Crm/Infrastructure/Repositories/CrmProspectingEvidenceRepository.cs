@@ -18,7 +18,7 @@ public sealed class CrmProspectingEvidenceRepository(ISqlSugarClientResolver cli
         return await CreateQueryable()
             .Where(evidence => evidence.CandidateId == candidateId)
             .OrderBy(evidence => evidence.FieldName)
-            .ThenBy(evidence => evidence.RetrievedAtUtc)
+            .OrderBy(evidence => evidence.RetrievedAtUtc)
             .ToListAsync(cancellationToken);
     }
 }

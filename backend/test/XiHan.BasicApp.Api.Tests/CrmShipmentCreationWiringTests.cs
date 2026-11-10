@@ -177,7 +177,7 @@ public sealed class CrmShipmentCreationWiringTests
         Assert.Contains("INumberGenerator numberGenerator", service, StringComparison.Ordinal);
         Assert.Contains("CrmNumberingRuleCodes.Shipment", service, StringComparison.Ordinal);
         Assert.Contains("NumberingScope.Auto", service, StringComparison.Ordinal);
-        Assert.Contains('"CRM_SHIPMENT"', service, StringComparison.Ordinal);
+        Assert.Contains("\"CRM_SHIPMENT\"", service, StringComparison.Ordinal);
         Assert.Contains("allocation.Numbers.Single()", service, StringComparison.Ordinal);
     }
 

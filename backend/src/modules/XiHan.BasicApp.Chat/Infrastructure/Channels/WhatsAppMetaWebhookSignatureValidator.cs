@@ -1,3 +1,6 @@
+// Copyright (c) 2021-Present XiHanFun and contributors.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
 using System.Security.Cryptography;
 using System.Text;
 
@@ -12,6 +15,7 @@ public static class WhatsAppMetaWebhookSignatureValidator
     private const string HeaderPrefix = "sha256=";
     private const int Sha256HexLength = 64;
 
+    /// <summary>Returns true when the header carries a valid SHA-256 HMAC of the exact raw request body.</summary>
     public static bool IsValid(ReadOnlySpan<byte> rawBody, string? signatureHeader, string? appSecret)
     {
         if (rawBody.IsEmpty ||
@@ -24,10 +28,15 @@ public static class WhatsAppMetaWebhookSignatureValidator
         if (suppliedHex.Length != Sha256HexLength)
             return false;
 
-        Span<byte> suppliedDigest = stackalloc byte[32];
-        if (!Convert.TryFromHexString(suppliedHex, suppliedDigest, out var bytesWritten) ||
-            bytesWritten != suppliedDigest.Length)
+        byte[] suppliedDigest;
+        try
+        {
+            suppliedDigest = Convert.FromHexString(suppliedHex);
+        }
+        catch (FormatException)
+        {
             return false;
+        }
 
         var secretBytes = Encoding.UTF8.GetBytes(appSecret);
         try

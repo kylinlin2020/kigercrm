@@ -41,7 +41,7 @@ public sealed class CrmSerpApiProspectingProviderTests
     public async Task SearchAsync_UsesBoundedPaginationAndMarksRemainingResultsIncomplete()
     {
         var handler = new StubHandler((request, call) => Ok(request,
-            $$"""{"organic_results":[{"title":"Supplier {{call}}","link":"https://supplier{{call}}.com","snippet":"Pump supplier"}],"serpapi_pagination":{"next":"https://serpapi.com/search?start={{call*10}}"}}"""));
+            $$$"""{"organic_results":[{"title":"Supplier {{{call}}}","link":"https://supplier{{{call}}}.com","snippet":"Pump supplier"}],"serpapi_pagination":{"next":"https://serpapi.com/search?start={{{call*10}}}"}}"""));
         using var provider = new CrmSerpApiProspectingProvider(new HttpClient(handler), "key");
         var result = await provider.SearchAsync(Request());
         Assert.Equal(2, handler.CallCount);

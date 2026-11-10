@@ -252,7 +252,7 @@ public sealed class CrmCsvImportPreviewServiceTests
     [Fact]
     public void Preview_ShouldPreserveCarriageReturnOnlyQuotedMultilineCellsAndPhysicalLineNumbers()
     {
-        const string csv = "CompanyName,Email\r\"Acme\rGlobal\\",acme@acme.test\rBeta,beta@acme.test";
+        const string csv = "CompanyName,Email\r\"Acme\rGlobal\",acme@acme.test\rBeta,beta@acme.test";
         var result = CrmCsvImportPreviewService.Preview(
             Encoding.UTF8.GetBytes(csv), Allowed, Required);
 

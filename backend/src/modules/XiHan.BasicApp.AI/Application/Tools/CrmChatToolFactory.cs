@@ -25,6 +25,7 @@ public sealed class CrmChatToolFactory
     private readonly IFieldSecurityService _fieldSecurity;
     private readonly IOperationPermissionGuard _permissionGuard;
 
+    /// <summary>Initializes a request-scoped CRM tool factory with the caller's authorized query and guard services.</summary>
     public CrmChatToolFactory(
         ICrmCustomerQueryService customerQuery,
         ICrmLeadQueryService leadQuery,

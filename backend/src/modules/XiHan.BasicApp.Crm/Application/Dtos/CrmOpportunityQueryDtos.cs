@@ -10,7 +10,7 @@ public sealed class CrmOpportunityPageQueryDto : BasicAppPRDto
     public long? OwnerUserId { get; set; }
 }
 
-public sealed class CrmOpportunityListItemDto : BasicAppDto
+public class CrmOpportunityListItemDto : BasicAppDto
 {
     public long CustomerId { get; set; }
     public long? PrimaryContactId { get; set; }

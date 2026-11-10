@@ -404,7 +404,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             throw new NotSupportedException("Provider execution checkpoints require PostgreSQL.");
         var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for provider execution writes.");
-        return (client, tenant.TenantId);
+        return (client, tenant.TenantId ?? 0);
     }
 
     private static void ValidateIdentity(long executionId, long runId, Guid leaseToken, long fencingVersion)

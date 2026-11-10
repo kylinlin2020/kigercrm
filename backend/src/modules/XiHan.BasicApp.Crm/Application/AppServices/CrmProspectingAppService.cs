@@ -42,7 +42,7 @@ public sealed class CrmProspectingAppService(
     {
         ArgumentNullException.ThrowIfNull(input);
         var entity = Map(input);
-        entity.OwnerUserId ??= CurrentUser?.Id;
+        entity.OwnerUserId ??= CurrentUserId;
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, entity.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmProspectingCampaign), input, cancellationToken);
         return ToDto(await domain.CreateCampaignAsync(entity, cancellationToken));
@@ -58,7 +58,7 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
         await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, existing.OwnerUserId, cancellationToken);
         var updated = Map(input, input.BasicId.Value);
-        updated.OwnerUserId ??= existing.OwnerUserId ?? CurrentUser?.Id;
+        updated.OwnerUserId ??= existing.OwnerUserId ?? CurrentUserId;
         await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, updated.OwnerUserId, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmProspectingCampaign), input.BasicId.Value, input, cancellationToken);
         return ToDto(await domain.UpdateCampaignAsync(updated, cancellationToken));
@@ -88,7 +88,7 @@ public sealed class CrmProspectingAppService(
         if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
         var campaign = await campaigns.GetByIdAsync(campaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         var items = await strategies.GetLatestByCampaignAsync(campaignId, 500, cancellationToken);
         return items.Select(ToDto).ToArray();
     }
@@ -99,7 +99,7 @@ public sealed class CrmProspectingAppService(
         if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
         var campaign = await campaigns.GetByIdAsync(campaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         var items = await runs.GetLatestByCampaignAsync(campaignId, 500, cancellationToken);
         return items.Select(ToDto).ToArray();
     }
@@ -112,7 +112,7 @@ public sealed class CrmProspectingAppService(
         if (input.CampaignId <= 0) throw new ArgumentOutOfRangeException(nameof(input.CampaignId));
         var campaign = await campaigns.GetByIdAsync(input.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         var entity = new SysCrmProspectingStrategy
         {
             CampaignId = input.CampaignId,
@@ -133,7 +133,7 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting strategy does not exist.");
         var campaign = await campaigns.GetByIdAsync(strategy.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         return ToDto(await domain.SubmitStrategyForApprovalAsync(strategyId, cancellationToken));
     }
 
@@ -146,8 +146,8 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting strategy does not exist.");
         var campaign = await campaigns.GetByIdAsync(strategy.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
-        var approverId = CurrentUser?.Id;
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
+        var approverId = CurrentUserId;
         return ToDto(await domain.DecideStrategyAsync(input.StrategyId, input.Approve, approverId, cancellationToken));
     }
 
@@ -159,7 +159,7 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting strategy does not exist.");
         var campaign = await campaigns.GetByIdAsync(strategy.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         return ToDto(await domain.ActivateStrategyAsync(strategyId, cancellationToken));
     }
 
@@ -190,7 +190,7 @@ public sealed class CrmProspectingAppService(
         using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
         var campaign = await campaigns.GetByIdAsync(input.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         var run = await domain.CreateRunAsync(input.CampaignId, input.RequestKey, cancellationToken);
         var message = new CrmProspectingRunMessage
         {
@@ -230,7 +230,7 @@ public sealed class CrmProspectingAppService(
         if (run is null) return null;
         var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         return ToDto(run);
     }
 
@@ -242,7 +242,7 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting run does not exist.");
         var campaign = await campaigns.GetByIdAsync(existing.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         return ToDto(await domain.CancelRunAsync(runId, cancellationToken));
     }
 
@@ -255,12 +255,12 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting run does not exist.");
         var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         if (status.HasValue && !Enum.IsDefined(typeof(CrmProspectingCandidateStatus), status.Value))
             throw new ArgumentOutOfRangeException(nameof(status));
         var candidateStatus = status.HasValue ? (CrmProspectingCandidateStatus?)status.Value : null;
         var items = await candidates.GetLatestByRunAsync(runId, candidateStatus, 500, cancellationToken);
-        return items.Select(ToCandidateDto).ToArray();
+        return items.Select(CrmProspectingMapper.ToCandidateDto).ToArray();
     }
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]
@@ -274,7 +274,7 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting run does not exist.");
         var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
 
         var evidenceItems = await evidence.GetByCandidateAsync(candidate.BasicId, cancellationToken);
         var scoreItems = await scores.GetLatestByCandidateAsync(candidate.BasicId, 20, cancellationToken);
@@ -332,7 +332,7 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting run does not exist.");
         var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         await fieldSecurity.EnsureUpdatableAsync(typeof(SysCrmProspectingCandidate), candidate.BasicId,
             new { Status = input.Approve ? CrmProspectingCandidateStatus.Approved : CrmProspectingCandidateStatus.Rejected, input.OverrideDuplicate }, cancellationToken);
         if (!await candidates.TryReviewAsync(candidate.BasicId, input.Approve, input.OverrideDuplicate, cancellationToken))
@@ -352,12 +352,12 @@ public sealed class CrmProspectingAppService(
             ?? throw new InvalidOperationException("Prospecting run does not exist.");
         var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
             ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
 
         // A retry after a successful commit returns the already-created Lead instead of
         // creating a second one or reporting a misleading conversion failure.
         if (candidate.Status == CrmProspectingCandidateStatus.Converted)
-            return await GetConvertedCandidateLeadAsync(candidate, campaign.OwnerUserId, cancellationToken);
+            return await GetConvertedCandidateLeadAsync(candidate, campaign.OwnerUserId ?? 0, cancellationToken);
         if (candidate.Status != CrmProspectingCandidateStatus.Approved)
             throw new InvalidOperationException("Only an approved prospecting candidate can be converted to a Lead.");
         // The conditional database update is the concurrency boundary: exactly one caller can
@@ -369,7 +369,7 @@ public sealed class CrmProspectingAppService(
             var latestCandidate = await candidates.GetByIdAsync(candidate.BasicId, cancellationToken)
                 ?? throw new InvalidOperationException("Prospecting candidate does not exist.");
             if (latestCandidate.Status == CrmProspectingCandidateStatus.Converted)
-                return await GetConvertedCandidateLeadAsync(latestCandidate, campaign.OwnerUserId, cancellationToken);
+                return await GetConvertedCandidateLeadAsync(latestCandidate, campaign.OwnerUserId ?? 0, cancellationToken);
             throw new InvalidOperationException("This prospecting candidate is already being converted or is no longer approved.");
         }
 
@@ -384,7 +384,7 @@ public sealed class CrmProspectingAppService(
             OwnerUserId = campaign.OwnerUserId,
             Notes = candidate.Summary
         };
-        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, campaign.OwnerUserId, cancellationToken);
+        await CrmAssignmentAuthorization.EnsureAssignableAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
         await fieldSecurity.EnsureCreatableAsync(typeof(SysCrmLead), leadInput, cancellationToken);
         var lead = await leadDomain.CreateAsync(new CrmLeadCreateCommand(
             leadInput.CompanyName, leadInput.ContactName, leadInput.Email, leadInput.Phone, leadInput.Website,
@@ -428,16 +428,20 @@ public sealed class CrmProspectingAppService(
         FailureSummary = entity.FailureSummary
     };
 
-    private static SysCrmProspectingCampaign Map(CrmProspectingCampaignInputDto input, long id = 0) => new()
+    private static SysCrmProspectingCampaign Map(CrmProspectingCampaignInputDto input, long id = 0)
     {
-        BasicId = id,
-        Name = input.Name,
-        Objective = input.Objective,
-        ProductScope = input.ProductScope,
-        TargetMarkets = input.TargetMarkets,
-        IdealCustomerProfile = input.IdealCustomerProfile,
-        OwnerUserId = input.OwnerUserId
-    };
+        var entity = new SysCrmProspectingCampaign
+        {
+            Name = input.Name,
+            Objective = input.Objective,
+            ProductScope = input.ProductScope,
+            TargetMarkets = input.TargetMarkets,
+            IdealCustomerProfile = input.IdealCustomerProfile,
+            OwnerUserId = input.OwnerUserId
+        };
+        if (id > 0) entity.SetBasicId(id);
+        return entity;
+    }
 
     private static CrmProspectingCampaignDto ToDto(SysCrmProspectingCampaign entity) => new()
     {

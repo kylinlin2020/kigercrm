@@ -829,7 +829,6 @@ public sealed class CrmProspectingPersistenceWiringTests
 
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(filePath)!, "..", "..", ".."));
-}
     [Fact]
     public void ProviderBatchPersistence_ShouldHaveItsFencedExecutionRepositoryRegistered()
     {
@@ -840,3 +839,4 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("ICrmProspectingRunProviderExecutionRepository providerExecutions", persistence, StringComparison.Ordinal);
         Assert.Contains("PersistProviderBatchAndTransitionAsync", persistence, StringComparison.Ordinal);
     }
+}

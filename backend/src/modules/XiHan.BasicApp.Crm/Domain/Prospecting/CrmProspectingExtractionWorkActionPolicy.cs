@@ -6,7 +6,7 @@ namespace XiHan.BasicApp.Crm.Domain.Prospecting;
 /// </summary>
 public static class CrmProspectingExtractionWorkActionPolicy
 {
-    public static CrmProspectingExtractionWorkAction Evaluate(
+    public static CrmProspectingExtractionWorkActionDecision Evaluate(
         CrmProspectingExtractionStatus status,
         string? providerExtractionId)
     {

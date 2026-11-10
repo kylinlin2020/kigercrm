@@ -1,5 +1,6 @@
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.Framework.Domain.Entities.Abstracts;
 using XiHan.Framework.MultiTenancy;
 
 namespace XiHan.BasicApp.Api.Tests;
@@ -77,7 +78,7 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
         Assert.Contains("step.state = 'Queued'", source, StringComparison.Ordinal);
         Assert.Contains("step.state = 'Started'", source, StringComparison.Ordinal);
         Assert.Contains("SET state = 'NeedsReview'", source, StringComparison.Ordinal);
-        Assert.Contains("expectedState is not (\\"Started\\" or \\"Checkpointed\\")", source, StringComparison.Ordinal);
+        Assert.Contains("expectedState is not (\"Started\" or \"Checkpointed\")", source, StringComparison.Ordinal);
     }
 
     [Fact]

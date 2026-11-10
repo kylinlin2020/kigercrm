@@ -1,6 +1,7 @@
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.Framework.Domain.Entities.Abstracts;
 using XiHan.Framework.MultiTenancy;
 
 namespace XiHan.BasicApp.Api.Tests;

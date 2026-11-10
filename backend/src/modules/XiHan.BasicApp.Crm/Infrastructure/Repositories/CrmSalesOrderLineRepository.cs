@@ -24,7 +24,7 @@ public sealed class CrmSalesOrderLineRepository(ISqlSugarClientResolver clientRe
         return await CreateQueryable()
             .Where(line => line.SalesOrderId == orderId)
             .OrderBy(line => line.SortOrder)
-            .ThenBy(line => line.BasicId)
+            .OrderBy(line => line.BasicId)
             .ToListAsync(cancellationToken);
     }
 }

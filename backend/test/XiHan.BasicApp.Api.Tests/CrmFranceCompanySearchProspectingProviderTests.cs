@@ -44,7 +44,7 @@ public sealed class CrmFranceCompanySearchProspectingProviderTests
     public async Task SearchAsync_StopsAtBoundedPageAndMarksRemainingResultsIncomplete()
     {
         var handler = new StubHandler((request, call) => Ok(request,
-            $$"""{"total_pages":4,"results":[{"siren":"12345678{{call}}","nom_complet":"Pump Supplier {{call}}","siege":{"libelle_commune":"Lyon"}}]}"""));
+            $$$"""{"total_pages":4,"results":[{"siren":"12345678{{{call}}}","nom_complet":"Pump Supplier {{{call}}}","siege":{"libelle_commune":"Lyon"}}]}"""));
         using var provider = new CrmFranceCompanySearchProspectingProvider(new HttpClient(handler));
         var result = await provider.SearchAsync(Request());
 

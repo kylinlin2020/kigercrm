@@ -141,8 +141,8 @@ public sealed class WhatsAppMetaWebhookPayloadParserTests
     {
         var messages = string.Join(",", Enumerable.Range(0, WhatsAppMetaWebhookPayloadParser.MaxInboundMessagesPerWebhook + 1)
             .Select(index => $$"""{"id":"wamid.{{index}}","from":"15550000000","timestamp":"1794000000","type":"text"}"""));
-        var payload = $$"""
-            {"entry":[{"id":"waba","changes":[{"value":{"metadata":{"phone_number_id":"phone"},"messages":[{{messages}}]}}]}]}
+        var payload = $$$"""
+            {"entry":[{"id":"waba","changes":[{"value":{"metadata":{"phone_number_id":"phone"},"messages":[{{{messages}}}]}}]}]}
             """;
 
         Assert.False(WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(payload, out var parsed));
@@ -164,10 +164,10 @@ public sealed class WhatsAppMetaWebhookPayloadParserTests
     public void TryParseStatuses_ShouldRejectErrorPayloadBeyondCanonicalizationDepth()
     {
         var nestedErrors = new string('[', 17) + "{}" + new string(']', 17);
-        var payload = $"""
+        var payload = $$$"""
             {"entry":[{"id":"waba","changes":[{"value":{
               "metadata":{"phone_number_id":"phone"},
-              "statuses":[{"id":"m","status":"failed","timestamp":"1794000000","recipient_id":"r","errors":{{nestedErrors}}}]
+              "statuses":[{"id":"m","status":"failed","timestamp":"1794000000","recipient_id":"r","errors":{{{nestedErrors}}}}]
             }}]}]}
             """;
 

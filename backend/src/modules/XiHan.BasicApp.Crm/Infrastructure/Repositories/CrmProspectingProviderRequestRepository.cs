@@ -93,6 +93,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
         if (responseHash is not null && (responseHash.Length != 64 || !responseHash.All(Uri.IsHexDigit)))
             throw new ArgumentException("Response hash must be a 64-character SHA-256 hex digest.", nameof(responseHash));
         cancellationToken.ThrowIfCancellationRequested();
+        var normalizedResponseHash = responseHash?.ToUpperInvariant();
 
         return await UpdateAsync(
             _ => new SysCrmProspectingProviderRequest
@@ -105,7 +106,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
                 FailureCode = Bound(failureCode, 80),
                 FailureSummary = SanitizeSummary(failureSummary),
                 RetryAfterAt = retryAfterAt,
-                ResponseHash = responseHash?.ToUpperInvariant(),
+                ResponseHash = normalizedResponseHash,
                 CacheHit = cacheHit
             },
             row => row.BasicId == requestId && row.State == "Started",

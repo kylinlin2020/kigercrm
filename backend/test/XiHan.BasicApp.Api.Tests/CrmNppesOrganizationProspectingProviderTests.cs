@@ -59,7 +59,7 @@ public sealed class CrmNppesOrganizationProspectingProviderTests
         var handler = new StubHandler((request, call) =>
         {
             var entries = string.Join(",", Enumerable.Range(1, 200)
-                .Select(i => $$"""{"enumeration_type":"NPI-2","number":"{{(1000000000 + call * 200 + i).ToString()}}","basic":{"organization_name":"Medical Center {{call}}-{{i}}","status":"A"}}"""));
+                .Select(i => $$$"""{"enumeration_type":"NPI-2","number":"{{{(1000000000 + call * 200 + i).ToString()}}}","basic":{"organization_name":"Medical Center {{{call}}}-{{{i}}}","status":"A"}}"""));
             return Ok(request, $$"""{"result_count":200,"results":[{{entries}}]}""");
         });
         using var provider = new CrmNppesOrganizationProspectingProvider(new HttpClient(handler));

@@ -60,12 +60,12 @@ public sealed class CrmLeadDuplicateQueryService(
 
         var source = new SysCrmLead
         {
-            BasicId = input.ExcludeLeadId ?? 0,
             CompanyName = company ?? string.Empty,
             Email = email,
             Phone = input.Phone,
             Website = input.Website
         };
+        source.SetBasicId(input.ExcludeLeadId ?? 0);
 
         var candidates = new Dictionary<long, SysCrmLead>();
 

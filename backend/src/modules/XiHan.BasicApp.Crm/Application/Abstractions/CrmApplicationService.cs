@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Application.Services;
+using XiHan.Framework.Security.Users;
 
 namespace XiHan.BasicApp.Crm.Application;
 
@@ -9,4 +10,7 @@ namespace XiHan.BasicApp.Crm.Application;
 [DynamicApi(Group = "BasicApp.Crm", GroupName = "CRM Services")]
 public abstract class CrmApplicationService : ApplicationServiceBase
 {
+    /// <summary>Current authenticated user id, or null when the request is not authenticated.</summary>
+    protected long? CurrentUserId
+        => (ServiceProvider.GetService(typeof(ICurrentUser)) as ICurrentUser)?.UserId;
 }

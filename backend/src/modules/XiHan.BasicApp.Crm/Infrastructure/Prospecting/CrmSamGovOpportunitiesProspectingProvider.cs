@@ -142,6 +142,7 @@ public sealed class CrmSamGovOpportunitiesProspectingProvider : ICrmProspectingP
                     "SAM.gov Opportunities",
                     Limit(title, 500),
                     Limit(buyer, 200),
+                    null,
                     Limit(contactName, 200),
                     contactEmail,
                     Limit(summary, 2000))
