@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
-using XiHan.BasicApp.Crm.Application.Pages;
 using XiHan.BasicApp.Saas.Application.Pages;
 using XiHan.BasicApp.Saas.Infrastructure.Seeders;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using PageRegistry = XiHan.BasicApp.Crm.Application.Pages.PageRegistry;
 
 namespace XiHan.BasicApp.Crm.Infrastructure.Seeders;
 
@@ -13,7 +13,7 @@ public sealed class CrmMenuSeeder(
     IServiceProvider serviceProvider)
     : PageRegistryMenuSeederBase(clientResolver, logger, serviceProvider)
 {
-    public override int Order => SeedOrders.Menus + 40;
+    public override int Order => SeedOrders.Menus + 60;
     public override string Name => "[CRM] Menu";
     protected override IReadOnlyList<PageDescriptor> Pages => PageRegistry.All;
     protected override IReadOnlyList<ButtonDescriptor> Buttons => PageRegistry.Buttons;

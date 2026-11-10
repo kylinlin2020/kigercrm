@@ -8,7 +8,7 @@ namespace XiHan.BasicApp.Saas.Infrastructure.Seeders;
 /// </summary>
 /// <remarks>
 /// 框架把所有模块的种子按 Order 统一排序执行。同一阶段内按模块错开：
-/// SaaS +0、代码生成 +10、AI +20、工作流 +30、聊天 +40、打印 +50；模块内再有多个种子时在自己的 10 个号里排。
+/// SaaS +0、代码生成 +10、AI +20、工作流 +30、聊天 +40、打印 +50、CRM +60；模块内再有多个种子时在自己的 10 个号里排。
 /// 业务模块（含代码生成产物）不各自占号，登记由 SaaS 的汇总种子在各阶段最后（+<see cref="BusinessBand"/>）统一写入。
 /// </remarks>
 public static class SeedOrders

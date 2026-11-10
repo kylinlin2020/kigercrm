@@ -69,6 +69,19 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrmRepositories(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.AddScoped<ICrmActivityRepository, CrmActivityRepository>();
+        services.AddScoped<ICrmContactRepository, CrmContactRepository>();
+        services.AddScoped<ICrmCreateRequestRepository, CrmCreateRequestRepository>();
+        services.AddScoped<ICrmCustomerRepository, CrmCustomerRepository>();
+        services.AddScoped<ICrmLeadRepository, CrmLeadRepository>();
+        services.AddScoped<ICrmOpportunityRepository, CrmOpportunityRepository>();
+        services.AddScoped<ICrmQuoteLineRepository, CrmQuoteLineRepository>();
+        services.AddScoped<ICrmQuoteRepository, CrmQuoteRepository>();
+        services.AddScoped<ICrmSalesOrderLineRepository, CrmSalesOrderLineRepository>();
+        services.AddScoped<ICrmSalesOrderRepository, CrmSalesOrderRepository>();
+        services.AddScoped<ICrmShipmentLineRepository, CrmShipmentLineRepository>();
+        services.AddScoped<ICrmShipmentRepository, CrmShipmentRepository>();
+        services.AddScoped<ICrmTaskRepository, CrmTaskRepository>();
         services.AddScoped<ICrmCustomerLookupRepository, CrmCustomerLookupRepository>();
         services.AddScoped<ICrmProspectingCampaignRepository, CrmProspectingCampaignRepository>();
         services.AddScoped<ICrmProspectingStrategyRepository, CrmProspectingStrategyRepository>();
@@ -91,15 +104,24 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrmDomainServices(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+        services.AddScoped<ICrmActivityDomainService, CrmActivityDomainService>();
+        services.AddScoped<ICrmContactDomainService, CrmContactDomainService>();
+        services.AddScoped<ICrmCustomerDomainService, CrmCustomerDomainService>();
+        services.AddScoped<ICrmLeadDomainService, CrmLeadDomainService>();
+        services.AddScoped<ICrmOpportunityDomainService, CrmOpportunityDomainService>();
+        services.AddScoped<ICrmQuoteDomainService, CrmQuoteDomainService>();
+        services.AddScoped<ICrmTaskDomainService, CrmTaskDomainService>();
         services.AddScoped<ICrmProspectingDomainService, CrmProspectingDomainService>();
         return services;
     }
 
-    /// <summary>Registers CRM permission metadata. Menu seeding remains deferred until frontend routes ship.</summary>
+    /// <summary>Registers CRM permission metadata and the CRM menu seeder.</summary>
+    /// <remarks>CRM 前端视图（含自动获客）已随模块落地，菜单种子不再推迟；不注册 CrmMenuSeeder 时 sys_menu 里不会有任何 crm_* 行，前端动态菜单因此整组不可见。</remarks>
     public static IServiceCollection AddCrmDataSeeders(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
         services.AddDataSeeder<CrmPermissionCatalogSeeder>();
+        services.AddDataSeeder<CrmMenuSeeder>();
         return services;
     }
 }

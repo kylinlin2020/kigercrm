@@ -15,7 +15,7 @@ public sealed class CrmPermissionCatalogSeeder(
 {
     private static readonly ResourceSeed Crm = new(CrmPermissionCodes.Resource, "CRM", "/api/crm", "Customers, contacts, leads, opportunities and tasks", 500);
 
-    public override int Order => SeedOrders.PermissionCatalog + 40;
+    public override int Order => SeedOrders.PermissionCatalog + 60;
     public override string Name => "[CRM] Permission catalog";
     public override string ModuleCode => CrmPermissionCodes.Module;
     public override IReadOnlyList<ResourceSeed> Resources { get; } = [Crm];
