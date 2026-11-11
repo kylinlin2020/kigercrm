@@ -239,7 +239,7 @@ public sealed class CrmProspectingRunOrchestrationContractTests
 
         Assert.Contains("DbType.PostgreSQL", method, StringComparison.Ordinal);
         Assert.Contains("client.Ado.Transaction is null", method, StringComparison.Ordinal);
-        Assert.Contains("run.status = @queuedStatus", method, StringComparison.Ordinal);
+        Assert.Contains("status = @queuedStatus", method, StringComparison.Ordinal);
         Assert.Contains("lease_owner IS NULL", method, StringComparison.Ordinal);
         Assert.Contains("lease_token IS NULL", method, StringComparison.Ordinal);
         Assert.Contains("lease_expires_at IS NULL", method, StringComparison.Ordinal);

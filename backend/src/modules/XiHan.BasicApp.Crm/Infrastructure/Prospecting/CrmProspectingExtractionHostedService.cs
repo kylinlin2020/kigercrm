@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,6 +18,7 @@ public sealed class CrmProspectingExtractionMessage : IBackgroundTaskItem
 {
     public long JobId { get; init; }
     public long TenantId { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
 
     /// <summary>The exact claim token returned by PostgreSQL; a delayed queue item cannot adopt a later lease.</summary>
     public Guid LeaseToken { get; init; }
@@ -24,8 +26,14 @@ public sealed class CrmProspectingExtractionMessage : IBackgroundTaskItem
     /// <summary>The fencing generation associated with LeaseToken.</summary>
     public long FencingVersion { get; init; }
 
+    [JsonIgnore]
     public string TaskId => $"{JobId.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{FencingVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+
+    [JsonIgnore]
     public object? Data => null;
+
+    /// <summary>已重试次数（框架 IBackgroundTaskItem 契约）。</summary>
+    public int RetryCount { get; set; }
 }
 
 /// <summary>
@@ -65,6 +73,7 @@ public sealed class CrmProspectingExtractionHostedService
             {
                 JobId = job.BasicId,
                 TenantId = tenantId.Value,
+                CreatedAt = DateTimeOffset.UtcNow,
                 LeaseToken = job.LeaseToken
                     ?? throw new InvalidOperationException("A claimed extraction job must include its lease token."),
                 FencingVersion = job.FencingVersion

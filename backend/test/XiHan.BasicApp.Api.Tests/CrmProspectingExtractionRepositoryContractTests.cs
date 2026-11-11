@@ -50,8 +50,8 @@ public sealed class CrmProspectingExtractionRepositoryContractTests
         Assert.True(start >= 0 && end > start);
         var method = source[start..end];
 
-        Assert.Contains("LeaseToken", method, StringComparison.Ordinal);
-        Assert.Contains("FencingVersion", method, StringComparison.Ordinal);
+        Assert.Contains("leaseToken", method, StringComparison.Ordinal);
+        Assert.Contains("fencingVersion", method, StringComparison.Ordinal);
         Assert.Contains("lease_expires_at_utc", method, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("expectedCursor", method, StringComparison.Ordinal);
         Assert.Contains("nextCursor", method, StringComparison.Ordinal);

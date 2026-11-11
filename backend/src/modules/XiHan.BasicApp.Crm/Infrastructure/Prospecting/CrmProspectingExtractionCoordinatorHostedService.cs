@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text.Json.Serialization;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Domain.Repositories;
@@ -14,10 +15,18 @@ public sealed class CrmProspectingExtractionCoordinatorMessage : IBackgroundTask
 {
     public long RunId { get; init; }
     public long TenantId { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
     public Guid LeaseToken { get; init; }
     public long FencingVersion { get; init; }
+
+    [JsonIgnore]
     public string TaskId => $"{RunId.ToString(System.Globalization.CultureInfo.InvariantCulture)}:{FencingVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+
+    [JsonIgnore]
     public object? Data => null;
+
+    /// <summary>已重试次数（框架 IBackgroundTaskItem 契约）。</summary>
+    public int RetryCount { get; set; }
 }
 
 /// <summary>
@@ -77,6 +86,7 @@ public sealed class CrmProspectingExtractionCoordinatorHostedService
                 {
                     RunId = runId,
                     TenantId = tenantId.Value,
+                    CreatedAt = DateTimeOffset.UtcNow,
                     LeaseToken = token,
                     FencingVersion = claimed.FencingVersion
                 });

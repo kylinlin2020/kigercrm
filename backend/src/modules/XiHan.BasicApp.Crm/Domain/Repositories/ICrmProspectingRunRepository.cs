@@ -22,6 +22,8 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     Task<IReadOnlyList<long>> GetWaitingForExtractionsIdsAsync(int limit = 100, CancellationToken cancellationToken = default);
 
     /// <summary>Atomically claim a waiting parent Run for the extraction coordinator using the database-clock lease and fencing protocol.</summary>
+    Task<SysCrmProspectingRun?> TryClaimWaitingForExtractionsLeaseAsync(long runId, string leaseOwner, TimeSpan leaseDuration, CancellationToken cancellationToken = default);
+
     /// <summary>Atomically claim a queued run. A duplicate delivery or competing worker receives null.</summary>
     Task<SysCrmProspectingRun?> ClaimQueuedAsync(long runId, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
 

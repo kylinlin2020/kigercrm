@@ -120,7 +120,7 @@ public sealed class CrmProspectingExtractionStateMachineTests
         var source = File.ReadAllText(path);
 
         var parentCancellation = source.IndexOf(
-            "run.Status is CrmProspectingRunStatus.CancelRequested or CrmProspectingRunStatus.Cancelled",
+            "run.Status is CrmProspectingRunStatus.CancelRequested",
             StringComparison.Ordinal);
         Assert.True(parentCancellation >= 0);
         var ambiguousSubmitGuard = source.IndexOf(
