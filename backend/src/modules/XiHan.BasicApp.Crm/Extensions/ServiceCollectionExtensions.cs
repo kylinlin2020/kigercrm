@@ -62,6 +62,8 @@ public static class ServiceCollectionExtensions
         services.AddCrmDomainServices();
         services.AddCrmExportProviders();
         services.AddCrmProspectingProviders(configuration);
+        services.AddHostedService<CrmProspectingExtractionHostedService>();
+        services.AddHostedService<CrmProspectingExtractionCoordinatorHostedService>();
         return services;
     }
 

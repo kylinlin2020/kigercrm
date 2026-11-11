@@ -227,7 +227,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             FROM lease_clock
             WHERE run.tenant_id = @tenantId
               AND run.basic_id = @runId
-              AND run.status = @runningStatus
+              AND run.status IN (@runningStatus, @waitingStatus)
               AND run.lease_token = @leaseToken
               AND run.fencing_version = @fencingVersion
               AND run.lease_expires_at IS NOT NULL
@@ -240,6 +240,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@tenantId", tenantId),
             new SugarParameter("@runId", runId),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion),
             new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds));
@@ -269,7 +270,8 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 LeaseExpiresAt = heartbeatAt.Add(leaseDuration)
             },
             run => run.BasicId == runId &&
-                run.Status == CrmProspectingRunStatus.Running &&
+                (run.Status == CrmProspectingRunStatus.Running ||
+                 run.Status == CrmProspectingRunStatus.WaitingForExtractions) &&
                 run.LeaseToken == leaseToken &&
                 run.FencingVersion == fencingVersion &&
                 run.LeaseExpiresAt != null &&
@@ -343,7 +345,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             FROM lease_clock, extraction_summary
             WHERE run.tenant_id = @tenantId
               AND run.basic_id = @runId
-              AND run.status = @runningStatus
+              AND run.status IN (@runningStatus, @waitingStatus)
               AND run.lease_token = @leaseToken
               AND run.fencing_version = @fencingVersion
               AND run.lease_expires_at IS NOT NULL
@@ -377,6 +379,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@expiredExtractionStatus", CrmProspectingExtractionStatus.Expired.ToString()),
             new SugarParameter("@cancelledExtractionStatus", CrmProspectingExtractionStatus.Cancelled.ToString()),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion));
         return rows.Count == 1;
@@ -468,7 +471,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             FROM lease_clock
             WHERE run.tenant_id = @tenantId
               AND run.basic_id = @runId
-              AND run.status = @runningStatus
+              AND run.status IN (@runningStatus, @waitingStatus)
               AND run.lease_token = @leaseToken
               AND run.fencing_version = @fencingVersion
               AND run.lease_expires_at IS NOT NULL
@@ -482,6 +485,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@failedStatus", (int)CrmProspectingRunStatus.Failed),
             new SugarParameter("@failureSummary", BoundFailureSummary(failureSummary)),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion));
         return rows.Count == 1;
@@ -606,6 +610,151 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             cancellationToken);
     }
 
+    public async Task<bool> TrySetWaitingForExtractionsAsync(
+        long runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        cancellationToken.ThrowIfCancellationRequested();
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Asynchronous Run scheduling requires PostgreSQL.");
+        if (client.Ado.Transaction is null)
+            throw new InvalidOperationException("The queued-to-waiting transition must share the Run creation UnitOfWork transaction.");
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required to schedule asynchronous Runs.");
+        const string sql = """
+            UPDATE crm_prospecting_run
+            SET status = @waitingStatus
+            WHERE tenant_id = @tenantId
+              AND basic_id = @runId
+              AND status = @queuedStatus
+              AND lease_owner IS NULL
+              AND lease_token IS NULL
+              AND lease_expires_at IS NULL
+              AND lease_heartbeat_at IS NULL
+            RETURNING basic_id AS "BasicId";
+            """;
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
+            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions));
+        return rows.Count == 1;
+    }
+
+    public async Task<IReadOnlyList<long>> GetWaitingForExtractionsIdsAsync(
+        int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit is < 1 or > 1000) throw new ArgumentOutOfRangeException(nameof(limit));
+        cancellationToken.ThrowIfCancellationRequested();
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Waiting extraction Run discovery requires PostgreSQL.");
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for waiting Run discovery.");
+
+        const string sql = """
+            SELECT run.basic_id AS "BasicId"
+            FROM crm_prospecting_run AS run
+            WHERE run.tenant_id = @tenantId
+              AND run.status = @waitingStatus
+              AND (
+                    (run.lease_owner IS NULL AND run.lease_token IS NULL
+                        AND run.lease_expires_at IS NULL AND run.lease_heartbeat_at IS NULL)
+                    OR (run.lease_token IS NOT NULL
+                        AND run.lease_expires_at IS NOT NULL
+                        AND run.lease_expires_at <= clock_timestamp())
+              )
+              AND EXISTS (
+                    SELECT 1
+                    FROM crm_prospecting_extraction_job AS child
+                    WHERE child.tenant_id = @tenantId
+                      AND child.run_id = run.basic_id
+              )
+              AND NOT EXISTS (
+                    SELECT 1
+                    FROM crm_prospecting_extraction_job AS child
+                    WHERE child.tenant_id = @tenantId
+                      AND child.run_id = run.basic_id
+                      AND child.status NOT IN (
+                          @completedStatus, @failedStatus, @expiredStatus, @cancelledStatus
+                      )
+              )
+            ORDER BY run.basic_id
+            LIMIT @limit;
+            """;
+        return await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions),
+            new SugarParameter("@completedStatus", CrmProspectingExtractionStatus.Completed.ToString()),
+            new SugarParameter("@failedStatus", CrmProspectingExtractionStatus.Failed.ToString()),
+            new SugarParameter("@expiredStatus", CrmProspectingExtractionStatus.Expired.ToString()),
+            new SugarParameter("@cancelledStatus", CrmProspectingExtractionStatus.Cancelled.ToString()),
+            new SugarParameter("@limit", limit));
+    }
+
+    public async Task<SysCrmProspectingRun?> TryClaimWaitingForExtractionsLeaseAsync(
+        long runId,
+        string leaseOwner,
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(leaseOwner);
+        if (leaseOwner.Length > 160) throw new ArgumentOutOfRangeException(nameof(leaseOwner));
+        if (leaseDuration <= TimeSpan.Zero || leaseDuration > TimeSpan.FromHours(1))
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Waiting prospecting Run claims require PostgreSQL.");
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for waiting Run claims.");
+        var leaseToken = Guid.NewGuid();
+        var durationMilliseconds = checked((long)Math.Ceiling(leaseDuration.TotalMilliseconds));
+
+        const string sql = """
+            WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
+            UPDATE crm_prospecting_run AS run
+            SET status = @waitingStatus,
+                started_at = COALESCE(run.started_at, lease_clock.now),
+                completed_at = NULL,
+                failure_summary = NULL,
+                lease_owner = @leaseOwner,
+                lease_token = @leaseToken,
+                lease_heartbeat_at = lease_clock.now,
+                lease_expires_at = lease_clock.now + (@leaseDurationMilliseconds * INTERVAL '1 millisecond'),
+                fencing_version = run.fencing_version + 1
+            FROM lease_clock
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @waitingStatus
+              AND (
+                    (run.lease_owner IS NULL AND run.lease_token IS NULL
+                        AND run.lease_expires_at IS NULL AND run.lease_heartbeat_at IS NULL)
+                    OR (run.lease_token IS NOT NULL
+                        AND run.lease_expires_at IS NOT NULL
+                        AND run.lease_expires_at <= lease_clock.now)
+              )
+            RETURNING run.*;
+            """;
+
+        var rows = await client.Ado.SqlQueryAsync<SysCrmProspectingRun>(
+            sql,
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions),
+            new SugarParameter("@leaseOwner", leaseOwner),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds));
+        return rows.SingleOrDefault();
+    }
+
     public async Task<IReadOnlyList<SysCrmProspectingRun>> GetLatestByCampaignAsync(long campaignId, int limit, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -645,6 +794,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             UPDATE crm_prospecting_run AS run
             SET status = CASE
                     WHEN run.status = @cancelRequestedStatus THEN @cancelledStatus
+                    WHEN run.status = @waitingStatus THEN @waitingStatus
                     ELSE @queuedStatus
                 END,
                 started_at = CASE
@@ -661,7 +811,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 lease_heartbeat_at = NULL
             FROM lease_clock
             WHERE run.tenant_id = @tenantId
-              AND run.status IN (@runningStatus, @cancelRequestedStatus)
+              AND run.status IN (@runningStatus, @cancelRequestedStatus, @waitingStatus)
               AND run.lease_expires_at IS NOT NULL
               AND run.lease_expires_at <= lease_clock.now
             RETURNING run.basic_id AS "BasicId";
@@ -672,7 +822,8 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
             new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested),
-            new SugarParameter("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled));
+            new SugarParameter("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled),
+            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions));
         return rows.Count;
     }
 

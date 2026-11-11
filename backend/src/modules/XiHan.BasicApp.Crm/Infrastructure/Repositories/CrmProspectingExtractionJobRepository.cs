@@ -150,6 +150,21 @@ public sealed class CrmProspectingExtractionJobRepository(ISqlSugarClientResolve
         return rows.SingleOrDefault();
     }
 
+    public async Task<IReadOnlyList<SysCrmProspectingExtractionJob>> GetByRunAsync(
+        long runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        cancellationToken.ThrowIfCancellationRequested();
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for extraction job reads.");
+
+        return await CreateQueryable()
+            .Where(row => row.TenantId == tenant.TenantId && row.RunId == runId)
+            .OrderBy(row => row.BasicId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<SysCrmProspectingExtractionJob>> ClaimDueAsync(
         string leaseOwner,
         TimeSpan leaseDuration,

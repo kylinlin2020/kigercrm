@@ -42,6 +42,11 @@ public interface ICrmProspectingExtractionJobRepository : ISaasRepository<SysCrm
         long jobId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Lists every extraction job belonging to one Run in the current tenant, ordered by stable job identity for deterministic aggregation.</summary>
+    Task<IReadOnlyList<SysCrmProspectingExtractionJob>> GetByRunAsync(
+        long runId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Atomically claims due executable jobs using PostgreSQL SKIP LOCKED and increments fencing. NeedsReview is deliberately excluded from automatic claims and requires an explicit human review/requeue action.</summary>
     Task<IReadOnlyList<SysCrmProspectingExtractionJob>> ClaimDueAsync(
         string leaseOwner,

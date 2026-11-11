@@ -15,6 +15,13 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
     /// <summary>Lock and validate a live lease in the caller's active transactional UnitOfWork before any Candidate/Evidence/Score child writes.</summary>
     Task<bool> TryLockLeaseForWriteAsync(long runId, Guid leaseToken, long fencingVersion, CancellationToken cancellationToken = default);
 
+    /// <summary>Atomically moves an unclaimed Queued Run into the asynchronous waiting state within the current tenant.</summary>
+    Task<bool> TrySetWaitingForExtractionsAsync(long runId, CancellationToken cancellationToken = default);
+
+    /// <summary>List tenant-scoped Runs waiting for asynchronous child extractions, in deterministic order.</summary>
+    Task<IReadOnlyList<long>> GetWaitingForExtractionsIdsAsync(int limit = 100, CancellationToken cancellationToken = default);
+
+    /// <summary>Atomically claim a waiting parent Run for the extraction coordinator using the database-clock lease and fencing protocol.</summary>
     /// <summary>Atomically claim a queued run. A duplicate delivery or competing worker receives null.</summary>
     Task<SysCrmProspectingRun?> ClaimQueuedAsync(long runId, DateTimeOffset startedAt, CancellationToken cancellationToken = default);
 

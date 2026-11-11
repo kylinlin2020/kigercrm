@@ -45,12 +45,14 @@ public static class CrmProspectingExtractionStateMachine
             CrmProspectingExtractionStatus.Succeeded =>
                 next is CrmProspectingExtractionStatus.FetchingResults
                     or CrmProspectingExtractionStatus.Failed
-                    or CrmProspectingExtractionStatus.Expired,
+                    or CrmProspectingExtractionStatus.Expired
+                    or CrmProspectingExtractionStatus.Cancelled,
 
             CrmProspectingExtractionStatus.FetchingResults =>
                 next is CrmProspectingExtractionStatus.Completed
                     or CrmProspectingExtractionStatus.Failed
-                    or CrmProspectingExtractionStatus.Expired,
+                    or CrmProspectingExtractionStatus.Expired
+                    or CrmProspectingExtractionStatus.Cancelled,
 
             CrmProspectingExtractionStatus.NeedsReview =>
                 next is CrmProspectingExtractionStatus.Pending
