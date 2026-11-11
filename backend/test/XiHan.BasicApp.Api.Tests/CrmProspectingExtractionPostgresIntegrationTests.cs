@@ -840,9 +840,8 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         var jobId = SnowFlakeSingle.Instance.NextId();
         using (_tenant1.Change(tenantId))
         {
-            await _db1.Insertable(new SysCrmProspectingExtractionJob
+            var job = new SysCrmProspectingExtractionJob
             {
-                BasicId = jobId,
                 TenantId = tenantId,
                 RunId = SnowFlakeSingle.Instance.NextId(),
                 ProviderCode = "postgres-test",
@@ -855,7 +854,9 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
                 ResultRecordCount = 0,
                 ResultFailureCount = 0,
                 FencingVersion = 0
-            }).ExecuteCommandAsync();
+            };
+            job.SetBasicId(jobId);
+            await _db1.Insertable(job).ExecuteCommandAsync();
         }
 
         return jobId;

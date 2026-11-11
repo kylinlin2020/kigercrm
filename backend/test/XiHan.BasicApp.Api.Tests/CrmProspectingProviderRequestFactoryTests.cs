@@ -10,7 +10,6 @@ public sealed class CrmProspectingProviderRequestFactoryTests
     {
         var run = new SysCrmProspectingRun
         {
-            BasicId = 42,
             SnapshotSearchObjective = "Find industrial generator distributors",
             SnapshotProductScope = "Diesel generators",
             SnapshotTargetMarkets = "Brazil;Chile",
@@ -18,6 +17,7 @@ public sealed class CrmProspectingProviderRequestFactoryTests
             SnapshotProviderPlanJson = "[\"provider-a\"]",
             SnapshotExcludedDomainsJson = "[\"example.com\"]"
         };
+        run.SetBasicId(42);
 
         var request = CrmProspectingProviderRequestFactory.Create(run, ["Example.com", "blocked.test"]);
 
@@ -35,9 +35,9 @@ public sealed class CrmProspectingProviderRequestFactoryTests
     {
         var run = new SysCrmProspectingRun
         {
-            BasicId = 7,
             SnapshotSearchObjective = "Find pump distributors"
         };
+        run.SetBasicId(7);
 
         var first = CrmProspectingProviderRequestFactory.Create(
             run, [" B.example ", "a.example", "b.example", "", "  "]);
@@ -54,8 +54,9 @@ public sealed class CrmProspectingProviderRequestFactoryTests
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             CrmProspectingProviderRequestFactory.Create(
                 new SysCrmProspectingRun { SnapshotSearchObjective = "valid" }, []));
+        var runWithId = new SysCrmProspectingRun();
+        runWithId.SetBasicId(1);
         Assert.Throws<ArgumentException>(() =>
-            CrmProspectingProviderRequestFactory.Create(
-                new SysCrmProspectingRun { BasicId = 1 }, []));
+            CrmProspectingProviderRequestFactory.Create(runWithId, []));
     }
 }

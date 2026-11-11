@@ -364,9 +364,8 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         var runId = SnowFlakeSingle.Instance.NextId();
         using (_tenant1.Change(tenantId))
         {
-            await _db1.Insertable(new SysCrmProspectingRun
+            var run = new SysCrmProspectingRun
             {
-                BasicId = runId,
                 TenantId = tenantId,
                 CampaignId = SnowFlakeSingle.Instance.NextId(),
                 StrategyId = SnowFlakeSingle.Instance.NextId(),
@@ -378,7 +377,9 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
                 SnapshotProviderPlanJson = "[]",
                 Status = CrmProspectingRunStatus.Queued,
                 FencingVersion = 0
-            }).ExecuteCommandAsync();
+            };
+            run.SetBasicId(runId);
+            await _db1.Insertable(run).ExecuteCommandAsync();
         }
 
         return runId;

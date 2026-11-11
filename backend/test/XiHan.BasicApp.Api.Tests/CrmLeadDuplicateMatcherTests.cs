@@ -8,8 +8,10 @@ public sealed class CrmLeadDuplicateMatcherTests
     [Fact]
     public void Score_ShouldTreatEmailAsHighConfidence()
     {
-        var source = new SysCrmLead { BasicId = 1, CompanyName = "Acme", Email = " SALES@ACME.COM " };
-        var candidate = new SysCrmLead { BasicId = 2, CompanyName = "Different name", Email = "sales@acme.com" };
+        var source = new SysCrmLead { CompanyName = "Acme", Email = " SALES@ACME.COM " };
+        source.SetBasicId(1);
+        var candidate = new SysCrmLead { CompanyName = "Different name", Email = "sales@acme.com" };
+        candidate.SetBasicId(2);
 
         var result = CrmLeadDuplicateMatcher.Score(source, candidate);
 
@@ -21,8 +23,10 @@ public sealed class CrmLeadDuplicateMatcherTests
     [Fact]
     public void Score_ShouldNormalizePhoneFormattingWithoutDroppingCountryDigits()
     {
-        var source = new SysCrmLead { BasicId = 1, CompanyName = "Acme", Phone = "+1 (415) 555-0123" };
-        var candidate = new SysCrmLead { BasicId = 2, CompanyName = "Other", Phone = "1-415-555-0123" };
+        var source = new SysCrmLead { CompanyName = "Acme", Phone = "+1 (415) 555-0123" };
+        source.SetBasicId(1);
+        var candidate = new SysCrmLead { CompanyName = "Other", Phone = "1-415-555-0123" };
+        candidate.SetBasicId(2);
 
         var result = CrmLeadDuplicateMatcher.Score(source, candidate);
 
@@ -33,8 +37,10 @@ public sealed class CrmLeadDuplicateMatcherTests
     [Fact]
     public void Score_ShouldCompareWebsiteHostIgnoringSchemeWwwAndPath()
     {
-        var source = new SysCrmLead { BasicId = 1, CompanyName = "Acme", Website = "https://www.acme.example/products" };
-        var candidate = new SysCrmLead { BasicId = 2, CompanyName = "Other", Website = "http://acme.example/" };
+        var source = new SysCrmLead { CompanyName = "Acme", Website = "https://www.acme.example/products" };
+        source.SetBasicId(1);
+        var candidate = new SysCrmLead { CompanyName = "Other", Website = "http://acme.example/" };
+        candidate.SetBasicId(2);
 
         var result = CrmLeadDuplicateMatcher.Score(source, candidate);
 
@@ -46,8 +52,10 @@ public sealed class CrmLeadDuplicateMatcherTests
     [Fact]
     public void Score_ShouldKeepCompanyNameAsMediumConfidenceOnly()
     {
-        var source = new SysCrmLead { BasicId = 1, CompanyName = "Acme Industrial, Inc." };
-        var candidate = new SysCrmLead { BasicId = 2, CompanyName = "  ACME INDUSTRIAL INC " };
+        var source = new SysCrmLead { CompanyName = "Acme Industrial, Inc." };
+        source.SetBasicId(1);
+        var candidate = new SysCrmLead { CompanyName = "  ACME INDUSTRIAL INC " };
+        candidate.SetBasicId(2);
 
         var result = CrmLeadDuplicateMatcher.Score(source, candidate);
 
@@ -59,11 +67,16 @@ public sealed class CrmLeadDuplicateMatcherTests
     [Fact]
     public void FindMatches_ShouldExcludeSourceAndIgnoreEmptySignals()
     {
-        var source = new SysCrmLead { BasicId = 1, CompanyName = "Acme" };
-        var sameRecord = new SysCrmLead { BasicId = 1, CompanyName = "Acme" };
-        var unrelatedEmpty = new SysCrmLead { BasicId = 2, CompanyName = "Different", Email = null, Phone = null, Website = null };
-        var companyMatch = new SysCrmLead { BasicId = 3, CompanyName = "ACME" };
-        var highMatch = new SysCrmLead { BasicId = 4, CompanyName = "Other", Email = "a@b.example" };
+        var source = new SysCrmLead { CompanyName = "Acme" };
+        source.SetBasicId(1);
+        var sameRecord = new SysCrmLead { CompanyName = "Acme" };
+        sameRecord.SetBasicId(1);
+        var unrelatedEmpty = new SysCrmLead { CompanyName = "Different", Email = null, Phone = null, Website = null };
+        unrelatedEmpty.SetBasicId(2);
+        var companyMatch = new SysCrmLead { CompanyName = "ACME" };
+        companyMatch.SetBasicId(3);
+        var highMatch = new SysCrmLead { CompanyName = "Other", Email = "a@b.example" };
+        highMatch.SetBasicId(4);
         source.Email = "a@b.example";
 
         var results = CrmLeadDuplicateMatcher.FindMatches(source, [sameRecord, unrelatedEmpty, companyMatch, highMatch]);
@@ -88,18 +101,18 @@ public sealed class CrmLeadDuplicateMatcherTests
     {
         var source = new SysCrmLead
         {
-            BasicId = 1,
             CompanyName = "Source Company",
             Email = "not-an-email",
             Website = "http://[invalid"
         };
+        source.SetBasicId(1);
         var candidate = new SysCrmLead
         {
-            BasicId = 2,
             CompanyName = "Different Company",
             Email = "not-an-email",
             Website = "http://[invalid"
         };
+        candidate.SetBasicId(2);
 
         var result = CrmLeadDuplicateMatcher.Score(source, candidate);
 
@@ -120,8 +133,10 @@ public sealed class CrmLeadDuplicateMatcherTests
     [Fact]
     public void Score_ShouldNotTreatEqualShortPhoneFragmentsAsHighConfidenceDuplicates()
     {
-        var source = new SysCrmLead { BasicId = 1, CompanyName = "First Company", Phone = "123" };
-        var candidate = new SysCrmLead { BasicId = 2, CompanyName = "Second Company", Phone = "123" };
+        var source = new SysCrmLead { CompanyName = "First Company", Phone = "123" };
+        source.SetBasicId(1);
+        var candidate = new SysCrmLead { CompanyName = "Second Company", Phone = "123" };
+        candidate.SetBasicId(2);
 
         var result = CrmLeadDuplicateMatcher.Score(source, candidate);
 

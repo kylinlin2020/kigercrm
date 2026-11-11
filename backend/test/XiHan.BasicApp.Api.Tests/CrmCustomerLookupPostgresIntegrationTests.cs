@@ -72,11 +72,15 @@ public sealed class CrmCustomerLookupPostgresIntegrationTests : IDisposable
                 for (var offset = 0; offset < 501; offset += 100)
                 {
                     var batch = Enumerable.Range(offset, Math.Min(100, 501 - offset))
-                        .Select(index => new SysCrmCustomer
+                        .Select(index =>
                         {
-                            BasicId = SnowFlakeSingle.Instance.NextId(),
-                            TenantId = TenantId,
-                            Name = $"lookup-batch-{Guid.NewGuid():N}-{index}"
+                            var customer = new SysCrmCustomer
+                            {
+                                TenantId = TenantId,
+                                Name = $"lookup-batch-{Guid.NewGuid():N}-{index}"
+                            };
+                            customer.SetBasicId(SnowFlakeSingle.Instance.NextId());
+                            return customer;
                         })
                         .ToArray();
                     // Record fixture IDs before issuing SQL so partial insert failures can
@@ -104,12 +108,13 @@ public sealed class CrmCustomerLookupPostgresIntegrationTests : IDisposable
         var id = SnowFlakeSingle.Instance.NextId();
         using (_tenant1.Change(tenantId))
         {
-            await _db1.Insertable(new SysCrmCustomer
+            var customer = new SysCrmCustomer
             {
-                BasicId = id,
                 TenantId = tenantId,
                 Name = $"lookup-{label}-{Guid.NewGuid():N}"
-            }).ExecuteCommandAsync();
+            };
+            customer.SetBasicId(id);
+            await _db1.Insertable(customer).ExecuteCommandAsync();
         }
 
         return id;

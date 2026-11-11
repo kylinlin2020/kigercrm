@@ -52,13 +52,14 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         var leadId = SnowFlakeSingle.Instance.NextId();
         using (_tenant1.Change(TenantId))
         {
-            await _db1.Insertable(new SysCrmLead
+            var lead = new SysCrmLead
             {
-                BasicId = leadId,
                 TenantId = TenantId,
                 CompanyName = $"Postgres lead {leadId}",
                 Status = CrmLeadStatus.New
-            }).ExecuteCommandAsync();
+            };
+            lead.SetBasicId(leadId);
+            await _db1.Insertable(lead).ExecuteCommandAsync();
         }
 
         var results = await RaceAsync(
@@ -81,16 +82,17 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         var candidateId = SnowFlakeSingle.Instance.NextId();
         using (_tenant1.Change(TenantId))
         {
-            await _db1.Insertable(new SysCrmProspectingCandidate
+            var candidate = new SysCrmProspectingCandidate
             {
-                BasicId = candidateId,
                 TenantId = TenantId,
                 RunId = 81001,
                 ProviderCode = "postgres-test",
                 ExternalId = $"candidate-{candidateId}",
                 CompanyName = $"Postgres candidate {candidateId}",
                 Status = CrmProspectingCandidateStatus.Approved
-            }).ExecuteCommandAsync();
+            };
+            candidate.SetBasicId(candidateId);
+            await _db1.Insertable(candidate).ExecuteCommandAsync();
         }
 
         var results = await RaceAsync(
@@ -115,13 +117,14 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         var leadId = SnowFlakeSingle.Instance.NextId();
         using (_tenant1.Change(TenantId))
         {
-            await _db1.Insertable(new SysCrmLead
+            var lead = new SysCrmLead
             {
-                BasicId = leadId,
                 TenantId = TenantId,
                 CompanyName = $"Tenant isolation lead {leadId}",
                 Status = CrmLeadStatus.New
-            }).ExecuteCommandAsync();
+            };
+            lead.SetBasicId(leadId);
+            await _db1.Insertable(lead).ExecuteCommandAsync();
         }
 
         using (_tenant2.Change(TenantId + 1))
@@ -143,16 +146,17 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         var candidateId = SnowFlakeSingle.Instance.NextId();
         using (_tenant1.Change(TenantId))
         {
-            await _db1.Insertable(new SysCrmProspectingCandidate
+            var candidate = new SysCrmProspectingCandidate
             {
-                BasicId = candidateId,
                 TenantId = TenantId,
                 RunId = 81002,
                 ProviderCode = "postgres-tenant-test",
                 ExternalId = $"candidate-{candidateId}",
                 CompanyName = $"Tenant isolation candidate {candidateId}",
                 Status = CrmProspectingCandidateStatus.Approved
-            }).ExecuteCommandAsync();
+            };
+            candidate.SetBasicId(candidateId);
+            await _db1.Insertable(candidate).ExecuteCommandAsync();
         }
 
         using (_tenant2.Change(TenantId + 1))
