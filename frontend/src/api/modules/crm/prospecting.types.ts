@@ -24,6 +24,7 @@ export enum CrmProspectingRunStatus {
   Failed = 4,
   CancelRequested = 5,
   Cancelled = 6,
+  WaitingForExtractions = 7,
 }
 
 export enum CrmProspectingCandidateStatus {
@@ -31,7 +32,8 @@ export enum CrmProspectingCandidateStatus {
   Duplicate = 1,
   Approved = 2,
   Rejected = 3,
-  Converted = 4,
+  Converting = 4,
+  Converted = 5,
 }
 
 export interface CrmProspectingCampaignInputDto {
@@ -179,4 +181,47 @@ export interface CrmProspectingProviderCatalogDto {
   asynchronousCount: number
   metadataSource: string
   registrationSource: string
+}
+
+/**
+ * Aggregated provider-step progress for one Run. Terminal = Succeeded/Failed/Skipped/NeedsReview:
+ * those steps no longer advance on their own, so they count toward completion while NeedsReview
+ * stays separately visible for human recovery. Unknown states count nowhere.
+ */
+export interface CrmProspectingRunProgressDto {
+  totalSteps: number
+  succeededSteps: number
+  failedSteps: number
+  runningSteps: number
+  queuedSteps: number
+  needsReviewSteps: number
+  skippedSteps: number
+  completedSteps: number
+  /** Completed share in percent, integer truncated; 0 when the plan has no materialized step. */
+  percent: number
+}
+
+/** One durable provider execution checkpoint within an immutable Run plan. */
+export interface CrmProspectingRunProviderExecutionDto {
+  basicId: ApiId
+  runId: ApiId
+  planVersion: number
+  planOrdinal: number
+  providerCode: string
+  state: string
+  attemptCount: number
+  rawRecordCount: number
+  projectedRecordCount: number
+  failureCount: number
+  failureCode?: string | null
+  failureSummary?: string | null
+  startedAt?: DateTimeString | null
+  completedAt?: DateTimeString | null
+}
+
+/** Run monitor read model: progress aggregate plus the per-provider execution ledger. */
+export interface CrmProspectingRunMonitorDto {
+  runId: ApiId
+  progress: CrmProspectingRunProgressDto
+  executions: CrmProspectingRunProviderExecutionDto[]
 }

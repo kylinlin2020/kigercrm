@@ -8,6 +8,7 @@ import type {
   CrmProspectingCandidateReviewDetailDto,
   CrmProspectingProviderCatalogItemDto,
   CrmProspectingRunDto,
+  CrmProspectingRunMonitorDto,
   CrmProspectingStrategyDto,
 } from '@/api'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -25,6 +26,8 @@ import {
   CRM_PROSPECTING_PROVIDER_GROUPS,
 } from './provider-catalog'
 import ProviderCredentialsPanel from './ProviderCredentialsPanel.vue'
+import RunMonitorPanel from './RunMonitorPanel.vue'
+import { useRunMonitorPolling } from './useRunMonitorPolling'
 
 defineOptions({ name: 'CrmProspectingPage' })
 
@@ -51,6 +54,7 @@ const catalogRegisteredCount = ref(0)
 const catalogTotalCount = ref(CRM_PROSPECTING_PROVIDER_FALLBACK_CATALOG.length)
 const editingCampaignId = ref<string>('')
 const runDetail = ref<CrmProspectingRunDto | null>(null)
+const runMonitor = ref<CrmProspectingRunMonitorDto | null>(null)
 const candidateStatusFilter = ref<number | ''>('')
 
 const selectedCampaign = computed(() => campaigns.value.find(item => String(item.basicId) === selectedCampaignId.value) ?? null)
@@ -65,10 +69,10 @@ function strategyStatus(value: number) {
   return [t('crm.prospecting.strategyDraft'), t('crm.prospecting.pendingApproval'), t('crm.prospecting.approved'), t('crm.prospecting.rejected'), t('crm.prospecting.revoked')][value] ?? String(value)
 }
 function runStatus(value: number) {
-  return [t('crm.prospecting.queued'), t('crm.prospecting.running'), t('crm.prospecting.succeeded'), t('crm.prospecting.partiallySucceeded'), t('crm.prospecting.failed'), t('crm.prospecting.cancelRequested'), t('crm.prospecting.cancelled')][value] ?? String(value)
+  return [t('crm.prospecting.queued'), t('crm.prospecting.running'), t('crm.prospecting.succeeded'), t('crm.prospecting.partiallySucceeded'), t('crm.prospecting.failed'), t('crm.prospecting.cancelRequested'), t('crm.prospecting.cancelled'), t('crm.prospecting.waitingForExtractions')][value] ?? String(value)
 }
 function candidateStatus(value: number) {
-  return [t('crm.prospecting.pendingReview'), t('crm.prospecting.duplicate'), t('crm.prospecting.approved'), t('crm.prospecting.rejected'), t('crm.prospecting.convertedStatus')][value] ?? String(value)
+  return [t('crm.prospecting.pendingReview'), t('crm.prospecting.duplicate'), t('crm.prospecting.approved'), t('crm.prospecting.rejected'), t('crm.prospecting.convertingStatus'), t('crm.prospecting.convertedStatus')][value] ?? String(value)
 }
 
 /**
@@ -113,6 +117,7 @@ async function loadWorkspace() {
     candidates.value = []
     selectedRunId.value = ''
     runDetail.value = null
+    runMonitor.value = null
     return
   }
   loading.value = true
@@ -151,18 +156,35 @@ async function loadCandidates() {
   }
 }
 
-/** GET /CrmProspecting/Run gives fresher counters and failureSummary than the campaign run list. */
+/**
+ * GET /CrmProspecting/Run + /CrmProspectingRunQuery/RunMonitor: counters, failureSummary and the
+ * per-provider execution ledger refresh together; responses for a run the user already left are dropped.
+ */
 async function refreshRunDetail() {
   if (!selectedRunId.value) {
     runDetail.value = null
+    runMonitor.value = null
     return
   }
-  const fallback = runs.value.find(item => String(item.basicId) === selectedRunId.value) ?? null
+  const activeId = selectedRunId.value
+  const fallback = runs.value.find(item => String(item.basicId) === activeId) ?? null
   try {
-    runDetail.value = await crmProspectingApi.run(selectedRunId.value)
+    const [detail, monitor] = await Promise.all([
+      crmProspectingApi.run(activeId),
+      crmProspectingApi.runMonitor(activeId),
+    ])
+    if (activeId !== selectedRunId.value)
+      return
+    runDetail.value = detail ?? fallback
+    runMonitor.value = monitor
+    const index = runs.value.findIndex(item => String(item.basicId) === activeId)
+    if (index >= 0 && detail)
+      runs.value[index] = detail
   }
   catch {
-    runDetail.value = fallback
+    // Keep the last known state while polling; fall back to the list row only before the first load.
+    if (activeId === selectedRunId.value && !runDetail.value)
+      runDetail.value = fallback
   }
 }
 
@@ -184,6 +206,18 @@ watch(selectedRunId, () => {
 watch(candidateStatusFilter, () => {
   void loadCandidates()
 })
+
+/** A Run keeps producing rows only while it is queued/running or waiting for async extractions. */
+const shouldPollRun = computed(() => {
+  if (!selectedRunId.value || !runDetail.value)
+    return false
+  const status = runDetail.value.status
+  return status === CrmProspectingRunStatus.Queued
+    || status === CrmProspectingRunStatus.Running
+    || status === CrmProspectingRunStatus.WaitingForExtractions
+})
+
+useRunMonitorPolling({ shouldPoll: shouldPollRun, onTick: refreshRunDetail })
 
 function openCampaignDialog(campaign?: CrmProspectingCampaignDto) {
   editingCampaignId.value = campaign ? String(campaign.basicId) : ''
@@ -549,7 +583,7 @@ onMounted(() => {
           <label class="inline-filter">{{ t('crm.prospecting.candidateStatusFilter') }}
             <select v-model.number="candidateStatusFilter">
               <option value="">{{ t('crm.prospecting.allStatuses') }}</option>
-              <option v-for="status in [0, 1, 2, 3, 4]" :key="status" :value="status">{{ candidateStatus(status) }}</option>
+              <option v-for="status in [0, 1, 2, 3, 4, 5]" :key="status" :value="status">{{ candidateStatus(status) }}</option>
             </select>
           </label>
           <button type="button" @click="loadCandidates">
@@ -559,13 +593,12 @@ onMounted(() => {
             {{ t('crm.prospecting.refreshRun') }}
           </button>
         </header>
-        <div v-if="runDetail" class="run-detail">
-          <span>{{ t('crm.prospecting.status') }}: {{ runStatus(runDetail.status) }}</span>
-          <span>{{ t('crm.prospecting.rawCount') }}: {{ runDetail.rawRecordCount }}</span>
-          <span>{{ t('crm.prospecting.candidateCount') }}: {{ runDetail.candidateCount }}</span>
-          <span>{{ t('crm.prospecting.failures') }}: {{ runDetail.failureCount }}</span>
-          <span v-if="runDetail.failureSummary">{{ t('crm.prospecting.failureSummary') }}: {{ runDetail.failureSummary }}</span>
-        </div>
+        <RunMonitorPanel
+          v-if="runDetail"
+          :run="runDetail"
+          :monitor="runMonitor"
+          :polling="shouldPollRun"
+        />
         <div v-if="candidates.length === 0" class="empty-state">
           {{ t('crm.prospecting.noCandidates') }}
         </div>
@@ -952,14 +985,5 @@ tr.selected {
   padding: 0.4rem;
   background: var(--xh-surface, white);
   color: inherit;
-}
-.run-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0.55rem 0.75rem;
-  border-radius: 0.5rem;
-  background: var(--xh-muted-surface, #f5f5f5);
-  font-size: 0.85rem;
 }
 </style>

@@ -156,3 +156,49 @@ public sealed class CrmProspectingCandidateReviewDetailDto
     public IReadOnlyList<CrmProspectingEvidenceDto> Evidence { get; set; } = [];
     public IReadOnlyList<CrmProspectingScoreDto> ScoreHistory { get; set; } = [];
 }
+
+/// <summary>
+/// Aggregated provider-step progress for one Run. Terminal steps are Succeeded, Failed,
+/// Skipped and NeedsReview: they no longer advance without action, so they count toward
+/// completion while NeedsReview stays separately visible for human recovery.
+/// </summary>
+public sealed class CrmProspectingRunProgressDto
+{
+    public int TotalSteps { get; set; }
+    public int SucceededSteps { get; set; }
+    public int FailedSteps { get; set; }
+    public int RunningSteps { get; set; }
+    public int QueuedSteps { get; set; }
+    public int NeedsReviewSteps { get; set; }
+    public int SkippedSteps { get; set; }
+    public int CompletedSteps { get; set; }
+    /// <summary>Completed share of total steps in percent; 0 when the plan has no materialized step.</summary>
+    public int Percent { get; set; }
+}
+
+/// <summary>One durable provider execution checkpoint within an immutable Run plan.</summary>
+public sealed class CrmProspectingRunProviderExecutionDto
+{
+    public long BasicId { get; set; }
+    public long RunId { get; set; }
+    public int PlanVersion { get; set; }
+    public int PlanOrdinal { get; set; }
+    public string ProviderCode { get; set; } = string.Empty;
+    public string State { get; set; } = string.Empty;
+    public int AttemptCount { get; set; }
+    public int RawRecordCount { get; set; }
+    public int ProjectedRecordCount { get; set; }
+    public int FailureCount { get; set; }
+    public string? FailureCode { get; set; }
+    public string? FailureSummary { get; set; }
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+}
+
+/// <summary>Read model for the Run monitoring panel: progress aggregate plus per-provider rows.</summary>
+public sealed class CrmProspectingRunMonitorDto
+{
+    public long RunId { get; set; }
+    public CrmProspectingRunProgressDto Progress { get; set; } = new();
+    public IReadOnlyList<CrmProspectingRunProviderExecutionDto> Executions { get; set; } = [];
+}

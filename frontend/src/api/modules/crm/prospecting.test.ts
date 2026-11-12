@@ -26,9 +26,11 @@ describe('crmProspectingApi', () => {
     await crmProspectingApi.runs('10')
     await crmProspectingApi.candidates('20', 1)
     await crmProspectingApi.candidateReviewDetail('30')
+    await crmProspectingApi.runMonitor('40')
 
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Campaigns', { params: undefined })
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingProviderCatalogQuery/Providers', { params: undefined })
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingRunQuery/RunMonitor', expect.objectContaining({ params: { runId: '40' } }))
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Campaign', expect.objectContaining({ params: { id: '10' } }))
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Strategies', expect.objectContaining({ params: { campaignId: '10' } }))
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/CampaignRuns', expect.objectContaining({ params: { campaignId: '10' } }))

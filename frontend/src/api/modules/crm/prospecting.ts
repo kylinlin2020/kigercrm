@@ -8,6 +8,7 @@ import type {
   CrmProspectingCandidateReviewDto,
   CrmProspectingProviderCatalogDto,
   CrmProspectingRunDto,
+  CrmProspectingRunMonitorDto,
   CrmProspectingRunStartDto,
   CrmProspectingStrategyDecisionDto,
   CrmProspectingStrategyDto,
@@ -18,6 +19,8 @@ import { createDynamicApiClient } from '../../base'
 const api = createDynamicApiClient('CrmProspecting')
 // Read-side catalog lives in its own DynamicApi service (QueryServices convention).
 const catalogApi = createDynamicApiClient('CrmProspectingProviderCatalogQuery')
+// Run monitor (progress + provider execution ledger) follows the same QueryServices convention.
+const runQueryApi = createDynamicApiClient('CrmProspectingRunQuery')
 
 export const crmProspectingApi = {
   providerCatalog() {
@@ -58,6 +61,9 @@ export const crmProspectingApi = {
   },
   run(runId: ApiId) {
     return api.get<CrmProspectingRunDto | null>('Run', { runId })
+  },
+  runMonitor(runId: ApiId) {
+    return runQueryApi.get<CrmProspectingRunMonitorDto>('RunMonitor', { runId })
   },
   cancelRun(runId: ApiId) {
     return api.post<CrmProspectingRunDto, undefined>('CancelRun', undefined, { params: { runId } })
