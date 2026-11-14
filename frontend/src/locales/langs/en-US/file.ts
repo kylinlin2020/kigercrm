@@ -20,6 +20,7 @@ export default {
       diff_log: 'Data Change Log',
       operation_log: 'Operation Log',
       user: 'User Management',
+      crm_prospecting_candidate: 'Prospecting Candidates',
     },
     columns: {
       keyword: 'Keyword',

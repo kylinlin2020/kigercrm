@@ -345,23 +345,6 @@ public sealed class CrmProspectingAppService(
         return ToDto(await domain.CancelRunAsync(runId, cancellationToken));
     }
 
-
-    [PermissionAuthorize(CrmPermissionCodes.Read)]
-    public async Task<IReadOnlyList<CrmProspectingCandidateDto>> GetRunCandidatesAsync(long runId, int? status = null, CancellationToken cancellationToken = default)
-    {
-        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
-        var run = await runs.GetByIdAsync(runId, cancellationToken)
-            ?? throw new InvalidOperationException("Prospecting run does not exist.");
-        var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
-            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
-        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
-        if (status.HasValue && !Enum.IsDefined(typeof(CrmProspectingCandidateStatus), status.Value))
-            throw new ArgumentOutOfRangeException(nameof(status));
-        var candidateStatus = status.HasValue ? (CrmProspectingCandidateStatus?)status.Value : null;
-        var items = await candidates.GetLatestByRunAsync(runId, candidateStatus, 500, cancellationToken);
-        return items.Select(CrmProspectingMapper.ToCandidateDto).ToArray();
-    }
-
     [PermissionAuthorize(CrmPermissionCodes.Read)]
     public async Task<CrmProspectingCandidateReviewDetailDto> GetCandidateReviewDetailAsync(long candidateId, CancellationToken cancellationToken = default)
     {

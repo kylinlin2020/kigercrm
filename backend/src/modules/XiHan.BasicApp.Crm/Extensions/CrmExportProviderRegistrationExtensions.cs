@@ -20,6 +20,7 @@ public static class CrmExportProviderRegistrationExtensions
         services.AddScoped<IExportProvider, CrmQuoteExportProvider>();
         services.AddScoped<IExportProvider, CrmSalesOrderExportProvider>();
         services.AddScoped<IExportProvider, CrmShipmentExportProvider>();
+        services.AddScoped<IExportProvider, CrmProspectingCandidateExportProvider>();
         return services;
     }
 }

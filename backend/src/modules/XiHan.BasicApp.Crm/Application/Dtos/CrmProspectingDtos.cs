@@ -1,3 +1,5 @@
+using XiHan.BasicApp.Core.Dtos;
+
 namespace XiHan.BasicApp.Crm.Application.Dtos;
 
 /// <summary>Campaign creation and update input.</summary>
@@ -201,4 +203,11 @@ public sealed class CrmProspectingRunMonitorDto
     public long RunId { get; set; }
     public CrmProspectingRunProgressDto Progress { get; set; } = new();
     public IReadOnlyList<CrmProspectingRunProviderExecutionDto> Executions { get; set; } = [];
+}
+
+/// <summary>Candidate review-queue query parameters: always scoped to one Run.</summary>
+public sealed class CrmProspectingCandidatePageQueryDto : BasicAppPRDto
+{
+    public long RunId { get; set; }
+    public int? Status { get; set; }
 }

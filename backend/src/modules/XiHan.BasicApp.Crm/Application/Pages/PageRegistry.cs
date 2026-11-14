@@ -61,5 +61,6 @@ public static class PageRegistry
         new("crm_shipments.export", "导出", "crm_shipments", CrmPermissionCodes.Execute, 3),
         new("crm_prospecting.create", "新建", "crm_prospecting", CrmPermissionCodes.Create, 1),
         new("crm_prospecting.execute", "执行", "crm_prospecting", CrmPermissionCodes.Execute, 2),
+        new("crm_prospecting.export", "导出", "crm_prospecting", CrmPermissionCodes.Execute, 3),
     ];
 }

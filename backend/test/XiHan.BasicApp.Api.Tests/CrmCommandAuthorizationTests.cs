@@ -80,7 +80,8 @@ public sealed class CrmCommandAuthorizationTests
             "CrmOpportunityExportProvider.cs",
             "CrmQuoteExportProvider.cs",
             "CrmSalesOrderExportProvider.cs",
-            "CrmShipmentExportProvider.cs"
+            "CrmShipmentExportProvider.cs",
+            "CrmProspectingCandidateExportProvider.cs"
         };
 
         foreach (var providerName in providerNames)
@@ -120,13 +121,16 @@ public sealed class CrmCommandAuthorizationTests
             "crm_opportunities",
             "crm_quotes",
             "crm_sales_orders",
-            "crm_shipments"
+            "crm_shipments",
+            "crm_prospecting"
         };
 
         foreach (var pageCode in providerPages)
         {
+            // Page titles are the localized button labels ("导出"); the assertion used to pin the
+            // English word "Export" and failed even before the prospecting button existed.
             Assert.Contains(
-                $"new(\"{pageCode}.export\", \"Export\", \"{pageCode}\", CrmPermissionCodes.Execute",
+                $"new(\"{pageCode}.export\", \"导出\", \"{pageCode}\", CrmPermissionCodes.Execute",
                 pages,
                 StringComparison.Ordinal);
         }

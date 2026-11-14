@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { crmProspectingApi } from './prospecting'
+import { CrmProspectingCandidateStatus } from './prospecting.types'
 
 const requestMocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -24,7 +25,6 @@ describe('crmProspectingApi', () => {
     await crmProspectingApi.campaign('10')
     await crmProspectingApi.strategies('10')
     await crmProspectingApi.runs('10')
-    await crmProspectingApi.candidates('20', 1)
     await crmProspectingApi.candidateReviewDetail('30')
     await crmProspectingApi.runMonitor('40')
 
@@ -34,8 +34,21 @@ describe('crmProspectingApi', () => {
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Campaign', expect.objectContaining({ params: { id: '10' } }))
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Strategies', expect.objectContaining({ params: { campaignId: '10' } }))
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/CampaignRuns', expect.objectContaining({ params: { campaignId: '10' } }))
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/RunCandidates', expect.objectContaining({ params: { runId: '20', status: 1 } }))
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/CandidateReviewDetail', expect.objectContaining({ params: { candidateId: '30' } }))
+  })
+
+  it('pages the candidate review queue through the QueryServices Page route', async () => {
+    const input = {
+      runId: '20',
+      status: CrmProspectingCandidateStatus.Duplicate,
+      conditions: { filters: [], sorts: [] },
+      page: { pageIndex: 2, pageSize: 20 },
+    }
+
+    await crmProspectingApi.candidatePage(input)
+
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingCandidateQuery/Page', input, undefined)
+    expect(requestMocks.get).not.toHaveBeenCalledWith('/CrmProspecting/RunCandidates', expect.anything())
   })
 
   it('uses explicit command routes for approval, review and conversion', async () => {

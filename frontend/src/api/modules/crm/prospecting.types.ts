@@ -1,4 +1,4 @@
-import type { ApiId, DateTimeString } from '../../types'
+import type { ApiId, DateTimeString, PageRequest } from '../../types'
 
 export enum CrmProspectingCampaignStatus {
   Draft = 0,
@@ -117,6 +117,15 @@ export interface CrmProspectingCandidateReviewDto {
   candidateId: ApiId
   approve: boolean
   overrideDuplicate: boolean
+}
+
+/**
+ * Candidate review-queue page query: always scoped to one Run, mirrors backend
+ * CrmProspectingCandidatePageQueryDto (BasicAppPRDto + runId + status).
+ */
+export interface CrmProspectingCandidatePageQueryDto extends PageRequest {
+  runId: ApiId
+  status?: CrmProspectingCandidateStatus | null
 }
 
 export interface CrmProspectingEvidenceDto {

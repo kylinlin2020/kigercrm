@@ -20,7 +20,7 @@ public sealed class CrmServiceRegistrationTests
             .Where(descriptor => descriptor.ServiceType == typeof(IExportProvider))
             .ToArray();
 
-        Assert.Equal(7, exportProviders.Length);
+        Assert.Equal(8, exportProviders.Length);
         Assert.All(exportProviders, descriptor =>
             Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime));
 

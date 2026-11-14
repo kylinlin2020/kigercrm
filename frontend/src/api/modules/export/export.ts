@@ -62,7 +62,8 @@ export interface ExportTaskDto {
   processedCount: number
   fileId?: ApiId | null
   fileName?: null | string
-  fileSize: number
+  /** 产物文件字节数；后端 long 序列化为字符串，与 ApiId 同策略 */
+  fileSize: string
   errorMessage?: null | string
   createdTime: string
   startedTime?: null | string

@@ -1,9 +1,10 @@
-import type { ApiId } from '../../types'
+import type { ApiId, PageResult } from '../../types'
 import type { CrmLeadDetailDto } from './lead.types'
 import type {
   CrmProspectingCampaignDto,
   CrmProspectingCampaignInputDto,
   CrmProspectingCandidateDto,
+  CrmProspectingCandidatePageQueryDto,
   CrmProspectingCandidateReviewDetailDto,
   CrmProspectingCandidateReviewDto,
   CrmProspectingProviderCatalogDto,
@@ -21,6 +22,8 @@ const api = createDynamicApiClient('CrmProspecting')
 const catalogApi = createDynamicApiClient('CrmProspectingProviderCatalogQuery')
 // Run monitor (progress + provider execution ledger) follows the same QueryServices convention.
 const runQueryApi = createDynamicApiClient('CrmProspectingRunQuery')
+// Paginated candidate review queue; GetPageAsync routes to Page (see crud-client notes).
+const candidateQueryApi = createDynamicApiClient('CrmProspectingCandidateQuery')
 
 export const crmProspectingApi = {
   providerCatalog() {
@@ -68,8 +71,8 @@ export const crmProspectingApi = {
   cancelRun(runId: ApiId) {
     return api.post<CrmProspectingRunDto, undefined>('CancelRun', undefined, { params: { runId } })
   },
-  candidates(runId: ApiId, status?: number) {
-    return api.get<CrmProspectingCandidateDto[]>('RunCandidates', { runId, status })
+  candidatePage(input: CrmProspectingCandidatePageQueryDto) {
+    return candidateQueryApi.post<PageResult<CrmProspectingCandidateDto>, CrmProspectingCandidatePageQueryDto>('Page', input)
   },
   candidateReviewDetail(candidateId: ApiId) {
     return api.get<CrmProspectingCandidateReviewDetailDto>('CandidateReviewDetail', { candidateId })

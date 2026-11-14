@@ -10,14 +10,19 @@ import type {
   CrmProspectingRunDto,
   CrmProspectingRunMonitorDto,
   CrmProspectingStrategyDto,
+  ExportColumn,
 } from '@/api'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
+  createPageRequest,
   crmProspectingApi,
   CrmProspectingCandidateStatus,
   CrmProspectingRunStatus,
   CrmProspectingStrategyApprovalStatus,
+  ExportFormat,
+  ExportScope,
+  exportTaskApi,
 } from '@/api'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
@@ -56,11 +61,19 @@ const editingCampaignId = ref<string>('')
 const runDetail = ref<CrmProspectingRunDto | null>(null)
 const runMonitor = ref<CrmProspectingRunMonitorDto | null>(null)
 const candidateStatusFilter = ref<number | ''>('')
+// The review queue pages server-side: one Run's rows are partitioned by CreatedTime DESC,
+// BasicId DESC, so consecutive pages never repeat or drop a row.
+const candidatePageIndex = ref(1)
+const candidatePageSize = 20
+const candidateTotal = ref(0)
+const exporting = ref(false)
 
 const selectedCampaign = computed(() => campaigns.value.find(item => String(item.basicId) === selectedCampaignId.value) ?? null)
 const canCreate = computed(() => hasPermission('crm_prospecting.create'))
 const canExecute = computed(() => hasPermission('crm_prospecting.execute'))
 const canCreateLead = computed(() => hasPermission('crm:create'))
+const canExport = computed(() => hasPermission('crm_prospecting.export'))
+const candidateTotalPages = computed(() => Math.max(1, Math.ceil(candidateTotal.value / candidatePageSize)))
 
 function campaignStatus(value: number) {
   return [t('crm.prospecting.draft'), t('crm.prospecting.active'), t('crm.prospecting.paused'), t('crm.prospecting.completed'), t('crm.prospecting.archived')][value] ?? String(value)
@@ -115,6 +128,7 @@ async function loadWorkspace() {
     strategies.value = []
     runs.value = []
     candidates.value = []
+    candidateTotal.value = 0
     selectedRunId.value = ''
     runDetail.value = null
     runMonitor.value = null
@@ -142,17 +156,94 @@ async function loadWorkspace() {
 async function loadCandidates() {
   if (!selectedRunId.value) {
     candidates.value = []
+    candidateTotal.value = 0
     return
   }
+  const request = {
+    runId: selectedRunId.value,
+    status: candidateStatusFilter.value === '' ? undefined : candidateStatusFilter.value,
+    pageIndex: candidatePageIndex.value,
+  }
   try {
-    candidates.value = await crmProspectingApi.candidates(
-      selectedRunId.value,
-      candidateStatusFilter.value === '' ? undefined : candidateStatusFilter.value,
-    )
+    const result = await crmProspectingApi.candidatePage({
+      ...createPageRequest({ page: { pageIndex: request.pageIndex, pageSize: candidatePageSize } }),
+      runId: request.runId,
+      status: request.status,
+    })
+    // Drop responses for a run, filter or page the user already left, so a slow page
+    // can never repaint the table after the next navigation.
+    if (request.runId !== selectedRunId.value
+      || request.status !== (candidateStatusFilter.value === '' ? undefined : candidateStatusFilter.value)
+      || request.pageIndex !== candidatePageIndex.value) {
+      return
+    }
+    if (result.items.length === 0 && request.pageIndex > 1) {
+      // The last page emptied out (rows reviewed away): fall back to page 1 once.
+      candidatePageIndex.value = 1
+      await loadCandidates()
+      return
+    }
+    candidates.value = result.items
+    candidateTotal.value = result.page.totalCount
   }
   catch (error) {
     candidates.value = []
     toast.danger((error as Error)?.message || t('crm.prospecting.candidateLoadError'))
+  }
+}
+
+function gotoCandidatePage(pageIndex: number) {
+  const next = Math.min(Math.max(1, pageIndex), candidateTotalPages.value)
+  if (next === candidatePageIndex.value)
+    return
+  candidatePageIndex.value = next
+  void loadCandidates()
+}
+
+/** Export covers the whole filtered result set (SearchResult), not just the visible page. */
+function candidateQuerySnapshot() {
+  return {
+    ...createPageRequest({ page: { pageIndex: 1, pageSize: candidatePageSize } }),
+    runId: selectedRunId.value,
+    status: candidateStatusFilter.value === '' ? null : candidateStatusFilter.value,
+  }
+}
+
+function candidateExportColumns(): ExportColumn[] {
+  const statusValueMap: Record<string, string> = {}
+  for (const status of [0, 1, 2, 3, 4, 5])
+    statusValueMap[String(status)] = candidateStatus(status)
+  return [
+    { key: 'companyName', title: t('crm.prospecting.company') },
+    { key: 'contactName', title: t('crm.prospecting.contact') },
+    { key: 'businessEmail', title: t('crm.prospecting.email') },
+    { key: 'website', title: t('crm.prospecting.website') },
+    { key: 'source', title: t('crm.prospecting.source') },
+    { key: 'status', title: t('crm.prospecting.status'), valueMap: statusValueMap },
+    { key: 'duplicateReason', title: t('crm.prospecting.duplicateReason') },
+  ]
+}
+
+async function exportCandidates() {
+  if (!selectedRunId.value || !canExport.value || exporting.value)
+    return
+  exporting.value = true
+  try {
+    await exportTaskApi.submit({
+      businessType: 'crm.prospecting.candidate',
+      taskName: t('crm.prospecting.exportTaskName', { runId: selectedRunId.value }),
+      scope: ExportScope.SearchResult,
+      format: ExportFormat.Csv,
+      querySnapshot: JSON.stringify(candidateQuerySnapshot()),
+      columns: candidateExportColumns(),
+    })
+    toast.success(t('crm.prospecting.exportQueued'))
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.exportError'))
+  }
+  finally {
+    exporting.value = false
   }
 }
 
@@ -200,10 +291,12 @@ watch(selectedCampaignId, () => {
   void loadWorkspace()
 })
 watch(selectedRunId, () => {
+  candidatePageIndex.value = 1
   void loadCandidates()
   void refreshRunDetail()
 })
 watch(candidateStatusFilter, () => {
+  candidatePageIndex.value = 1
   void loadCandidates()
 })
 
@@ -592,6 +685,9 @@ onMounted(() => {
           <button type="button" @click="refreshRunDetail">
             {{ t('crm.prospecting.refreshRun') }}
           </button>
+          <button v-if="canExport" type="button" :disabled="exporting" @click="exportCandidates">
+            {{ t('crm.prospecting.exportCandidates') }}
+          </button>
         </header>
         <RunMonitorPanel
           v-if="runDetail"
@@ -629,6 +725,17 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
+        <nav v-if="candidateTotal > 0" class="pagination-bar" :aria-label="t('crm.prospecting.candidatePagination')">
+          <button type="button" :disabled="candidatePageIndex <= 1" @click="gotoCandidatePage(candidatePageIndex - 1)">
+            {{ t('crm.prospecting.prevPage') }}
+          </button>
+          <span class="page-info">
+            {{ t('crm.prospecting.pageInfo', { page: candidatePageIndex, pages: candidateTotalPages, total: candidateTotal }) }}
+          </span>
+          <button type="button" :disabled="candidatePageIndex >= candidateTotalPages" @click="gotoCandidatePage(candidatePageIndex + 1)">
+            {{ t('crm.prospecting.nextPage') }}
+          </button>
+        </nav>
       </section>
 
       <section v-if="reviewDetailLoading || reviewDetail" class="panel review-detail">
@@ -985,5 +1092,17 @@ tr.selected {
   padding: 0.4rem;
   background: var(--xh-surface, white);
   color: inherit;
+}
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.pagination-bar .page-info {
+  color: var(--xh-fg-muted);
+  font-size: 0.9rem;
 }
 </style>

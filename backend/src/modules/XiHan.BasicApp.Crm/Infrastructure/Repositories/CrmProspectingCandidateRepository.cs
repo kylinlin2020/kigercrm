@@ -27,17 +27,6 @@ public sealed class CrmProspectingCandidateRepository(ISqlSugarClientResolver cl
         return rows.FirstOrDefault();
     }
 
-    public async Task<IReadOnlyList<SysCrmProspectingCandidate>> GetLatestByRunAsync(long runId, CrmProspectingCandidateStatus? status, int limit, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var take = Math.Clamp(limit, 1, 500);
-        return await CreateQueryable()
-            .Where(candidate => candidate.RunId == runId && (!status.HasValue || candidate.Status == status.Value))
-            .OrderByDescending(candidate => candidate.CreatedTime)
-            .Take(take)
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<IReadOnlyList<SysCrmProspectingCandidate>> GetCrossRunDuplicateMatchesAsync(
         long runId,
         IReadOnlyDictionary<string, IReadOnlyList<string>> externalIdsByProvider,

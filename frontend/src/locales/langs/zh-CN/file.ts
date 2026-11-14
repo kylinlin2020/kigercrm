@@ -20,6 +20,7 @@ export default {
       diff_log: '数据变更日志',
       operation_log: '操作日志',
       user: '用户管理',
+      crm_prospecting_candidate: '获客候选',
     },
     columns: {
       keyword: '关键词',

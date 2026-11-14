@@ -283,8 +283,13 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("CreateQueryable()", leadRepository, StringComparison.Ordinal);
         Assert.Contains("crm_prospecting_candidate", candidateMigration, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = candidateCount", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunRepository.cs"), StringComparison.Ordinal);
-        Assert.Contains("GetRunCandidatesAsync", app, StringComparison.Ordinal);
-        Assert.Contains("GetLatestByRunAsync(runId, candidateStatus, 500", app, StringComparison.Ordinal);
+        // The fixed Take(500) RunCandidates read was replaced by the paginated candidate query
+        // service; the app service must no longer expose either the old route or the old helper.
+        var candidateQuery = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmProspectingCandidateQueryService.cs");
+        Assert.Contains("GetPageAsync", candidateQuery, StringComparison.Ordinal);
+        Assert.Contains("AddSort((SysCrmProspectingCandidate candidate) => candidate.BasicId, SortDirection.Descending, 1)", candidateQuery, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetRunCandidatesAsync", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("GetLatestByRunAsync", app, StringComparison.Ordinal);
         Assert.Contains("ReviewCandidateAsync", app, StringComparison.Ordinal);
         Assert.Contains("Duplicate candidate approval requires an explicit duplicate override", app, StringComparison.Ordinal);
         Assert.Contains("ConvertApprovedCandidateToLeadAsync", app, StringComparison.Ordinal);
@@ -296,7 +301,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("EnsureRecordAccessibleAsync", app, StringComparison.Ordinal);
         Assert.Contains("EnsureCreatableAsync(typeof(SysCrmLead)", app, StringComparison.Ordinal);
         Assert.Contains("leadDomain.CreateAsync", app, StringComparison.Ordinal);
-        Assert.Contains("GetRunCandidatesAsync", app, StringComparison.Ordinal);
+        Assert.Contains("EnsureRecordAccessibleAsync", candidateQuery, StringComparison.Ordinal);
         Assert.Contains("ReviewCandidateAsync", app, StringComparison.Ordinal);
         Assert.Contains("ConvertApprovedCandidateToLeadAsync", app, StringComparison.Ordinal);
         Assert.Contains("seenCandidateEmails", worker, StringComparison.Ordinal);

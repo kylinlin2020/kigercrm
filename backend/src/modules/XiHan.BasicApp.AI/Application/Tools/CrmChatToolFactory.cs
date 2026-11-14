@@ -7,6 +7,7 @@ using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Saas.Application.Services;
+using XiHan.Framework.Domain.Shared.Paging.Models;
 
 namespace XiHan.BasicApp.AI.Application.Tools;
 
@@ -19,8 +20,11 @@ namespace XiHan.BasicApp.AI.Application.Tools;
 /// </remarks>
 public sealed class CrmChatToolFactory
 {
+    private const int CandidatePageSize = 100;
+
     private readonly ICrmCustomerQueryService _customerQuery;
     private readonly ICrmLeadQueryService _leadQuery;
+    private readonly ICrmProspectingCandidateQueryService _candidateQuery;
     private readonly ICrmProspectingAppService _prospecting;
     private readonly IFieldSecurityService _fieldSecurity;
     private readonly IOperationPermissionGuard _permissionGuard;
@@ -29,12 +33,14 @@ public sealed class CrmChatToolFactory
     public CrmChatToolFactory(
         ICrmCustomerQueryService customerQuery,
         ICrmLeadQueryService leadQuery,
+        ICrmProspectingCandidateQueryService candidateQuery,
         ICrmProspectingAppService prospecting,
         IFieldSecurityService fieldSecurity,
         IOperationPermissionGuard permissionGuard)
     {
         _customerQuery = customerQuery;
         _leadQuery = leadQuery;
+        _candidateQuery = candidateQuery;
         _prospecting = prospecting;
         _fieldSecurity = fieldSecurity;
         _permissionGuard = permissionGuard;
@@ -183,8 +189,16 @@ public sealed class CrmChatToolFactory
                     }
 
                     await _permissionGuard.EnsureGrantedAsync(CrmPermissionCodes.Read, cancellationToken);
-                    var items = await _prospecting.GetRunCandidatesAsync(runId, cancellationToken: cancellationToken);
-                    return items.Select(item => new
+                    // The former fixed Take(500) RunCandidates read is gone; the tool now pages
+                    // through the shared candidate query service with the same authorization.
+                    var page = await _candidateQuery.GetPageAsync(
+                        new CrmProspectingCandidatePageQueryDto
+                        {
+                            RunId = runId,
+                            Page = new PageRequestMetadata(1, CandidatePageSize)
+                        },
+                        cancellationToken);
+                    return page.Items.Select(item => new
                     {
                         item.BasicId,
                         item.RunId,

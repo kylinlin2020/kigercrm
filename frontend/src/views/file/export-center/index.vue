@@ -74,6 +74,7 @@ const businessTypeOptions = computed(() => [
   { label: t('file.export_center.business_type.diff_log'), value: 'log.diff' },
   { label: t('file.export_center.business_type.operation_log'), value: 'log.operation' },
   { label: t('file.export_center.business_type.user'), value: 'identity.user' },
+  { label: t('file.export_center.business_type.crm_prospecting_candidate'), value: 'crm.prospecting.candidate' },
 ])
 
 /** 过滤值清洗：空串/空白按未填处理 */
@@ -90,12 +91,14 @@ function statusTagType(status: ExportTaskStatus): 'neutral' | 'danger' | 'info' 
   }
 }
 
-function formatBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) {
+function formatBytes(bytes: number | string): string {
+  // Backend longs serialize as strings; normalize before any arithmetic.
+  const size = Number(bytes)
+  if (!Number.isFinite(size) || size <= 0) {
     return '–'
   }
   const units = ['B', 'KB', 'MB', 'GB']
-  let value = bytes
+  let value = size
   let unitIndex = 0
   while (value >= 1024 && unitIndex < units.length - 1) {
     value /= 1024

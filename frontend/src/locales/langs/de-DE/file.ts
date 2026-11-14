@@ -20,6 +20,7 @@ export default {
       diff_log: 'Datenänderungsprotokoll',
       operation_log: 'Vorgangsprotokoll',
       user: 'Benutzerverwaltung',
+      crm_prospecting_candidate: 'Gewinnungskandidaten',
     },
     columns: {
       keyword: 'Stichwort',

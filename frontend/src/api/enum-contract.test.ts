@@ -29,9 +29,14 @@ function isEnumLike(value: unknown): value is EnumLike {
     && entries.every(([, item]) => typeof item === 'string' || typeof item === 'number')
 }
 
-// chat.types.ts 会值转出 `~/chat`（链到没有构建产物的 @xihan-ui），必须排除
+// chat.types.ts 会值转出 `~/chat`（链到没有构建产物的 @xihan-ui），必须排除；
+// *.test.ts 是断言的宿主而非枚举来源——被 eager 拉进来会在本文件上下文里重执行一遍，
+// 那时 barrel 已把真实 requestClient 装进模块缓存，测试文件的 vi.mock 注册太迟全部失效（假网络失败）。
 const globbed = {
-  ...import.meta.glob<Record<string, unknown>>('/src/api/modules/**/*.ts', { eager: true }),
+  ...import.meta.glob<Record<string, unknown>>(
+    ['/src/api/modules/**/*.ts', '!/src/api/modules/**/*.test.ts'],
+    { eager: true },
+  ),
   ...import.meta.glob<Record<string, unknown>>(
     ['/src/modules/*/api/**/*.ts', '!/src/modules/chat/api/chat.types.ts'],
     { eager: true },

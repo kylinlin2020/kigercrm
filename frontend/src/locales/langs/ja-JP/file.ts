@@ -20,6 +20,7 @@ export default {
       diff_log: 'データ変更ログ',
       operation_log: '操作ログ',
       user: 'ユーザー管理',
+      crm_prospecting_candidate: '獲得候補',
     },
     columns: {
       keyword: 'キーワード',
