@@ -10,6 +10,7 @@ using XiHan.BasicApp.Crm.Infrastructure.Repositories;
 using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.Data.SqlSugar.Extensions;
 using XiHan.Framework.Domain.Entities.Abstracts;
+using XiHan.Framework.MultiTenancy;
 using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.BasicApp.Api.Tests;
@@ -25,12 +26,16 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
     private readonly string _connectionString = $"Data Source=kiger-crm-lead-normalization-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
     private readonly SqliteConnection _keepAlive;
     private readonly SqlSugarScope _db;
-    private readonly ProbeCurrentTenant _tenant = new();
+    // Repository write guards read AsyncLocalCurrentTenantAccessor.Instance.Current;
+    // use the framework CurrentTenant so filters, AOP auditing and the guard agree.
+    private readonly CurrentTenant _tenant = new(AsyncLocalCurrentTenantAccessor.Instance);
+    private readonly IDisposable _tenantScope;
     private readonly CrmLeadDomainService _service;
     private readonly CrmLeadRepository _repository;
 
     public CrmLeadNormalizationSqliteIntegrationTests()
     {
+        _tenantScope = _tenant.Change(TenantId);
         _keepAlive = new SqliteConnection(_connectionString);
         _keepAlive.Open();
 
@@ -46,8 +51,8 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
             db =>
             {
                 db.QueryFilter.AddTableFilter<ISoftDelete>(entity => !entity.IsDeleted);
-                db.QueryFilter.AddTableFilter<IMultiTenantEntity>(entity => entity.TenantId == 0 || entity.TenantId == ScopeId(tenant));
-                db.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(entity => entity.TenantId == ScopeId(tenant));
+                db.QueryFilter.AddTableFilter<IMultiTenantEntity>(entity => entity.TenantId == 0 || entity.TenantId == ScopeId());
+                db.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(entity => entity.TenantId == ScopeId());
                 db.Aop.DataExecuting = (_, entityInfo) =>
                 {
                     if (entityInfo.OperationType == DataFilterType.InsertByObject)
@@ -195,28 +200,12 @@ public sealed class CrmLeadNormalizationSqliteIntegrationTests : IDisposable
 
     public void Dispose()
     {
+        _tenantScope.Dispose();
+        AsyncLocalCurrentTenantAccessor.Instance.Current = null;
         _db.Dispose();
         _keepAlive.Dispose();
     }
 
-    private static long ScopeId(ProbeCurrentTenant tenant) => tenant.Id ?? 0;
+    private static long ScopeId() => AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0;
 
-    private sealed class ProbeCurrentTenant : ICurrentTenant
-    {
-        public bool IsAvailable => Id is > 0;
-        public long? Id { get; private set; }
-        public string? Name { get; private set; }
-
-        public IDisposable Change(long? id, string? name = null)
-        {
-            var (previousId, previousName) = (Id, Name);
-            (Id, Name) = (id, name);
-            return new Restore(() => (Id, Name) = (previousId, previousName));
-        }
-
-        private sealed class Restore(Action restore) : IDisposable
-        {
-            public void Dispose() => restore();
-        }
-    }
 }
