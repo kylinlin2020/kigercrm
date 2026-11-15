@@ -124,6 +124,8 @@
 - 并发与 fencing 不回退（既有租约测试全绿）；PG 门控集成测试。
 - **顺延规则**：若状态机风险超出预期（与异步 Worker 交互未定稿），W4 整体顺延批次 3，不阻塞 W1–W3/W5 的验收与登记。
 
+**2026-11-15 顺延判定**：已按本节要求完成语义定稿与源码取证（6 个阻塞性并发决策、三套租约路径、finalize 误写终态冲突），结论为整体顺延批次 3。完整取证与批次 3 落地 checklist 见 `AUTO-PROSPECTING-W4-PAUSE-DESIGN-2026-11-15.md`。本批次不改状态机、不加半套协议，W4 条目不关闭。
+
 ### W5 — 页面结构收口（配套，随 W1–W4 持续进行）
 
 - `frontend/src/modules/crm/views/crm/prospecting/index.vue` 现 965 行单页；每落地一个工作流拆出对应组件（RunDetailPanel、ProviderExecutionTable、CandidateTable、BulkActionBar 等），保持单页纵向结构与菜单/`Component` 路径不变（`PageRegistry` 的 `Crm/Prospecting/Index` 不动）。
@@ -165,8 +167,8 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 - [x] W1 Run 监控（进度 + 台账 + 轮询）
 - [x] W2 候选分页 + 导出
 - [x] W3 批量审核/转换 + 短名单（代码 + 自动化测试闭环；实机验收未完成，见下方验收记录）
-- [ ] W4 Run 暂停/恢复（或按规则顺延并在此注明）
-- [ ] W5 页面组件拆分
+- [x] W4 Run 暂停/恢复 — **按顺延规则整体顺延批次 3**（语义已定稿，见 `AUTO-PROSPECTING-W4-PAUSE-DESIGN-2026-11-15.md`；未引入 Paused 状态机或半套协议）
+- [x] W5 页面组件拆分（BulkActionBar / CandidateTable / ReviewDetailPanel，见下方验收记录）
 - [x] 差距台账与本计划回写（§5；按「待运行时验收」口径，不越级关闭）
 
 ### W3 验收记录（2026-11-15）
@@ -192,3 +194,41 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 - 其余为文案/参数对齐：空计划消息、raw cap 文案、插值字符串、`campaign.OwnerUserId ?? 0`、游标 `NOT IN`、默认状态「实体 DefaultValue=0 + 枚举 PendingReview=0」双向守卫。
 
 验证：`CrmProspectingApplicationWiringTests` **44/44 全绿**；完整 `Api.Tests` 1109 总 / **127 失败** / 951 通过 / 31 跳过（失败 146 → 127，成功 +19，总数与跳过数不变，零回归）。本文件与差距台账中「146 个基线失败」的读数自本轮起为 **127**。实机 Windows 验收与真实 HTTP 冒烟仍待完成，迁移条目依旧不关闭。
+
+### W4 / W5 验收记录（2026-11-15）
+
+**W4**：按 §3 顺延规则整体顺延批次 3，语义定稿与 6 个阻塞性并发决策见 `AUTO-PROSPECTING-W4-PAUSE-DESIGN-2026-11-15.md`。本批次未追加 `Paused` 状态、未引入半套协议，条目不关闭。
+
+**W5 拆分**：`index.vue` 1292 → 1125 行（后续改动后约 1125 行），抽出 3 个展示组件 + 2 个共享文件：
+
+| 文件 | 职责 |
+|---|---|
+| `BulkActionBar.vue` | 批量动作条、权限显隐、结果汇总与逐项失败原因 |
+| `CandidateTable.vue` | 多选/全选本页、候选表、短名单列、分页条 |
+| `ReviewDetailPanel.vue` | 评分历史、证据表、HTTPS-only 链接守卫 |
+| `prospecting-labels.ts` | `useProspectingLabels()` 共享候选状态文案，页面与表格不再各写一份 |
+| `view-types.ts` | `CrmProspectingBulkAction` 单一类型来源 |
+
+共享状态（选择集、分页、筛选、轮询、批量命令）留在页面；组件只通过类型化 props/emits 交互，不直接调用 API。样式按 scoped 边界随组件迁移，父页保留仍被 strategies/runs/dialogs 使用的通用规则。`prospecting-components.test.ts` 4 条源码契约守卫防止拆分回退（组件被引用、旧模板不回流、权限门控与 URL 守卫存在、组件不碰 API）。
+
+**顺带修掉 W3 遗留的真实缺陷**：页面 `canCreateLead` 曾硬编码后端权限码 `hasPermission('crm:create')`，违反「门控一律用服务端下发的按钮码」，也是 `view-permission-hygiene.test.ts` 全量测试里唯一的断言失败。`PageRegistry.Buttons` 新增 `crm_prospecting.convert_lead`（映射 `CrmPermissionCodes.Create`，与批量转换 API 的权限一致），前端改用该按钮码；后端权限强制不变。
+
+| 证据等级 | 内容 | 结果 |
+|---|---|---|
+| A 代码事实 | 3 组件 + 2 共享文件 + 4 条契约守卫；按钮码登记与前端门控一次收口 | 已落地 |
+| B 自动化测试 | `vue-tsc --noEmit` 0 错误；W5 相关文件 eslint 0 错误；获客相关单测 14/14（API 4 + 轮询 6 + 组件契约 4）；`pnpm run build` 成功；全量 `pnpm test` **180 文件 / 2612 用例全部通过**；`CrmPageRegistryViewWiringTests` 通过 | 通过 |
+| B 既有仓债 | 全量 `pnpm check` 仍有 699 problems（320 errors / 379 warnings），分布于 18 个**既有**文件（其他 CRM 页面 `format/prettier`、i18n 等），W5 新增/修改文件 0 问题；全量 `pnpm test` 另有 1 个 `vitest-pool` forks worker 启动超时（随机文件、环境资源问题，非断言失败） | 与本批次无关，未动全仓格式债 |
+| C 运行验收 | 预览后端 9708 / 前端 9800 未恢复；拆分后组件渲染、多选键盘可达性未做浏览器实机 | **未完成** |
+| D 关闭判定 | 迁移条目按关闭规则第 5 条仍**不关闭**；差距矩阵第 2 节 25/26 行不改判 | 不关闭 |
+
+### 2026-11-15 后续：SQLite 租户夹具根因修复（26 个失败清零）
+
+复用 W3 已验证的租户夹具模式，系统性清掉一批既有 `Api.Tests` 失败。
+
+- **根因**：16 个旧 SQLite 夹具内嵌 `ProbeCurrentTenant`，只改本地对象的 `Id`；而框架仓储 `EnsureWritableInCurrentTenant` / 列定向 UPDATE 读的是 `AsyncLocalCurrentTenantAccessor.Instance.Current`。UPDATE SQL 带 `@TenantId=0` 影响 0 行，或直接抛「平台上下文只能修改平台数据」。这不是功能缺陷，是测试夹具与框架守卫不同步。
+- **修法**：改用 `new CurrentTenant(AsyncLocalCurrentTenantAccessor.Instance)`；构造函数建立默认租户 scope，测试方法内 `using (_tenant.Change(...))` 继续生效；`ScopeId()` 改读 AsyncLocal，与查询过滤器/AOP 审计/写守卫三方一致；`Dispose()` 清理 AsyncLocal；删除不再使用的内嵌 probe 类。两阶段预检脚本 `fix_tenant_fixtures_batch.py` 保证锚点齐全才落盘，并保留 EOL。
+- **门控**：先单文件试点（`CrmProspectingCandidateClaimSqliteIntegrationTests` 9/9 全绿，原 3 个失败清零），再批量 15 个文件。
+
+验证：`Api.Tests` 编译 0 错误；完整 **1109 总 / 101 失败 / 977 通过 / 31 跳过** —— 失败 127 → 101、成功 +26，总数与跳过数不变，零回归。本文件「127 个基线失败」读数自本轮起为 **101**。
+
+剩余 101 个不是同一根因，按类别留待下一轮：`CrmProspectingExtractionPersistenceContractTests` 21、`CrmProspectingPersistenceWiringTests` 14、`CrmProspectingRunProviderExecutionRepositoryContractTests` 5、`CrmKvkProspectingWiringTests` 4 等源码契约断言；少量唯一索引/并发异常；Provider 测试的 `HttpRequestException`（环境外呼）。另有 2 个 PG 夹具（`WithTenant` 签名不同、当前 PG 门控跳过）与 `CrmPrimaryContactSqliteIntegrationTests`（无 `TenantId` 常量）未纳入本批。实机 Windows 验收与真实 HTTP 冒烟仍待完成，迁移条目依旧不关闭。
