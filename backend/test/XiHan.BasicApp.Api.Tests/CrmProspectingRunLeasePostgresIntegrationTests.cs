@@ -42,7 +42,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         _repository2 = CreateRepository(_db2);
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task TryClaimLease_QueuedRun_ConcurrentWorkersHaveExactlyOneOwner()
     {
         var runId = await InsertRunAsync(TenantId, "claim-race");
@@ -65,7 +65,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task TryClaimLease_FromAnotherTenant_CannotClaimRun()
     {
         var runId = await InsertRunAsync(TenantId, "tenant-isolation");
@@ -86,7 +86,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task RecoverExpiredLeases_ExpiredRunningRun_RequeuesForNewClaim()
     {
         var runId = await InsertRunAsync(TenantId, "expired-running-recovery");
@@ -130,7 +130,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task TryClaimLease_ExpiredRun_TakesOverWithNewTokenAndHigherFence()
     {
         var runId = await InsertRunAsync(TenantId, "lease-takeover");
@@ -171,7 +171,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task RecoverExpiredLeases_CancelRequestedRun_FinalizesCancelledWithoutRequeue()
     {
         var runId = await InsertRunAsync(TenantId, "expired-cancel");
@@ -213,7 +213,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task RecoverInterrupted_LegacyRunningWithoutLeaseMetadata_RequeuesOnlyLegacyRow()
     {
         var runId = await InsertRunAsync(TenantId, "legacy-interrupted");
@@ -250,7 +250,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task TryLockLeaseForWrite_ShouldRejectSupersededFenceAndAcceptCurrentLiveFence()
     {
         var runId = await InsertRunAsync(TenantId, "write-fence-lock");
@@ -299,7 +299,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task TryLockLeaseForWrite_ShouldRejectMatchingTokenAfterLeaseExpires()
     {
         var runId = await InsertRunAsync(TenantId, "write-fence-expired");
@@ -335,7 +335,7 @@ public sealed class CrmProspectingRunLeasePostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task TryLockLeaseForWrite_WithoutTransaction_ShouldFailClosed()
     {
         var runId = await InsertRunAsync(TenantId, "write-fence-requires-transaction");

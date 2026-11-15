@@ -46,7 +46,7 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         _candidateRepository2 = CreateCandidateRepository(_db2);
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task LeadClaim_TwoIndependentClients_ExactlyOneWins()
     {
         var leadId = SnowFlakeSingle.Instance.NextId();
@@ -76,7 +76,7 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task CandidateClaim_TwoIndependentClients_ExactlyOneWins()
     {
         var candidateId = SnowFlakeSingle.Instance.NextId();
@@ -111,7 +111,7 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task LeadClaim_FromAnotherTenant_CannotClaimOrReadTheLead()
     {
         var leadId = SnowFlakeSingle.Instance.NextId();
@@ -140,7 +140,7 @@ public sealed class CrmConversionClaimPostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task CandidateClaim_FromAnotherTenant_CannotClaimOrReadTheCandidate()
     {
         var candidateId = SnowFlakeSingle.Instance.NextId();

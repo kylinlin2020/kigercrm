@@ -45,7 +45,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         _repository2 = CreateRepository(_db2);
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task ClaimDue_TwoIndependentClients_ExactlyOneWinsAndReturnsFencedLease()
     {
         var jobId = await InsertDueJobAsync(TenantId, "claim-race");
@@ -68,7 +68,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task ClaimDue_FromAnotherTenant_CannotClaimOrReadTheJob()
     {
         var jobId = await InsertDueJobAsync(TenantId, "tenant-isolation");
@@ -95,7 +95,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task ClaimDue_AfterLeaseExpiry_FencesOutThePreviousWorker()
     {
         var jobId = await InsertDueJobAsync(TenantId, "fencing-takeover");
@@ -165,7 +165,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task AdvanceCursor_RollsBackWithTheResultPageTransaction()
     {
         var jobId = await InsertDueJobAsync(TenantId, "cursor-transaction-rollback");
@@ -222,7 +222,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     }
 
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task CreateSubmissionIntent_RepeatedRequest_ReusesStableIdempotencyKey()
     {
         const string fingerprint = "A4B8D3E2C1F0A9876543210FEDCBA987A4B8D3E2C1F0A9876543210FEDCBA987";
@@ -264,7 +264,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task CreateSubmissionIntent_ConcurrentFirstRequests_UsesUniqueIndexAsFinalArbiter()
     {
         const string fingerprint = "B5C9E4F3D2A109876543210FEDCBA987B5C9E4F3D2A109876543210FEDCBA987";
@@ -323,7 +323,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task ExpireDue_ExpiredProviderJob_ReleasesLeaseAndCannotBeClaimed()
     {
         var jobId = await InsertDueJobAsync(TenantId, "expired-provider-job");
@@ -370,7 +370,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     }
 
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task AcknowledgeSubmission_ExpiredLease_CannotPersistRemoteAcknowledgement()
     {
         var jobId = await InsertDueJobAsync(TenantId, "expired-submission-ack");
@@ -419,7 +419,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     }
 
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task RenewLease_ExpiredLease_CannotBeResurrected()
     {
         var jobId = await InsertDueJobAsync(TenantId, "expired-lease-renewal");
@@ -463,7 +463,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     }
 
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task Transition_ExpiredLease_CannotChangeExtractionLifecycle()
     {
         var jobId = await InsertDueJobAsync(TenantId, "expired-transition");
@@ -511,7 +511,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task CompleteResults_ExpiredLease_CannotMarkExtractionSucceeded()
     {
         var jobId = await InsertDueJobAsync(TenantId, "expired-final-page-commit");
@@ -559,7 +559,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task FailIncompleteResults_ExpiredLease_CannotCommitPartialPageCounts()
     {
         var jobId = await InsertDueJobAsync(TenantId, "expired-incomplete-final-page");
@@ -610,7 +610,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task AdvanceCursor_ExpiredLease_CannotAdvanceCursorOrAccumulatePageCounts()
     {
         var jobId = await InsertDueJobAsync(TenantId, "expired-cursor-advance");
@@ -671,7 +671,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     }
 
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task ClaimDue_FuturePollTime_DoesNotAcquireLease()
     {
         var jobId = await InsertDueJobAsync(TenantId, "future-poll-not-due");
@@ -710,7 +710,7 @@ public sealed class CrmProspectingExtractionPostgresIntegrationTests : IDisposab
     }
 
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task AdvanceCursor_TwoIndependentTransactions_OnlyOneCanCommitExpectedCursor()
     {
         var jobId = await InsertDueJobAsync(TenantId, "cursor-cas-race");

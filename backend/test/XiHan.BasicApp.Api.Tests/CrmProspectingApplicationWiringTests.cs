@@ -921,4 +921,88 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("existingLead.OwnerUserId != campaignOwnerUserId", service, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProspectingBulkOperations_ShouldCommitPerItemWithoutAmbientUnitOfWorkAndCarryPipelinePermission()
+    {
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Contracts", "ICrmProspectingAppService.cs");
+        var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
+        var dtos = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmProspectingDtos.cs");
+        var outcome = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingBulkOutcome.cs");
+
+        foreach (var operation in new[] { "BulkReviewCandidatesAsync", "BulkConvertCandidatesAsync", "ShortlistCandidatesAsync", "UnshortlistCandidatesAsync" })
+        {
+            Assert.Contains(operation, contract, StringComparison.Ordinal);
+        }
+        Assert.Contains("CrmProspectingBulkResultDto", dtos, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingBulkItemResultDto", dtos, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingCandidateBulkDto", dtos, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingCandidateBulkReviewDto", dtos, StringComparison.Ordinal);
+        Assert.Contains("Success = 0", outcome, StringComparison.Ordinal);
+        Assert.Contains("Skipped = 1", outcome, StringComparison.Ordinal);
+        Assert.Contains("Failed = 2", outcome, StringComparison.Ordinal);
+
+        // Every bulk entry point is pipeline-authorized and deliberately carries no [UnitOfWork]:
+        // an ambient outer transaction would make all items share a single commit boundary.
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]\n    public async Task<CrmProspectingBulkResultDto> BulkReviewCandidatesAsync", service, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Create)]\n    public async Task<CrmProspectingBulkResultDto> BulkConvertCandidatesAsync", service, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]\n    public async Task<CrmProspectingBulkResultDto> ShortlistCandidatesAsync", service, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]\n    public async Task<CrmProspectingBulkResultDto> UnshortlistCandidatesAsync", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("[UnitOfWork(true)]\n    [PermissionAuthorize(CrmPermissionCodes.Execute)]\n    public async Task<CrmProspectingBulkResultDto>", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("[UnitOfWork(true)]\n    [PermissionAuthorize(CrmPermissionCodes.Create)]\n    public async Task<CrmProspectingBulkResultDto>", service, StringComparison.Ordinal);
+
+        // Per-item independent commits: a fresh requiresNew unit of work per id, success completes
+        // it, failure records the honest reason while the disposed scope rolls only that item back.
+        Assert.Contains("using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", service, StringComparison.Ordinal);
+        Assert.Contains("catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)", service, StringComparison.Ordinal);
+        Assert.Contains("items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, ex.Message))", service, StringComparison.Ordinal);
+
+        // Bulk review/convert reuse the single-item state machine instead of duplicating it.
+        Assert.Contains("await ReviewCandidateAsync(new CrmProspectingCandidateReviewDto", service, StringComparison.Ordinal);
+        Assert.Contains("await ConvertApprovedCandidateToLeadAsync(candidateId, cancellationToken)", service, StringComparison.Ordinal);
+
+        // An already-converted item is skipped and reports its existing Lead rather than faking
+        // a fresh conversion, and the batch size stays bounded.
+        Assert.Contains("CrmProspectingBulkOutcome.Skipped", service, StringComparison.Ordinal);
+        Assert.Contains("Candidate is already converted to a Lead.", service, StringComparison.Ordinal);
+        Assert.Contains("MaxBulkCandidateCount = 200", service, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProspectingShortlist_ShouldCarryColumnMigrationFilterAndFrontendContract()
+    {
+        var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingCandidate.cs");
+        var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.42", "5.9.42.sql");
+        var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingCandidateRepository.cs");
+        var repositoryContract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingCandidateRepository.cs");
+        var query = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmProspectingCandidateQueryService.cs");
+        var mapper = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Mappers", "CrmProspectingMapper.cs");
+        var frontendTypes = Read("frontend", "src", "api", "modules", "crm", "prospecting.types.ts");
+        var frontendClient = Read("frontend", "src", "api", "modules", "crm", "prospecting.ts");
+
+        // The column exists on the entity, in the mapper and in the auto-executed upgrade script.
+        Assert.Contains("Shortlisted_At", entity, StringComparison.Ordinal);
+        Assert.Contains("DateTimeOffset? ShortlistedAt", entity, StringComparison.Ordinal);
+        Assert.Contains("ShortlistedAt = entity.ShortlistedAt", mapper, StringComparison.Ordinal);
+        Assert.Contains("ALTER TABLE crm_prospecting_candidate", migration, StringComparison.Ordinal);
+        Assert.Contains("ADD COLUMN IF NOT EXISTS shortlisted_at timestamp with time zone", migration, StringComparison.Ordinal);
+
+        // The repository writes only the marker column through a targeted update, never a
+        // full-entity write that could overwrite a concurrent review.
+        Assert.Contains("SetShortlistedAsync(long candidateId, DateTimeOffset? shortlistedAt", repositoryContract, StringComparison.Ordinal);
+        Assert.Contains("new SysCrmProspectingCandidate { ShortlistedAt = shortlistedAt }", repository, StringComparison.Ordinal);
+
+        // The page query exposes the tri-state filter as IS NOT NULL / IS NULL.
+        Assert.Contains("QueryOperator.IsNotNull", query, StringComparison.Ordinal);
+        Assert.Contains("QueryOperator.IsNull", query, StringComparison.Ordinal);
+
+        // The frontend typed client mirrors the wire shape and the four bulk command routes.
+        Assert.Contains("shortlistedAt?: DateTimeString | null", frontendTypes, StringComparison.Ordinal);
+        Assert.Contains("shortlisted?: boolean | null", frontendTypes, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingBulkOutcome", frontendTypes, StringComparison.Ordinal);
+        Assert.Contains("'BulkReviewCandidates'", frontendClient, StringComparison.Ordinal);
+        Assert.Contains("'BulkConvertCandidates'", frontendClient, StringComparison.Ordinal);
+        Assert.Contains("'ShortlistCandidates'", frontendClient, StringComparison.Ordinal);
+        Assert.Contains("'UnshortlistCandidates'", frontendClient, StringComparison.Ordinal);
+    }
+
 }

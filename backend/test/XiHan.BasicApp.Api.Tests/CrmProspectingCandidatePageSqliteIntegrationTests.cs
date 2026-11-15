@@ -21,6 +21,7 @@ using XiHan.Framework.Data.SqlSugar.Clients;
 using XiHan.Framework.Data.SqlSugar.Extensions;
 using XiHan.Framework.Domain.Entities.Abstracts;
 using XiHan.Framework.Domain.Shared.Paging.Models;
+using XiHan.Framework.MultiTenancy;
 using XiHan.Framework.MultiTenancy.Abstractions;
 
 namespace XiHan.BasicApp.Api.Tests;
@@ -47,7 +48,10 @@ public sealed class CrmProspectingCandidatePageSqliteIntegrationTests : IDisposa
     private readonly string _connectionString = $"Data Source=kiger-crm-candidate-page-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
     private readonly SqliteConnection _keepAlive;
     private readonly SqlSugarScope _db;
-    private readonly ProbeCurrentTenant _tenant = new();
+    // Repository write guards read AsyncLocalCurrentTenantAccessor.Instance.Current;
+    // use the framework CurrentTenant so filters, AOP auditing and the guard agree.
+    private readonly CurrentTenant _tenant = new(AsyncLocalCurrentTenantAccessor.Instance);
+    private readonly IDisposable _tenantScope;
     private readonly Mock<ISqlSugarClientResolver> _resolver = new();
     private readonly Mock<IUserDataScopeFilterService> _dataScope = new();
     private readonly CrmProspectingRunRepository _runs;
@@ -59,6 +63,7 @@ public sealed class CrmProspectingCandidatePageSqliteIntegrationTests : IDisposa
 
     public CrmProspectingCandidatePageSqliteIntegrationTests()
     {
+        _tenantScope = _tenant.Change(TenantId);
         _keepAlive = new SqliteConnection(_connectionString);
         _keepAlive.Open();
 
@@ -74,8 +79,8 @@ public sealed class CrmProspectingCandidatePageSqliteIntegrationTests : IDisposa
             db =>
             {
                 db.QueryFilter.AddTableFilter<ISoftDelete>(entity => !entity.IsDeleted);
-                db.QueryFilter.AddTableFilter<IMultiTenantEntity>(entity => entity.TenantId == 0 || ScopeId(tenant) == entity.TenantId);
-                db.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(entity => ScopeId(tenant) == entity.TenantId);
+                db.QueryFilter.AddTableFilter<IMultiTenantEntity>(entity => entity.TenantId == 0 || ScopeId() == entity.TenantId);
+                db.QueryFilter.AddTableFilter<IStrictMultiTenantEntity>(entity => ScopeId() == entity.TenantId);
                 db.Aop.DataExecuting = (value, entityInfo) =>
                 {
                     if (entityInfo.OperationType == DataFilterType.InsertByObject)
@@ -235,6 +240,44 @@ public sealed class CrmProspectingCandidatePageSqliteIntegrationTests : IDisposa
     }
 
     [Fact]
+    public async Task CandidatePage_ShouldApplyTriStateShortlistFilter()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var runId = await SeedRunAsync(TenantId, OwnerUserId);
+            var shortPending = await SeedCandidateAsync(TenantId, runId, CrmProspectingCandidateStatus.PendingReview, "short-pending");
+            var shortDuplicate = await SeedCandidateAsync(TenantId, runId, CrmProspectingCandidateStatus.Duplicate, "short-dup");
+            var plain = await SeedCandidateAsync(TenantId, runId, CrmProspectingCandidateStatus.PendingReview, "plain");
+            await _candidates.SetShortlistedAsync(shortPending, DateTimeOffset.UtcNow);
+            await _candidates.SetShortlistedAsync(shortDuplicate, DateTimeOffset.UtcNow);
+
+            // null keeps every row of the Run.
+            Assert.Equal(3, (await FetchIdsAsync(runId, shortlisted: null)).Count);
+
+            // true selects the marked rows regardless of their review status.
+            var marked = await FetchIdsAsync(runId, shortlisted: true);
+            Assert.Equal(2, marked.Count);
+            Assert.Contains(shortPending, marked);
+            Assert.Contains(shortDuplicate, marked);
+
+            // false selects only the unmarked rows: this pins the IS NULL translation.
+            var unmarked = await FetchIdsAsync(runId, shortlisted: false);
+            Assert.Equal(new[] { plain }, unmarked);
+
+            // The shortlist filter composes with the status filter instead of replacing it.
+            var combined = await _service.GetPageAsync(new CrmProspectingCandidatePageQueryDto
+            {
+                RunId = runId,
+                Status = (int)CrmProspectingCandidateStatus.Duplicate,
+                Shortlisted = true,
+                Page = new PageRequestMetadata(1, 10)
+            });
+            Assert.Single(combined.Items);
+            Assert.Equal(shortDuplicate, combined.Items[0].BasicId);
+        }
+    }
+
+    [Fact]
     public async Task CandidatePage_ShouldRejectInvalidRunAndOutOfScopeCaller()
     {
         using (_tenant.Change(TenantId))
@@ -312,6 +355,38 @@ public sealed class CrmProspectingCandidatePageSqliteIntegrationTests : IDisposa
         }
     }
 
+    [Fact]
+    public async Task CandidateExportRows_ShouldHonorShortlistedSnapshotFilter()
+    {
+        using (_tenant.Change(TenantId))
+        {
+            var runId = await SeedRunAsync(TenantId, OwnerUserId);
+            var markedA = await SeedCandidateAsync(TenantId, runId, CrmProspectingCandidateStatus.PendingReview, "marked-a");
+            var markedB = await SeedCandidateAsync(TenantId, runId, CrmProspectingCandidateStatus.Duplicate, "marked-b");
+            await SeedCandidateAsync(TenantId, runId, CrmProspectingCandidateStatus.PendingReview, "unmarked");
+            await _candidates.SetShortlistedAsync(markedA, DateTimeOffset.UtcNow);
+            await _candidates.SetShortlistedAsync(markedB, DateTimeOffset.UtcNow);
+
+            var provider = new CrmProspectingCandidateExportProvider(_service);
+            var columns = new List<ExportColumnDto>
+            {
+                new() { Key = "BasicId", Title = "ID" },
+                new() { Key = "CompanyName", Title = "公司" }
+            };
+
+            var shortlistedRows = await DrainAsync(provider, Snapshot(runId, null, shortlisted: true), columns);
+            Assert.Equal(2, shortlistedRows.Count);
+            Assert.Equal(2, _lastContextTotal);
+            Assert.Equal(
+                new[] { "marked-a", "marked-b" },
+                shortlistedRows.Select(row => row[1]).OrderBy(name => name, StringComparer.Ordinal).ToArray());
+
+            var unshortlistedRows = await DrainAsync(provider, Snapshot(runId, null, shortlisted: false), columns);
+            Assert.Single(unshortlistedRows);
+            Assert.Equal("unmarked", unshortlistedRows[0][1]);
+        }
+    }
+
     private async Task<List<IReadOnlyList<string>>> DrainAsync(
         CrmProspectingCandidateExportProvider provider,
         string snapshot,
@@ -336,15 +411,27 @@ public sealed class CrmProspectingCandidatePageSqliteIntegrationTests : IDisposa
         return rows;
     }
 
-    private static string Snapshot(long runId, int? status)
+    private static string Snapshot(long runId, int? status, bool? shortlisted = null)
         => JsonSerializer.Serialize(
             new CrmProspectingCandidatePageQueryDto
             {
                 RunId = runId,
                 Status = status,
+                Shortlisted = shortlisted,
                 Page = new PageRequestMetadata(1, 20)
             },
             new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+    private async Task<List<long>> FetchIdsAsync(long runId, bool? shortlisted)
+    {
+        var page = await _service.GetPageAsync(new CrmProspectingCandidatePageQueryDto
+        {
+            RunId = runId,
+            Shortlisted = shortlisted,
+            Page = new PageRequestMetadata(1, 10)
+        });
+        return page.Items.Select(item => item.BasicId).ToList();
+    }
 
     private async Task<int> FetchTotalAsync(long runId, int? status)
     {
@@ -414,28 +501,11 @@ public sealed class CrmProspectingCandidatePageSqliteIntegrationTests : IDisposa
 
     public void Dispose()
     {
+        _tenantScope.Dispose();
+        AsyncLocalCurrentTenantAccessor.Instance.Current = null;
         _db.Dispose();
         _keepAlive.Dispose();
     }
 
-    private static long ScopeId(ProbeCurrentTenant tenant) => tenant.Id ?? 0;
-
-    private sealed class ProbeCurrentTenant : ICurrentTenant
-    {
-        public bool IsAvailable => Id is > 0;
-        public long? Id { get; private set; }
-        public string? Name { get; private set; }
-
-        public IDisposable Change(long? id, string? name = null)
-        {
-            var (previousId, previousName) = (Id, Name);
-            (Id, Name) = (id, name);
-            return new Restore(() => (Id, Name) = (previousId, previousName));
-        }
-
-        private sealed class Restore(Action restore) : IDisposable
-        {
-            public void Dispose() => restore();
-        }
-    }
+    private static long ScopeId() => AsyncLocalCurrentTenantAccessor.Instance.Current?.TenantId ?? 0;
 }

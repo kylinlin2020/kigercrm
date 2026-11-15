@@ -36,7 +36,7 @@ public sealed class CrmCustomerLookupPostgresIntegrationTests : IDisposable
         _repository = new CrmCustomerLookupRepository(resolver.Object);
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task GetExistingIdsAsync_ReturnsOnlyCustomersOwnedByCurrentTenant()
     {
         long? ownId = null;
@@ -61,7 +61,7 @@ public sealed class CrmCustomerLookupPostgresIntegrationTests : IDisposable
         }
     }
 
-    [Fact(SkipUnless = nameof(PostgresConfigured))]
+    [Fact(SkipUnless = nameof(PostgresConfigured), Skip = "Requires KIGER_TEST_POSTGRES_CONNECTION_STRING.")]
     public async Task GetExistingIdsAsync_ChunksDistinctIdsBeyondSingleQueryLimit()
     {
         var ids = new List<long>();
