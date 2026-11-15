@@ -180,4 +180,15 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 | C 运行验收 | 预览后端 9708 / 前端 9800 未恢复；4 个批量端点未登录/越权/正常路径的真实 HTTP 冒烟、浏览器多选与键盘可达性、PostgreSQL 并发转换（`KIGER_TEST_POSTGRES_CONNECTION_STRING`）、升级脚本在空库/既有库实测 | **未完成** |
 | D 关闭判定 | `HAITUO-CRM-MIGRATION-GAP-REGISTER.md` 追加 2026-11-15 checkpoint，状态保持「待运行时验收」；`HAITUO-CRM-FUNCTION-MIGRATION-MATRIX.md` 第 2 节第 25/26 行**不改判** | 不关闭 |
 
-已知基线债务（与 W3 无关）：`CrmProspectingApplicationWiringTests` 中 19 个异步 Worker / Provider 源码契约断言仍失败（字符串与合入后的实现不同步），属于既有 146 个失败的一部分；W3 对该文件只新增 84 行、2 个测试，未触碰这些断言。
+已知基线债务（与 W3 无关）：`CrmProspectingApplicationWiringTests` 中 19 个异步 Worker / Provider 源码契约断言曾失败（字符串与合入后的实现不同步），属于既有 146 个失败的一部分；W3 对该文件只新增 84 行、2 个测试，未触碰这些断言。**该 19 个已于同日后续修复，见下节。**
+
+### 2026-11-15 后续：源码契约债修复（19 个失败清零）
+
+把断言对齐异步 Worker 合入后的真实实现位置，**未删除任何守卫**（多数反而加强）：
+
+- Provider 注册逻辑拆到 `CrmProspectingProviderRegistrationExtensions.cs`：新增 `ReadProspectingRegistration()` 合并读取旧+新文件；fake provider 的 `DoesNotContain` 升级为「必须在 `EnableFakeProvider` 开关之后且只注册一次」。
+- 职责迁移：provider code 校验 → `CrmProspectingProviderRegistry`；游标校验 → `CrmProspectingExtractionCursorValidator`；控制字符清洗 → `CrmProspectingDiagnosticSanitizer`；Run 快照物化 → `CrmProspectingRunProviderExecutionRepository`；候选归一化 → `CrmProspectingCandidateFactory`。
+- 结构变化：转换 helper 被批量 API 隔开，测试改为拼接「转换方法 + helper」两个真实片段，并把线性源码顺序断言改为逻辑顺序断言（retry 分支早于 claim、helper 独立校验源标识与 owner）。
+- 其余为文案/参数对齐：空计划消息、raw cap 文案、插值字符串、`campaign.OwnerUserId ?? 0`、游标 `NOT IN`、默认状态「实体 DefaultValue=0 + 枚举 PendingReview=0」双向守卫。
+
+验证：`CrmProspectingApplicationWiringTests` **44/44 全绿**；完整 `Api.Tests` 1109 总 / **127 失败** / 951 通过 / 31 跳过（失败 146 → 127，成功 +19，总数与跳过数不变，零回归）。本文件与差距台账中「146 个基线失败」的读数自本轮起为 **127**。实机 Windows 验收与真实 HTTP 冒烟仍待完成，迁移条目依旧不关闭。

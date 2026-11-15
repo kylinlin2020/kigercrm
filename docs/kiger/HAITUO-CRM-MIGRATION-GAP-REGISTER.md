@@ -197,3 +197,5 @@ The branch integration is complete; feature acceptance is not. The functional ga
 - **矩阵处置**：`HAITUO-CRM-FUNCTION-MIGRATION-MATRIX.md` 第 2 节第 25 / 26 行保持「已有对应实现 / 还需核对」，不改判为完成。
 
 结论：W3 已具备代码入口与自动化测试，但不得据此关闭迁移条目。
+
+同日后续口径更新：`CrmProspectingApplicationWiringTests` 的 19 个过时源码契约断言已对齐重构后实现并全部转绿（44/44），`Api.Tests` 全量由 1109/146 失败变为 **1109/127 失败、951 通过、31 跳过**，零回归。剩余 127 个失败仍属既有基线债；实机验收与批量端点真实 HTTP 冒烟未完成，本条目状态不变。
