@@ -110,6 +110,7 @@ export interface CrmProspectingCandidateDto {
   status: CrmProspectingCandidateStatus
   duplicateReason?: string | null
   convertedLeadId?: ApiId | null
+  shortlistedAt?: DateTimeString | null
   createdTime: DateTimeString
 }
 
@@ -119,13 +120,44 @@ export interface CrmProspectingCandidateReviewDto {
   overrideDuplicate: boolean
 }
 
+/** Wire values of backend CrmProspectingBulkOutcome: Success / Skipped / Failed. */
+export enum CrmProspectingBulkOutcome {
+  Success = 0,
+  Skipped = 1,
+  Failed = 2,
+}
+
+/** Explicit id list for one bulk candidate operation (backend bound: at most 200 ids). */
+export interface CrmProspectingCandidateBulkDto {
+  candidateIds: ApiId[]
+}
+
+export interface CrmProspectingCandidateBulkReviewDto {
+  candidateIds: ApiId[]
+  approve: boolean
+  overrideDuplicate: boolean
+}
+
+/** Honest per-item verdict; failed items carry the backend's reason, conversions carry the Lead id. */
+export interface CrmProspectingBulkItemResultDto {
+  candidateId: ApiId
+  outcome: CrmProspectingBulkOutcome
+  reason?: string | null
+  leadId?: ApiId | null
+}
+
+export interface CrmProspectingBulkResultDto {
+  items: CrmProspectingBulkItemResultDto[]
+}
+
 /**
  * Candidate review-queue page query: always scoped to one Run, mirrors backend
- * CrmProspectingCandidatePageQueryDto (BasicAppPRDto + runId + status).
+ * CrmProspectingCandidatePageQueryDto (BasicAppPRDto + runId + status + shortlisted).
  */
 export interface CrmProspectingCandidatePageQueryDto extends PageRequest {
   runId: ApiId
   status?: CrmProspectingCandidateStatus | null
+  shortlisted?: boolean | null
 }
 
 export interface CrmProspectingEvidenceDto {

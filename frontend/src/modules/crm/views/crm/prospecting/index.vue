@@ -3,6 +3,7 @@
 /* eslint-disable no-alert */
 import type { CrmProspectingProviderGroup } from './provider-catalog'
 import type {
+  CrmProspectingBulkResultDto,
   CrmProspectingCampaignDto,
   CrmProspectingCandidateDto,
   CrmProspectingCandidateReviewDetailDto,
@@ -17,6 +18,7 @@ import { useI18n } from 'vue-i18n'
 import {
   createPageRequest,
   crmProspectingApi,
+  CrmProspectingBulkOutcome,
   CrmProspectingCandidateStatus,
   CrmProspectingRunStatus,
   CrmProspectingStrategyApprovalStatus,
@@ -67,6 +69,19 @@ const candidatePageIndex = ref(1)
 const candidatePageSize = 20
 const candidateTotal = ref(0)
 const exporting = ref(false)
+const candidateShortlistFilter = ref<'' | 'true' | 'false'>('')
+const selectedCandidateIds = ref<string[]>([])
+const bulkBusy = ref(false)
+const bulkResult = ref<CrmProspectingBulkResultDto | null>(null)
+const shortlistedQuery = computed(() => candidateShortlistFilter.value === ''
+  ? undefined
+  : candidateShortlistFilter.value === 'true')
+const allOnPageSelected = computed(() => candidates.value.length > 0
+  && candidates.value.every(item => selectedCandidateIds.value.includes(String(item.basicId))))
+const bulkSuccess = computed(() => bulkResult.value?.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Success).length ?? 0)
+const bulkSkipped = computed(() => bulkResult.value?.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Skipped).length ?? 0)
+const bulkFailed = computed(() => bulkResult.value?.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Failed).length ?? 0)
+const bulkFailures = computed(() => bulkResult.value?.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Failed) ?? [])
 
 const selectedCampaign = computed(() => campaigns.value.find(item => String(item.basicId) === selectedCampaignId.value) ?? null)
 const canCreate = computed(() => hasPermission('crm_prospecting.create'))
@@ -162,6 +177,7 @@ async function loadCandidates() {
   const request = {
     runId: selectedRunId.value,
     status: candidateStatusFilter.value === '' ? undefined : candidateStatusFilter.value,
+    shortlisted: shortlistedQuery.value,
     pageIndex: candidatePageIndex.value,
   }
   try {
@@ -169,11 +185,13 @@ async function loadCandidates() {
       ...createPageRequest({ page: { pageIndex: request.pageIndex, pageSize: candidatePageSize } }),
       runId: request.runId,
       status: request.status,
+      shortlisted: request.shortlisted,
     })
     // Drop responses for a run, filter or page the user already left, so a slow page
     // can never repaint the table after the next navigation.
     if (request.runId !== selectedRunId.value
       || request.status !== (candidateStatusFilter.value === '' ? undefined : candidateStatusFilter.value)
+      || request.shortlisted !== shortlistedQuery.value
       || request.pageIndex !== candidatePageIndex.value) {
       return
     }
@@ -206,6 +224,7 @@ function candidateQuerySnapshot() {
     ...createPageRequest({ page: { pageIndex: 1, pageSize: candidatePageSize } }),
     runId: selectedRunId.value,
     status: candidateStatusFilter.value === '' ? null : candidateStatusFilter.value,
+    shortlisted: candidateShortlistFilter.value === '' ? null : candidateShortlistFilter.value === 'true',
   }
 }
 
@@ -291,12 +310,21 @@ watch(selectedCampaignId, () => {
   void loadWorkspace()
 })
 watch(selectedRunId, () => {
+  // A selection belongs to one Run: never carry IDs into another Run's bulk action.
   candidatePageIndex.value = 1
+  selectedCandidateIds.value = []
+  bulkResult.value = null
   void loadCandidates()
   void refreshRunDetail()
 })
 watch(candidateStatusFilter, () => {
   candidatePageIndex.value = 1
+  void loadCandidates()
+})
+watch(candidateShortlistFilter, () => {
+  candidatePageIndex.value = 1
+  selectedCandidateIds.value = []
+  bulkResult.value = null
   void loadCandidates()
 })
 
@@ -569,6 +597,96 @@ async function convertCandidate(candidate: CrmProspectingCandidateDto) {
   catch (error) { toast.danger((error as Error)?.message || t('crm.prospecting.actionError')) }
 }
 
+function toggleCandidate(id: string, event: Event) {
+  const checked = (event.target as HTMLInputElement).checked
+  const next = new Set(selectedCandidateIds.value)
+  if (checked)
+    next.add(id)
+  else
+    next.delete(id)
+  selectedCandidateIds.value = [...next]
+}
+
+function toggleSelectAll(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked
+  const next = new Set(selectedCandidateIds.value)
+  for (const candidate of candidates.value) {
+    const id = String(candidate.basicId)
+    if (checked)
+      next.add(id)
+    else
+      next.delete(id)
+  }
+  selectedCandidateIds.value = [...next]
+}
+
+function clearSelection() {
+  selectedCandidateIds.value = []
+  bulkResult.value = null
+}
+
+type BulkAction = 'approve' | 'reject' | 'convert' | 'shortlist' | 'unshortlist'
+
+const bulkConfirmKeys: Partial<Record<BulkAction, string>> = {
+  approve: 'crm.prospecting.bulkConfirmApprove',
+  reject: 'crm.prospecting.bulkConfirmReject',
+  convert: 'crm.prospecting.bulkConfirmConvert',
+}
+
+async function runBulkAction(action: BulkAction) {
+  if (bulkBusy.value)
+    return
+  // Mirror the backend [PermissionAuthorize] attributes so the UI never offers a
+  // command the current user cannot execute.
+  if (action !== 'convert' && !canExecute.value)
+    return
+  if (action === 'convert' && !canCreateLead.value)
+    return
+  const ids = [...selectedCandidateIds.value]
+  if (ids.length === 0) {
+    toast.warning(t('crm.prospecting.bulkNoSelection'))
+    return
+  }
+  if (ids.length > 200) {
+    toast.warning(t('crm.prospecting.bulkLimit'))
+    return
+  }
+  const confirmKey = bulkConfirmKeys[action]
+  if (confirmKey && !window.confirm(t(confirmKey, { count: ids.length })))
+    return
+
+  bulkBusy.value = true
+  try {
+    let result: CrmProspectingBulkResultDto
+    if (action === 'approve' || action === 'reject')
+      result = await crmProspectingApi.bulkReviewCandidates({ candidateIds: ids, approve: action === 'approve', overrideDuplicate: false })
+    else if (action === 'convert')
+      result = await crmProspectingApi.bulkConvertCandidates({ candidateIds: ids })
+    else if (action === 'shortlist')
+      result = await crmProspectingApi.shortlistCandidates({ candidateIds: ids })
+    else
+      result = await crmProspectingApi.unshortlistCandidates({ candidateIds: ids })
+
+    bulkResult.value = result
+    const success = result.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Success).length
+    const skipped = result.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Skipped).length
+    const failed = result.items.length - success - skipped
+    const summary = t('crm.prospecting.bulkResultSummary', { success, skipped, failed })
+    if (failed > 0)
+      toast.warning(summary)
+    else
+      toast.success(summary)
+    selectedCandidateIds.value = []
+    await loadCandidates()
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.bulkError'))
+  }
+  finally {
+    bulkBusy.value = false
+  }
+}
+
 onMounted(() => {
   void loadCampaigns()
   void loadProviderCatalog()
@@ -679,6 +797,13 @@ onMounted(() => {
               <option v-for="status in [0, 1, 2, 3, 4, 5]" :key="status" :value="status">{{ candidateStatus(status) }}</option>
             </select>
           </label>
+          <label class="inline-filter">{{ t('crm.prospecting.shortlistFilter') }}
+            <select v-model="candidateShortlistFilter">
+              <option value="">{{ t('crm.prospecting.shortlistAll') }}</option>
+              <option value="true">{{ t('crm.prospecting.shortlistOnly') }}</option>
+              <option value="false">{{ t('crm.prospecting.shortlistExcluded') }}</option>
+            </select>
+          </label>
           <button type="button" @click="loadCandidates">
             {{ t('crm.prospecting.refresh') }}
           </button>
@@ -689,6 +814,41 @@ onMounted(() => {
             {{ t('crm.prospecting.exportCandidates') }}
           </button>
         </header>
+        <div v-if="selectedCandidateIds.length > 0" class="bulk-action-bar">
+          <strong>{{ t('crm.prospecting.selectedCount', { count: selectedCandidateIds.length }) }}</strong>
+          <button v-if="canExecute" type="button" :disabled="bulkBusy" @click="runBulkAction('approve')">
+            {{ t('crm.prospecting.bulkApprove') }}
+          </button>
+          <button v-if="canExecute" type="button" :disabled="bulkBusy" @click="runBulkAction('reject')">
+            {{ t('crm.prospecting.bulkReject') }}
+          </button>
+          <button v-if="canCreateLead" type="button" :disabled="bulkBusy" @click="runBulkAction('convert')">
+            {{ t('crm.prospecting.bulkConvert') }}
+          </button>
+          <button v-if="canExecute" type="button" :disabled="bulkBusy" @click="runBulkAction('shortlist')">
+            {{ t('crm.prospecting.bulkShortlist') }}
+          </button>
+          <button v-if="canExecute" type="button" :disabled="bulkBusy" @click="runBulkAction('unshortlist')">
+            {{ t('crm.prospecting.bulkUnshortlist') }}
+          </button>
+          <button type="button" @click="clearSelection">
+            {{ t('crm.prospecting.bulkClearSelection') }}
+          </button>
+        </div>
+        <div v-if="bulkResult" class="bulk-result">
+          <div class="section-header">
+            <h3>{{ t('crm.prospecting.bulkResultTitle') }}</h3>
+            <button type="button" @click="bulkResult = null">
+              {{ t('crm.prospecting.closeDetail') }}
+            </button>
+          </div>
+          <p>{{ t('crm.prospecting.bulkResultSummary', { success: bulkSuccess, skipped: bulkSkipped, failed: bulkFailed }) }}</p>
+          <ul v-if="bulkFailures.length" class="bulk-failures">
+            <li v-for="item in bulkFailures" :key="item.candidateId">
+              <code>{{ item.candidateId }}</code> · {{ item.reason }}
+            </li>
+          </ul>
+        </div>
         <RunMonitorPanel
           v-if="runDetail"
           :run="runDetail"
@@ -699,13 +859,14 @@ onMounted(() => {
           {{ t('crm.prospecting.noCandidates') }}
         </div>
         <table v-else>
-          <thead><tr><th>{{ t('crm.prospecting.company') }}</th><th>{{ t('crm.prospecting.contact') }}</th><th>{{ t('crm.prospecting.email') }}</th><th>{{ t('crm.prospecting.website') }}</th><th>{{ t('crm.prospecting.source') }}</th><th>{{ t('crm.prospecting.status') }}</th><th>{{ t('crm.prospecting.duplicateReason') }}</th><th>{{ t('crm.prospecting.actions') }}</th></tr></thead>
+          <thead><tr><th><input type="checkbox" :checked="allOnPageSelected" :aria-label="t('crm.prospecting.selectAll')" @change="toggleSelectAll"></th><th>{{ t('crm.prospecting.company') }}</th><th>{{ t('crm.prospecting.contact') }}</th><th>{{ t('crm.prospecting.email') }}</th><th>{{ t('crm.prospecting.website') }}</th><th>{{ t('crm.prospecting.source') }}</th><th>{{ t('crm.prospecting.status') }}</th><th>{{ t('crm.prospecting.duplicateReason') }}</th><th>{{ t('crm.prospecting.shortlistFilter') }}</th><th>{{ t('crm.prospecting.actions') }}</th></tr></thead>
           <tbody>
             <tr v-for="candidate in candidates" :key="candidate.basicId">
+              <td><input type="checkbox" :checked="selectedCandidateIds.includes(String(candidate.basicId))" :aria-label="String(candidate.basicId)" @change="toggleCandidate(String(candidate.basicId), $event)"></td>
               <td><strong>{{ candidate.companyName }}</strong><small>{{ candidate.title || '' }}</small></td>
               <td>{{ candidate.contactName || '—' }}</td><td>{{ candidate.businessEmail || '—' }}</td>
               <td><a v-if="candidate.website" :href="candidate.website" target="_blank" rel="noopener noreferrer">{{ candidate.website }}</a><span v-else>—</span></td>
-              <td>{{ candidate.source || candidate.providerCode }}</td><td>{{ candidateStatus(candidate.status) }}</td><td>{{ candidate.duplicateReason || '—' }}</td>
+              <td>{{ candidate.source || candidate.providerCode }}</td><td>{{ candidateStatus(candidate.status) }}</td><td>{{ candidate.duplicateReason || '—' }}</td><td>{{ candidate.shortlistedAt ? t('crm.prospecting.shortlisted') : '—' }}</td>
               <td class="actions">
                 <button type="button" @click="openCandidateReview(candidate)">
                   {{ t('crm.prospecting.viewEvidence') }}
@@ -1104,5 +1265,28 @@ tr.selected {
 .pagination-bar .page-info {
   color: var(--xh-fg-muted);
   font-size: 0.9rem;
+}
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--xh-border, #ddd);
+  border-radius: 0.5rem;
+  background: var(--xh-muted-surface, #f5f5f5);
+}
+.bulk-result {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--xh-border, #ddd);
+  border-radius: 0.5rem;
+}
+.bulk-failures {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--xh-text-muted, #777);
 }
 </style>

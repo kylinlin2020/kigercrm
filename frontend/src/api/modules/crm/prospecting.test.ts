@@ -51,6 +51,26 @@ describe('crmProspectingApi', () => {
     expect(requestMocks.get).not.toHaveBeenCalledWith('/CrmProspecting/RunCandidates', expect.anything())
   })
 
+  it('uses explicit bulk command routes and keeps the shortlist filter in the page query', async () => {
+    const ids = ['30', '31']
+    await crmProspectingApi.bulkReviewCandidates({ candidateIds: ids, approve: true, overrideDuplicate: false })
+    await crmProspectingApi.bulkConvertCandidates({ candidateIds: ids })
+    await crmProspectingApi.shortlistCandidates({ candidateIds: ids })
+    await crmProspectingApi.unshortlistCandidates({ candidateIds: ids })
+    await crmProspectingApi.candidatePage({
+      runId: '20',
+      shortlisted: true,
+      conditions: { filters: [], sorts: [] },
+      page: { pageIndex: 1, pageSize: 20 },
+    })
+
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/BulkReviewCandidates', { candidateIds: ids, approve: true, overrideDuplicate: false }, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/BulkConvertCandidates', { candidateIds: ids }, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/ShortlistCandidates', { candidateIds: ids }, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/UnshortlistCandidates', { candidateIds: ids }, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingCandidateQuery/Page', expect.objectContaining({ runId: '20', shortlisted: true }), undefined)
+  })
+
   it('uses explicit command routes for approval, review and conversion', async () => {
     await crmProspectingApi.createCampaign({ name: 'Generator buyers' })
     await crmProspectingApi.startRun({ campaignId: '10', requestKey: 'run-1' })

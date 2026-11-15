@@ -1,8 +1,11 @@
 import type { ApiId, PageResult } from '../../types'
 import type { CrmLeadDetailDto } from './lead.types'
 import type {
+  CrmProspectingBulkResultDto,
   CrmProspectingCampaignDto,
   CrmProspectingCampaignInputDto,
+  CrmProspectingCandidateBulkDto,
+  CrmProspectingCandidateBulkReviewDto,
   CrmProspectingCandidateDto,
   CrmProspectingCandidatePageQueryDto,
   CrmProspectingCandidateReviewDetailDto,
@@ -82,5 +85,17 @@ export const crmProspectingApi = {
   },
   convertCandidate(candidateId: ApiId) {
     return api.post<CrmLeadDetailDto, undefined>('ConvertApprovedCandidateToLead', undefined, { params: { candidateId } })
+  },
+  bulkReviewCandidates(input: CrmProspectingCandidateBulkReviewDto) {
+    return api.post<CrmProspectingBulkResultDto, CrmProspectingCandidateBulkReviewDto>('BulkReviewCandidates', input)
+  },
+  bulkConvertCandidates(input: CrmProspectingCandidateBulkDto) {
+    return api.post<CrmProspectingBulkResultDto, CrmProspectingCandidateBulkDto>('BulkConvertCandidates', input)
+  },
+  shortlistCandidates(input: CrmProspectingCandidateBulkDto) {
+    return api.post<CrmProspectingBulkResultDto, CrmProspectingCandidateBulkDto>('ShortlistCandidates', input)
+  },
+  unshortlistCandidates(input: CrmProspectingCandidateBulkDto) {
+    return api.post<CrmProspectingBulkResultDto, CrmProspectingCandidateBulkDto>('UnshortlistCandidates', input)
   },
 }
