@@ -22,4 +22,16 @@ public interface ICrmProspectingAppService : IApplicationService
     Task<CrmProspectingCandidateReviewDetailDto> GetCandidateReviewDetailAsync(long candidateId, CancellationToken cancellationToken = default);
     Task<CrmProspectingCandidateDto> ReviewCandidateAsync(CrmProspectingCandidateReviewDto input, CancellationToken cancellationToken = default);
     Task<CrmLeadDetailDto> ConvertApprovedCandidateToLeadAsync(long candidateId, CancellationToken cancellationToken = default);
+
+    /// <summary>Apply one approve/reject decision to a bounded id list, item by item under per-item commits.</summary>
+    Task<CrmProspectingBulkResultDto> BulkReviewCandidatesAsync(CrmProspectingCandidateBulkReviewDto input, CancellationToken cancellationToken = default);
+
+    /// <summary>Convert a bounded id list of Approved candidates to Leads; already-converted items are skipped and reported.</summary>
+    Task<CrmProspectingBulkResultDto> BulkConvertCandidatesAsync(CrmProspectingCandidateBulkDto input, CancellationToken cancellationToken = default);
+
+    /// <summary>Shortlist every listed candidate; already-shortlisted items are idempotent successes.</summary>
+    Task<CrmProspectingBulkResultDto> ShortlistCandidatesAsync(CrmProspectingCandidateBulkDto input, CancellationToken cancellationToken = default);
+
+    /// <summary>Remove every listed candidate from the shortlist; already-clean items are idempotent successes.</summary>
+    Task<CrmProspectingBulkResultDto> UnshortlistCandidatesAsync(CrmProspectingCandidateBulkDto input, CancellationToken cancellationToken = default);
 }

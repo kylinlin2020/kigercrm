@@ -59,6 +59,15 @@ public sealed class CrmProspectingCandidateQueryService(
                 (SysCrmProspectingCandidate candidate) => candidate.Status,
                 (CrmProspectingCandidateStatus)input.Status.Value);
         }
+        if (input.Shortlisted.HasValue)
+        {
+            // Tri-state shortlist filter: the timestamp column itself is the marker, so the
+            // filter translates to an IS NULL / IS NOT NULL predicate on Shortlisted_At.
+            request.Conditions.AddFilter<SysCrmProspectingCandidate, DateTimeOffset?>(
+                candidate => candidate.ShortlistedAt,
+                null,
+                input.Shortlisted.Value ? QueryOperator.IsNotNull : QueryOperator.IsNull);
+        }
 
         // Stable ordering: newest first with BasicId as the tie-breaker, so consecutive pages
         // partition the set without repeating or dropping rows even when CreatedTime collides.

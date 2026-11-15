@@ -477,6 +477,181 @@ public sealed class CrmProspectingAppService(
         return CrmLeadMapper.ToDetailDto(lead);
     }
 
+    /// <summary>
+    /// Maximum ids accepted by one bulk call. Bounding the list keeps each item's independent
+    /// transaction predictable and stops one request from staging an unbounded transaction fan-out.
+    /// </summary>
+    private const int MaxBulkCandidateCount = 200;
+
+    /// <summary>
+    /// Bulk operations deliberately carry no [UnitOfWork]: every item opens its own
+    /// <c>requiresNew</c> unit of work, so one item's failure rolls back only that item while
+    /// already-committed items stay committed (the same programmatic boundary as
+    /// <c>StartRunInUnitOfWorkAsync</c>). Each item reuses the single-item method, which applies
+    /// the full state machine and record authorization; permission is enforced once at the
+    /// pipeline entry by <c>PermissionAuthorize</c>.
+    /// </summary>
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingBulkResultDto> BulkReviewCandidatesAsync(CrmProspectingCandidateBulkReviewDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        var candidateIds = ValidateBulkCandidateIds(input.CandidateIds);
+        var items = new List<CrmProspectingBulkItemResultDto>(candidateIds.Length);
+        foreach (var candidateId in candidateIds)
+        {
+            using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+            try
+            {
+                await ReviewCandidateAsync(new CrmProspectingCandidateReviewDto
+                {
+                    CandidateId = candidateId,
+                    Approve = input.Approve,
+                    OverrideDuplicate = input.OverrideDuplicate
+                }, cancellationToken);
+                await uow.CompleteAsync(cancellationToken);
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Success));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Cancellation is a request-level stop, not a per-item business failure:
+                // rethrow so remaining items are not attempted and the failure is not hidden.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Honest per-item failure: the disposed unit of work rolls this item back and
+                // the loop continues with the next item's own unit of work.
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, ex.Message));
+            }
+        }
+        return new CrmProspectingBulkResultDto { Items = items };
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Create)]
+    public async Task<CrmProspectingBulkResultDto> BulkConvertCandidatesAsync(CrmProspectingCandidateBulkDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        var candidateIds = ValidateBulkCandidateIds(input.CandidateIds);
+        var items = new List<CrmProspectingBulkItemResultDto>(candidateIds.Length);
+        foreach (var candidateId in candidateIds)
+        {
+            using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+            try
+            {
+                // Report an already-converted candidate as an idempotent skip instead of
+                // presenting the existing Lead as if this call had converted it.
+                var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken)
+                    ?? throw new InvalidOperationException("Prospecting candidate does not exist.");
+                if (candidate.Status == CrmProspectingCandidateStatus.Converted)
+                {
+                    await uow.CompleteAsync(cancellationToken);
+                    items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Skipped,
+                        "Candidate is already converted to a Lead.", candidate.ConvertedLeadId));
+                    continue;
+                }
+
+                var lead = await ConvertApprovedCandidateToLeadAsync(candidateId, cancellationToken);
+                await uow.CompleteAsync(cancellationToken);
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Success, leadId: lead.BasicId));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, ex.Message));
+            }
+        }
+        return new CrmProspectingBulkResultDto { Items = items };
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingBulkResultDto> ShortlistCandidatesAsync(CrmProspectingCandidateBulkDto input, CancellationToken cancellationToken = default)
+        => await SetCandidatesShortlistAsync(input, shortlisted: true, cancellationToken);
+
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingBulkResultDto> UnshortlistCandidatesAsync(CrmProspectingCandidateBulkDto input, CancellationToken cancellationToken = default)
+        => await SetCandidatesShortlistAsync(input, shortlisted: false, cancellationToken);
+
+    private async Task<CrmProspectingBulkResultDto> SetCandidatesShortlistAsync(
+        CrmProspectingCandidateBulkDto input,
+        bool shortlisted,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        var candidateIds = ValidateBulkCandidateIds(input.CandidateIds);
+        var items = new List<CrmProspectingBulkItemResultDto>(candidateIds.Length);
+        foreach (var candidateId in candidateIds)
+        {
+            using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true);
+            try
+            {
+                await SetCandidateShortlistAsync(candidateId, shortlisted, cancellationToken);
+                await uow.CompleteAsync(cancellationToken);
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Success));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, ex.Message));
+            }
+        }
+        return new CrmProspectingBulkResultDto { Items = items };
+    }
+
+    private async Task SetCandidateShortlistAsync(long candidateId, bool shortlisted, CancellationToken cancellationToken)
+    {
+        var candidate = await candidates.GetByIdAsync(candidateId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting candidate does not exist.");
+        var run = await runs.GetByIdAsync(candidate.RunId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        var campaign = await campaigns.GetByIdAsync(run.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
+
+        // Shortlisting is orthogonal to the review state machine: an item already in the
+        // requested state is an idempotent success, otherwise only the timestamp column moves
+        // through a column-targeted update (a concurrent review of the row is never overwritten).
+        if ((candidate.ShortlistedAt is not null) == shortlisted) return;
+        await candidates.SetShortlistedAsync(
+            candidateId,
+            shortlisted ? DateTimeOffset.UtcNow : null,
+            cancellationToken);
+    }
+
+    private static long[] ValidateBulkCandidateIds(IReadOnlyList<long> candidateIds)
+    {
+        ArgumentNullException.ThrowIfNull(candidateIds);
+        if (candidateIds.Count == 0)
+            throw new ArgumentException("At least one candidate id is required.", nameof(candidateIds));
+        if (candidateIds.Count > MaxBulkCandidateCount)
+            throw new ArgumentOutOfRangeException(nameof(candidateIds), $"A bulk operation accepts at most {MaxBulkCandidateCount} candidates.");
+        foreach (var candidateId in candidateIds)
+        {
+            if (candidateId <= 0)
+                throw new ArgumentOutOfRangeException(nameof(candidateIds), "Candidate ids must be positive.");
+        }
+        // De-duplicate while preserving the caller's order: a repeated id would otherwise be
+        // reported twice, the second occurrence failing only because the first one already moved it.
+        return candidateIds.Distinct().ToArray();
+    }
+
+    private static CrmProspectingBulkItemResultDto CreateBulkItem(
+        long candidateId,
+        CrmProspectingBulkOutcome outcome,
+        string? reason = null,
+        long? leadId = null) => new()
+    {
+        CandidateId = candidateId,
+        Outcome = (int)outcome,
+        Reason = reason,
+        LeadId = leadId
+    };
+
     private async Task<CrmLeadDetailDto> GetConvertedCandidateLeadAsync(
         SysCrmProspectingCandidate candidate,
         long campaignOwnerUserId,

@@ -28,6 +28,7 @@ public static class CrmProspectingMapper
         Status = (int)entity.Status,
         DuplicateReason = entity.DuplicateReason,
         ConvertedLeadId = entity.ConvertedLeadId,
+        ShortlistedAt = entity.ShortlistedAt,
         CreatedTime = entity.CreatedTime
     };
 }

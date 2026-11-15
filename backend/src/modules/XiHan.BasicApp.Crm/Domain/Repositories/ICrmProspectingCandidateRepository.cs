@@ -25,4 +25,10 @@ public interface ICrmProspectingCandidateRepository : ISaasRepository<SysCrmPros
 
     /// <summary>Atomically review a pending candidate; duplicate approval requires an explicit override.</summary>
     Task<bool> TryReviewAsync(long candidateId, bool approve, bool overrideDuplicate, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Set or clear the shortlist timestamp with a column-targeted update, so a concurrent
+    /// review of the same row is never overwritten by a full-entity write.
+    /// </summary>
+    Task<bool> SetShortlistedAsync(long candidateId, DateTimeOffset? shortlistedAt, CancellationToken cancellationToken = default);
 }

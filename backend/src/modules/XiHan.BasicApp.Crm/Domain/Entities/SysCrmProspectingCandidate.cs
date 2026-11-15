@@ -45,4 +45,7 @@ public sealed class SysCrmProspectingCandidate : BasicAppFullAuditedEntity, IStr
     public string? DuplicateReason { get; set; }
     [SugarColumn(ColumnName = "Converted_Lead_Id", IsNullable = true)]
     public long? ConvertedLeadId { get; set; }
+    /// <summary>Shortlist marker orthogonal to the review state machine: null means not shortlisted.</summary>
+    [SugarColumn(ColumnName = "Shortlisted_At", IsNullable = true)]
+    public DateTimeOffset? ShortlistedAt { get; set; }
 }

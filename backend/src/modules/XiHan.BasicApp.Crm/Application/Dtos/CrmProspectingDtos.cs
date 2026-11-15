@@ -104,6 +104,7 @@ public sealed class CrmProspectingCandidateDto
     public int Status { get; set; }
     public string? DuplicateReason { get; set; }
     public long? ConvertedLeadId { get; set; }
+    public DateTimeOffset? ShortlistedAt { get; set; }
     public DateTimeOffset CreatedTime { get; set; }
 }
 
@@ -113,6 +114,37 @@ public sealed class CrmProspectingCandidateReviewDto
     public long CandidateId { get; set; }
     public bool Approve { get; set; }
     public bool OverrideDuplicate { get; set; }
+}
+
+/// <summary>Explicit id list for one bulk candidate operation.</summary>
+public sealed class CrmProspectingCandidateBulkDto
+{
+    public IReadOnlyList<long> CandidateIds { get; set; } = [];
+}
+
+/// <summary>Bulk review: one approve/reject decision applied item by item under the single-item state machine.</summary>
+public sealed class CrmProspectingCandidateBulkReviewDto
+{
+    public IReadOnlyList<long> CandidateIds { get; set; } = [];
+    public bool Approve { get; set; }
+    public bool OverrideDuplicate { get; set; }
+}
+
+/// <summary>One item's honest outcome of a bulk operation: committed, idempotently skipped or failed with a reason.</summary>
+public sealed class CrmProspectingBulkItemResultDto
+{
+    public long CandidateId { get; set; }
+    /// <summary><c>CrmProspectingBulkOutcome</c> as a wire number.</summary>
+    public int Outcome { get; set; }
+    public string? Reason { get; set; }
+    /// <summary>Lead reference for a conversion that succeeded or was skipped as already converted.</summary>
+    public long? LeadId { get; set; }
+}
+
+/// <summary>Ordered per-item results of a bulk operation; counts are derived from <see cref="Items"/>.</summary>
+public sealed class CrmProspectingBulkResultDto
+{
+    public IReadOnlyList<CrmProspectingBulkItemResultDto> Items { get; set; } = [];
 }
 
 
@@ -210,4 +242,7 @@ public sealed class CrmProspectingCandidatePageQueryDto : BasicAppPRDto
 {
     public long RunId { get; set; }
     public int? Status { get; set; }
+
+    /// <summary>Tri-state shortlist filter: null = all, true = shortlisted only, false = not shortlisted.</summary>
+    public bool? Shortlisted { get; set; }
 }

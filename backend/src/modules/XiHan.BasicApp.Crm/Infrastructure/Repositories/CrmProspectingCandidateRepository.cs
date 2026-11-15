@@ -102,4 +102,13 @@ public sealed class CrmProspectingCandidateRepository(ISqlSugarClientResolver cl
             candidate => candidate.BasicId == candidateId && candidate.Status == CrmProspectingCandidateStatus.Approved,
             cancellationToken);
     }
+
+    public async Task<bool> SetShortlistedAsync(long candidateId, DateTimeOffset? shortlistedAt, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await UpdateAsync(
+            candidate => new SysCrmProspectingCandidate { ShortlistedAt = shortlistedAt },
+            candidate => candidate.BasicId == candidateId,
+            cancellationToken);
+    }
 }
