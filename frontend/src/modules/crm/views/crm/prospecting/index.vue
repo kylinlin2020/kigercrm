@@ -2,6 +2,7 @@
 // 本页与其余 CRM 管理页一致沿用浏览器原生确认框；全仓 no-alert 统一替换前在此局部豁免。
 /* eslint-disable no-alert */
 import type { CrmProspectingProviderGroup } from './provider-catalog'
+import type { CrmProspectingBulkAction } from './view-types'
 import type {
   CrmProspectingBulkResultDto,
   CrmProspectingCampaignDto,
@@ -28,17 +29,22 @@ import {
 } from '@/api'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
+import BulkActionBar from './BulkActionBar.vue'
+import CandidateTable from './CandidateTable.vue'
+import { useProspectingLabels } from './prospecting-labels'
 import {
   CRM_PROSPECTING_PROVIDER_FALLBACK_CATALOG,
   CRM_PROSPECTING_PROVIDER_GROUPS,
 } from './provider-catalog'
 import ProviderCredentialsPanel from './ProviderCredentialsPanel.vue'
+import ReviewDetailPanel from './ReviewDetailPanel.vue'
 import RunMonitorPanel from './RunMonitorPanel.vue'
 import { useRunMonitorPolling } from './useRunMonitorPolling'
 
 defineOptions({ name: 'CrmProspectingPage' })
 
 const { t } = useI18n()
+const { candidateStatus } = useProspectingLabels()
 const { hasPermission } = usePermission()
 const loading = ref(false)
 const submitting = ref(false)
@@ -76,17 +82,11 @@ const bulkResult = ref<CrmProspectingBulkResultDto | null>(null)
 const shortlistedQuery = computed(() => candidateShortlistFilter.value === ''
   ? undefined
   : candidateShortlistFilter.value === 'true')
-const allOnPageSelected = computed(() => candidates.value.length > 0
-  && candidates.value.every(item => selectedCandidateIds.value.includes(String(item.basicId))))
-const bulkSuccess = computed(() => bulkResult.value?.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Success).length ?? 0)
-const bulkSkipped = computed(() => bulkResult.value?.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Skipped).length ?? 0)
-const bulkFailed = computed(() => bulkResult.value?.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Failed).length ?? 0)
-const bulkFailures = computed(() => bulkResult.value?.items.filter(item => item.outcome === CrmProspectingBulkOutcome.Failed) ?? [])
 
 const selectedCampaign = computed(() => campaigns.value.find(item => String(item.basicId) === selectedCampaignId.value) ?? null)
 const canCreate = computed(() => hasPermission('crm_prospecting.create'))
 const canExecute = computed(() => hasPermission('crm_prospecting.execute'))
-const canCreateLead = computed(() => hasPermission('crm:create'))
+const canCreateLead = computed(() => hasPermission('crm_prospecting.convert_lead'))
 const canExport = computed(() => hasPermission('crm_prospecting.export'))
 const candidateTotalPages = computed(() => Math.max(1, Math.ceil(candidateTotal.value / candidatePageSize)))
 
@@ -98,9 +98,6 @@ function strategyStatus(value: number) {
 }
 function runStatus(value: number) {
   return [t('crm.prospecting.queued'), t('crm.prospecting.running'), t('crm.prospecting.succeeded'), t('crm.prospecting.partiallySucceeded'), t('crm.prospecting.failed'), t('crm.prospecting.cancelRequested'), t('crm.prospecting.cancelled'), t('crm.prospecting.waitingForExtractions')][value] ?? String(value)
-}
-function candidateStatus(value: number) {
-  return [t('crm.prospecting.pendingReview'), t('crm.prospecting.duplicate'), t('crm.prospecting.approved'), t('crm.prospecting.rejected'), t('crm.prospecting.convertingStatus'), t('crm.prospecting.convertedStatus')][value] ?? String(value)
 }
 
 /**
@@ -546,32 +543,6 @@ async function openCandidateReview(candidate: CrmProspectingCandidateDto) {
   }
 }
 
-function safeEvidenceUrl(value: string) {
-  try {
-    const url = new URL(value)
-    if (url.protocol !== 'https:' || url.username || url.password)
-      return null
-    return url.href
-  }
-  catch {
-    return null
-  }
-}
-
-function scorePriority(value: number) {
-  return [t('crm.prospecting.priorityHold'), 'C', 'B', 'A'][value] ?? String(value)
-}
-
-function scoreGates(value: string) {
-  try {
-    const parsed = JSON.parse(value)
-    return Array.isArray(parsed) ? parsed.join(', ') : value
-  }
-  catch {
-    return value
-  }
-}
-
 async function reviewCandidate(candidate: CrmProspectingCandidateDto, approve: boolean) {
   if (approve && candidate.status === CrmProspectingCandidateStatus.Duplicate && !window.confirm(t('crm.prospecting.confirmDuplicateOverride')))
     return
@@ -597,8 +568,7 @@ async function convertCandidate(candidate: CrmProspectingCandidateDto) {
   catch (error) { toast.danger((error as Error)?.message || t('crm.prospecting.actionError')) }
 }
 
-function toggleCandidate(id: string, event: Event) {
-  const checked = (event.target as HTMLInputElement).checked
+function toggleCandidate(id: string, checked: boolean) {
   const next = new Set(selectedCandidateIds.value)
   if (checked)
     next.add(id)
@@ -607,8 +577,7 @@ function toggleCandidate(id: string, event: Event) {
   selectedCandidateIds.value = [...next]
 }
 
-function toggleSelectAll(event: Event) {
-  const checked = (event.target as HTMLInputElement).checked
+function toggleSelectAll(checked: boolean) {
   const next = new Set(selectedCandidateIds.value)
   for (const candidate of candidates.value) {
     const id = String(candidate.basicId)
@@ -625,15 +594,13 @@ function clearSelection() {
   bulkResult.value = null
 }
 
-type BulkAction = 'approve' | 'reject' | 'convert' | 'shortlist' | 'unshortlist'
-
-const bulkConfirmKeys: Partial<Record<BulkAction, string>> = {
+const bulkConfirmKeys: Partial<Record<CrmProspectingBulkAction, string>> = {
   approve: 'crm.prospecting.bulkConfirmApprove',
   reject: 'crm.prospecting.bulkConfirmReject',
   convert: 'crm.prospecting.bulkConfirmConvert',
 }
 
-async function runBulkAction(action: BulkAction) {
+async function runBulkAction(action: CrmProspectingBulkAction) {
   if (bulkBusy.value)
     return
   // Mirror the backend [PermissionAuthorize] attributes so the UI never offers a
@@ -814,131 +781,44 @@ onMounted(() => {
             {{ t('crm.prospecting.exportCandidates') }}
           </button>
         </header>
-        <div v-if="selectedCandidateIds.length > 0" class="bulk-action-bar">
-          <strong>{{ t('crm.prospecting.selectedCount', { count: selectedCandidateIds.length }) }}</strong>
-          <button v-if="canExecute" type="button" :disabled="bulkBusy" @click="runBulkAction('approve')">
-            {{ t('crm.prospecting.bulkApprove') }}
-          </button>
-          <button v-if="canExecute" type="button" :disabled="bulkBusy" @click="runBulkAction('reject')">
-            {{ t('crm.prospecting.bulkReject') }}
-          </button>
-          <button v-if="canCreateLead" type="button" :disabled="bulkBusy" @click="runBulkAction('convert')">
-            {{ t('crm.prospecting.bulkConvert') }}
-          </button>
-          <button v-if="canExecute" type="button" :disabled="bulkBusy" @click="runBulkAction('shortlist')">
-            {{ t('crm.prospecting.bulkShortlist') }}
-          </button>
-          <button v-if="canExecute" type="button" :disabled="bulkBusy" @click="runBulkAction('unshortlist')">
-            {{ t('crm.prospecting.bulkUnshortlist') }}
-          </button>
-          <button type="button" @click="clearSelection">
-            {{ t('crm.prospecting.bulkClearSelection') }}
-          </button>
-        </div>
-        <div v-if="bulkResult" class="bulk-result">
-          <div class="section-header">
-            <h3>{{ t('crm.prospecting.bulkResultTitle') }}</h3>
-            <button type="button" @click="bulkResult = null">
-              {{ t('crm.prospecting.closeDetail') }}
-            </button>
-          </div>
-          <p>{{ t('crm.prospecting.bulkResultSummary', { success: bulkSuccess, skipped: bulkSkipped, failed: bulkFailed }) }}</p>
-          <ul v-if="bulkFailures.length" class="bulk-failures">
-            <li v-for="item in bulkFailures" :key="item.candidateId">
-              <code>{{ item.candidateId }}</code> · {{ item.reason }}
-            </li>
-          </ul>
-        </div>
+        <BulkActionBar
+          :selected-count="selectedCandidateIds.length"
+          :busy="bulkBusy"
+          :can-execute="canExecute"
+          :can-create-lead="canCreateLead"
+          :result="bulkResult"
+          @action="runBulkAction"
+          @clear="clearSelection"
+          @dismiss="bulkResult = null"
+        />
         <RunMonitorPanel
           v-if="runDetail"
           :run="runDetail"
           :monitor="runMonitor"
           :polling="shouldPollRun"
         />
-        <div v-if="candidates.length === 0" class="empty-state">
-          {{ t('crm.prospecting.noCandidates') }}
-        </div>
-        <table v-else>
-          <thead><tr><th><input type="checkbox" :checked="allOnPageSelected" :aria-label="t('crm.prospecting.selectAll')" @change="toggleSelectAll"></th><th>{{ t('crm.prospecting.company') }}</th><th>{{ t('crm.prospecting.contact') }}</th><th>{{ t('crm.prospecting.email') }}</th><th>{{ t('crm.prospecting.website') }}</th><th>{{ t('crm.prospecting.source') }}</th><th>{{ t('crm.prospecting.status') }}</th><th>{{ t('crm.prospecting.duplicateReason') }}</th><th>{{ t('crm.prospecting.shortlistFilter') }}</th><th>{{ t('crm.prospecting.actions') }}</th></tr></thead>
-          <tbody>
-            <tr v-for="candidate in candidates" :key="candidate.basicId">
-              <td><input type="checkbox" :checked="selectedCandidateIds.includes(String(candidate.basicId))" :aria-label="String(candidate.basicId)" @change="toggleCandidate(String(candidate.basicId), $event)"></td>
-              <td><strong>{{ candidate.companyName }}</strong><small>{{ candidate.title || '' }}</small></td>
-              <td>{{ candidate.contactName || '—' }}</td><td>{{ candidate.businessEmail || '—' }}</td>
-              <td><a v-if="candidate.website" :href="candidate.website" target="_blank" rel="noopener noreferrer">{{ candidate.website }}</a><span v-else>—</span></td>
-              <td>{{ candidate.source || candidate.providerCode }}</td><td>{{ candidateStatus(candidate.status) }}</td><td>{{ candidate.duplicateReason || '—' }}</td><td>{{ candidate.shortlistedAt ? t('crm.prospecting.shortlisted') : '—' }}</td>
-              <td class="actions">
-                <button type="button" @click="openCandidateReview(candidate)">
-                  {{ t('crm.prospecting.viewEvidence') }}
-                </button>
-                <template v-if="canExecute && [CrmProspectingCandidateStatus.PendingReview, CrmProspectingCandidateStatus.Duplicate].includes(candidate.status)">
-                  <button type="button" @click="reviewCandidate(candidate, true)">
-                    {{ t('crm.prospecting.approve') }}
-                  </button>
-                  <button type="button" @click="reviewCandidate(candidate, false)">
-                    {{ t('crm.prospecting.reject') }}
-                  </button>
-                </template>
-                <button v-if="canCreateLead && candidate.status === CrmProspectingCandidateStatus.Approved" type="button" @click="convertCandidate(candidate)">
-                  {{ t('crm.prospecting.convertToLead') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <nav v-if="candidateTotal > 0" class="pagination-bar" :aria-label="t('crm.prospecting.candidatePagination')">
-          <button type="button" :disabled="candidatePageIndex <= 1" @click="gotoCandidatePage(candidatePageIndex - 1)">
-            {{ t('crm.prospecting.prevPage') }}
-          </button>
-          <span class="page-info">
-            {{ t('crm.prospecting.pageInfo', { page: candidatePageIndex, pages: candidateTotalPages, total: candidateTotal }) }}
-          </span>
-          <button type="button" :disabled="candidatePageIndex >= candidateTotalPages" @click="gotoCandidatePage(candidatePageIndex + 1)">
-            {{ t('crm.prospecting.nextPage') }}
-          </button>
-        </nav>
+        <CandidateTable
+          :candidates="candidates"
+          :selected-ids="selectedCandidateIds"
+          :can-execute="canExecute"
+          :can-create-lead="canCreateLead"
+          :page-index="candidatePageIndex"
+          :total-pages="candidateTotalPages"
+          :total="candidateTotal"
+          @toggle="toggleCandidate"
+          @toggle-all="toggleSelectAll"
+          @view="openCandidateReview"
+          @review="reviewCandidate"
+          @convert="convertCandidate"
+          @page="gotoCandidatePage"
+        />
       </section>
 
-      <section v-if="reviewDetailLoading || reviewDetail" class="panel review-detail">
-        <header class="section-header">
-          <div><h2>{{ t('crm.prospecting.reviewDetail') }}</h2><p>{{ reviewDetail?.candidate.companyName || '' }}</p></div>
-          <button type="button" @click="reviewDetail = null">
-            {{ t('crm.prospecting.closeDetail') }}
-          </button>
-        </header>
-        <div v-if="reviewDetailLoading" class="empty-state">
-          {{ t('crm.prospecting.loadingDetails') }}
-        </div>
-        <template v-else-if="reviewDetail">
-          <h3>{{ t('crm.prospecting.scoreHistory') }}</h3>
-          <div v-if="reviewDetail.scoreHistory.length === 0" class="empty-state">
-            {{ t('crm.prospecting.noScore') }}
-          </div>
-          <table v-else>
-            <thead><tr><th>{{ t('crm.prospecting.totalScore') }}</th><th>{{ t('crm.prospecting.priority') }}</th><th>{{ t('crm.prospecting.scoreVersion') }}</th><th>{{ t('crm.prospecting.scoreBreakdown') }}</th><th>{{ t('crm.prospecting.reviewGates') }}</th><th>{{ t('crm.prospecting.evaluatedAt') }}</th></tr></thead>
-            <tbody>
-              <tr v-for="score in reviewDetail.scoreHistory" :key="score.basicId">
-                <td><strong>{{ score.total }}/100</strong></td><td>{{ scorePriority(score.priority) }}</td><td>{{ score.scorecardVersion }}</td>
-                <td>{{ score.identityPoints }}/15 · {{ score.procurementPoints }}/30 · {{ score.productFitPoints }}/20 · {{ score.marketFitPoints }}/10 · {{ score.recencyPoints }}/10 · {{ score.evidencePoints }}/10 · {{ score.contactPoints }}/5</td>
-                <td>{{ scoreGates(score.reviewGatesJson) || '—' }}</td><td>{{ new Date(score.evaluatedAtUtc).toLocaleString() }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <h3>{{ t('crm.prospecting.evidence') }}</h3>
-          <div v-if="reviewDetail.evidence.length === 0" class="empty-state">
-            {{ t('crm.prospecting.noEvidence') }}
-          </div>
-          <table v-else>
-            <thead><tr><th>{{ t('crm.prospecting.field') }}</th><th>{{ t('crm.prospecting.provider') }}</th><th>{{ t('crm.prospecting.verification') }}</th><th>{{ t('crm.prospecting.evidenceType') }}</th><th>{{ t('crm.prospecting.sourceUrl') }}</th><th>{{ t('crm.prospecting.retrievedAt') }}</th></tr></thead>
-            <tbody>
-              <tr v-for="item in reviewDetail.evidence" :key="item.basicId">
-                <td><strong>{{ item.fieldName }}</strong><small>{{ item.evidenceSummary || item.fieldValueHash || '' }}</small></td><td>{{ item.providerCode }}<small>{{ item.providerRecordId || '' }}</small></td><td>{{ item.verificationStatus }}</td><td>{{ item.evidenceType }}</td>
-                <td><a v-if="safeEvidenceUrl(item.sourceUrl)" :href="item.sourceUrl" target="_blank" rel="noopener noreferrer">{{ item.sourceUrl }}</a><span v-else>{{ item.sourceUrl }}</span></td><td>{{ new Date(item.retrievedAtUtc).toLocaleString() }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </template>
-      </section>
+      <ReviewDetailPanel
+        :loading="reviewDetailLoading"
+        :detail="reviewDetail"
+        @close="reviewDetail = null"
+      />
     </template>
     <div v-else class="empty-state">
       {{ t('crm.prospecting.noCampaigns') }}
@@ -1051,19 +931,6 @@ onMounted(() => {
 .hint {
   color: var(--xh-text-muted, #777);
   margin: 0.25rem 0 0;
-}
-.review-detail {
-  display: grid;
-  gap: 0.75rem;
-}
-.review-detail h3 {
-  margin: 0.5rem 0 0;
-}
-.review-detail td small {
-  display: block;
-  max-width: 22rem;
-  overflow-wrap: anywhere;
-  color: var(--xh-text-muted, #777);
 }
 .panel {
   border: 1px solid var(--xh-border, #ddd);
@@ -1253,40 +1120,5 @@ tr.selected {
   padding: 0.4rem;
   background: var(--xh-surface, white);
   color: inherit;
-}
-.pagination-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-.pagination-bar .page-info {
-  color: var(--xh-fg-muted);
-  font-size: 0.9rem;
-}
-.bulk-action-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.6rem 0.75rem;
-  margin-bottom: 0.75rem;
-  border: 1px solid var(--xh-border, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-muted-surface, #f5f5f5);
-}
-.bulk-result {
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 0.75rem;
-  border: 1px solid var(--xh-border, #ddd);
-  border-radius: 0.5rem;
-}
-.bulk-failures {
-  margin: 0.5rem 0 0;
-  padding-left: 1.25rem;
-  font-size: 0.85rem;
-  color: var(--xh-text-muted, #777);
 }
 </style>
