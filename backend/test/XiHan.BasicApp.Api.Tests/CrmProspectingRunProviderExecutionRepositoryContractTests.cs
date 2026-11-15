@@ -131,7 +131,7 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
     private static string ReadWorker()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "backend", "src")))
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "backend", "src")))
             directory = directory.Parent;
         Assert.NotNull(directory);
         return File.ReadAllText(Path.Combine(directory!.FullName, "backend", "src", "modules",
@@ -141,7 +141,7 @@ public sealed class CrmProspectingRunProviderExecutionRepositoryContractTests
     private static string ReadRepository()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "backend", "src")))
+        while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "backend", "src")))
             directory = directory.Parent;
         Assert.NotNull(directory);
         return File.ReadAllText(Path.Combine(directory!.FullName, "backend", "src", "modules",

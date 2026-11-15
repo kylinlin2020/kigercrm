@@ -81,7 +81,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void CandidatePersistence_ShouldExposeAtomicProviderBatchAndTerminalTransitionBoundary()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -103,7 +103,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void AtomicProviderBatch_ShouldRejectDuplicateNormalizedRecordIdentitiesBeforePersistence()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -122,7 +122,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void AtomicProviderBatch_ShouldVerifyCheckpointBytesHashAndRecordMembership()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -141,7 +141,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void SubmissionIntent_ShouldNotQueryInsideAnAbortedUniqueViolationTransaction()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -161,7 +161,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void RunCompletion_ShouldRemainBlockedByNeedsReviewExtractionJobs()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -191,7 +191,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.True(metadataParameter.IsOptional);
 
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -213,7 +213,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void ExtractionExpiryWorker_ShouldSweepEachTenantWithoutClaimingProviderWork()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -235,7 +235,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void ExtractionExpiry_ShouldNotGuessOutcomeForSubmittingOrNeedsReviewJobs()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -258,7 +258,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void ExtractionExpiry_ShouldClearEveryLeaseFieldAndFenceStaleWorkers()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -291,7 +291,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
             CrmProspectingExtractionStatus.Running));
 
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -339,7 +339,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void RunWorker_ShouldPreflightAllAsyncProvidersBeforeAnyProviderExecution()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -374,8 +374,10 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
         Assert.Contains("exact lease/fencing identity", section, StringComparison.Ordinal);
         Assert.Contains("GetDefaultPollDelay(nextPollAttemptCount)", section, StringComparison.Ordinal);
         Assert.Contains("Heartbeat must remain active", section, StringComparison.Ordinal);
-        Assert.Contains("same Run-level identity boundary", section, StringComparison.Ordinal);
-        Assert.Contains("same transaction", section, StringComparison.Ordinal);
+        Assert.Contains("duplicates across pages and across providers in one Run", section, StringComparison.Ordinal);
+        Assert.Contains("shared Run-level identity boundary", section, StringComparison.Ordinal);
+        Assert.Contains("In one transaction, persist all page effects", section, StringComparison.Ordinal);
+        Assert.Contains("Never advance a cursor in a separate transaction", section, StringComparison.Ordinal);
         Assert.Contains("NeedsReview remains blocking", section, StringComparison.Ordinal);
         Assert.Contains("PostgreSQL integration tests", section, StringComparison.Ordinal);
     }
@@ -384,16 +386,19 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void ExtractionCursorPersistence_ShouldReuseSharedCursorValidator()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
             "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingExtractionJobRepository.cs"));
         var methodStart = source.IndexOf("public async Task<bool> TryAdvanceCursorAsync", StringComparison.Ordinal);
         Assert.True(methodStart >= 0);
-        var methodEnd = source.IndexOf("public async Task<int> ExpireDueAsync", methodStart, StringComparison.Ordinal);
-        Assert.True(methodEnd > methodStart);
+        // The repository was refactored: cursor advancement is now the last public method.
+        // Slice to the next same-level declaration (or EOF) instead of relying on a hard-coded successor name.
+        var nextMethod = source.IndexOf("\n    public ", methodStart + 1, StringComparison.Ordinal);
+        var methodEnd = nextMethod > methodStart ? nextMethod : source.Length;
         var method = source[methodStart..methodEnd];
+        Assert.Contains("result_cursor IS NOT DISTINCT FROM @expectedCursor", method, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid(expectedCursor)", method, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid(nextCursor)", method, StringComparison.Ordinal);
     }
@@ -403,7 +408,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void SubmissionIntent_ShouldReusePersistedIdempotencyKeyBeforeGeneratingANewOne()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -427,7 +432,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void ExtractionFinalization_ShouldReuseSharedCursorValidator()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -450,7 +455,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void AsyncExtractionPagePersistence_ShouldFenceLeaseAndCursorBeforeWritingCandidates()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -479,7 +484,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void AsyncExtractionPagePersistence_ShouldEnforceOneToOneCandidateRecordMembership()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -501,7 +506,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void AsyncExtractionFinalPage_ShouldFailIncompleteResultsInsteadOfReportingSuccess()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -525,7 +530,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void EveryExtractionMutation_ShouldFenceTenantLeaseTokenVersionAndDatabaseExpiry()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -560,7 +565,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void ExtractionLeaseRenewal_ShouldFenceTenantTokenVersionAndUnexpiredLease()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -586,7 +591,7 @@ public sealed class CrmProspectingExtractionPersistenceContractTests
     public void ExtractionFinalPages_ShouldAccumulateCountsWithoutReplacingEarlierPages()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",

@@ -88,7 +88,7 @@ public sealed class CrmProspectingProviderRegistryTests
     public void CrmModule_ShouldResolveOneValidatedRegistryFromRegisteredProviderCapabilities()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
@@ -103,7 +103,7 @@ public sealed class CrmProspectingProviderRegistryTests
     public void ProspectingRunWorker_UsesScopedValidatedRegistryInsteadOfRebuildingIt()
     {
         var tree = new DirectoryInfo(AppContext.BaseDirectory);
-        while (tree is not null && !File.Exists(Path.Combine(tree.FullName, "backend", "src")))
+        while (tree is not null && !Directory.Exists(Path.Combine(tree.FullName, "backend", "src")))
             tree = tree.Parent;
         Assert.NotNull(tree);
         var source = File.ReadAllText(Path.Combine(tree!.FullName, "backend", "src", "modules",
