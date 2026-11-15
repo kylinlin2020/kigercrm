@@ -232,3 +232,20 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 验证：`Api.Tests` 编译 0 错误；完整 **1109 总 / 101 失败 / 977 通过 / 31 跳过** —— 失败 127 → 101、成功 +26，总数与跳过数不变，零回归。本文件「127 个基线失败」读数自本轮起为 **101**。
 
 剩余 101 个不是同一根因，按类别留待下一轮：`CrmProspectingExtractionPersistenceContractTests` 21、`CrmProspectingPersistenceWiringTests` 14、`CrmProspectingRunProviderExecutionRepositoryContractTests` 5、`CrmKvkProspectingWiringTests` 4 等源码契约断言；少量唯一索引/并发异常；Provider 测试的 `HttpRequestException`（环境外呼）。另有 2 个 PG 夹具（`WithTenant` 签名不同、当前 PG 门控跳过）与 `CrmPrimaryContactSqliteIntegrationTests`（无 `TenantId` 常量）未纳入本批。实机 Windows 验收与真实 HTTP 冒烟仍待完成，迁移条目依旧不关闭。
+
+### 2026-11-15 后续：源码契约测试系统性对齐（43 个失败清零）
+
+按「先分类根因 → 两阶段预检 → 小批量门控」分 4 批推进，只做「对齐真实实现 + 保留或加强守卫」，不改功能代码、不放宽并发/权限约束。
+
+| 批次 | 根因 | 修法 | 清零 |
+|---|---|---|---|
+| 1 | 24 处 `File.Exists(Path.Combine(root, "backend", "src"))` 用文件 API 判**目录**，恒返回 false；循环走到根路径后 `Assert.NotNull(tree)` 失败，28 个测试从未执行到真正的源码断言 | 改 `Directory.Exists`；另对齐 3 处过时字符串（文档 §11.59 措辞、`TryAdvanceCursorAsync` 方法边界改为「下一个同级声明或 EOF」） | 28 |
+| 2 | Provider 注册拆到 `CrmProspectingProviderRegistrationExtensions.cs`、HTTP 加固拆到 `CrmProspectingHttpHandlerFactory.cs`，7 个测试仍只读旧 `ServiceCollectionExtensions.cs` | 新增合并读组合根 helper（旧注册 + 新注册 + handler factory）；对齐 `message.Headers.Add`、`new HttpClient(CrmProspectingHttpHandlerFactory.Create(` 等字面量与单实例守卫 | 9 |
+| 3 | Worker 重构后 5 处字面量（候选默认状态、取消谓词、唯一竞态 catch、score 快照参数、失败终态围栏） | 全部换成等价或更强守卫：实体 DB 默认值 + 枚举双向守卫、同谓词相对位置、完整 catch 表达式、链式调用 + 租约/围栏参数 | 3 |
+| 4 | legacy 索引创建脚本版本错误（5.9.21 → 5.9.18）、唯一索引列跨行、候选/证据写入迁入 `CrmProspectingCandidateFactory` | 修正迁移版本；索引头 + 列相对位置守卫；断言指向真实职责类并补事务边界守卫 | 3 |
+
+验证：`Api.Tests` 编译 0 错误；完整 **1109 总 / 58 失败 / 1020 通过 / 31 跳过** —— 失败 101 → 58、通过 +43，总数与跳过数不变，零回归。本文件「101 个基线失败」读数自本轮起为 **58**。
+
+**剩余 3 个不越级处理**：`ProspectingWorker_ShouldRecoverOnlyCandidateIdentityUniqueRacesAfterRollback`、`ProspectingWorker_ShouldReconcileMissingEvidenceForExistingCandidates`、`ProspectingChildWriteFence_ShouldRequireTransactionAndLockTheLiveTenantScopedRun` 都是跨文件线性 `IndexOf` 顺序断言。Worker 职责拆分后 insert / commit / 围栏分处 `CrmProspectingRunHostedService` 与 `CrmProspectingCandidateFactory`，简单拼接会破坏顺序语义并可能降低并发守卫强度；须逐条读 worker 600–750 / 1100–1230 行重新设计守卫，独立成批。
+
+其余 55 个分散在 `CrmProspectingProviderRequestRepositorySqliteTests`（4，`Assert.Equal` 运行时差异）、`FieldSecurityEntityWiringTests`（3）、Provider 外呼 `HttpRequestException`、唯一索引/并发异常等；2 个 PG 夹具与 1 个无 `TenantId` 常量夹具仍未纳入。实机 Windows 验收与真实 HTTP 冒烟仍待完成，迁移条目依旧不关闭。
