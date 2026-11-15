@@ -9,12 +9,12 @@ public sealed class CrmKvkProspectingWiringTests
     {
         var root = FindRepositoryRoot();
         var provider = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmKvkProspectingProvider.cs"));
-        var registration = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        var registration = ReadProspectingWiring(root);
         var settings = File.ReadAllText(Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json"));
         var credentials = File.ReadAllText(Path.Combine(root, "frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue"));
 
         Assert.Contains("CRM.Prospecting.Provider.kvk.ApiKey", provider, StringComparison.Ordinal);
-        Assert.Contains("request.Headers.Add(\"apikey\", apiKey.Trim())", provider, StringComparison.Ordinal);
+        Assert.Contains("message.Headers.Add(\"apikey\", apiKey.Trim())", provider, StringComparison.Ordinal);
         Assert.Contains("EnableKvkProvider", registration, StringComparison.Ordinal);
         Assert.Contains("CrmKvkProspectingProvider", registration, StringComparison.Ordinal);
         Assert.Contains("api.kvk.nl", registration, StringComparison.Ordinal);
@@ -22,6 +22,16 @@ public sealed class CrmKvkProspectingWiringTests
         Assert.Contains("code: 'kvk'", credentials, StringComparison.Ordinal);
         Assert.Contains("ConfigType.Tenant", credentials, StringComparison.Ordinal);
         Assert.Contains("isEncrypted: true", credentials, StringComparison.Ordinal);
+    }
+
+    /// <summary>Reads the full prospecting composition root (core + provider registrations + HTTP handler factory).</summary>
+    private static string ReadProspectingWiring(string root)
+    {
+        var extensions = Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions");
+        var infrastructure = Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting");
+        return File.ReadAllText(Path.Combine(extensions, "ServiceCollectionExtensions.cs"))
+            + "\n" + File.ReadAllText(Path.Combine(extensions, "CrmProspectingProviderRegistrationExtensions.cs"))
+            + "\n" + File.ReadAllText(Path.Combine(infrastructure, "CrmProspectingHttpHandlerFactory.cs"));
     }
 
     private static string FindRepositoryRoot()
@@ -41,7 +51,7 @@ public sealed class CrmKvkProspectingWiringTests
     {
         var root = FindRepositoryRoot();
         var provider = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmBraveSearchProspectingProvider.cs"));
-        var registration = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        var registration = ReadProspectingWiring(root);
         var settings = File.ReadAllText(Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json"));
         var credentials = File.ReadAllText(Path.Combine(root, "frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue"));
 
@@ -62,7 +72,7 @@ public sealed class CrmKvkProspectingWiringTests
         var root = FindRepositoryRoot();
         var serper = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmSerperSearchProspectingProvider.cs"));
         var serpApi = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmSerpApiProspectingProvider.cs"));
-        var registration = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        var registration = ReadProspectingWiring(root);
         var settings = File.ReadAllText(Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json"));
         var credentials = File.ReadAllText(Path.Combine(root, "frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue"));
 
@@ -87,7 +97,7 @@ public sealed class CrmKvkProspectingWiringTests
     {
         var root = FindRepositoryRoot();
         var provider = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmFranceCompanySearchProspectingProvider.cs"));
-        var registration = File.ReadAllText(Path.Combine(root, "backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs"));
+        var registration = ReadProspectingWiring(root);
         var settings = File.ReadAllText(Path.Combine(root, "backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json"));
 
         Assert.Contains("recherche-entreprises.api.gouv.fr/search", provider, StringComparison.Ordinal);

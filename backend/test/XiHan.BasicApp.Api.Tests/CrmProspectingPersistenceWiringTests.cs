@@ -27,10 +27,14 @@ public sealed class CrmProspectingPersistenceWiringTests
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingCandidate.cs");
         var repository = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingCandidateRepository.cs");
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.14", "5.9.14.sql");
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingWiring();
         Assert.Contains("BasicAppFullAuditedEntity", entity, StringComparison.Ordinal);
         Assert.Contains("IStrictMultiTenantEntity", entity, StringComparison.Ordinal);
-        Assert.Contains("PendingReview", entity, StringComparison.Ordinal);
+        // The review default is declared through the DB column (0); the enum is the
+        // authoritative name. Guard both halves instead of relying on one literal.
+        Assert.Contains("DefaultValue = \"0\"", entity, StringComparison.Ordinal);
+        Assert.Contains("PendingReview = 0", Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs"), StringComparison.Ordinal);
         Assert.Contains("Converted_Lead_Id", entity, StringComparison.Ordinal);
         Assert.Contains("SaasRepository<SysCrmProspectingCandidate>", repository, StringComparison.Ordinal);
         Assert.Contains("crm_prospecting_candidate", migration, StringComparison.Ordinal);
@@ -66,7 +70,7 @@ public sealed class CrmProspectingPersistenceWiringTests
     [Fact]
     public void ProspectingRepositories_ShouldBeExplicitlyRegisteredForWorkerAndApplicationServices()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingWiring();
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
 
         foreach (var repository in new[]
@@ -130,7 +134,13 @@ public sealed class CrmProspectingPersistenceWiringTests
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Repositories", "ICrmProspectingRunRepository.cs");
 
         Assert.Contains("run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.Running", repository, StringComparison.Ordinal);
-        Assert.Contains("run => run.BasicId == runId && run.Status == CrmProspectingRunStatus.CancelRequested", repository, StringComparison.Ordinal);
+        // The cancel predicate is split across lines after the refactor; guard that the
+        // run-id fence and the CancelRequested state still belong to the SAME predicate.
+        var cancelState = repository.IndexOf("run.Status == CrmProspectingRunStatus.CancelRequested &&", StringComparison.Ordinal);
+        Assert.True(cancelState >= 0);
+        var cancelPredicate = repository.LastIndexOf("run => run.BasicId == runId &&", cancelState, StringComparison.Ordinal);
+        Assert.True(cancelPredicate >= 0 && cancelState - cancelPredicate < 200,
+            "Cancellation must be fenced by run id AND CancelRequested state within one predicate.");
         Assert.Contains("run => run.Status == CrmProspectingRunStatus.Running", repository, StringComparison.Ordinal);
         Assert.Contains("Do not run concurrently with live workers; multi-instance recovery requires leases/fencing", contract, StringComparison.Ordinal);
     }
@@ -164,9 +174,9 @@ public sealed class CrmProspectingPersistenceWiringTests
         var operations = Read("docs", "kiger", "PROSPECTING-WORKER-OPERATIONS.md");
         var leaseDesign = Read("docs", "kiger", "PROSPECTING-WORKER-LEASE-DESIGN.md");
 
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingWiring();
         Assert.Contains("XiHanBackgroundServiceBase<CrmProspectingRunHostedService>", worker, StringComparison.Ordinal);
-        Assert.Contains("HostedService suffix", registration, StringComparison.Ordinal);
+        Assert.Contains("single-active-worker constraint", operations, StringComparison.Ordinal);
         Assert.DoesNotContain("AddHostedService<CrmProspectingRunHostedService>", registration, StringComparison.Ordinal);
         Assert.Contains("config.UpdateMaxConcurrentTasks(1)", worker, StringComparison.Ordinal);
         Assert.Contains("await RecoverPendingAsync(stoppingToken)", worker, StringComparison.Ordinal);
@@ -263,12 +273,17 @@ public sealed class CrmProspectingPersistenceWiringTests
     public void ProspectingWorker_ShouldPersistCandidateAndEvidenceInOneExplicitUnitOfWork()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var factory = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
 
         Assert.Contains("IUnitOfWorkManager", worker, StringComparison.Ordinal);
         Assert.Contains("Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", worker, StringComparison.Ordinal);
-        Assert.Contains("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", worker, StringComparison.Ordinal);
+        // Candidate and Evidence inserts now live in the shared persistence factory,
+        // still inside one explicit transactional unit of work.
+        Assert.Contains("using var unitOfWork = _unitOfWorkManager.Begin(", factory, StringComparison.Ordinal);
+        Assert.Contains("var inserted = await _candidates.AddAsync(candidate, cancellationToken)", factory, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingEvidenceFactory.Create(", worker, StringComparison.Ordinal);
-        Assert.Contains("await evidenceRepository.AddRangeAsync(evidenceRows, cancellationToken)", worker, StringComparison.Ordinal);
+        Assert.Contains("await _evidence.AddRangeAsync(evidenceRows, cancellationToken)", factory, StringComparison.Ordinal);
+        Assert.Contains("await unitOfWork.CompleteAsync(cancellationToken)", factory, StringComparison.Ordinal);
         Assert.Contains("await unitOfWork.CompleteAsync(cancellationToken)", worker, StringComparison.Ordinal);
     }
 
@@ -287,7 +302,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("run.BasicId,\n                        providerCode,\n                        externalId", worker, StringComparison.Ordinal);
         Assert.Contains("ux_crm_prospecting_candidate_te_ru_pr_ex_is", worker, StringComparison.Ordinal);
         Assert.Contains("ux_crm_prospecting_evidence_evidenceidentity", worker, StringComparison.Ordinal);
-        Assert.Contains("repairAttempt == 0 && IsEvidenceIdentityUniqueViolation(ex)", worker, StringComparison.Ordinal);
+        Assert.Contains("repairAttempt == 0 && (IsEvidenceIdentityUniqueViolation(ex) || IsScoreIdempotencyUniqueViolation(ex))", worker, StringComparison.Ordinal);
         Assert.Contains("repairAttempt: 1", worker, StringComparison.Ordinal);
         Assert.Contains("23505", worker, StringComparison.Ordinal);
 
@@ -346,7 +361,8 @@ public sealed class CrmProspectingPersistenceWiringTests
     {
         var evidence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingEvidence.cs");
         var score = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingScore.cs");
-        var initialEvidenceMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.21", "5.9.21.sql");
+        // The legacy evidence index was created in 5.9.18 and removed by the 5.9.22 alignment.
+        var initialEvidenceMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.18", "5.9.18.sql");
         var initialScoreMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.19", "5.9.19.sql");
         var alignmentMigration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.22", "5.9.22.sql");
 
@@ -386,7 +402,12 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("IF to_regclass('crm_prospecting_score') IS NOT NULL", alignmentMigration, StringComparison.Ordinal);
         Assert.Contains("ON crm_prospecting_evidence (tenant_id, candidate_id, field_name)", alignmentMigration, StringComparison.Ordinal);
         Assert.Contains("ON crm_prospecting_evidence (tenant_id, provider_code, retrieved_at_utc DESC)", alignmentMigration, StringComparison.Ordinal);
-        Assert.Contains("ON crm_prospecting_evidence (tenant_id, candidate_id, provider_code, provider_record_id,", alignmentMigration, StringComparison.Ordinal);
+        // The unique evidence-identity index now declares its columns across lines.
+        var uniqueIndex = alignmentMigration.IndexOf("CREATE UNIQUE INDEX IF NOT EXISTS ux_crm_prospecting_evidence_evidenceidentity", StringComparison.Ordinal);
+        Assert.True(uniqueIndex >= 0);
+        var uniqueColumns = alignmentMigration.IndexOf("tenant_id, candidate_id, provider_code, provider_record_id,", uniqueIndex, StringComparison.Ordinal);
+        Assert.True(uniqueColumns > uniqueIndex && uniqueColumns - uniqueIndex < 250,
+            "The evidence-identity unique index must cover tenant, candidate and provider record identity.");
         Assert.Contains("field_name, source_url_hash, raw_payload_hash", alignmentMigration, StringComparison.Ordinal);
         Assert.Contains("ON crm_prospecting_score (tenant_id, candidate_id, evaluated_at_utc DESC)", alignmentMigration, StringComparison.Ordinal);
         Assert.Contains("ON crm_prospecting_score (tenant_id, scorecard_version, priority DESC)", alignmentMigration, StringComparison.Ordinal);
@@ -406,7 +427,7 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("OrderBy(row => row.ProviderCode, StringComparer.Ordinal)", factory, StringComparison.Ordinal);
         Assert.Contains("at most 100 evidence rows", factory, StringComparison.Ordinal);
         Assert.Contains("32 KB score snapshot limit", factory, StringComparison.Ordinal);
-        Assert.Contains("scoreResult, evidenceRows", worker, StringComparison.Ordinal);
+        Assert.Contains("scoreResult, scoreEvidence", worker, StringComparison.Ordinal);
         Assert.Contains("ADD COLUMN IF NOT EXISTS evidence_references_json text NOT NULL DEFAULT '[]'", migration, StringComparison.Ordinal);
     }
 
@@ -613,7 +634,10 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("runs.RenewLeaseWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("runs.CompleteFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("runs.CancelFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
-        Assert.Contains("runs.FailFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        // Failure terminalization now goes through a scoped repository resolution; guard
+        // both the fenced call and the lease/fencing arguments it must carry.
+        Assert.Contains(".FailFencedWithDatabaseClockAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("message.RunId, failureLeaseToken, activeFencingVersion", worker, StringComparison.Ordinal);
         Assert.Contains("config.UpdateMaxConcurrentTasks(1)", config, StringComparison.Ordinal);
     }
     [Fact]
@@ -730,7 +754,7 @@ public sealed class CrmProspectingPersistenceWiringTests
     [Fact]
     public void GleifIdentityResolver_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingWiring();
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
         var resolver = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmGleifIdentityResolver.cs");
 
@@ -767,7 +791,7 @@ public sealed class CrmProspectingPersistenceWiringTests
     [Fact]
     public void TedProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingWiring();
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmTedProspectingProvider.cs");
 
         Assert.Contains("EnableTedProvider", registration, StringComparison.Ordinal);
@@ -782,13 +806,13 @@ public sealed class CrmProspectingPersistenceWiringTests
     [Fact]
     public void FindTenderProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingWiring();
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmFindTenderProspectingProvider.cs");
 
         Assert.Contains("EnableFindTenderProvider", registration, StringComparison.Ordinal);
         Assert.Contains("EnableContractsFinderProvider", registration, StringComparison.Ordinal);
         Assert.Contains("CrmContractsFinderProspectingProvider", registration, StringComparison.Ordinal);
-        Assert.Contains("new HttpClient(new SocketsHttpHandler", registration, StringComparison.Ordinal);
+        Assert.Contains("new HttpClient(CrmProspectingHttpHandlerFactory.Create(", registration, StringComparison.Ordinal);
         Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
         Assert.Contains("find-tender.service.gov.uk/api/1.0/ocdsReleasePackages", provider, StringComparison.Ordinal);
         Assert.Contains("MaxResponseBytes", provider, StringComparison.Ordinal);
@@ -799,11 +823,11 @@ public sealed class CrmProspectingPersistenceWiringTests
     [Fact]
     public void UsaSpendingProvider_ShouldBeOptInAndUseFixedNoRedirectEndpoint()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingWiring();
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUsaSpendingProspectingProvider.cs");
 
         Assert.Contains("EnableUsaSpendingProvider", registration, StringComparison.Ordinal);
-        Assert.Contains("new HttpClient(new SocketsHttpHandler", registration, StringComparison.Ordinal);
+        Assert.Contains("new HttpClient(CrmProspectingHttpHandlerFactory.Create(", registration, StringComparison.Ordinal);
         Assert.Contains("AllowAutoRedirect = false", registration, StringComparison.Ordinal);
         Assert.Contains("api.usaspending.gov/api/v2/search/spending_by_award/", provider, StringComparison.Ordinal);
         Assert.Contains("ReadBoundedAsync(response, 6 * 1024 * 1024", provider, StringComparison.Ordinal);
@@ -824,6 +848,16 @@ public sealed class CrmProspectingPersistenceWiringTests
         return count;
     }
 
+    /// <summary>
+    /// Provider registration is split across focused extension classes, and outbound HTTP
+    /// hardening lives in the handler factory. Contract assertions must see all three as
+    /// one logical composition root.
+    /// </summary>
+    private static string ReadProspectingWiring() =>
+        Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs")
+        + "\n" + Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "CrmProspectingProviderRegistrationExtensions.cs")
+        + "\n" + Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingHttpHandlerFactory.cs");
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
@@ -832,7 +866,7 @@ public sealed class CrmProspectingPersistenceWiringTests
     [Fact]
     public void ProviderBatchPersistence_ShouldHaveItsFencedExecutionRepositoryRegistered()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingWiring();
         var persistence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
         Assert.Contains("AddScoped<ICrmProspectingRunProviderExecutionRepository, CrmProspectingRunProviderExecutionRepository>()", registration, StringComparison.Ordinal);
         Assert.Contains("AddScoped<CrmProspectingCandidatePersistenceService>()", registration, StringComparison.Ordinal);
