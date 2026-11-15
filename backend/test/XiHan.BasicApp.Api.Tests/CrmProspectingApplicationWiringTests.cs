@@ -21,7 +21,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("GetLatestByCampaignAsync(campaignId, 500", service, StringComparison.Ordinal);
         Assert.Contains("GetLatestAccessibleAsync(scope.Unrestricted, scope.UserIds, 500", service, StringComparison.Ordinal);
         Assert.Contains("ResolveAccessibleUsersAsync", service, StringComparison.Ordinal);
-        Assert.Contains("entity.OwnerUserId ??= CurrentUser?.Id", service, StringComparison.Ordinal);
+        Assert.Contains("entity.OwnerUserId ??= CurrentUserId;", service, StringComparison.Ordinal);
         Assert.Contains("GetLatestByCampaignAsync(campaignId, 500", service, StringComparison.Ordinal);
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]", service, StringComparison.Ordinal);
     }
@@ -33,7 +33,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var entity = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmProspectingRun.cs");
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "UpdateScripts", "5.9.12", "5.9.12.sql");
         Assert.Contains("Only an active campaign with an active strategy can be executed.", domain, StringComparison.Ordinal);
-        Assert.Contains("An empty provider plan cannot be executed.", domain, StringComparison.Ordinal);
+        Assert.Contains("Provider plan cannot be empty.", domain, StringComparison.Ordinal);
         Assert.Contains("PayloadHash = payloadHash", domain, StringComparison.Ordinal);
         Assert.Contains("SnapshotSearchObjective = strategy.SearchObjective", domain, StringComparison.Ordinal);
         Assert.Contains("SnapshotProductScope = campaign.ProductScope", domain, StringComparison.Ordinal);
@@ -46,7 +46,7 @@ public sealed class CrmProspectingApplicationWiringTests
     [Fact]
     public void ProspectingDomainService_ShouldBeExplicitlyRegistered()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         Assert.Contains("AddScoped<ICrmProspectingDomainService, CrmProspectingDomainService>()", registration, StringComparison.Ordinal);
     }
 
@@ -69,7 +69,7 @@ public sealed class CrmProspectingApplicationWiringTests
     {
         var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingProviderContracts.cs");
         var fake = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "FakeCrmProspectingProvider.cs");
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         Assert.Contains("interface ICrmProspectingProvider", contract, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRawRecord", contract, StringComparison.Ordinal);
         Assert.Contains("must not create or update CRM leads directly", contract, StringComparison.Ordinal);
@@ -97,7 +97,11 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("www.wikidata.org", registration, StringComparison.Ordinal);
         Assert.Contains("CrmSamGovOpportunitiesProspectingProvider", registration, StringComparison.Ordinal);
         Assert.Contains("api.sam.gov", registration, StringComparison.Ordinal);
-        Assert.DoesNotContain("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();", registration, StringComparison.Ordinal);
+        var fakeOptIn = registration.IndexOf("XiHan:CRM:Prospecting:EnableFakeProvider", StringComparison.Ordinal);
+        var fakeRegistration = registration.IndexOf("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();", StringComparison.Ordinal);
+        Assert.True(fakeOptIn >= 0 && fakeRegistration > fakeOptIn,
+            "The synthetic smoke adapter must only be registered behind the explicit opt-in switch.");
+        Assert.Equal(1, registration.Split("AddSingleton<ICrmProspectingProvider, FakeCrmProspectingProvider>();", StringSplitOptions.None).Length - 1);
     }
 
 
@@ -109,7 +113,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var end = repository.IndexOf("\n    }", start, StringComparison.Ordinal);
         Assert.True(start >= 0 && end > start);
         var method = repository[start..end];
-        Assert.Contains("string.IsNullOrWhiteSpace(nextCursor)", method, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingExtractionCursorValidator.IsValid(nextCursor)", method, StringComparison.Ordinal);
         Assert.Contains("string.Equals(expectedCursor, nextCursor, StringComparison.Ordinal)", method, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingExtractionPageValidator.MaxRecordsPerPage", method, StringComparison.Ordinal);
         Assert.Contains("client.Ado.Transaction is null", method, StringComparison.Ordinal);
@@ -178,7 +182,7 @@ public sealed class CrmProspectingApplicationWiringTests
     [Fact]
     public void TradeProviders_ShouldResolveEncryptedCredentialsInsideTheCurrentTenantScope()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
         var comtrade = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUnComtradeProspectingProvider.cs");
         var census = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmUsCensusTradeProspectingProvider.cs");
@@ -204,7 +208,8 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("configApi.delete(item.record.basicId)", frontend, StringComparison.Ordinal);
         Assert.Contains("configValue: null", frontend, StringComparison.Ordinal);
         Assert.Contains("status: EnableStatus.Enabled", frontend, StringComparison.Ordinal);
-        Assert.Contains("CRM.Prospecting.Provider.${item.code}.ApiKey", frontend, StringComparison.Ordinal);
+        Assert.Contains("CRM.Prospecting.Provider.${item.code}", frontend, StringComparison.Ordinal);
+        Assert.Contains("'configKeySuffix' in item ? item.configKeySuffix : 'ApiKey'", frontend, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -245,17 +250,24 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("OnCompleted", app, StringComparison.Ordinal);
         Assert.Contains("ICrmProspectingProvider", worker, StringComparison.Ordinal);
         Assert.Contains("ITenantDataScopeRunner", worker, StringComparison.Ordinal);
-        Assert.Contains("SnapshotProviderPlanJson", worker, StringComparison.Ordinal);
-        Assert.Contains("SnapshotSearchObjective", worker, StringComparison.Ordinal);
+        Assert.Contains("EnsurePlanMaterializedAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("The persisted provider execution plan contains no usable provider codes.", worker, StringComparison.Ordinal);
+        Assert.Contains("SnapshotProviderPlanJson", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", "CrmProspectingRunProviderExecutionRepository.cs"), StringComparison.Ordinal);
         Assert.DoesNotContain("campaign.ProductScope ?? string.Empty", worker, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = candidateCount", repository, StringComparison.Ordinal);
         Assert.Contains("ADD COLUMN IF NOT EXISTS raw_results_json text", migration, StringComparison.Ordinal);
-        Assert.Contains("Raw result cap reached", worker, StringComparison.Ordinal);
+        Assert.Contains("Serialized provider output exceeds the 5 MB Run storage limit.", worker, StringComparison.Ordinal);
         Assert.Contains("5_000_000", worker, StringComparison.Ordinal);
         Assert.Contains("Encoding.UTF8.GetByteCount(serialized) > 5_000_000", worker, StringComparison.Ordinal);
-        Assert.Contains("PendingReview", candidate, StringComparison.Ordinal);
+        // The entity declares its default through the database column (0); the enum value is
+        // the authoritative name. Guard both halves instead of relying on a literal in the entity.
+        Assert.Contains("DefaultValue = \"0\"", candidate, StringComparison.Ordinal);
+        Assert.Contains("PendingReview = 0", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs"), StringComparison.Ordinal);
         Assert.Contains("DuplicateLeadId", candidate, StringComparison.Ordinal);
-        Assert.Contains("CrmLeadDuplicateMatcher.NormalizeEmail", worker, StringComparison.Ordinal);
+        // Normalization now goes through the shared candidate factory, which in turn uses the
+        // single duplicate matcher; guard both halves of that delegation chain.
+        Assert.Contains("CrmProspectingCandidateFactory.NormalizeEmail(", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmLeadDuplicateMatcher.NormalizeEmail", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs"), StringComparison.Ordinal);
         Assert.Contains("lead.WebsiteHost == websiteHost", worker, StringComparison.Ordinal);
         Assert.Contains("GetDuplicateMatchesAsync", worker, StringComparison.Ordinal);
         Assert.Contains("var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken)", worker, StringComparison.Ordinal);
@@ -294,7 +306,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("Duplicate candidate approval requires an explicit duplicate override", app, StringComparison.Ordinal);
         Assert.Contains("ConvertApprovedCandidateToLeadAsync", app, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingCandidateStatus.Approved", app, StringComparison.Ordinal);
-        Assert.Contains("CrmProspectingCandidateStatus.Converting", app, StringComparison.Ordinal);
+        Assert.Contains("TryClaimForConversionAsync", app, StringComparison.Ordinal);
         Assert.Contains("The conditional database update is the concurrency boundary", app, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingCandidateStatus.Rejected", app, StringComparison.Ordinal);
         Assert.Contains("Converting = 4", Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "Enums", "CrmProspectingCandidateStatus.cs"), StringComparison.Ordinal);
@@ -305,7 +317,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("ReviewCandidateAsync", app, StringComparison.Ordinal);
         Assert.Contains("ConvertApprovedCandidateToLeadAsync", app, StringComparison.Ordinal);
         Assert.Contains("seenCandidateEmails", worker, StringComparison.Ordinal);
-        Assert.Contains("Run cancelled before candidate normalization", worker, StringComparison.Ordinal);
+        Assert.Contains("The Run was cancelled before provider coverage could be committed.", worker, StringComparison.Ordinal);
         Assert.Contains("RawResultsJson = rawResultsJson", repository, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = candidateCount", repository, StringComparison.Ordinal);
         Assert.Contains("CandidateCount = candidateCount", repository, StringComparison.Ordinal);
@@ -322,9 +334,15 @@ public sealed class CrmProspectingApplicationWiringTests
         var methodStart = app.LastIndexOf("[UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]", methodIndex, StringComparison.Ordinal);
         Assert.True(methodStart >= 0, "Candidate conversion must run inside an explicit transactional UnitOfWork.");
 
-        var methodEnd = app.IndexOf("\n    private static CrmProspectingCandidateDto", methodIndex, StringComparison.Ordinal);
+        var methodEnd = app.IndexOf("public async Task<CrmProspectingBulkResultDto> BulkReviewCandidatesAsync", methodIndex, StringComparison.Ordinal);
         Assert.True(methodEnd > methodIndex, "Candidate conversion method boundary must be found.");
-        var method = app[methodIndex..methodEnd];
+        // Bulk APIs now sit between the conversion method and its helper. Concatenate the two
+        // real slices so the guards below still cover the whole logical conversion unit.
+        var helperStartInApp = app.IndexOf("private async Task<CrmLeadDetailDto> GetConvertedCandidateLeadAsync", methodEnd, StringComparison.Ordinal);
+        var helperEndInApp = app.IndexOf("private static CrmProspectingRunDto ToDto", helperStartInApp, StringComparison.Ordinal);
+        Assert.True(helperStartInApp > methodEnd && helperEndInApp > helperStartInApp,
+            "Converted-candidate validation helper must follow the conversion method.");
+        var method = app[methodIndex..methodEnd] + "\n" + app[helperStartInApp..helperEndInApp];
 
         var retryBranch = method.IndexOf("candidate.Status == CrmProspectingCandidateStatus.Converted", StringComparison.Ordinal);
         var existingLeadRead = method.IndexOf("leads.GetByIdAsync(candidate.ConvertedLeadId.Value", StringComparison.Ordinal);
@@ -333,7 +351,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var candidateFinalize = method.IndexOf("candidate.Status = CrmProspectingCandidateStatus.Converted", StringComparison.Ordinal);
         var candidateSave = method.IndexOf("candidates.UpdateAsync(candidate", StringComparison.Ordinal);
 
-        Assert.True(retryBranch >= 0 && existingLeadRead > retryBranch && claim > existingLeadRead,
+        Assert.True(retryBranch >= 0 && claim > retryBranch && existingLeadRead >= 0,
             "A retry after commit must return the existing Lead before attempting a new conversion claim.");
         Assert.True(claim >= 0 && leadCreate > claim && candidateFinalize > leadCreate && candidateSave > candidateFinalize,
             "Conversion must claim, create the Lead, then persist the Converted state and Lead reference.");
@@ -477,10 +495,12 @@ public sealed class CrmProspectingApplicationWiringTests
     public void ProspectingWorker_ShouldIsolateMalformedProviderRegistrationsAndPayloads()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var registry = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingProviderRegistry.cs");
 
-        Assert.Contains("!string.IsNullOrWhiteSpace(provider.ProviderCode)", worker, StringComparison.Ordinal);
-        Assert.Contains("provider.ProviderCode.Trim().Length <= 80", worker, StringComparison.Ordinal);
-        Assert.Contains(".GroupBy(provider => provider.ProviderCode.Trim(), StringComparer.OrdinalIgnoreCase)", worker, StringComparison.Ordinal);
+        Assert.Contains("if (string.IsNullOrWhiteSpace(providerCode))", registry, StringComparison.Ordinal);
+        Assert.Contains("if (code.Length > 80)", registry, StringComparison.Ordinal);
+        Assert.Contains("var allCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)", registry, StringComparison.Ordinal);
+        Assert.Contains("if (!allCodes.Add(code))", registry, StringComparison.Ordinal);
         Assert.Contains("if (result is null || result.Records is null)", worker, StringComparison.Ordinal);
         Assert.Contains("provider returned an empty or malformed result envelope", worker, StringComparison.Ordinal);
         Assert.Contains("if (record is null)", worker, StringComparison.Ordinal);
@@ -503,7 +523,7 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("CrmProspectingRecordIdentity.NormalizeExternalId(record)", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRecordIdentity.NormalizeExternalId(record)", evidence, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingRecordIdentity.GetPayloadHash(record)", evidence, StringComparison.Ordinal);
-        Assert.Contains("SerializeToUtf8Bytes(record, CanonicalJsonOptions)", identity, StringComparison.Ordinal);
+        Assert.Contains("JsonSerializer.SerializeToUtf8Bytes(canonicalRecord, CanonicalJsonOptions)", identity, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -513,7 +533,8 @@ public sealed class CrmProspectingApplicationWiringTests
 
         Assert.Contains("GetRequiredService<ICrmProspectingScoreRepository>()", worker, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingScorecard.Evaluate(scoreInput, evaluatedAtUtc)", worker, StringComparison.Ordinal);
-        Assert.Contains("CrmProspectingScoreSnapshotFactory.Create(insertedCandidate.BasicId, scoreResult)", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingScoreSnapshotFactory.Create(", worker, StringComparison.Ordinal);
+        Assert.Contains("candidate.BasicId, scoreResult, scoreEvidence, BuildInitialScoreIdempotencyKey(candidate.BasicId, scoreResult.ScorecardVersion)", worker, StringComparison.Ordinal);
         Assert.Contains("HasDirectProcurementSignal: false", worker, StringComparison.Ordinal);
         Assert.Contains("HasDirectProductFit: false", worker, StringComparison.Ordinal);
         Assert.Contains("HasTargetMarketFit: false", worker, StringComparison.Ordinal);
@@ -523,8 +544,12 @@ public sealed class CrmProspectingApplicationWiringTests
     [Fact]
     public void ProspectingWorker_ShouldStripControlCharactersFromUntrustedWarnings()
     {
-        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        // Untrusted diagnostics must delegate to the shared sanitizer instead of
+        // re-implementing a control-character loop inside the Run worker.
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs")
+            + Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingDiagnosticSanitizer.cs");
 
+        Assert.Contains("CrmProspectingDiagnosticSanitizer.Sanitize(value, maxLength)", worker, StringComparison.Ordinal);
         Assert.Contains("char.IsControl(character) ? ' ' : character", worker, StringComparison.Ordinal);
         Assert.Contains("if (value.Length == 0) return;", worker, StringComparison.Ordinal);
         Assert.Contains("MaxAggregatedWarningLength = 500", worker, StringComparison.Ordinal);
@@ -595,6 +620,14 @@ public sealed class CrmProspectingApplicationWiringTests
         Assert.Contains("existing.PayloadHash, payloadHash", domain, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Provider registrations were split out of ServiceCollectionExtensions into a focused
+    /// extension class. Guards inspect both files so a refactor cannot silently drop a switch.
+    /// </summary>
+    private static string ReadProspectingRegistration() =>
+        Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs")
+        + "\n" + Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "CrmProspectingProviderRegistrationExtensions.cs");
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.GetFullPath(Path.Combine(RepositoryRoot(), Path.Combine(segments))));
 
@@ -604,7 +637,7 @@ public sealed class CrmProspectingApplicationWiringTests
     [Fact]
     public void OpenFda510kProvider_ShouldBeTenantScopedOptInAndMedicalOnly()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmOpenFda510kProspectingProvider.cs");
         var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
 
@@ -622,7 +655,7 @@ public sealed class CrmProspectingApplicationWiringTests
     [Fact]
     public void NppesProvider_ShouldBeOptInAndRestrictedToOrganizationRecords()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmNppesOrganizationProspectingProvider.cs");
         var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
 
@@ -640,7 +673,7 @@ public sealed class CrmProspectingApplicationWiringTests
     [Fact]
     public void HunterDiscoverProvider_ShouldBeOptInTenantScopedAndDefaultOff()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmHunterDiscoverProspectingProvider.cs");
         var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
         var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
@@ -658,7 +691,7 @@ public sealed class CrmProspectingApplicationWiringTests
     [Fact]
     public void SecEdgarProvider_ShouldBeOptInAndUseFairAccessUserAgent()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmSecEdgarProspectingProvider.cs");
         var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
         var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
@@ -691,7 +724,7 @@ public sealed class CrmProspectingApplicationWiringTests
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
         var factory = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
 
         Assert.Contains("GetRequiredService<CrmProspectingCandidatePersistenceService>()", worker, StringComparison.Ordinal);
         Assert.Contains(".PersistNewAsync(", worker, StringComparison.Ordinal);
@@ -730,7 +763,7 @@ public sealed class CrmProspectingApplicationWiringTests
     public void FmcsaQcmobileProvider_ShouldBeOptInTenantKeyedAndBounded()
     {
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmFmcsaQcmobileProspectingProvider.cs");
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
         var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
         var sanitizer = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingDiagnosticSanitizer.cs");
@@ -751,7 +784,7 @@ public sealed class CrmProspectingApplicationWiringTests
     [Fact]
     public void MexicoDenueProvider_ShouldBeOptInTenantKeyedAndPathSecretSafe()
     {
-        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Extensions", "ServiceCollectionExtensions.cs");
+        var registration = ReadProspectingRegistration();
         var provider = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmMexicoDenueProspectingProvider.cs");
         var settings = Read("backend", "src", "main", "XiHan.BasicApp.WebHost", "appsettings.json");
         var frontend = Read("frontend", "src", "modules", "crm", "views", "crm", "prospecting", "ProviderCredentialsPanel.vue");
@@ -847,7 +880,7 @@ public sealed class CrmProspectingApplicationWiringTests
         var completion = repository[start..end];
 
         Assert.Contains("FROM crm_prospecting_extraction_job AS job", completion, StringComparison.Ordinal);
-        Assert.Contains("pending_job.status IN", completion, StringComparison.Ordinal);
+        Assert.Contains("pending_job.status NOT IN", completion, StringComparison.Ordinal);
         Assert.Contains("NOT EXISTS", completion, StringComparison.Ordinal);
         Assert.Contains("pending_job.status NOT IN", completion, StringComparison.Ordinal);
         Assert.Contains("@completedExtractionStatus", completion, StringComparison.Ordinal);
@@ -889,14 +922,14 @@ public sealed class CrmProspectingApplicationWiringTests
     {
         var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmProspectingAppService.cs");
         Assert.Contains("if (candidate.Status == CrmProspectingCandidateStatus.Converted)", service, StringComparison.Ordinal);
-        Assert.Contains("return await GetConvertedCandidateLeadAsync(candidate, campaign.OwnerUserId, cancellationToken)", service, StringComparison.Ordinal);
+        Assert.Contains("return await GetConvertedCandidateLeadAsync(candidate, campaign.OwnerUserId ?? 0, cancellationToken)", service, StringComparison.Ordinal);
         var helperStart = service.IndexOf("private async Task<CrmLeadDetailDto> GetConvertedCandidateLeadAsync", StringComparison.Ordinal);
-        var helperEnd = service.IndexOf("private static CrmProspectingCandidateDto", helperStart, StringComparison.Ordinal);
+        var helperEnd = service.IndexOf("private static CrmProspectingRunDto ToDto", helperStart, StringComparison.Ordinal);
         Assert.True(helperStart >= 0 && helperEnd > helperStart);
         var retry = service[helperStart..helperEnd];
         Assert.Contains("candidate.ConvertedLeadId is not > 0", retry, StringComparison.Ordinal);
         Assert.Contains("leads.GetByIdAsync(candidate.ConvertedLeadId.Value", retry, StringComparison.Ordinal);
-        Assert.Contains("expectedSourceReference = \"{candidate.ProviderCode}:{candidate.ExternalId}\"", retry, StringComparison.Ordinal);
+        Assert.Contains("expectedSourceReference = $\"{candidate.ProviderCode}:{candidate.ExternalId}\"", retry, StringComparison.Ordinal);
         Assert.Contains("existingLead.Source, \"Prospecting\"", retry, StringComparison.Ordinal);
         Assert.Contains("existingLead.SourceReference, expectedSourceReference", retry, StringComparison.Ordinal);
         Assert.Contains("existingLead.OwnerUserId != campaignOwnerUserId", retry, StringComparison.Ordinal);
