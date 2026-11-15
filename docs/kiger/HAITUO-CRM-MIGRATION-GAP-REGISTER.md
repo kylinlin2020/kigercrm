@@ -185,3 +185,15 @@ The four reviewed workstream PRs have now been merged into `kiger-dev` in sequen
 - PR #5 (CRM import/export preview and module registration cleanup): merge commit `4cd24f4a94a729aa0ed7b63c784192f9e572b7ab`.
 
 The branch integration is complete; feature acceptance is not. The functional gates above remain open: async parent/child continuation and consumer, PostgreSQL execution, WhatsApp tenant binding plus atomic Inbox processing, and confirmed transactional CRM import. The webhook remains fail-closed (503), async providers remain disabled, and CSV remains preview-only. No .NET build/test or live PostgreSQL run is claimed. Do not treat the PR merge status as a migration-completion status.
+
+## 2026-11-15 checkpoint — 自动获客批次 2 W3（批量审核/转换 + 短名单）
+
+本条目记录 `AUTO-PROSPECTING-BATCH-2-PLAN-2026-11-11.md` W3 的交付状态，**不将任何差距项标记为完成**。
+
+- **状态：待运行时验收**（按本文件「状态定义」；未满足关闭规则第 3～5 条的运行时部分）。
+- **源端 / 目标端定位（规则 1、2）**：源端 Haituo 候选短名单 + 批量转 Lead 界面；目标端 `SysCrmProspectingCandidate.ShortlistedAt`、升级脚本 `UpdateScripts/5.9.42/5.9.42.sql`、4 个批量 Dynamic API、`frontend/src/modules/crm/views/crm/prospecting/index.vue` 多选与批量动作条。定位完成。
+- **自动化测试（规则 4 的静态部分）**：后端 W3 新增测试全绿；`Api.Tests` 全量 1109 总 / 146 失败 / 932 成功 / 31 跳过，与本批次基线逐项一致（零回归）。前端 type-check 0 错误、eslint 0 警告、API 契约单测 4/4、生产构建成功。146 个失败为既有基线债，其中 19 个集中在异步 Worker / Provider 源码契约断言，与 W3 无关。
+- **仍未取证**：正常 / 异常 / 权限 / 并发 / 恢复路径的**真实运行**证据；PostgreSQL 并发转换集成测试（`KIGER_TEST_POSTGRES_CONNECTION_STRING` 未配置，相关用例跳过）；升级脚本在空库 / 既有库 / 平台租户库实测；预览 9708 / 9800 的 4 个批量端点真实 HTTP 冒烟；浏览器多选焦点与键盘可达性；Windows 原生部署实机验收（规则 5）。
+- **矩阵处置**：`HAITUO-CRM-FUNCTION-MIGRATION-MATRIX.md` 第 2 节第 25 / 26 行保持「已有对应实现 / 还需核对」，不改判为完成。
+
+结论：W3 已具备代码入口与自动化测试，但不得据此关闭迁移条目。

@@ -164,7 +164,20 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 
 - [x] W1 Run 监控（进度 + 台账 + 轮询）
 - [x] W2 候选分页 + 导出
-- [ ] W3 批量审核/转换 + 短名单
+- [x] W3 批量审核/转换 + 短名单（代码 + 自动化测试闭环；实机验收未完成，见下方验收记录）
 - [ ] W4 Run 暂停/恢复（或按规则顺延并在此注明）
 - [ ] W5 页面组件拆分
-- [ ] 差距台账与本计划回写（§5）
+- [x] 差距台账与本计划回写（§5；按「待运行时验收」口径，不越级关闭）
+
+### W3 验收记录（2026-11-15）
+
+按 §5 关闭规则 5 条逐项取证。**结论：代码与自动化测试已闭环，迁移条目不关闭** —— 第 5 条「实机 Windows 原生部署验收」尚未完成，且 W3 的 4 个批量端点未做真实 HTTP 冒烟。
+
+| 证据等级 | 内容 | 结果 |
+|---|---|---|
+| A 代码事实 | 实体 `Shortlisted_At` + 可重复执行升级脚本 `UpdateScripts/5.9.42/5.9.42.sql`；4 个批量 API（`BulkReviewCandidates` / `BulkConvertCandidates` / `ShortlistCandidates` / `UnshortlistCandidates`）；逐项独立事务、取消异常上抛、已 Converted 幂等 `Skipped`；权限 `Execute`/`Create`；查询三态短名单过滤（`null` 全部 / `true` 仅短名单 / `false` 未加入）；前端多选、全选本页、批量动作条、三态筛选、结果汇总与逐项失败原因；7 语言 24 键 | 已落地 |
+| B 自动化测试 | 后端 `Api.Tests`：1109 总 / 932 成功 / 146 失败 / 31 跳过，与该批次基线**完全一致（零回归）**；W3 新增的批量/短名单/分页测试全绿。前端：`vue-tsc --noEmit` 0 错误、eslint 0 警告、`prospecting.test.ts` 4/4、`pnpm run build` 成功 | 通过 |
+| C 运行验收 | 预览后端 9708 / 前端 9800 未恢复；4 个批量端点未登录/越权/正常路径的真实 HTTP 冒烟、浏览器多选与键盘可达性、PostgreSQL 并发转换（`KIGER_TEST_POSTGRES_CONNECTION_STRING`）、升级脚本在空库/既有库实测 | **未完成** |
+| D 关闭判定 | `HAITUO-CRM-MIGRATION-GAP-REGISTER.md` 追加 2026-11-15 checkpoint，状态保持「待运行时验收」；`HAITUO-CRM-FUNCTION-MIGRATION-MATRIX.md` 第 2 节第 25/26 行**不改判** | 不关闭 |
+
+已知基线债务（与 W3 无关）：`CrmProspectingApplicationWiringTests` 中 19 个异步 Worker / Provider 源码契约断言仍失败（字符串与合入后的实现不同步），属于既有 146 个失败的一部分；W3 对该文件只新增 84 行、2 个测试，未触碰这些断言。
