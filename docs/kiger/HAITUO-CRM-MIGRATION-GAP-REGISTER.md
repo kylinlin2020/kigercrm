@@ -215,3 +215,16 @@ The branch integration is complete; feature acceptance is not. The functional ga
 
 
 同日补记：`Ai.Tests` 的 2 个 `CrmChatToolFactory` 取消失败也属测试接线漂移（`GetFunction` 辅助方法硬编码 `CancellationToken.None`，测试里创建的已取消 CTS 从未传入 `CreateTools`）。改为辅助方法接受可选 token 并在两个取消用例传入 `cancellation.Token` 后，`Ai.Tests` **582 总 / 0 失败 / 582 通过**。提交 `AI 取消令牌接线`。
+
+
+## 2026-11-16 checkpoint — Api.Tests 基线失败清零（2 → 0）
+
+字段安全接线缺口处理完成，全量 **Api.Tests 1111 总 / 0 失败 / 1080 通过 / 31 跳过**，`Ai.Tests` 582/582：
+
+- 真实补 14 个 DTO 映射中的 11 个（新建 `CrmDocumentMapper` 覆盖 6 个核心单据的列表/详情 DTO；`CrmProspectingMapper` 补 5 个获客 DTO），响应打码识别真正生效。
+- 剩余 3 个纯内部实体（ProviderRequest/ProviderCoverage/ExtractionJob）不对外返回 DTO，以白名单登记。
+- 9 个获客实体无 `QueryConditions` 查询入口，`GuardQueryAsync` 不适用，以白名单登记；白名单带已接线移出、引用有效、子集三重守卫。
+
+提交 `4d0898a2c`；`origin/kiger-dev` 推送已恢复并同步到该提交，此前积压的 5 笔本地提交全部上传。
+
+本条目状态维持「待运行时验收」：`HAITUO-CRM-FUNCTION-MIGRATION-MATRIX.md` 第 2 节第 25/26 行不改判。测试债清零不等于功能验收通过——实机 HTTP 冒烟、PG 并发、升级脚本、Windows 原生部署仍未取证。

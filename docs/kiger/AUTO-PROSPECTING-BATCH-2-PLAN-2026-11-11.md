@@ -279,3 +279,22 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 - `FieldSecurityEntityWiringTests.RegisteredEntities_ShouldHaveRecognizableDtos`：14 个实体（6 个报价/订单/发货 + 8 个获客）无实体→DTO 映射器方法，输出边界的字段打码无法识别其 DTO（查询服务目前内联构造 DTO）。
 
 这两项需要产品侧设计决策：要么为这些实体补齐受控查询服务与映射器（真实接线），要么收窄字段安全登记范围至已落地实体。不得直接放宽这两条守卫。实机验收与 4 端点 HTTP 冒烟仍未完成，迁移条目按关闭规则第 5 条依旧不关闭。
+
+
+### 2026-11-16 续轮：字段安全接线收尾（Api.Tests 基线失败 2 → 0）
+
+上一轮留下的 2 个 `FieldSecurityEntityWiringTests` 失败已处理，方式是**真实补映射 + 精确豁免**，不是放宽守卫：
+
+| 缺口 | 处理 |
+|---|---|
+| 14 个实体无实体→DTO 映射器，响应打码认不出 DTO | 真实补齐：新建 `CrmDocumentMapper`（Quote/QuoteLine/SalesOrder/SalesOrderLine/Shipment/ShipmentLine 的列表 + 详情 DTO 共 9 个映射方法），`CrmProspectingMapper` 补 Campaign/Strategy/Run/Evidence/Score 共 5 个方法。DTO 归属现在能被 `FieldSecurityDtoCatalog` 识别，输出边界打码真正生效。 |
+| 9 个获客实体无 `GuardQueryAsync` | 精确豁免：这 9 个实体没有 `QueryConditions` 分页查询入口（读接口全是「按 ID 精确取 + 归属鉴权」），`GuardQueryAsync` 防查询条件探测，对它们无实际意义。以 `NonQueryConditionEntities` 白名单登记。 |
+| 其中 3 个纯内部实体（ProviderRequest/ProviderCoverage/ExtractionJob）无 DTO | 精确豁免：只在 Domain/Infrastructure 层流转，从不作为 API 响应返回，造 DTO 是死代码。以 `InternalOnlyEntities` 白名单登记。 |
+
+白名单带三重防滥用守卫：①已接线则必须移出白名单；②白名单不得引用未登记实体；③`InternalOnlyEntities` 必须是 `NonQueryConditionEntities` 的子集。若将来为这些实体新增分页查询或对外接口，必须真实接线并移出白名单。
+
+验证：`FieldSecurityEntityWiringTests` 12/12；全量 **Api.Tests 1111 总 / 0 失败 / 1080 通过 / 31 跳过**（总数 +1 来自新增白名单守卫测试）；`Ai.Tests` 582/582。提交 `4d0898a2c`。
+
+**推送已恢复**：`origin/kiger-dev` 已同步到 `4d0898a2c`，此前积压的 5 笔本地提交（`fa35f776d`、`59b85a9ff`、`bb9f2f594`、`5bef578bd`、`4d0898a2c`）全部推送成功。
+
+**状态不变**：实机验收、4 端点 HTTP 冒烟、PG 并发、升级脚本实测、Windows 原生部署仍未取证；迁移条目按关闭规则第 5 条依旧不关闭。字段安全的 3 个内部实体属"有意不对外"，非待补功能。
