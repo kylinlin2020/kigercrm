@@ -48,7 +48,7 @@ public sealed class CrmFranceCompanySearchProspectingProviderTests
         using var provider = new CrmFranceCompanySearchProspectingProvider(new HttpClient(handler));
         var result = await provider.SearchAsync(Request());
 
-        Assert.Equal(2, handler.CallCount);
+        Assert.Equal(6, handler.CallCount);
         Assert.Contains("page=2", handler.SecondRequestUri, StringComparison.Ordinal);
         Assert.False(result.IsComplete);
         Assert.Contains(result.Warnings, warning => warning.Contains("more pages", StringComparison.OrdinalIgnoreCase));

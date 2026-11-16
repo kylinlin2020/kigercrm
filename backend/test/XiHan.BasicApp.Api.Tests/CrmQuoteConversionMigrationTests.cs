@@ -63,13 +63,18 @@ public sealed class CrmQuoteConversionMigrationTests
         const string migrationIndex = "ON crm_sales_order (tenant_id, source_quote_id, is_deleted)";
         Assert.Contains(migrationIndex, sql, StringComparison.Ordinal);
 
-        const string quoteIndexName = "UX_{table}_TeId_No_Ve_IsDe";
+        // The quote number key was tightened in 5.9.7: soft deletion must not release it.
+        // 5.9.4 remains the authority only for the source-quote linkage indexes above.
+        var quoteUpgrade = File.ReadAllText(Path.GetFullPath(Path.Combine(
+            RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
+            "UpdateScripts", "5.9.7", "5.9.7.sql")));
+        const string quoteIndexName = "UX_{table}_TeId_No_Ve";
         Assert.Contains(quoteIndexName, quoteEntity, StringComparison.Ordinal);
         var quoteIndexStart = quoteEntity.IndexOf(quoteIndexName, StringComparison.Ordinal);
         var quoteIndexEnd = quoteEntity.IndexOf(")]", quoteIndexStart, StringComparison.Ordinal);
         Assert.True(quoteIndexEnd > quoteIndexStart);
         var quoteDeclaration = quoteEntity[quoteIndexStart..quoteIndexEnd];
-        var quoteCodeFirstKey = new[] { "TenantId", "QuoteNumber", "Version", "IsDeleted" };
+        var quoteCodeFirstKey = new[] { "TenantId", "QuoteNumber", "Version" };
         previous = -1;
         foreach (var field in quoteCodeFirstKey)
         {
@@ -77,7 +82,8 @@ public sealed class CrmQuoteConversionMigrationTests
             Assert.True(position > previous, $"CodeFirst quote-version index must include {field} in migration order.");
             previous = position;
         }
-        Assert.Contains("ON crm_quote (tenant_id, quote_number, version, is_deleted)", sql, StringComparison.Ordinal);
+        Assert.Contains("DROP INDEX IF EXISTS ux_crm_quote_teid_no_ve_isde", quoteUpgrade, StringComparison.Ordinal);
+        Assert.Contains("ON crm_quote (tenant_id, quote_number, version)", quoteUpgrade, StringComparison.Ordinal);
     }
 
     [Fact]

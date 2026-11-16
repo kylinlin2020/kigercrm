@@ -45,10 +45,12 @@ public sealed class CrmOpenFda510kProspectingProviderTests
     [Fact]
     public async Task SearchAsync_UsesBoundedPagesAndMarksCappedCoverageIncomplete()
     {
-        var entries = string.Join(",", Enumerable.Range(1, 100)
-            .Select(i => $$"""{"k_number":"K24{{i:D4}}","device_name":"Medical Pump {{i}}","applicant":"Applicant {{i}}","decision_date":"20240101"}"""));
-        var handler = new StubHandler((request, _) => Ok(request,
-            $$$"""{"meta":{"results":{"total":500}},"results":[{{{entries}}}]}"""));
+        var handler = new StubHandler((request, call) =>
+        {
+            var entries = string.Join(",", Enumerable.Range(1, 100)
+                .Select(i => $$"""{"k_number":"K2{{call}}{{i:D3}}","device_name":"Medical Pump {{i}}","applicant":"Applicant {{i}}","decision_date":"20240101"}"""));
+            return Ok(request, $$$"""{"meta":{"results":{"total":500}},"results":[{{{entries}}}]}""");
+        });
         using var provider = new CrmOpenFda510kProspectingProvider(new HttpClient(handler), (string?)null);
 
         var result = await provider.SearchAsync(Request(product: "medical pump"));

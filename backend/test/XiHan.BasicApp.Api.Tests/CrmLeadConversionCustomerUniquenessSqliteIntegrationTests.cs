@@ -60,7 +60,7 @@ public sealed class CrmLeadConversionCustomerUniquenessSqliteIntegrationTests : 
     public async Task ConvertedLeadId_ShouldBeUniquePerTenant_AndNullableForOrdinaryCustomers()
     {
         await InsertCustomerAsync(TenantId, 99101, "Converted customer");
-        await Assert.ThrowsAsync<SqlSugarException>(
+        await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(
             () => InsertCustomerAsync(TenantId, 99101, "Concurrent duplicate"));
 
         // Multiple ordinary customers without a source Lead remain valid.

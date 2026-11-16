@@ -69,6 +69,18 @@ public sealed class UniqueIndexTenantScopeTests
         };
 
     /// <summary>
+    /// 软删除后仍不得复用的业务标识：这些索引有意不含 IsDeleted。
+    /// </summary>
+    private static readonly IReadOnlySet<string> NonReusableUniqueIndexAllowList =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "SysCrmCustomer.UX_{table}_TeId_ConvLead", // 一个 Lead 只能转换成一个客户
+            "SysCrmQuote.UX_{table}_TeId_No_Ve",       // 5.9.7：报价单号永久唯一
+            "SysCrmSalesOrder.UX_{table}_TeId_No",     // 5.9.7：销售订单号永久唯一
+            "SysCrmShipment.UX_{table}_TeId_No"        // 5.9.7：发货单号永久唯一
+        };
+
+    /// <summary>
     /// 多租户实体的唯一索引必须包含 TenantId，否则租户之间会互相占用编码。
     /// </summary>
     [Fact]
@@ -96,6 +108,7 @@ public sealed class UniqueIndexTenantScopeTests
         var violations = EnumerateUniqueIndexes()
             .Where(entry => entry.IsSoftDeletable)
             .Where(entry => !GlobalUniqueAllowList.Contains(entry.Key))
+            .Where(entry => !NonReusableUniqueIndexAllowList.Contains(entry.Key))
             .Where(entry => !entry.Fields.Contains(nameof(ISoftDelete.IsDeleted), StringComparer.Ordinal))
             .Select(entry => $"{entry.Key}（{string.Join(", ", entry.Fields)}）")
             .OrderBy(text => text, StringComparer.Ordinal)
@@ -149,6 +162,26 @@ public sealed class UniqueIndexTenantScopeTests
         Assert.True(stale.Count == 0,
             $"下列 {stale.Count} 个白名单条目已失效（索引不存在，或已补齐 TenantId 与 IsDeleted），请移除：" +
             $"{Environment.NewLine}{string.Join(Environment.NewLine, stale)}");
+    }
+
+    /// <summary>
+    /// 不可复用白名单同样不得残留条目：索引一旦补上 IsDeleted 就必须移除豁免。
+    /// </summary>
+    [Fact]
+    public void NonReusableUniqueIndexAllowList_ShouldNotContainStaleEntries()
+    {
+        var stillNonReusable = EnumerateUniqueIndexes()
+            .Where(entry => !entry.Fields.Contains(nameof(ISoftDelete.IsDeleted), StringComparer.Ordinal))
+            .Select(entry => entry.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var stale = NonReusableUniqueIndexAllowList
+            .Where(key => !stillNonReusable.Contains(key))
+            .OrderBy(key => key, StringComparer.Ordinal)
+            .ToList();
+
+        Assert.True(stale.Count == 0,
+            $"下列 {stale.Count} 个不可复用索引豁免已失效，请移除：{Environment.NewLine}{string.Join(Environment.NewLine, stale)}");
     }
 
     /// <summary>

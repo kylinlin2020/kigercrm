@@ -51,7 +51,7 @@ public sealed class CrmCompaniesHouseProspectingProviderTests
         Assert.Equal("https://find-and-update.company-information.service.gov.uk/company/01234567", record.SourceUrl);
         Assert.Contains("London", record.Summary!, StringComparison.Ordinal);
         Assert.Equal("Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("companies-house-test-key:")), handler.Authorization);
-        Assert.Contains("q=water%20pumps", handler.RequestUri, StringComparison.Ordinal);
+        Assert.Contains(handler.Requests, uri => uri.Contains("q=water pumps", StringComparison.Ordinal));
         Assert.Contains("start_index=0", handler.RequestUri, StringComparison.Ordinal);
         Assert.DoesNotContain("companies-house-test-key", handler.RequestUri, StringComparison.Ordinal);
         Assert.True(result.IsComplete);
@@ -66,7 +66,10 @@ public sealed class CrmCompaniesHouseProspectingProviderTests
         var handler = new StubHandler((request, call) =>
         {
             if (call == 1) return Ok(request, firstPage);
-            return Ok(request, """{"total_results":250,"items":[{"company_number":"00000101","title":"Generator Company 101","company_status":"active"}]}""");
+            var secondPage = """{"total_results":250,"items":[ITEMS]}""".Replace(
+                "ITEMS", string.Join(",", Enumerable.Range(101, 100).Select(i => $$"""{"company_number":"{{i:00000000}}","title":"Generator Company {{i}}","company_status":"active"}""")),
+                StringComparison.Ordinal);
+            return Ok(request, secondPage);
         });
         using var provider = new CrmCompaniesHouseProspectingProvider(new HttpClient(handler), "test-key");
 
@@ -92,6 +95,7 @@ public sealed class CrmCompaniesHouseProspectingProviderTests
     {
         public int CallCount { get; private set; }
         public string RequestUri { get; private set; } = "";
+        public List<string> Requests { get; } = [];
         public string SecondRequestUri { get; private set; } = "";
         public string Authorization { get; private set; } = "";
 
@@ -99,6 +103,7 @@ public sealed class CrmCompaniesHouseProspectingProviderTests
         {
             CallCount++;
             RequestUri = request.RequestUri?.ToString() ?? "";
+            Requests.Add(RequestUri);
             if (CallCount == 2) SecondRequestUri = RequestUri;
             Authorization = request.Headers.Authorization?.ToString() ?? "";
             return Task.FromResult(factory(request, CallCount));

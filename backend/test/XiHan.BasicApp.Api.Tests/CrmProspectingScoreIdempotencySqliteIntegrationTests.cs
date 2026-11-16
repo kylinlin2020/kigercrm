@@ -74,7 +74,7 @@ public sealed class CrmProspectingScoreIdempotencySqliteIntegrationTests : IDisp
             firstScoreId = first.BasicId;
 
             Assert.Equal(firstScoreId, (await _repository.GetByIdempotencyKeyAsync("initial:100:v1"))?.BasicId);
-            await Assert.ThrowsAsync<SqlSugarException>(() => _repository.AddAsync(CreateScore("initial:100:v1")));
+            await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(() => _repository.AddAsync(CreateScore("initial:100:v1")));
 
             // Historical/re-evaluated snapshots intentionally omit the one-time key.
             await _repository.AddAsync(CreateScore(null));

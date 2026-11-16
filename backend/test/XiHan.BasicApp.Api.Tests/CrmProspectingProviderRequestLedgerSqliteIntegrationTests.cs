@@ -119,7 +119,9 @@ public sealed class CrmProspectingProviderRequestLedgerSqliteIntegrationTests : 
             Assert.DoesNotContain("bearer-secret", persisted.FailureSummary, StringComparison.Ordinal);
             Assert.DoesNotContain("key-secret", persisted.FailureSummary, StringComparison.Ordinal);
             Assert.DoesNotContain("url-secret", persisted.FailureSummary, StringComparison.Ordinal);
-            Assert.Equal(completedAt, persisted.CompletedAt);
+            // SQLite stores DateTimeOffset as wall clock and reattaches the local offset on read.
+            // Compare UTC wall-clock components; PostgreSQL retains the true instant.
+            Assert.Equal(completedAt.UtcDateTime, persisted.CompletedAt?.DateTime);
         }
     }
 

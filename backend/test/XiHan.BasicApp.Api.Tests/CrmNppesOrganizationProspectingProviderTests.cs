@@ -13,7 +13,7 @@ public sealed class CrmNppesOrganizationProspectingProviderTests
     {
         var handler = new StubHandler((_, _) => throw new InvalidOperationException("Unexpected API call."));
         using var provider = new CrmNppesOrganizationProspectingProvider(new HttpClient(handler));
-        var result = await provider.SearchAsync(Request("industrial generator suppliers", "power equipment distributors"));
+        var result = await provider.SearchAsync(Request("industrial generator suppliers", "power equipment distributors", objective: "find suppliers"));
 
         Assert.Empty(result.Records);
         Assert.True(result.IsComplete);
@@ -89,8 +89,9 @@ public sealed class CrmNppesOrganizationProspectingProviderTests
     private static CrmProspectingProviderRequest Request(
         string product = "medical equipment",
         string profile = "healthcare clinics",
-        string target = "United States")
-        => new(1, "find medical organizations", product, target, profile, "{}", []);
+        string target = "United States",
+        string objective = "find medical organizations")
+        => new(1, objective, product, target, profile, "{}", []);
 
     private static HttpResponseMessage Ok(HttpRequestMessage request, string json)
         => new(HttpStatusCode.OK)

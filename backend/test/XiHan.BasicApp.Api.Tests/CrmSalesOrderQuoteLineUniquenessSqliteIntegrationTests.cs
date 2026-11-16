@@ -70,9 +70,16 @@ public sealed class CrmSalesOrderQuoteLineUniquenessSqliteIntegrationTests : IDi
         using (_tenant.Change(TenantId))
         {
             await _repository.AddAsync(CreateLine(orderId: 55001, quoteLineId: 66001, isDeleted: false));
-            await _repository.AddAsync(CreateLine(orderId: 55001, quoteLineId: 66001, isDeleted: true));
+            // Insert-time audit forces IsDeleted=false. Insert under a distinct source key,
+            // then move it to the deleted state of the key under test.
+            var softDeleted = await _repository.AddAsync(CreateLine(orderId: 55001, quoteLineId: 66002, isDeleted: false));
+            await _db.Updateable<SysCrmSalesOrderLine>()
+                .SetColumns(line => line.IsDeleted, true)
+                .SetColumns(line => line.SourceQuoteLineId, 66001)
+                .Where(line => line.BasicId == softDeleted.BasicId)
+                .ExecuteCommandAsync();
 
-            await Assert.ThrowsAsync<SqlSugarException>(
+            await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(
                 () => _repository.AddAsync(CreateLine(orderId: 55001, quoteLineId: 66001, isDeleted: false)));
 
             await _repository.AddAsync(CreateLine(orderId: 55001, quoteLineId: 66002, isDeleted: false));

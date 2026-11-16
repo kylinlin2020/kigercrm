@@ -72,7 +72,9 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
             Assert.True(created.BasicId > 0);
             Assert.Equal(1, created.AttemptNo);
             Assert.Equal("Started", created.State);
-            Assert.Equal(startedAt, (await _repository.GetAttemptAsync(1001, "fake", 1))?.StartedAt);
+            // SQLite stores DateTimeOffset as wall clock and reattaches the local offset on read.
+            // Compare UTC wall-clock components; PostgreSQL retains the true instant.
+            Assert.Equal(startedAt.UtcDateTime, (await _repository.GetAttemptAsync(1001, "fake", 1))?.StartedAt.DateTime);
         }
     }
 
@@ -163,7 +165,7 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
                 row.BasicId, "RateLimited", now.AddSeconds(1), 100,
                 httpStatus: 429, failureCode: "provider_rate_limited", retryAfterAt: retryAt));
 
-            Assert.Equal(retryAt, await _repository.GetActiveCooldownUntilAsync("ted", now.AddMinutes(1)));
+            Assert.Equal(retryAt.UtcDateTime, (await _repository.GetActiveCooldownUntilAsync("ted", now.AddMinutes(1)))?.DateTime);
             Assert.Null(await _repository.GetActiveCooldownUntilAsync("ted", retryAt.AddSeconds(1)));
         }
 
@@ -171,7 +173,7 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
             Assert.Null(await _repository.GetActiveCooldownUntilAsync("ted", now.AddMinutes(1)));
 
         using (_tenant.Change(TenantId))
-            Assert.Equal(retryAt, await _repository.GetActiveCooldownUntilAsync("ted", now.AddMinutes(2)));
+            Assert.Equal(retryAt.UtcDateTime, (await _repository.GetActiveCooldownUntilAsync("ted", now.AddMinutes(2)))?.DateTime);
     }
 
     [Fact]
@@ -189,14 +191,14 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
                 retryAfterAt: retryAt));
 
             // A different Run must see the same tenant/provider cooldown.
-            Assert.Equal(retryAt, await _repository.GetActiveCooldownUntilAsync(
-                " GLEIF_IDENTITY ", now.AddMinutes(1)));
+            Assert.Equal(retryAt.UtcDateTime, (await _repository.GetActiveCooldownUntilAsync(
+                " GLEIF_IDENTITY ", now.AddMinutes(1)))?.DateTime);
 
             var anotherRunLookup = await _repository.CreateStartedAsync(
                 3002, "gleif_identity", new string('8', 64), now.AddMinutes(2));
             Assert.Equal(1, anotherRunLookup.AttemptNo);
-            Assert.Equal(retryAt, await _repository.GetActiveCooldownUntilAsync(
-                "gleif_identity", now.AddMinutes(2)));
+            Assert.Equal(retryAt.UtcDateTime, (await _repository.GetActiveCooldownUntilAsync(
+                "gleif_identity", now.AddMinutes(2)))?.DateTime);
 
             Assert.Null(await _repository.GetActiveCooldownUntilAsync(
                 "gleif_identity", retryAt.AddTicks(1)));
@@ -226,7 +228,7 @@ public sealed class CrmProspectingProviderRequestRepositorySqliteTests : IDispos
             var checkpoint = await _repository.GetCoverageCheckpointAsync(
                 7002, " UK_FIND_TENDER ", scopeHash.ToLowerInvariant());
             Assert.NotNull(checkpoint);
-            Assert.Equal(scannedAt, checkpoint.LastSuccessfulScanAt);
+            Assert.Equal(scannedAt.UtcDateTime, checkpoint.LastSuccessfulScanAt.DateTime);
             Assert.Equal(14, checkpoint.LastResultCount);
         }
 

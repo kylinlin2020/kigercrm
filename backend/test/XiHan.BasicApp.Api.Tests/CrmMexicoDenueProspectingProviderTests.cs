@@ -26,7 +26,8 @@ public sealed class CrmMexicoDenueProspectingProviderTests
         Assert.Equal("sales@example.mx", record.BusinessEmail);
         Assert.Equal("official_business_registry", record.EvidenceType);
         Assert.Equal("https://example.mx/", record.Website);
-        Assert.Contains("/Buscar/generator/00/1/20/private-denue-token", handler.RequestUri, StringComparison.Ordinal);
+        Assert.Contains(handler.Requests, uri => uri.Contains("/Buscar/generator suppliers", StringComparison.Ordinal)
+            && uri.Contains("/00/1/20/private-denue-token", StringComparison.Ordinal));
         Assert.True(result.IsComplete);
     }
 
@@ -116,10 +117,12 @@ public sealed class CrmMexicoDenueProspectingProviderTests
     {
         public int CallCount { get; private set; }
         public string RequestUri { get; private set; } = string.Empty;
+        public List<string> Requests { get; } = [];
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             CallCount++;
             RequestUri = request.RequestUri?.ToString() ?? string.Empty;
+            Requests.Add(RequestUri);
             return Task.FromResult(factory(request, cancellationToken));
         }
     }

@@ -93,8 +93,10 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
             Assert.NotNull(persisted);
             Assert.Equal("worker-test-instance", persisted.LeaseOwner);
             Assert.Equal(token, persisted.LeaseToken);
-            Assert.Equal(now.AddMinutes(2), persisted.LeaseExpiresAt);
-            Assert.Equal(now, persisted.LeaseHeartbeatAt);
+            // SQLite stores DateTimeOffset as wall clock and reattaches the local offset on read.
+            // Compare UTC wall-clock components; PostgreSQL retains the true instant.
+            Assert.Equal(now.AddMinutes(2).UtcDateTime, persisted.LeaseExpiresAt?.DateTime);
+            Assert.Equal(now.UtcDateTime, persisted.LeaseHeartbeatAt?.DateTime);
             Assert.Equal(7, persisted.FencingVersion);
         }
     }
@@ -146,8 +148,8 @@ public sealed class CrmProspectingRunRepositorySqliteIntegrationTests : IDisposa
 
             var persisted = await _repository.GetByIdAsync(run.BasicId);
             Assert.NotNull(persisted);
-            Assert.Equal(now, persisted.LeaseHeartbeatAt);
-            Assert.Equal(now.AddMinutes(2), persisted.LeaseExpiresAt);
+            Assert.Equal(now.UtcDateTime, persisted.LeaseHeartbeatAt?.DateTime);
+            Assert.Equal(now.AddMinutes(2).UtcDateTime, persisted.LeaseExpiresAt?.DateTime);
             Assert.Equal(token, persisted.LeaseToken);
             Assert.Equal(4, persisted.FencingVersion);
 

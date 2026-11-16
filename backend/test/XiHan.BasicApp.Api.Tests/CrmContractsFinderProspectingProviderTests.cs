@@ -203,7 +203,9 @@ public sealed class CrmContractsFinderProspectingProviderTests
             RequestMethod = request.Method;
             RequestUri = request.RequestUri?.ToString() ?? string.Empty;
             Requests.Add(RequestUri);
-            return Task.FromResult(_responseFactory(request));
+            var response = _responseFactory(request);
+            response.RequestMessage ??= request;
+            return Task.FromResult(response);
         }
     }
 }

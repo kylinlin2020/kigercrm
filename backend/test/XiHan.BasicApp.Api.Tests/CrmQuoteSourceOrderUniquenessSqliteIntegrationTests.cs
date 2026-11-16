@@ -70,9 +70,17 @@ public sealed class CrmQuoteSourceOrderUniquenessSqliteIntegrationTests : IDispo
         using (_tenant.Change(TenantId))
         {
             await _repository.AddAsync(CreateOrder("SO-QUOTE-001", 44001, isDeleted: false));
-            await _repository.AddAsync(CreateOrder("SO-QUOTE-002", 44001, isDeleted: true));
+            // Insert-time audit forces IsDeleted=false. Insert under a distinct source key,
+            // then move it to the deleted state of the key under test so the index's
+            // IsDeleted dimension is exercised rather than the audit hook.
+            var softDeleted = await _repository.AddAsync(CreateOrder("SO-QUOTE-002", 44002, isDeleted: false));
+            await _db.Updateable<SysCrmSalesOrder>()
+                .SetColumns(order => order.IsDeleted, true)
+                .SetColumns(order => order.SourceQuoteId, 44001)
+                .Where(order => order.BasicId == softDeleted.BasicId)
+                .ExecuteCommandAsync();
 
-            await Assert.ThrowsAsync<SqlSugarException>(
+            await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(
                 () => _repository.AddAsync(CreateOrder("SO-QUOTE-003", 44001, isDeleted: false)));
         }
 

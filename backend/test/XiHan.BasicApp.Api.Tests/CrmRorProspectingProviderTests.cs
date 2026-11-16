@@ -25,7 +25,7 @@ public sealed class CrmRorProspectingProviderTests
         Assert.Equal("https://ror.org/012345678", record.SourceUrl);
         Assert.Equal("https://example.edu", record.Website);
         Assert.Contains("United Kingdom", record.Summary!, StringComparison.Ordinal);
-        Assert.Contains("query=water", handler.RequestUri, StringComparison.Ordinal);
+        Assert.Contains(handler.Requests, uri => uri.Contains("query=water", StringComparison.Ordinal));
         Assert.True(result.IsComplete);
     }
 
@@ -85,11 +85,13 @@ public sealed class CrmRorProspectingProviderTests
     {
         public int CallCount { get; private set; }
         public string RequestUri { get; private set; } = "";
+        public List<string> Requests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             CallCount++;
             RequestUri = request.RequestUri?.ToString() ?? "";
+            Requests.Add(RequestUri);
             return Task.FromResult(factory(request, CallCount));
         }
     }

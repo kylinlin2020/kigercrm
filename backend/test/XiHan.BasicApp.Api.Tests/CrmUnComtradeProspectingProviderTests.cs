@@ -49,7 +49,6 @@ public sealed class CrmUnComtradeProspectingProviderTests
 
     private static HttpResponseMessage Ok(string json) => new(HttpStatusCode.OK)
     {
-        RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://comtradeapi.un.org/public/v1/preview/C/A/HS?reporterCode=842"),
         Content = new StringContent(json, Encoding.UTF8, "application/json")
     };
 
@@ -63,7 +62,9 @@ public sealed class CrmUnComtradeProspectingProviderTests
             CallCount++;
             RequestUri = request.RequestUri?.ToString() ?? "";
             SubscriptionKey = request.Headers.TryGetValues("Ocp-Apim-Subscription-Key", out var values) ? values.Single() : null;
-            return Task.FromResult(factory(request));
+            var response = factory(request);
+            response.RequestMessage ??= request;
+            return Task.FromResult(response);
         }
     }
 }

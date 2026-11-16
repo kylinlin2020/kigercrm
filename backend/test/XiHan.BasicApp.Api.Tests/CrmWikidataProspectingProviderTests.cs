@@ -25,7 +25,7 @@ public sealed class CrmWikidataProspectingProviderTests
         Assert.Equal("https://www.wikidata.org/wiki/Q12345", record.SourceUrl);
         Assert.Contains("company", record.Summary!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("action=wbsearchentities", handler.RequestUri, StringComparison.Ordinal);
-        Assert.Contains("search=water", handler.RequestUri, StringComparison.Ordinal);
+        Assert.Contains(handler.Requests, uri => uri.Contains("search=water", StringComparison.Ordinal));
         Assert.Contains("KigerCRM-Prospecting/1.0", handler.UserAgent, StringComparison.Ordinal);
         Assert.True(result.IsComplete);
     }
@@ -85,12 +85,14 @@ public sealed class CrmWikidataProspectingProviderTests
     {
         public int CallCount { get; private set; }
         public string RequestUri { get; private set; } = "";
+        public List<string> Requests { get; } = [];
         public string UserAgent { get; private set; } = "";
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             CallCount++;
             RequestUri = request.RequestUri?.ToString() ?? "";
+            Requests.Add(RequestUri);
             UserAgent = string.Join(" ", request.Headers.UserAgent.Select(value => value.ToString()));
             return Task.FromResult(factory(request, CallCount));
         }

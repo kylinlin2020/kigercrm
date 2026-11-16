@@ -128,11 +128,17 @@ public sealed class WhatsAppMetaWebhookPayloadParserTests
     [Theory]
     [InlineData("")]
     [InlineData("{")]
-    [InlineData("{\"entry\": []}")]
     [InlineData("{\"entry\":[{\"id\":\"waba\",\"changes\":[{\"value\":{\"metadata\":{\"phone_number_id\":\"p\"},\"messages\":[{\"id\":\"m\",\"from\":\"s\",\"timestamp\":\"0\",\"type\":\"text\"}]}}]}]}")]
     public void TryParseInboundMessages_ShouldRejectMalformedOrIncompleteInboundEnvelope(string payload)
     {
         Assert.False(WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(payload, out var messages));
+        Assert.Empty(messages);
+    }
+
+    [Fact]
+    public void TryParseInboundMessages_ShouldAcceptEmptyEnvelopeAsNoOp()
+    {
+        Assert.True(WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages("{\"entry\": []}", out var messages));
         Assert.Empty(messages);
     }
 

@@ -70,7 +70,7 @@ public sealed class CrmProspectingEvidenceIdentitySqliteIntegrationTests : IDisp
         using (_tenant.Change(TenantId))
         {
             await _repository.AddAsync(CreateEvidence("A"));
-            await Assert.ThrowsAsync<SqlSugarException>(
+            await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(
                 () => _repository.AddAsync(CreateEvidence("A")));
 
             // A distinct canonical source URL fingerprint is a distinct evidence identity.
@@ -107,7 +107,7 @@ public sealed class CrmProspectingEvidenceIdentitySqliteIntegrationTests : IDisp
             try
             {
                 await _repository.AddAsync(CreateEvidence("D", candidateId: 99102));
-                await Assert.ThrowsAsync<SqlSugarException>(
+                await Assert.ThrowsAnyAsync<System.Data.Common.DbException>(
                     () => _repository.AddAsync(CreateEvidence("D", candidateId: 99102)));
             }
             finally

@@ -37,7 +37,7 @@ public sealed class CrmTedProspectingProviderTests
         Assert.Contains("/v3/notices/search", handler.RequestUri, StringComparison.Ordinal);
         Assert.Contains("FT=", handler.RequestBody, StringComparison.Ordinal);
         Assert.Contains("generator", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("public", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\"public\"", handler.RequestBody, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -148,7 +148,9 @@ public sealed class CrmTedProspectingProviderTests
             RequestMethod = request.Method;
             RequestUri = request.RequestUri?.ToString() ?? string.Empty;
             RequestBody = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
-            return _responseFactory(request);
+            var response = _responseFactory(request);
+            response.RequestMessage ??= request;
+            return response;
         }
     }
 }

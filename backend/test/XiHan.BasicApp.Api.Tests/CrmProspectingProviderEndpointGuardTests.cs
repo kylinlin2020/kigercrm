@@ -27,7 +27,7 @@ public sealed class CrmProspectingProviderEndpointGuardTests
     {
         var source = File.ReadAllText(Path.GetFullPath(Path.Combine(
             RepositoryRoot(), "backend", "src", "modules", "XiHan.BasicApp.Crm",
-            "Extensions", "ServiceCollectionExtensions.cs")));
+            "Extensions", "CrmProspectingProviderRegistrationExtensions.cs")));
 
         Assert.Contains("CrmProspectingHttpHandlerFactory.Create(\"api.usaspending.gov\")", source, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingHttpHandlerFactory.Create(\"www.find-tender.service.gov.uk\")", source, StringComparison.Ordinal);

@@ -13,7 +13,7 @@ public sealed class CrmBrazilPncpProspectingProviderTests
     {
         var handler = new StubHandler(_ => Ok("""{"data":[{"numeroControlePNCP":"12345","objetoCompra":"Aquisição de geradores","dataPublicacaoPncp":"2026-01-02T10:00:00","dataEncerramentoProposta":"2026-02-02","modalidadeNome":"Pregão","valorTotalEstimado":150000,"orgaoEntidade":{"razaoSocial":"Municipality of Recife"},"unidadeOrgao":{"nomeUnidade":"Procurement office","municipioNome":"Recife","ufSigla":"PE"}}],"totalRegistros":1,"totalPaginas":1,"numeroPagina":1}"""));
         using var provider = new CrmBrazilPncpProspectingProvider(new HttpClient(handler));
-        var result = await provider.SearchAsync(new CrmProspectingProviderRequest(1,"generator procurement","generator","Brazil","public buyer","{}",[]));
+        var result = await provider.SearchAsync(new CrmProspectingProviderRequest(1,"aquisição de geradores","geradores","Brazil","public buyer","{}",[]));
         var record = Assert.Single(result.Records);
         Assert.Equal("brazil_pncp", provider.ProviderCode);
         Assert.Equal("PNCP:12345", record.ExternalId);
