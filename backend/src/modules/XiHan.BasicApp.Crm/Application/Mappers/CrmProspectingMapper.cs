@@ -31,4 +31,87 @@ public static class CrmProspectingMapper
         ShortlistedAt = entity.ShortlistedAt,
         CreatedTime = entity.CreatedTime
     };
+
+    /// <summary>Maps a campaign to its DTO so the response filter can recognise the registered entity.</summary>
+    public static CrmProspectingCampaignDto ToCampaignDto(SysCrmProspectingCampaign entity) => new()
+    {
+        BasicId = entity.BasicId,
+        Name = entity.Name,
+        Objective = entity.Objective,
+        ProductScope = entity.ProductScope,
+        TargetMarkets = entity.TargetMarkets,
+        IdealCustomerProfile = entity.IdealCustomerProfile,
+        Status = (int)entity.Status,
+        OwnerUserId = entity.OwnerUserId,
+        ActiveStrategyVersion = entity.ActiveStrategyVersion,
+        CreatedTime = entity.CreatedTime
+    };
+
+    /// <summary>Maps a strategy version to its DTO.</summary>
+    public static CrmProspectingStrategyDto ToStrategyDto(SysCrmProspectingStrategy entity) => new()
+    {
+        BasicId = entity.BasicId,
+        CampaignId = entity.CampaignId,
+        Version = entity.Version,
+        Name = entity.Name,
+        SearchObjective = entity.SearchObjective,
+        ProviderPlanJson = entity.ProviderPlanJson,
+        ExcludedDomainsJson = entity.ExcludedDomainsJson,
+        ApprovalStatus = (int)entity.ApprovalStatus,
+        ApprovedBy = entity.ApprovedBy,
+        ApprovedAt = entity.ApprovedAt,
+        ActivatedAt = entity.ActivatedAt
+    };
+
+    /// <summary>Maps a Run to its DTO.</summary>
+    public static CrmProspectingRunDto ToRunDto(SysCrmProspectingRun entity) => new()
+    {
+        BasicId = entity.BasicId,
+        CampaignId = entity.CampaignId,
+        StrategyId = entity.StrategyId,
+        StrategyVersion = entity.StrategyVersion,
+        Status = (int)entity.Status,
+        CreatedTime = entity.CreatedTime,
+        StartedAt = entity.StartedAt,
+        CompletedAt = entity.CompletedAt,
+        RawRecordCount = entity.RawRecordCount,
+        CandidateCount = entity.CandidateCount,
+        FailureCount = entity.FailureCount,
+        FailureSummary = entity.FailureSummary
+    };
+
+    /// <summary>Maps a provenance evidence row to its DTO.</summary>
+    public static CrmProspectingEvidenceDto ToEvidenceDto(SysCrmProspectingEvidence entity) => new()
+    {
+        BasicId = entity.BasicId,
+        ProviderCode = entity.ProviderCode,
+        ProviderRecordId = entity.ProviderRecordId,
+        FieldName = entity.FieldName,
+        FieldValueHash = entity.FieldValueHash,
+        SourceUrl = entity.SourceUrl,
+        EvidenceType = entity.EvidenceType,
+        VerificationStatus = entity.VerificationStatus,
+        EvidenceSummary = entity.EvidenceSummary,
+        PublishedAtUtc = entity.PublishedAtUtc,
+        RetrievedAtUtc = entity.RetrievedAtUtc,
+        RawPayloadHash = entity.RawPayloadHash
+    };
+
+    /// <summary>Maps an immutable score snapshot to its DTO.</summary>
+    public static CrmProspectingScoreDto ToScoreDto(SysCrmProspectingScore entity) => new()
+    {
+        BasicId = entity.BasicId,
+        ScorecardVersion = entity.ScorecardVersion,
+        Total = entity.Total,
+        Priority = entity.Priority,
+        IdentityPoints = entity.IdentityPoints,
+        ProcurementPoints = entity.ProcurementPoints,
+        ProductFitPoints = entity.ProductFitPoints,
+        MarketFitPoints = entity.MarketFitPoints,
+        RecencyPoints = entity.RecencyPoints,
+        EvidencePoints = entity.EvidencePoints,
+        ContactPoints = entity.ContactPoints,
+        ReviewGatesJson = entity.ReviewGatesJson,
+        EvaluatedAtUtc = entity.EvaluatedAtUtc
+    };
 }

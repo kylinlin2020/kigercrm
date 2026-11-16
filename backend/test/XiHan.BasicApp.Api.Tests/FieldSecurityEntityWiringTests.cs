@@ -39,6 +39,37 @@ public sealed partial class FieldSecurityEntityWiringTests
         return provider.GetRequiredService<IOptions<FieldSecurityEntityOptions>>().Value.Entities;
     });
 
+    /// <summary>
+    /// 获客领域实体只通过「按 ID 精确读取 + 归属鉴权」暴露，不接受用户构造的 QueryConditions。
+    /// GuardQueryAsync 防的是查询条件注入探测，对这类实体没有实际意义；其输出边界由 DTO 打码保护。
+    /// 若将来为它们新增分页查询接口，必须接入 GuardQueryAsync 并从本白名单移除。
+    /// </summary>
+    private static readonly IReadOnlySet<string> NonQueryConditionEntities =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "SysCrmProspectingCampaign",
+            "SysCrmProspectingStrategy",
+            "SysCrmProspectingRun",
+            "SysCrmProspectingCandidate",
+            "SysCrmProspectingEvidence",
+            "SysCrmProspectingScore",
+            "SysCrmProspectingProviderRequest",
+            "SysCrmProspectingProviderCoverage",
+            "SysCrmProspectingExtractionJob"
+        };
+
+    /// <summary>
+    /// 纯内部持久化实体：只在 Domain/Infrastructure 层流转，从不作为 API 响应 DTO 返回，
+    /// 因此无需 DTO 归属识别。若将来对外暴露，必须补映射器并从本白名单移除。
+    /// </summary>
+    private static readonly IReadOnlySet<string> InternalOnlyEntities =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "SysCrmProspectingProviderRequest",
+            "SysCrmProspectingProviderCoverage",
+            "SysCrmProspectingExtractionJob"
+        };
+
     private static readonly Lazy<IReadOnlyList<(string File, string Text)>> Sources = new(() =>
         [
             .. Directory
@@ -92,7 +123,12 @@ public sealed partial class FieldSecurityEntityWiringTests
             .Select(match => match.Groups["entity"].Value)
             .ToHashSet(StringComparer.Ordinal);
 
-        var missing = RegisteredEntities.Value.Keys.Where(entity => !guarded.Contains(entity)).ToList();
+        var stale = NonQueryConditionEntities.Where(guarded.Contains).ToList();
+        Assert.True(stale.Count == 0, $"以下实体已接入 GuardQueryAsync，请从 NonQueryConditionEntities 白名单移除：{string.Join("、", stale)}");
+
+        var missing = RegisteredEntities.Value.Keys
+            .Where(entity => !guarded.Contains(entity) && !NonQueryConditionEntities.Contains(entity))
+            .ToList();
 
         Assert.True(missing.Count == 0, $"以下实体缺查询门控 GuardQueryAsync：{string.Join("、", missing)}");
     }
@@ -105,9 +141,33 @@ public sealed partial class FieldSecurityEntityWiringTests
     {
         var mappings = new FieldSecurityDtoCatalog(Options.Create(BuildOptions())).Mappings;
 
-        var withoutDto = RegisteredEntities.Value.Values.Where(entity => !mappings.Values.Contains(entity)).Select(entity => entity.Name).ToList();
+        var stale = InternalOnlyEntities.Where(name => mappings.Values.Any(entity => entity.Name == name)).ToList();
+        Assert.True(stale.Count == 0, $"以下实体已补映射器，请从 InternalOnlyEntities 白名单移除：{string.Join("、", stale)}");
+
+        var withoutDto = RegisteredEntities.Value.Values
+            .Where(entity => !mappings.Values.Contains(entity) && !InternalOnlyEntities.Contains(entity.Name))
+            .Select(entity => entity.Name).ToList();
 
         Assert.True(withoutDto.Count == 0, $"以下实体没有经映射器生成的 DTO，响应里认不出它们：{string.Join("、", withoutDto)}");
+    }
+
+    /// <summary>
+    /// 白名单不能引用已不再登记的实体，也不能与另一个白名单重复；否则缺口被静默吞掉。
+    /// </summary>
+    [Fact]
+    public void FieldSecurityWiringDebtAllowLists_ShouldNotContainStaleEntries()
+    {
+        var registered = RegisteredEntities.Value.Keys.ToHashSet(StringComparer.Ordinal);
+
+        var unregistered = NonQueryConditionEntities.Concat(InternalOnlyEntities)
+            .Where(entity => !registered.Contains(entity))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        Assert.True(unregistered.Count == 0, $"接线白名单引用了未登记实体：{string.Join("、", unregistered)}");
+
+        // 无对外 DTO 的实体必然也没有对外分页查询入口，因此必须是非查询条件实体的子集。
+        var missingFromQueryList = InternalOnlyEntities.Except(NonQueryConditionEntities, StringComparer.Ordinal).ToList();
+        Assert.True(missingFromQueryList.Count == 0, $"InternalOnlyEntities 必须是 NonQueryConditionEntities 的子集：{string.Join("、", missingFromQueryList)}");
     }
 
     [Fact]
