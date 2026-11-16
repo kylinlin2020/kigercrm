@@ -261,3 +261,21 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 验证：定向 `CrmProspectingPersistenceWiringTests` **40/40 全绿**；全量 `Api.Tests` **1109 总 / 55 失败 / 1023 通过 / 31 跳过**（58→55、通过 +3，总数与跳过数不变，零回归）。提交 `e69ab9549` 已推送 `origin/kiger-dev`。
 
 其余 55 个分散在 `CrmProspectingProviderRequestRepositorySqliteTests`（4，`Assert.Equal` 运行时差异）、`FieldSecurityEntityWiringTests`（3）、Provider 外呼 `HttpRequestException`、唯一索引/并发异常等；2 个 PG 夹具与 1 个无 `TenantId` 常量夹具仍未纳入。实机 Windows 验收与真实 HTTP 冒烟仍待完成，迁移条目依旧不关闭。
+
+
+### 2026-11-15 再后续：测试债收尾批次（55 → 36 → 2 失败）
+
+两次连续批次把 `Api.Tests` 既有基线失败从 55 降到 2，**全部只改测试夹具/守卫，未改任何功能代码**。
+
+| 批次 | 代表失败 | 修法 |
+|---|---|---|
+| 55 → 36（`8e8d39349`） | CRM 查询服务显式类型 lambda 断言、条款字段真实写法、`[UnitOfWork(true, Isolation...)]`、仓储基类、端点授权覆盖、sanitizer 值断言、`JsonReaderException` 派生断言、SQLite 唯一约束异常类型 | 对齐真实实现；同时修正生产实体 `SysCrmQuote` 索引为 5.9.7「软删不释放单号」语义，并新增不可复用唯一索引白名单失效守卫 |
+| 36 → 2（`fa35f776d`） | ① SQLite `DateTimeOffset` 偏移：SqlSugar 保留壁钟但重挂本地 `+08:00`，比较 UTC 瞬间恒差 8 小时；② 4 个 Provider 桩未设置 `response.RequestMessage`，触发 SSRF 端点守卫；③ 关键词断言只看「最后一次请求」；④ 多处过时夹具（分页去重、葡语关键词、分页页数、注册文件路径、CSV 换行、WhatsApp 空 envelope、状态更新跳过条件） | ① 改比较 UTC 壁钟分量（`expected.UtcDateTime` vs `actual.DateTime`），并留注释说明 PostgreSQL 保留真实瞬间；② 桩处理器补 `response.RequestMessage ??= request`（不覆盖故意设置的攻击者 URI）；③ 关键词断言改为检查全部请求；④ 逐项按真实契约修正夹具与断言 |
+
+验证：定向批 39/39、48/48、11/11、21/21 全绿；全量 `Api.Tests` **1110 总 / 2 失败 / 1077 通过 / 31 跳过**（失败 55 → 36 → 2，累计清零 144 个既有基线失败；总数因新增白名单守卫测试 +1，跳过数不变）。
+
+**仍未清零的 2 个是真实接线缺口，不是测试漂移**（不应通过放宽守卫伪造通过）：
+- `FieldSecurityEntityWiringTests.RegisteredEntities_ShouldBeGuarded`：9 个获客实体已登记字段安全但无 `GuardQueryAsync` 查询门控（Campaign/Strategy/Run/Candidate/Evidence/Score/ProviderRequest/ProviderCoverage/ExtractionJob）。其中 Candidate 与 Run 有查询服务但未接线，其余 7 个连查询服务都不存在。
+- `FieldSecurityEntityWiringTests.RegisteredEntities_ShouldHaveRecognizableDtos`：14 个实体（6 个报价/订单/发货 + 8 个获客）无实体→DTO 映射器方法，输出边界的字段打码无法识别其 DTO（查询服务目前内联构造 DTO）。
+
+这两项需要产品侧设计决策：要么为这些实体补齐受控查询服务与映射器（真实接线），要么收窄字段安全登记范围至已落地实体。不得直接放宽这两条守卫。实机验收与 4 端点 HTTP 冒烟仍未完成，迁移条目按关闭规则第 5 条依旧不关闭。

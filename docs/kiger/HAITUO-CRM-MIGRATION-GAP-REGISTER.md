@@ -203,3 +203,12 @@ The branch integration is complete; feature acceptance is not. The functional ga
 同日再后续口径更新：源码契约测试系统性对齐（4 批：`File.Exists` 目录误判 28、注册职责拆分 9、Worker 字面量 3、迁移版本/职责归属 3）后，`Api.Tests` 全量为 **1109 总 / 58 失败 / 1020 通过 / 31 跳过**；失败 127 → 101 → 58，累计清零 69 个既有基线失败，每轮总数与跳过数不变（零回归）。
 
 同日又后续口径更新：剩余 3 个跨文件顺序断言已按职责边界重设计（`PersistNewAsync` 方法体内围栏/insert/commit 的顺序 + Worker 侧窄化 catch/赢家解析/身份映射时机），仅改测试、未动功能代码。`Api.Tests` 全量为 **1109 总 / 55 失败 / 1023 通过 / 31 跳过**；失败 127 → 101 → 58 → 55，累计清零 72 个既有基线失败，每轮总数与跳过数不变（零回归）。剩余 55 个仍属既有基线债。实机验收与批量端点真实 HTTP 冒烟未完成，本条目状态不变。
+
+
+## 2026-11-15 checkpoint — 测试债收尾后的口径更新（55 → 36 → 2）
+
+同日两批只改测试夹具/守卫的修复完成后，`Api.Tests` 全量为 **1110 总 / 2 失败 / 1077 通过 / 31 跳过**（55 → 36 → 2）。修复覆盖 SQLite 时间偏移、`response.RequestMessage` 桩缺失、关键词断言只看末次请求、以及 CSV/WhatsApp/分页/注册路径等过时夹具。提交 `8e8d39349`、`fa35f776d`（本地；推送受阻见下）。
+
+剩余 2 个失败是**真实字段安全接线缺口**，不是测试漂移：9 个获客实体缺 `GuardQueryAsync` 查询门控，14 个实体缺实体→DTO 映射器。二者都需要产品侧决定「补齐受控查询服务与映射器」或「收窄登记范围」，不得放宽守卫伪造通过。
+
+本条目状态维持「待运行时验收」：真实 HTTP 冒烟、PG 并发、升级脚本实测、Windows 原生部署实机验收均未取证；`HAITUO-CRM-FUNCTION-MIGRATION-MATRIX.md` 第 2 节第 25/26 行不改判。推送状态：`8e8d39349` 已同步；`fa35f776d` 因 GitHub HTTPS 代理/TLS 错误（`schannel: server closed abruptly`、`Empty reply from server`）尚未推送到 `origin/kiger-dev`，需在网络恢复后补推。
