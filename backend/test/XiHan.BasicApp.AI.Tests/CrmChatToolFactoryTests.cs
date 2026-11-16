@@ -44,7 +44,7 @@ public sealed class CrmChatToolFactoryTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var factory = new CrmChatToolFactory(null!, null!, null!, null!, null!, new RecordingPermissionGuard());
-        var function = GetFunction(factory, "crm_search_customers");
+        var function = GetFunction(factory, "crm_search_customers", cancellation.Token);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = "Acme" })));
@@ -97,7 +97,7 @@ public sealed class CrmChatToolFactoryTests
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         var factory = new CrmChatToolFactory(null!, null!, null!, null!, null!, new RecordingPermissionGuard());
-        var function = GetFunction(factory, "crm_search_leads");
+        var function = GetFunction(factory, "crm_search_leads", cancellation.Token);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await function.InvokeAsync(new AIFunctionArguments(new Dictionary<string, object?> { ["keyword"] = "Acme" })));
@@ -202,9 +202,12 @@ public sealed class CrmChatToolFactoryTests
         Assert.Empty(permissionGuard.GrantedPermissions);
     }
 
-    private static AIFunction GetFunction(CrmChatToolFactory factory, string name) =>
+    private static AIFunction GetFunction(
+        CrmChatToolFactory factory,
+        string name,
+        CancellationToken cancellationToken = default) =>
         Assert.IsAssignableFrom<AIFunction>(
-            Assert.Single(factory.CreateTools(CancellationToken.None), tool =>
+            Assert.Single(factory.CreateTools(cancellationToken), tool =>
                 string.Equals(tool.GetType().GetProperty("Name")?.GetValue(tool) as string, name, StringComparison.Ordinal)));
 
     private sealed class RecordingCustomerQuery : ICrmCustomerQueryService
