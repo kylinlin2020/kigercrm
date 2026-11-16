@@ -212,3 +212,6 @@ The branch integration is complete; feature acceptance is not. The functional ga
 剩余 2 个失败是**真实字段安全接线缺口**，不是测试漂移：9 个获客实体缺 `GuardQueryAsync` 查询门控，14 个实体缺实体→DTO 映射器。二者都需要产品侧决定「补齐受控查询服务与映射器」或「收窄登记范围」，不得放宽守卫伪造通过。
 
 本条目状态维持「待运行时验收」：真实 HTTP 冒烟、PG 并发、升级脚本实测、Windows 原生部署实机验收均未取证；`HAITUO-CRM-FUNCTION-MIGRATION-MATRIX.md` 第 2 节第 25/26 行不改判。推送状态：`8e8d39349` 已同步；`fa35f776d` 因 GitHub HTTPS 代理/TLS 错误（`schannel: server closed abruptly`、`Empty reply from server`）尚未推送到 `origin/kiger-dev`，需在网络恢复后补推。
+
+
+同日补记：`Ai.Tests` 的 2 个 `CrmChatToolFactory` 取消失败也属测试接线漂移（`GetFunction` 辅助方法硬编码 `CancellationToken.None`，测试里创建的已取消 CTS 从未传入 `CreateTools`）。改为辅助方法接受可选 token 并在两个取消用例传入 `cancellation.Token` 后，`Ai.Tests` **582 总 / 0 失败 / 582 通过**。提交 `AI 取消令牌接线`。
