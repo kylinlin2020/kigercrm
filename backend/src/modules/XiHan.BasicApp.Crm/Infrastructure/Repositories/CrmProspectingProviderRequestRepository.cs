@@ -355,7 +355,13 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
         var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for provider request recovery.");
         var ageMilliseconds = checked((long)Math.Ceiling(minimumAge.TotalMilliseconds));
-        const string sql = """
+        // Platform-scope recovery passes a null tenant id. Binding a null SugarParameter makes
+        // PostgreSQL infer the parameter as text and fail with "bigint = text". Render the null
+        // branch as a literal IS NULL instead; only the tenant branch binds a typed bigint.
+        var tenantFilter = currentTenant.TenantId is null
+            ? "request.tenant_id IS NULL"
+            : "request.tenant_id = @tenantId";
+        var sql = $$"""
             WITH recovery_clock AS MATERIALIZED (
                 SELECT clock_timestamp() AS now
             )
@@ -369,7 +375,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
                 failure_code = 'worker_interrupted',
                 failure_summary = 'Provider request was interrupted before a terminal outcome.'
             FROM recovery_clock
-            WHERE request.tenant_id = @tenantId
+            WHERE {{tenantFilter}}
               AND request.state = 'Started'
               AND request.started_at <= recovery_clock.now - (@ageMilliseconds * INTERVAL '1 millisecond')
               -- A completed provider execution with a durable response checkpoint may still
@@ -408,12 +414,15 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             RETURNING request.basic_id AS "BasicId";
             """;
 
-        var recovered = await client.Ado.SqlQueryAsync<long>(
-            sql,
-            new SugarParameter("@tenantId", currentTenant.TenantId),
-            new SugarParameter("@ageMilliseconds", ageMilliseconds),
-            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
-            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested));
+        var parameters = new List<SugarParameter>
+        {
+            new("@ageMilliseconds", ageMilliseconds),
+            new("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested)
+        };
+        if (currentTenant.TenantId is not null)
+            parameters.Add(new SugarParameter("@tenantId", currentTenant.TenantId));
+        var recovered = await client.Ado.SqlQueryAsync<long>(sql, parameters.ToArray());
         return recovered.Count;
     }
 

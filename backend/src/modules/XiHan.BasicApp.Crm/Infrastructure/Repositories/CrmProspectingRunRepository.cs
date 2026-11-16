@@ -789,7 +789,13 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             throw new NotSupportedException("Prospecting lease recovery requires PostgreSQL.");
         var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
-        const string sql = """
+        // Platform-scope recovery passes a null tenant id. Binding a null SugarParameter makes
+        // PostgreSQL infer the parameter as text and fail with "bigint = text". Render the null
+        // branch as a literal IS NULL instead; only the tenant branch binds a typed bigint.
+        var tenantFilter = currentTenant.TenantId is null
+            ? "run.tenant_id IS NULL"
+            : "run.tenant_id = @tenantId";
+        var sql = $$"""
             WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
             UPDATE crm_prospecting_run AS run
             SET status = CASE
@@ -810,20 +816,23 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 lease_expires_at = NULL,
                 lease_heartbeat_at = NULL
             FROM lease_clock
-            WHERE run.tenant_id = @tenantId
+            WHERE {{tenantFilter}}
               AND run.status IN (@runningStatus, @cancelRequestedStatus, @waitingStatus)
               AND run.lease_expires_at IS NOT NULL
               AND run.lease_expires_at <= lease_clock.now
             RETURNING run.basic_id AS "BasicId";
             """;
-        var rows = await client.Ado.SqlQueryAsync<long>(
-            sql,
-            new SugarParameter("@tenantId", currentTenant.TenantId),
-            new SugarParameter("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
-            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
-            new SugarParameter("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested),
-            new SugarParameter("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled),
-            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions));
+        var parameters = new List<SugarParameter>
+        {
+            new("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
+            new("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested),
+            new("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled),
+            new("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions)
+        };
+        if (currentTenant.TenantId is not null)
+            parameters.Add(new SugarParameter("@tenantId", currentTenant.TenantId));
+        var rows = await client.Ado.SqlQueryAsync<long>(sql, parameters.ToArray());
         return rows.Count;
     }
 

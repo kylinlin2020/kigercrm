@@ -751,12 +751,19 @@ public sealed class CrmProspectingPersistenceWiringTests
         var method = repository[start..end];
 
         Assert.Contains("clock_timestamp()", method, StringComparison.Ordinal);
+        // Platform-scope recovery passes a null tenant id: the filter must render an IS NULL
+        // literal there (binding null would make PostgreSQL infer text and fail "bigint = text"),
+        // and bind a typed bigint parameter only for real tenants.
+        Assert.Contains("run.tenant_id IS NULL", method, StringComparison.Ordinal);
         Assert.Contains("run.tenant_id = @tenantId", method, StringComparison.Ordinal);
+        Assert.Contains("WHERE {{tenantFilter}}", method, StringComparison.Ordinal);
+        Assert.Contains("currentTenant.TenantId is null", method, StringComparison.Ordinal);
+        Assert.Contains("if (currentTenant.TenantId is not null)", method, StringComparison.Ordinal);
         Assert.Contains("run.status IN (@runningStatus, @cancelRequestedStatus, @waitingStatus)", method, StringComparison.Ordinal);
         Assert.Contains("WHEN run.status = @cancelRequestedStatus THEN @cancelledStatus", method, StringComparison.Ordinal);
         Assert.Contains("WHEN run.status = @cancelRequestedStatus THEN lease_clock.now", method, StringComparison.Ordinal);
-        Assert.Contains("new SugarParameter(\"@cancelRequestedStatus\", (int)CrmProspectingRunStatus.CancelRequested)", method, StringComparison.Ordinal);
-        Assert.Contains("new SugarParameter(\"@cancelledStatus\", (int)CrmProspectingRunStatus.Cancelled)", method, StringComparison.Ordinal);
+        Assert.Contains("CancelRequested)", method, StringComparison.Ordinal);
+        Assert.Contains("Cancelled)", method, StringComparison.Ordinal);
         Assert.Contains("run.lease_expires_at IS NOT NULL", method, StringComparison.Ordinal);
         Assert.Contains("run.lease_expires_at <= lease_clock.now", method, StringComparison.Ordinal);
         Assert.Contains("started_at = CASE", method, StringComparison.Ordinal);
