@@ -292,13 +292,37 @@ public sealed class CrmProspectingPersistenceWiringTests
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
             "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
+        var persistence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
 
-        var insertIndex = worker.IndexOf("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", StringComparison.Ordinal);
-        var catchIndex = worker.IndexOf("catch (Exception ex) when (IsCandidateIdentityUniqueViolation(ex))", insertIndex, StringComparison.Ordinal);
-        var winnerLookup = worker.IndexOf("candidates.GetByIdentityAsync(", catchIndex, StringComparison.Ordinal);
-        var repairCall = worker.IndexOf("RepairCandidateProvenanceAsync(", winnerLookup, StringComparison.Ordinal);
-        Assert.True(insertIndex >= 0 && catchIndex > insertIndex && winnerLookup > catchIndex && repairCall > winnerLookup,
-            "Candidate identity recovery must occur after the failed insert UoW has left scope and must resolve the exact tenant-scoped identity.");
+        // Candidate insert/commit now live in the fenced persistence service; the worker only
+        // owns the narrow identity-race recovery after that service's UoW has been disposed.
+        var persistStart = persistence.IndexOf("public async Task<SysCrmProspectingCandidate> PersistNewAsync(", StringComparison.Ordinal);
+        var persistEnd = persistStart >= 0
+            ? persistence.IndexOf("/// <summary>", persistStart, StringComparison.Ordinal)
+            : -1;
+        Assert.True(persistStart >= 0 && persistEnd > persistStart, "PersistNewAsync must exist in the shared persistence boundary.");
+        var persistNew = persistence[persistStart..persistEnd];
+        Assert.Contains("_runs.TryLockLeaseForWriteAsync(candidate.RunId, leaseToken, fencingVersion, cancellationToken)", persistNew, StringComparison.Ordinal);
+        Assert.Contains("await _candidates.AddAsync(candidate, cancellationToken)", persistNew, StringComparison.Ordinal);
+        var fenceIndex = persistNew.IndexOf("_runs.TryLockLeaseForWriteAsync(candidate.RunId, leaseToken, fencingVersion, cancellationToken)", StringComparison.Ordinal);
+        var candidateInsert = persistNew.IndexOf("await _candidates.AddAsync(candidate, cancellationToken)", fenceIndex, StringComparison.Ordinal);
+        var completeIndex = persistNew.IndexOf("await unitOfWork.CompleteAsync(cancellationToken)", candidateInsert, StringComparison.Ordinal);
+        Assert.True(fenceIndex >= 0 && candidateInsert > fenceIndex && completeIndex > candidateInsert,
+            "Candidate persistence must be fenced by the live Run lease and committed in one transaction before the caller observes success.");
+
+        Assert.Contains(".PersistNewAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("catch (Exception ex) when (IsCandidateIdentityUniqueViolation(ex))", worker, StringComparison.Ordinal);
+        Assert.Contains("var winner = await candidates.GetByIdentityAsync(", worker, StringComparison.Ordinal);
+        Assert.Contains("candidateWasInserted = false;", worker, StringComparison.Ordinal);
+        Assert.Contains("await RepairCandidateProvenanceAsync(", worker, StringComparison.Ordinal);
+        var persistCall = worker.IndexOf(".PersistNewAsync(", StringComparison.Ordinal);
+        var catchIndex = worker.IndexOf("catch (Exception ex) when (IsCandidateIdentityUniqueViolation(ex))", persistCall, StringComparison.Ordinal);
+        var winnerLookup = worker.IndexOf("var winner = await candidates.GetByIdentityAsync(", catchIndex, StringComparison.Ordinal);
+        var raceFallback = worker.IndexOf("candidateWasInserted = false;", winnerLookup, StringComparison.Ordinal);
+        var repairCall = worker.IndexOf("await RepairCandidateProvenanceAsync(", raceFallback, StringComparison.Ordinal);
+        Assert.True(catchIndex > persistCall && winnerLookup > catchIndex && raceFallback > winnerLookup && repairCall > raceFallback,
+            "Candidate identity recovery must resolve the exact tenant-scoped winner and suppress new-candidate side effects before repairing provenance.");
         Assert.Contains("run.BasicId,\n                        providerCode,\n                        externalId", worker, StringComparison.Ordinal);
         Assert.Contains("ux_crm_prospecting_candidate_te_ru_pr_ex_is", worker, StringComparison.Ordinal);
         Assert.Contains("ux_crm_prospecting_evidence_evidenceidentity", worker, StringComparison.Ordinal);
@@ -323,11 +347,22 @@ public sealed class CrmProspectingPersistenceWiringTests
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
 
         Assert.Contains("existingCandidateByKey.TryGetValue(key, out var existingCandidate)", worker, StringComparison.Ordinal);
-        Assert.Contains(".ToHashSet(StringComparer.Ordinal)", worker, StringComparison.Ordinal);
         Assert.Contains(".ToDictionary(candidate => (candidate.ProviderCode, candidate.ExternalId))", worker, StringComparison.Ordinal);
         Assert.Contains(".Select(candidate => (candidate.ProviderCode, candidate.ExternalId))", worker, StringComparison.Ordinal);
         Assert.DoesNotContain("$\"{candidate.ProviderCode}::{candidate.ExternalId}\"", worker, StringComparison.Ordinal);
-        Assert.Contains("StringComparer.Ordinal);", worker, StringComparison.Ordinal);
+        Assert.Contains("StringComparer.Ordinal)", worker, StringComparison.Ordinal);
+
+        // Exact provider/external identity keys are a typed tuple set; normalized email/domain
+        // sets may use OrdinalIgnoreCase, but the identity set itself must not.
+        Assert.Contains("var existingKeys = existingCandidates", worker, StringComparison.Ordinal);
+        var identityKeysStart = worker.IndexOf("var existingKeys = existingCandidates", StringComparison.Ordinal);
+        var identityKeysEnd = worker.IndexOf(".ToHashSet();", identityKeysStart, StringComparison.Ordinal);
+        Assert.True(identityKeysEnd > identityKeysStart,
+            "Existing Run identities must be an exact typed tuple set.");
+        var identityKeys = worker[identityKeysStart..identityKeysEnd];
+        Assert.Contains(".Select(candidate => (candidate.ProviderCode, candidate.ExternalId))", identityKeys, StringComparison.Ordinal);
+        Assert.DoesNotContain("OrdinalIgnoreCase", identityKeys, StringComparison.Ordinal);
+        Assert.DoesNotContain("::", identityKeys, StringComparison.Ordinal);
         Assert.Contains("evidenceRepository.GetByCandidateAsync(", worker, StringComparison.Ordinal);
         Assert.Contains("evidence.ProviderRecordId,", worker, StringComparison.Ordinal);
         Assert.Contains(".ToHashSet();", worker, StringComparison.Ordinal);
@@ -335,13 +370,15 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("await evidenceRepository.AddRangeAsync(missingEvidence, cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("await repairUnitOfWork.CompleteAsync(cancellationToken)", worker, StringComparison.Ordinal);
         Assert.Contains("existingCandidateByKey[key] = insertedCandidate", worker, StringComparison.Ordinal);
-        Assert.Contains(".ToHashSet(StringComparer.Ordinal);", worker, StringComparison.Ordinal);
 
-        var insertIndex = worker.IndexOf("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", StringComparison.Ordinal);
-        var commitIndex = worker.IndexOf("await unitOfWork.CompleteAsync(cancellationToken)", insertIndex, StringComparison.Ordinal);
-        var identityMapIndex = worker.IndexOf("existingCandidateByKey[key] = insertedCandidate", commitIndex, StringComparison.Ordinal);
-        Assert.True(insertIndex >= 0 && commitIndex > insertIndex && identityMapIndex > commitIndex,
-            "The persisted Candidate must be added to the in-memory identity map only after its transaction commits.");
+        // Candidate insert and commit are owned by the fenced persistence service; the worker
+        // may only publish the winner into its identity map after that await returns.
+        Assert.Contains(".PersistNewAsync(", worker, StringComparison.Ordinal);
+        var persistCall = worker.IndexOf(".PersistNewAsync(", StringComparison.Ordinal);
+        Assert.Contains("existingCandidateByKey[key] = insertedCandidate", worker, StringComparison.Ordinal);
+        var identityMapIndex = worker.IndexOf("existingCandidateByKey[key] = insertedCandidate", persistCall, StringComparison.Ordinal);
+        Assert.True(persistCall >= 0 && identityMapIndex > persistCall,
+            "The Candidate must be added to the in-memory identity map only after its fenced persistence call returns.");
     }
 
     [Fact]
@@ -535,9 +572,24 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("WITH locked_run AS MATERIALIZED", repository, StringComparison.Ordinal);
         Assert.Contains("locked_run.lease_expires_at > clock_timestamp()", repository, StringComparison.Ordinal);
 
-        var fencedWrite = worker.IndexOf("TryLockLeaseForWriteAsync", StringComparison.Ordinal);
-        var candidateInsert = worker.IndexOf("insertedCandidate = await candidates.AddAsync(candidate, cancellationToken)", StringComparison.Ordinal);
-        Assert.True(fencedWrite >= 0 && candidateInsert > fencedWrite,
+        // The worker no longer owns the Candidate insert; the shared persistence service must
+        // fence the live tenant-scoped Run inside its own transaction before any child write.
+        var persistence = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmProspectingCandidateFactory.cs");
+        var persistStart = persistence.IndexOf("public async Task<SysCrmProspectingCandidate> PersistNewAsync(", StringComparison.Ordinal);
+        var persistEnd = persistStart >= 0
+            ? persistence.IndexOf("/// <summary>", persistStart, StringComparison.Ordinal)
+            : -1;
+        Assert.True(persistStart >= 0 && persistEnd > persistStart, "PersistNewAsync must exist in the shared persistence boundary.");
+        var persistNew = persistence[persistStart..persistEnd];
+        Assert.Contains("isTransactional: true", persistNew, StringComparison.Ordinal);
+        Assert.Contains("requiresNew: true", persistNew, StringComparison.Ordinal);
+        Assert.Contains("_runs.TryLockLeaseForWriteAsync(candidate.RunId, leaseToken, fencingVersion, cancellationToken)", persistNew, StringComparison.Ordinal);
+        Assert.Contains("await _candidates.AddAsync(candidate, cancellationToken)", persistNew, StringComparison.Ordinal);
+        var fenceIndex = persistence.IndexOf("_runs.TryLockLeaseForWriteAsync(candidate.RunId, leaseToken, fencingVersion, cancellationToken)", persistStart, StringComparison.Ordinal);
+        var candidateInsert = persistence.IndexOf("await _candidates.AddAsync(candidate, cancellationToken)", fenceIndex, StringComparison.Ordinal);
+        var completeIndex = persistence.IndexOf("await unitOfWork.CompleteAsync(cancellationToken)", candidateInsert, StringComparison.Ordinal);
+        Assert.True(fenceIndex > persistStart && candidateInsert > fenceIndex && completeIndex > candidateInsert && completeIndex < persistEnd,
             "Candidate/Evidence/Score writes must be fenced inside their transaction.");
         Assert.Contains("TryLockLeaseForWriteAsync(runId, leaseToken, fencingVersion, cancellationToken)", worker, StringComparison.Ordinal);
 
