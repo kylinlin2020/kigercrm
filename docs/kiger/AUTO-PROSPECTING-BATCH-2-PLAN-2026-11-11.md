@@ -244,8 +244,20 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 | 3 | Worker 重构后 5 处字面量（候选默认状态、取消谓词、唯一竞态 catch、score 快照参数、失败终态围栏） | 全部换成等价或更强守卫：实体 DB 默认值 + 枚举双向守卫、同谓词相对位置、完整 catch 表达式、链式调用 + 租约/围栏参数 | 3 |
 | 4 | legacy 索引创建脚本版本错误（5.9.21 → 5.9.18）、唯一索引列跨行、候选/证据写入迁入 `CrmProspectingCandidateFactory` | 修正迁移版本；索引头 + 列相对位置守卫；断言指向真实职责类并补事务边界守卫 | 3 |
 
-验证：`Api.Tests` 编译 0 错误；完整 **1109 总 / 58 失败 / 1020 通过 / 31 跳过** —— 失败 101 → 58、通过 +43，总数与跳过数不变，零回归。本文件「101 个基线失败」读数自本轮起为 **58**。
+验证：`Api.Tests` 编译 0 错误；完整 **1109 总 / 58 失败 / 1020 通过 / 31 跳过** —— 失败 101 → 58、通过 +43，总数与跳过数不变，零回归。本文件「101 个基线失败」读数曾为 **58**。
 
-**剩余 3 个不越级处理**：`ProspectingWorker_ShouldRecoverOnlyCandidateIdentityUniqueRacesAfterRollback`、`ProspectingWorker_ShouldReconcileMissingEvidenceForExistingCandidates`、`ProspectingChildWriteFence_ShouldRequireTransactionAndLockTheLiveTenantScopedRun` 都是跨文件线性 `IndexOf` 顺序断言。Worker 职责拆分后 insert / commit / 围栏分处 `CrmProspectingRunHostedService` 与 `CrmProspectingCandidateFactory`，简单拼接会破坏顺序语义并可能降低并发守卫强度；须逐条读 worker 600–750 / 1100–1230 行重新设计守卫，独立成批。
+### 2026-11-15 再后续：跨文件顺序守卫按职责边界重设计（3 个失败清零）
+
+上一批留下的 3 个断言不再在单个 Worker 文件里做线性 `IndexOf`（insert/commit/围栏已分处 `CrmProspectingRunHostedService` 与 `CrmProspectingCandidateFactory`），改为按职责边界断言，**守卫强度不降反升**：
+
+| 测试 | 旧守卫（失效） | 新守卫 |
+|---|---|---|
+| `ProspectingWorker_ShouldRecoverOnlyCandidateIdentityUniqueRacesAfterRollback` | Worker 内 `candidates.AddAsync` → catch → `GetByIdentityAsync` → `RepairCandidateProvenanceAsync` 线性顺序 | ① `PersistNewAsync` 方法体内 `_runs.TryLockLeaseForWriteAsync(candidate.RunId, ...)` → `_candidates.AddAsync` → `CompleteAsync` 同事务顺序；② Worker 侧 `.PersistNewAsync` → 窄化 catch `IsCandidateIdentityUniqueViolation` → `var winner = ...GetByIdentityAsync(...)` → `candidateWasInserted = false` → `await RepairCandidateProvenanceAsync(...)` |
+| `ProspectingWorker_ShouldReconcileMissingEvidenceForExistingCandidates` | Worker 内 insert → `unitOfWork.CompleteAsync` → 身份映射 | `.PersistNewAsync` await 返回后才 `existingCandidateByKey[key] = insertedCandidate`；身份键结构化守卫：typed tuple `(ProviderCode, ExternalId)` + 非 `OrdinalIgnoreCase` + 无 `::` 分隔符拼接 |
+| `ProspectingChildWriteFence_ShouldRequireTransactionAndLockTheLiveTenantScopedRun` | Worker 内 `TryLockLeaseForWriteAsync` < `candidates.AddAsync` | `PersistNewAsync` 方法体必须有 `isTransactional: true` + `requiresNew: true`，且同租户围栏早于候选 insert 与 commit；Worker 保留修复 helper 的 `TryLockLeaseForWriteAsync(runId, leaseToken, fencingVersion, ...)` 与 GLEIF registry 证据围栏守卫 |
+
+副产物：暴露并修掉同一测试里另一个过时字面量 `.ToHashSet(StringComparer.Ordinal)` —— Worker 真实实现用 typed tuple 的默认序等 `.ToHashSet()`，现改为结构化守卫，不再依赖具体比较器写法。仅改 `CrmProspectingPersistenceWiringTests.cs`，未动任何功能代码。
+
+验证：定向 `CrmProspectingPersistenceWiringTests` **40/40 全绿**；全量 `Api.Tests` **1109 总 / 55 失败 / 1023 通过 / 31 跳过**（58→55、通过 +3，总数与跳过数不变，零回归）。提交 `e69ab9549` 已推送 `origin/kiger-dev`。
 
 其余 55 个分散在 `CrmProspectingProviderRequestRepositorySqliteTests`（4，`Assert.Equal` 运行时差异）、`FieldSecurityEntityWiringTests`（3）、Provider 外呼 `HttpRequestException`、唯一索引/并发异常等；2 个 PG 夹具与 1 个无 `TenantId` 常量夹具仍未纳入。实机 Windows 验收与真实 HTTP 冒烟仍待完成，迁移条目依旧不关闭。
