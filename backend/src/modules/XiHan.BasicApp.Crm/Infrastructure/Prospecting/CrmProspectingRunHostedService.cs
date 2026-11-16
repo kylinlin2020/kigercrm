@@ -152,6 +152,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var current = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+                if (current?.Status == CrmProspectingRunStatus.Paused)
+                    throw new RunPausedException();
                 if (current?.Status == CrmProspectingRunStatus.CancelRequested)
                     break;
                 await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
@@ -516,6 +518,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 // Keep this database read outside the provider exception handler: a read failure
                 // must fail the Run rather than be mistaken for a provider outage.
                 var afterProvider = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+                if (afterProvider?.Status == CrmProspectingRunStatus.Paused)
+                    throw new RunPausedException();
                 if (afterProvider?.Status == CrmProspectingRunStatus.CancelRequested)
                     break;
                 await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
@@ -529,6 +533,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             var beforeCandidates = await runs.GetByIdAsync(run.BasicId, cancellationToken);
             var candidates = scope.ServiceProvider.GetRequiredService<ICrmProspectingCandidateRepository>();
             var existingCandidates = await candidates.GetListAsync(candidate => candidate.RunId == run.BasicId, cancellationToken);
+            if (beforeCandidates?.Status == CrmProspectingRunStatus.Paused)
+                throw new RunPausedException();
             if (beforeCandidates?.Status == CrmProspectingRunStatus.CancelRequested)
             {
                 if (!await runs.CancelFencedWithDatabaseClockAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken))
@@ -613,6 +619,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 if (recordIndex % cancellationPollInterval == 0)
                 {
                     var runState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+                    if (runState?.Status == CrmProspectingRunStatus.Paused)
+                        throw new RunPausedException();
                     if (runState?.Status == CrmProspectingRunStatus.CancelRequested) break;
                     await RenewLeaseOrThrowAsync(runs, run.BasicId, leaseToken, activeFencingVersion, cancellationToken);
                 }
@@ -961,6 +969,8 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
             if (summary?.Length > 2000) summary = summary[..2000];
 
             finalRunState = await runs.GetByIdAsync(run.BasicId, cancellationToken);
+            if (finalRunState?.Status == CrmProspectingRunStatus.Paused)
+                throw new RunPausedException();
             var finalized = finalRunState?.Status == CrmProspectingRunStatus.CancelRequested
                 ? await runs.CancelFencedWithDatabaseClockAsync(run.BasicId, leaseToken, activeFencingVersion, cancellationToken)
                 : await runs.CompleteFencedWithDatabaseClockAsync(
@@ -978,6 +988,31 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         {
             // Leave Running persisted; controlled single-worker startup recovery requeues it after a process stop.
             throw;
+        }
+        catch (RunPausedException)
+        {
+            // User-requested pause observed at a safe checkpoint. Durable provider checkpoints
+            // and any already-projected candidates are preserved; release this Run's lease under
+            // the exact fencing so no further in-flight writes are admitted. Never finalize a
+            // terminal state or mark it failed. Resume replays from the persisted ledger.
+            Logger.LogInformation("Prospecting Run paused at a safe checkpoint: {RunId}", message.RunId);
+            if (activeLeaseToken is Guid pauseLeaseToken && activeFencingVersion > 0)
+            {
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    using var tenantScope = scope.ServiceProvider.GetRequiredService<ICurrentTenant>().Change(message.TenantId);
+                    await scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>()
+                        .ReleaseLeaseForPauseAsync(
+                            message.RunId, pauseLeaseToken, activeFencingVersion, CancellationToken.None);
+                }
+                catch (Exception releaseException)
+                {
+                    // A concurrent Resume/Cancel may already have invalidated this fencing; the
+                    // lease is then already released by that path. Log only, never mask the pause.
+                    Logger.LogDebug(releaseException, "Pause lease release was superseded for Run {RunId}", message.RunId);
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -1027,10 +1062,12 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
                 using var tenantScope = scope.ServiceProvider.GetRequiredService<ICurrentTenant>().Change(tenantId);
                 var runs = scope.ServiceProvider.GetRequiredService<ICrmProspectingRunRepository>();
                 var current = await runs.GetByIdAsync(runId, runCancellation.Token);
-                // CancelRequested intentionally stops lease renewal without cancelling the
-                // worker token: the processing path must observe it and finalize via the
-                // fenced Cancel transition rather than treating user cancellation as lease loss.
+                // CancelRequested and Paused both stop lease renewal without cancelling the
+                // worker token: the processing path must observe them and finalize via the
+                // fenced Cancel transition / pause exit rather than treating them as lease loss.
                 if (current?.Status == CrmProspectingRunStatus.CancelRequested)
+                    return;
+                if (current?.Status == CrmProspectingRunStatus.Paused)
                     return;
                 if (current?.Status != CrmProspectingRunStatus.Running)
                     throw new InvalidOperationException("The prospecting Run heartbeat found a non-running or missing Run.");
@@ -1237,6 +1274,23 @@ public sealed class CrmProspectingRunHostedService : XiHanBackgroundServiceBase<
         if (!await runs.RenewLeaseWithDatabaseClockAsync(
             runId, leaseToken, fencingVersion, RunLeaseDuration, cancellationToken))
             throw new InvalidOperationException("The prospecting Run lease expired or was superseded.");
+    }
+
+    /// <summary>
+    /// Internal control-flow signal for a user-requested Pause observed at a safe checkpoint.
+    /// In-flight provider calls and their durable checkpoints are preserved; the Run is left
+    /// Paused (non-terminal, CompletedAt NULL) for a later Resume to replay from the ledger.
+    /// </summary>
+    private sealed class RunPausedException : Exception;
+
+    private static async Task ThrowIfPausedAsync(
+        ICrmProspectingRunRepository runs,
+        long runId,
+        CancellationToken cancellationToken)
+    {
+        var state = await runs.GetByIdAsync(runId, cancellationToken);
+        if (state?.Status == CrmProspectingRunStatus.Paused)
+            throw new RunPausedException();
     }
 
     private static string BuildInitialScoreIdempotencyKey(long candidateId, string scorecardVersion)

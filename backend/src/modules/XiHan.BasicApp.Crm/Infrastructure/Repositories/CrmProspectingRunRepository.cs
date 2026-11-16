@@ -132,7 +132,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 FROM crm_prospecting_run AS run
                 WHERE run.tenant_id = @tenantId
                   AND run.basic_id = @runId
-                  AND run.status = @runningStatus
+                  -- Paused admits in-flight child writes under the same lease/fencing; the
+                  -- pause exit clears the lease so no new work can be admitted afterwards.
+                  AND run.status IN (@runningStatus, @pausedStatus)
                   AND run.lease_token = @leaseToken
                   AND run.fencing_version = @fencingVersion
                 FOR UPDATE
@@ -148,6 +150,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@tenantId", tenantId),
             new SugarParameter("@runId", runId),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@pausedStatus", (int)CrmProspectingRunStatus.Paused),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion));
 
@@ -227,7 +230,9 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             FROM lease_clock
             WHERE run.tenant_id = @tenantId
               AND run.basic_id = @runId
-              AND run.status IN (@runningStatus, @waitingStatus)
+              -- Heartbeats continue across Pause so in-flight work keeps a live lease until
+              -- the worker reaches the pause exit and releases it under the same fencing.
+              AND run.status IN (@runningStatus, @waitingStatus, @pausedStatus)
               AND run.lease_token = @leaseToken
               AND run.fencing_version = @fencingVersion
               AND run.lease_expires_at IS NOT NULL
@@ -241,6 +246,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new SugarParameter("@runId", runId),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
             new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions),
+            new SugarParameter("@pausedStatus", (int)CrmProspectingRunStatus.Paused),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion),
             new SugarParameter("@leaseDurationMilliseconds", durationMilliseconds));
@@ -271,7 +277,8 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             },
             run => run.BasicId == runId &&
                 (run.Status == CrmProspectingRunStatus.Running ||
-                 run.Status == CrmProspectingRunStatus.WaitingForExtractions) &&
+                 run.Status == CrmProspectingRunStatus.WaitingForExtractions ||
+                 run.Status == CrmProspectingRunStatus.Paused) &&
                 run.LeaseToken == leaseToken &&
                 run.FencingVersion == fencingVersion &&
                 run.LeaseExpiresAt != null &&
@@ -970,5 +977,156 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
                 run.LeaseHeartbeatAt == null &&
                 run.LeaseExpiresAt == null,
             cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<SysCrmProspectingRun?> TryPauseAsync(
+        long runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting run pausing requires PostgreSQL.");
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required to pause a Run.");
+
+        // Pause keeps the lease metadata intact so in-flight child writes and heartbeats still
+        // pass under the same fencing (the write/heartbeat predicates admit Paused). CompletedAt
+        // stays NULL: Paused is a non-terminal state, never a settlement.
+        const string sql = """
+            UPDATE crm_prospecting_run AS run
+            SET status = @pausedStatus
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status IN (@queuedStatus, @runningStatus, @waitingStatus)
+            RETURNING run.*;
+            """;
+        var rows = await client.Ado.SqlQueryAsync<SysCrmProspectingRun>(
+            sql,
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@pausedStatus", (int)CrmProspectingRunStatus.Paused),
+            new SugarParameter("@queuedStatus", (int)CrmProspectingRunStatus.Queued),
+            new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions));
+        return rows.SingleOrDefault();
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> ReleaseLeaseForPauseAsync(
+        long runId,
+        Guid leaseToken,
+        long fencingVersion,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        if (leaseToken == Guid.Empty) throw new ArgumentException("Lease token cannot be empty.", nameof(leaseToken));
+        if (fencingVersion <= 0) throw new ArgumentOutOfRangeException(nameof(fencingVersion));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting pause exit requires PostgreSQL.");
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for the pause exit.");
+
+        // Worker-side pause exit only: release the lease under the exact fencing after in-flight
+        // writes are durable. Still Paused, CompletedAt untouched, no terminal state written.
+        const string sql = """
+            UPDATE crm_prospecting_run AS run
+            SET lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at = NULL,
+                lease_heartbeat_at = NULL,
+                fencing_version = run.fencing_version + 1
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @pausedStatus
+              AND run.lease_token = @leaseToken
+              AND run.fencing_version = @fencingVersion
+            RETURNING run.basic_id AS "BasicId";
+            """;
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@pausedStatus", (int)CrmProspectingRunStatus.Paused),
+            new SugarParameter("@leaseToken", leaseToken),
+            new SugarParameter("@fencingVersion", fencingVersion));
+        return rows.Count == 1;
+    }
+
+    /// <inheritdoc/>
+    public async Task<SysCrmProspectingRun?> TryResumeAsync(
+        long runId,
+        bool resumeToWaiting,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Prospecting run resuming requires PostgreSQL.");
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required to resume a Run.");
+
+        // Resume writes back a non-terminal state and invalidates any stale lease so the normal
+        // claim/coordinator path can pick it up. resumeToWaiting reuses the existing coordinator
+        // aggregation even when all child jobs already finished during the pause.
+        var targetStatus = resumeToWaiting
+            ? CrmProspectingRunStatus.WaitingForExtractions
+            : CrmProspectingRunStatus.Queued;
+        const string sql = """
+            UPDATE crm_prospecting_run AS run
+            SET status = @targetStatus,
+                lease_owner = NULL,
+                lease_token = NULL,
+                lease_expires_at = NULL,
+                lease_heartbeat_at = NULL,
+                fencing_version = run.fencing_version + 1
+            WHERE run.tenant_id = @tenantId
+              AND run.basic_id = @runId
+              AND run.status = @pausedStatus
+            RETURNING run.*;
+            """;
+        var rows = await client.Ado.SqlQueryAsync<SysCrmProspectingRun>(
+            sql,
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@runId", runId),
+            new SugarParameter("@targetStatus", (int)targetStatus),
+            new SugarParameter("@pausedStatus", (int)CrmProspectingRunStatus.Paused));
+        return rows.SingleOrDefault();
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> HasExtractionJobsAsync(
+        long runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var client = DbClient;
+        if (client.CurrentConnectionConfig.DbType != DbType.PostgreSQL)
+            throw new NotSupportedException("Extraction job discovery requires PostgreSQL.");
+        var tenant = AsyncLocalCurrentTenantAccessor.Instance.Current
+            ?? throw new InvalidOperationException("A current tenant context is required for extraction job discovery.");
+
+        const string sql = """
+            SELECT job.basic_id
+            FROM crm_prospecting_extraction_job AS job
+            WHERE job.tenant_id = @tenantId
+              AND job.run_id = @runId
+            LIMIT 1;
+            """;
+        var rows = await client.Ado.SqlQueryAsync<long>(
+            sql,
+            new SugarParameter("@tenantId", tenant.TenantId),
+            new SugarParameter("@runId", runId));
+        return rows.Count > 0;
     }
 }

@@ -25,6 +25,7 @@ export enum CrmProspectingRunStatus {
   CancelRequested = 5,
   Cancelled = 6,
   WaitingForExtractions = 7,
+  Paused = 8,
 }
 
 export enum CrmProspectingCandidateStatus {

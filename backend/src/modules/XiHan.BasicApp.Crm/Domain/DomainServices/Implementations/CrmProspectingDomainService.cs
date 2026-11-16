@@ -215,6 +215,19 @@ public sealed class CrmProspectingDomainService(
         {
             run.Status = CrmProspectingRunStatus.CancelRequested;
         }
+        else if (run.Status == CrmProspectingRunStatus.Paused)
+        {
+            // A paused Run has no active worker holding a lease (the pause exit released it),
+            // so setting CancelRequested would have no reviewer to finalize it. Cancellation
+            // while paused goes straight to the terminal state, matching WaitingForExtractions.
+            run.Status = CrmProspectingRunStatus.Cancelled;
+            run.CompletedAt = DateTimeOffset.UtcNow;
+            run.LeaseOwner = null;
+            run.LeaseToken = null;
+            run.LeaseExpiresAt = null;
+            run.LeaseHeartbeatAt = null;
+            run.FencingVersion = checked(run.FencingVersion + 1);
+        }
         else if (run.Status == CrmProspectingRunStatus.CancelRequested || run.Status == CrmProspectingRunStatus.Cancelled)
         {
             return run;

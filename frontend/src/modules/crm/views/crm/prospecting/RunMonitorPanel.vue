@@ -25,6 +25,7 @@ function runStatus(value: number) {
     t('crm.prospecting.cancelRequested'),
     t('crm.prospecting.cancelled'),
     t('crm.prospecting.waitingForExtractions'),
+    t('crm.prospecting.runPaused'),
   ][value] ?? String(value)
 }
 

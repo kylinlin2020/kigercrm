@@ -97,7 +97,7 @@ function strategyStatus(value: number) {
   return [t('crm.prospecting.strategyDraft'), t('crm.prospecting.pendingApproval'), t('crm.prospecting.approved'), t('crm.prospecting.rejected'), t('crm.prospecting.revoked')][value] ?? String(value)
 }
 function runStatus(value: number) {
-  return [t('crm.prospecting.queued'), t('crm.prospecting.running'), t('crm.prospecting.succeeded'), t('crm.prospecting.partiallySucceeded'), t('crm.prospecting.failed'), t('crm.prospecting.cancelRequested'), t('crm.prospecting.cancelled'), t('crm.prospecting.waitingForExtractions')][value] ?? String(value)
+  return [t('crm.prospecting.queued'), t('crm.prospecting.running'), t('crm.prospecting.succeeded'), t('crm.prospecting.partiallySucceeded'), t('crm.prospecting.failed'), t('crm.prospecting.cancelRequested'), t('crm.prospecting.cancelled'), t('crm.prospecting.waitingForExtractions'), t('crm.prospecting.runPaused')][value] ?? String(value)
 }
 
 /**
@@ -528,6 +528,22 @@ async function cancelRun(run: CrmProspectingRunDto) {
   }
   catch (error) { toast.danger((error as Error)?.message || t('crm.prospecting.actionError')) }
 }
+async function pauseRun(run: CrmProspectingRunDto) {
+  try {
+    await crmProspectingApi.pauseRun(run.basicId)
+    await loadWorkspace()
+    toast.success(t('crm.prospecting.runPausedNotice'))
+  }
+  catch (error) { toast.danger((error as Error)?.message || t('crm.prospecting.actionError')) }
+}
+async function resumeRun(run: CrmProspectingRunDto) {
+  try {
+    await crmProspectingApi.resumeRun(run.basicId)
+    await loadWorkspace()
+    toast.success(t('crm.prospecting.runResumedNotice'))
+  }
+  catch (error) { toast.danger((error as Error)?.message || t('crm.prospecting.actionError')) }
+}
 
 async function openCandidateReview(candidate: CrmProspectingCandidateDto) {
   reviewDetailLoading.value = true
@@ -746,7 +762,13 @@ onMounted(() => {
               </td>
               <td>v{{ run.strategyVersion }}</td><td>{{ runStatus(run.status) }}</td><td>{{ run.rawRecordCount }}</td><td>{{ run.candidateCount }}</td><td>{{ run.failureCount }}</td><td>{{ new Date(run.createdTime).toLocaleString() }}</td>
               <td>
-                <button v-if="canExecute && [CrmProspectingRunStatus.Queued, CrmProspectingRunStatus.Running].includes(run.status)" type="button" @click="cancelRun(run)">
+                <button v-if="canExecute && [CrmProspectingRunStatus.Queued, CrmProspectingRunStatus.Running, CrmProspectingRunStatus.WaitingForExtractions].includes(run.status)" type="button" @click="pauseRun(run)">
+                  {{ t('crm.prospecting.pauseRun') }}
+                </button>
+                <button v-if="canExecute && run.status === CrmProspectingRunStatus.Paused" type="button" @click="resumeRun(run)">
+                  {{ t('crm.prospecting.resumeRun') }}
+                </button>
+                <button v-if="canExecute && [CrmProspectingRunStatus.Queued, CrmProspectingRunStatus.Running, CrmProspectingRunStatus.WaitingForExtractions, CrmProspectingRunStatus.Paused].includes(run.status)" type="button" @click="cancelRun(run)">
                   {{ t('crm.prospecting.cancel') }}
                 </button>
               </td>

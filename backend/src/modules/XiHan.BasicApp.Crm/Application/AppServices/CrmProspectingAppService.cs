@@ -345,6 +345,57 @@ public sealed class CrmProspectingAppService(
         return ToDto(await domain.CancelRunAsync(runId, cancellationToken));
     }
 
+    [UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingRunDto> PauseRunAsync(long runId, CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        var existing = await runs.GetByIdAsync(runId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        var campaign = await campaigns.GetByIdAsync(existing.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
+
+        // TryPauseAsync only accepts Queued/Running/WaitingForExtractions and preserves the lease;
+        // returning null means a terminal state, a concurrent Resume/Cancel, or already Paused.
+        var paused = await runs.TryPauseAsync(runId, cancellationToken)
+            ?? throw new InvalidOperationException(
+                "The Run is not in a pausable state (Queued, Running, or WaitingForExtractions).");
+        return ToDto(paused);
+    }
+
+    [UnitOfWork(true, System.Data.IsolationLevel.ReadCommitted)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingRunDto> ResumeRunAsync(long runId, CancellationToken cancellationToken = default)
+    {
+        if (runId <= 0) throw new ArgumentOutOfRangeException(nameof(runId));
+        var existing = await runs.GetByIdAsync(runId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting run does not exist.");
+        var campaign = await campaigns.GetByIdAsync(existing.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
+
+        // Derive the resume target from the ledger: a Run with extraction children returns to
+        // WaitingForExtractions (coordinator re-aggregates, even if all children already finished);
+        // a synchronous Run returns to Queued and is re-enqueued via the existing run queue.
+        var resumeToWaiting = await runs.HasExtractionJobsAsync(runId, cancellationToken);
+        var resumed = await runs.TryResumeAsync(runId, resumeToWaiting, cancellationToken)
+            ?? throw new InvalidOperationException("The Run is not Paused and cannot be resumed.");
+        if (!resumeToWaiting)
+        {
+            var message = new CrmProspectingRunMessage
+            {
+                RunId = resumed.BasicId,
+                TenantId = resumed.TenantId,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            var ambientUnitOfWork = unitOfWorkManager.Current
+                ?? throw new InvalidOperationException("Resume requires an ambient UnitOfWork to re-enqueue the Run.");
+            ambientUnitOfWork.OnCompleted(() => runQueue.EnqueueAsync(message, TimeSpan.Zero));
+        }
+        return ToDto(resumed);
+    }
+
     [PermissionAuthorize(CrmPermissionCodes.Read)]
     public async Task<CrmProspectingCandidateReviewDetailDto> GetCandidateReviewDetailAsync(long candidateId, CancellationToken cancellationToken = default)
     {

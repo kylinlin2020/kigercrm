@@ -68,4 +68,16 @@ public interface ICrmProspectingRunRepository : ISaasRepository<SysCrmProspectin
 
     /// <summary>Mark a claimed or cancellation-requested run as failed/cancelled without overwriting another terminal state.</summary>
     Task<bool> FailAsync(long runId, string failureSummary, DateTimeOffset completedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>Atomically pause an active Run (Queued/Running/WaitingForExtractions) without clearing its lease, so in-flight child writes and heartbeats can still pass under the same fencing. Returns the paused row.</summary>
+    Task<SysCrmProspectingRun?> TryPauseAsync(long runId, CancellationToken cancellationToken = default);
+
+    /// <summary>Worker-side pause exit: release the lease under the exact fencing after in-flight writes are durable, leaving the Run Paused with CompletedAt NULL. No terminal state is written.</summary>
+    Task<bool> ReleaseLeaseForPauseAsync(long runId, Guid leaseToken, long fencingVersion, CancellationToken cancellationToken = default);
+
+    /// <summary>Atomically resume a Paused Run back to a non-terminal state. When resumeToWaiting is true the Run must still own unfinished child extractions; otherwise it returns to Queued for the normal claim queue.</summary>
+    Task<SysCrmProspectingRun?> TryResumeAsync(long runId, bool resumeToWaiting, CancellationToken cancellationToken = default);
+
+    /// <summary>True when the Run has any asynchronous extraction child job (regardless of terminal state). Used to derive the Resume target state.</summary>
+    Task<bool> HasExtractionJobsAsync(long runId, CancellationToken cancellationToken = default);
 }

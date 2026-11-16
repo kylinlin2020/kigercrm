@@ -19,6 +19,8 @@ public interface ICrmProspectingAppService : IApplicationService
     Task<CrmProspectingRunDto> StartRunAsync(CrmProspectingRunStartDto input, CancellationToken cancellationToken = default);
     Task<CrmProspectingRunDto?> GetRunAsync(long runId, CancellationToken cancellationToken = default);
     Task<CrmProspectingRunDto> CancelRunAsync(long runId, CancellationToken cancellationToken = default);
+    Task<CrmProspectingRunDto> PauseRunAsync(long runId, CancellationToken cancellationToken = default);
+    Task<CrmProspectingRunDto> ResumeRunAsync(long runId, CancellationToken cancellationToken = default);
     Task<CrmProspectingCandidateReviewDetailDto> GetCandidateReviewDetailAsync(long candidateId, CancellationToken cancellationToken = default);
     Task<CrmProspectingCandidateDto> ReviewCandidateAsync(CrmProspectingCandidateReviewDto input, CancellationToken cancellationToken = default);
     Task<CrmLeadDetailDto> ConvertApprovedCandidateToLeadAsync(long candidateId, CancellationToken cancellationToken = default);

@@ -74,6 +74,12 @@ export const crmProspectingApi = {
   cancelRun(runId: ApiId) {
     return api.post<CrmProspectingRunDto, undefined>('CancelRun', undefined, { params: { runId } })
   },
+  pauseRun(runId: ApiId) {
+    return api.post<CrmProspectingRunDto, undefined>('PauseRun', undefined, { params: { runId } })
+  },
+  resumeRun(runId: ApiId) {
+    return api.post<CrmProspectingRunDto, undefined>('ResumeRun', undefined, { params: { runId } })
+  },
   candidatePage(input: CrmProspectingCandidatePageQueryDto) {
     return candidateQueryApi.post<PageResult<CrmProspectingCandidateDto>, CrmProspectingCandidatePageQueryDto>('Page', input)
   },

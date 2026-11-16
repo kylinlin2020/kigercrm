@@ -10,5 +10,6 @@ public enum CrmProspectingRunStatus
     Failed = 4,
     CancelRequested = 5,
     Cancelled = 6,
-    WaitingForExtractions = 7
+    WaitingForExtractions = 7,
+    Paused = 8
 }

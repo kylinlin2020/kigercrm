@@ -167,7 +167,7 @@ SSE 实时事件不在任何批次承诺内：本批用有界轮询；SSE 需先
 - [x] W1 Run 监控（进度 + 台账 + 轮询）
 - [x] W2 候选分页 + 导出
 - [x] W3 批量审核/转换 + 短名单（代码 + 自动化测试闭环；实机验收未完成，见下方验收记录）
-- [x] W4 Run 暂停/恢复 — **按顺延规则整体顺延批次 3**（语义已定稿，见 `AUTO-PROSPECTING-W4-PAUSE-DESIGN-2026-11-15.md`；未引入 Paused 状态机或半套协议）
+- [x] W4 Run 暂停/恢复 — **批次 3 已落地**（2026-11-17 解除顺延：`Paused=8` 状态机 + Pause/Resume API + 前端按钮 + 7 语言；后端实机 HTTP 已验收，Windows 原生部署与 UI 交互待验；见 `AUTO-PROSPECTING-W4-IMPLEMENTATION-2026-11-17.md`。原顺延判定见 `AUTO-PROSPECTING-W4-PAUSE-DESIGN-2026-11-15.md`，保留为历史证据）
 - [x] W5 页面组件拆分（BulkActionBar / CandidateTable / ReviewDetailPanel，见下方验收记录）
 - [x] 差距台账与本计划回写（§5；按「待运行时验收」口径，不越级关闭）
 
