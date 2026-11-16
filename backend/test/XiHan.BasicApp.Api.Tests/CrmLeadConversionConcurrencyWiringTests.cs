@@ -74,7 +74,13 @@ public sealed class CrmLeadConversionConcurrencyWiringTests
         Assert.True(convertedBranch >= 0 && disqualifiedBranch > convertedBranch,
             "The already-converted retry branch must precede all new conversion writes.");
 
-        var retryPath = source[convertedBranch..disqualifiedBranch];
+        // The retry guards moved into a dedicated validation helper; guard that helper, not the
+        // short dispatch branch, so the converted-retry assertions still cover the real code.
+        var helperStart = source.IndexOf("private async Task<SysCrmLead> ValidateConvertedLeadAsync(", StringComparison.Ordinal);
+        var helperEnd = source.IndexOf("public async Task DeleteAsync(", helperStart, StringComparison.Ordinal);
+        Assert.True(helperStart >= 0 && helperEnd > helperStart,
+            "Converted-lead retry validation must live in a dedicated helper.");
+        var retryPath = source[helperStart..helperEnd];
         Assert.Contains("lead.ConvertedCustomerId is not > 0", retryPath, StringComparison.Ordinal);
         Assert.Contains("customers.GetByIdAsync(lead.ConvertedCustomerId.Value", retryPath, StringComparison.Ordinal);
         Assert.Contains("lead.ConvertedContactId is > 0", retryPath, StringComparison.Ordinal);

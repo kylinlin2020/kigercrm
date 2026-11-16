@@ -24,6 +24,7 @@ public sealed class EndpointAuthorizationCoverageTests
         typeof(BasicApp.AI.XiHanBasicAppAIModule).Assembly,
         typeof(BasicApp.Chat.XiHanBasicAppChatModule).Assembly,
         typeof(BasicApp.CodeGeneration.XiHanBasicAppCodeGenerationModule).Assembly,
+        typeof(BasicApp.Crm.XiHanBasicAppCrmModule).Assembly,
         typeof(BasicApp.Printing.XiHanBasicAppPrintingModule).Assembly,
         typeof(BasicApp.Workflow.XiHanBasicAppWorkflowModule).Assembly
     ];

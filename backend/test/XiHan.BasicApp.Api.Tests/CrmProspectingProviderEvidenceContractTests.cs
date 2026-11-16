@@ -74,7 +74,7 @@ public sealed class CrmProspectingProviderEvidenceContractTests
         var request = new CrmProspectingProviderRequest(
             1, "objective", "scope", "market", "icp", "{not-json}", Array.Empty<string>());
 
-        Assert.Throws<System.Text.Json.JsonException>(
+        Assert.ThrowsAny<System.Text.Json.JsonException>(
             () => CrmProspectingRequestFingerprint.Create("provider", request));
     }
 

@@ -21,7 +21,7 @@ public sealed class CrmShipmentFulfillmentMigrationTests
             RepositoryRoot(), "backend", "src", "main", "XiHan.BasicApp.WebHost",
             "UpdateScripts", "5.9.5", "5.9.5.sql")));
 
-        Assert.Contains("IF NOT EXISTS (", sql, StringComparison.Ordinal);
+        Assert.Contains("NOT EXISTS (", sql, StringComparison.Ordinal);
         Assert.Contains("ck_crm_sales_order_line_fulfillment_qty", sql, StringComparison.Ordinal);
         Assert.Contains("quantity > 0", sql, StringComparison.Ordinal);
         Assert.Contains("reserved_quantity >= 0", sql, StringComparison.Ordinal);

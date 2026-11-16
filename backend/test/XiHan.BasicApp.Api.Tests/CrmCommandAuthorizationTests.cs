@@ -38,7 +38,9 @@ public sealed class CrmCommandAuthorizationTests
 
                 commandCount++;
                 var attributes = string.Join("\n", lines.Skip(Math.Max(0, index - 4)).Take(Math.Min(4, index)));
-                Assert.Contains("[UnitOfWork(true)]", attributes, StringComparison.Ordinal);
+                // Commands may declare an explicit isolation level; require a transactional
+                // UnitOfWork regardless of the optional argument.
+                Assert.Contains("[UnitOfWork(true", attributes, StringComparison.Ordinal);
                 Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.", attributes, StringComparison.Ordinal);
             }
 

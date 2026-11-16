@@ -20,7 +20,7 @@ public sealed class CrmShipmentQueryWiringTests
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmShipmentQueryService.cs");
         Assert.Contains("GetByIdAsync(input.ShipmentId", source, StringComparison.Ordinal);
         Assert.Contains("CanReadOwnedRecord(shipment.OwnerUserId)", source, StringComparison.Ordinal);
-        Assert.Contains("x => x.ShipmentId, input.ShipmentId", source, StringComparison.Ordinal);
+        Assert.Contains("(SysCrmShipmentLine x) => x.ShipmentId, input.ShipmentId", source, StringComparison.Ordinal);
         Assert.Contains("shipmentLines.GetPagedAsync(request, cancellationToken)", source, StringComparison.Ordinal);
     }
 

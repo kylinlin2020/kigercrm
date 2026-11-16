@@ -9,9 +9,13 @@ public sealed class CrmSalesOrderCreateWiringTests
     public void CreateCommand_ShouldBeTransactionalAndRequireCreatePermission()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "AppServices", "CrmSalesOrderAppService.cs");
-        var method = source[source.IndexOf("CreateAsync(CrmSalesOrderCreateDto", StringComparison.Ordinal)..source.IndexOf("private static SysCrmSalesOrderLine CalculateLine", StringComparison.Ordinal)];
-        Assert.Contains("[UnitOfWork(true)]", source, StringComparison.Ordinal);
-        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Create)]", method, StringComparison.Ordinal);
+        var start = source.IndexOf("CreateAsync(CrmSalesOrderCreateDto", StringComparison.Ordinal);
+        var end = source.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
+        var method = source[start..end];
+        // Attributes are emitted above the signature; include them in the guarded slice.
+        var attributed = source[source.LastIndexOf("    [UnitOfWork", start, StringComparison.Ordinal)..end];
+        Assert.Contains("[UnitOfWork(true)]", attributed, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Create)]", attributed, StringComparison.Ordinal);
         Assert.Contains("repository.AddAsync(order", method, StringComparison.Ordinal);
         Assert.Contains("orderLines.AddAsync(line", method, StringComparison.Ordinal);
     }
@@ -78,8 +82,9 @@ public sealed class CrmSalesOrderCreateWiringTests
         var start = source.IndexOf("UpdateDraftAsync(CrmSalesOrderUpdateDto", StringComparison.Ordinal);
         var end = source.IndexOf("private static SysCrmSalesOrderLine CalculateLine", start, StringComparison.Ordinal);
         var method = source[start..end];
-        Assert.Contains("[UnitOfWork(true)]", method, StringComparison.Ordinal);
-        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Update)]", method, StringComparison.Ordinal);
+        var attributed = source[source.LastIndexOf("    [UnitOfWork", start, StringComparison.Ordinal)..end];
+        Assert.Contains("[UnitOfWork(true)]", attributed, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Update)]", attributed, StringComparison.Ordinal);
         Assert.Contains("order.Status != CrmSalesOrderStatus.Draft", method, StringComparison.Ordinal);
         Assert.Contains("existing.ReservedQuantity > 0 || existing.ShippedQuantity > 0", method, StringComparison.Ordinal);
         Assert.Contains("Existing order line IDs must be unique and new lines must use ID zero", method, StringComparison.Ordinal);

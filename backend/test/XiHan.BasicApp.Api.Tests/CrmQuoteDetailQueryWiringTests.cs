@@ -19,7 +19,7 @@ public sealed class CrmQuoteDetailQueryWiringTests
     public void QuoteLines_ShouldBePagedSortedAndFieldGuardedAfterParentAuthorization()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmQuoteQueryService.cs");
-        Assert.Contains("x => x.QuoteId, input.QuoteId", source, StringComparison.Ordinal);
+        Assert.Contains("(SysCrmQuoteLine x) => x.QuoteId, input.QuoteId", source, StringComparison.Ordinal);
         Assert.Contains("GuardQueryAsync(request.Conditions, typeof(SysCrmQuoteLine)", source, StringComparison.Ordinal);
         Assert.Contains("quoteLines.GetPagedAsync(request, cancellationToken)", source, StringComparison.Ordinal);
         Assert.Contains("SortOrder", source, StringComparison.Ordinal);

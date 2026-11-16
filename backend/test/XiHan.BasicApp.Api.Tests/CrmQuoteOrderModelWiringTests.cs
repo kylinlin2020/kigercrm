@@ -55,9 +55,17 @@ public sealed class CrmQuoteOrderModelWiringTests
         })
         {
             var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Repositories", fileName);
-            Assert.Contains(": SaasRepository<", source, StringComparison.Ordinal);
+            Assert.True(
+                source.Contains(": SaasRepository<", StringComparison.Ordinal) ||
+                source.Contains(": SqlSugarSoftDeleteRepository<", StringComparison.Ordinal),
+                $"{fileName} must derive from a tenant-aware SqlSugar repository base.");
             Assert.Contains("ISqlSugarClientResolver", source, StringComparison.Ordinal);
         }
+
+        // Order lines intentionally use the audited soft-delete base instead of SaasRepository;
+        // tenant isolation must still be declared on the entity itself.
+        var orderLine = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Entities", "SysCrmSalesOrderLine.cs");
+        Assert.Contains("IStrictMultiTenantEntity", orderLine, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>

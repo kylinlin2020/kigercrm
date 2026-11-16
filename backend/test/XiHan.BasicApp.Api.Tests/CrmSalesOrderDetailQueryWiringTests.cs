@@ -31,7 +31,7 @@ public sealed class CrmSalesOrderDetailQueryWiringTests
     public void SalesOrderLines_ShouldBePagedSortedAndFieldGuardedAfterParentAuthorization()
     {
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmSalesOrderQueryService.cs");
-        Assert.Contains("x => x.SalesOrderId, input.SalesOrderId", source, StringComparison.Ordinal);
+        Assert.Contains("(SysCrmSalesOrderLine x) => x.SalesOrderId, input.SalesOrderId", source, StringComparison.Ordinal);
         Assert.Contains("GuardQueryAsync(request.Conditions, typeof(SysCrmSalesOrderLine)", source, StringComparison.Ordinal);
         Assert.Contains("orderLines.GetPagedAsync(request, cancellationToken)", source, StringComparison.Ordinal);
         Assert.Contains("SortOrder", source, StringComparison.Ordinal);
@@ -56,8 +56,8 @@ public sealed class CrmSalesOrderDetailQueryWiringTests
         Assert.Contains("TermsAndConditions = termsAndConditions", service, StringComparison.Ordinal);
         Assert.Contains("order.TermsAndConditions = NormalizeOptional(input.TermsAndConditions, 20000", service, StringComparison.Ordinal);
         Assert.Contains("termsAndConditions?: string | null", frontendTypes, StringComparison.Ordinal);
-        Assert.Contains("termsAndConditions:form.value.termsAndConditions", frontendView, StringComparison.Ordinal);
-        Assert.Contains("termsAndConditions:editForm.value.termsAndConditions", frontendView, StringComparison.Ordinal);
+        Assert.Contains("termsAndConditions: form.value.termsAndConditions.trim() || null", frontendView, StringComparison.Ordinal);
+        Assert.Contains("termsAndConditions: editForm.value.termsAndConditions.trim() || null", frontendView, StringComparison.Ordinal);
     }
 
     [Fact]

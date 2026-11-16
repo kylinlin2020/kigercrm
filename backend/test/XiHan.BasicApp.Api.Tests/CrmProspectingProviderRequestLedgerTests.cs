@@ -122,7 +122,7 @@ public sealed class CrmProspectingProviderRequestLedgerTests
 
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
         Assert.Contains("RecoverStaleStartedAsync", worker, StringComparison.Ordinal);
-        Assert.Contains("TimeSpan.FromMinutes(15)", worker, StringComparison.Ordinal);
+        Assert.Contains("RecoverStaleStartedAsync(\n                    RunLeaseDuration, cancellationToken)", worker, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -148,7 +148,8 @@ public sealed class CrmProspectingProviderRequestLedgerTests
     public void ProviderRequestLedger_ShouldPersistOnlyResponseDigestNotRawProviderPayload()
     {
         var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Infrastructure", "Prospecting", "CrmProspectingRunHostedService.cs");
-        Assert.Contains("responseHash: CrmProspectingResponseFingerprint.Create(result.Records)", worker, StringComparison.Ordinal);
+        Assert.Contains("var responseHash = CrmProspectingResponseFingerprint.Create(result.Records)", worker, StringComparison.Ordinal);
+        Assert.Contains("responseHash: responseHash", worker, StringComparison.Ordinal);
         Assert.Contains("TryFinalizeAsync(", worker, StringComparison.Ordinal);
 
         var fingerprint = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Domain", "Prospecting", "CrmProspectingResponseFingerprint.cs");
@@ -230,7 +231,7 @@ public sealed class CrmProspectingProviderRequestLedgerTests
         Assert.Contains("WITH valid_run AS MATERIALIZED", repository, StringComparison.Ordinal);
         Assert.Contains("run.fencing_version = @fencingVersion", repository, StringComparison.Ordinal);
         Assert.Contains("FOR UPDATE", repository, StringComparison.Ordinal);
-        Assert.Contains("WITH finalized_request AS", repository, StringComparison.Ordinal);
+        Assert.Contains("finalized_request AS (", repository, StringComparison.Ordinal);
         Assert.Contains("coverage_upsert AS", repository, StringComparison.Ordinal);
         Assert.Contains("ON CONFLICT (tenant_id, campaign_id, provider_code, coverage_scope_hash)", repository, StringComparison.Ordinal);
         Assert.Contains("request.request_key = @coverageScopeHash", repository, StringComparison.Ordinal);

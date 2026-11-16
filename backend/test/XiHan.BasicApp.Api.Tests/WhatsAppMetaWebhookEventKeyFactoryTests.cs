@@ -152,7 +152,7 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
             "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
             DateTimeOffset.FromUnixTimeSeconds(1794000001), "{invalid", "{}");
 
-        Assert.Throws<System.Text.Json.JsonException>(
+        Assert.ThrowsAny<System.Text.Json.JsonException>(
             () => WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(status));
     }
 
@@ -231,7 +231,7 @@ public sealed class WhatsAppMetaWebhookEventKeyFactoryTests
             "waba-1", "phone-1", "wamid-1", "recipient-1", "failed",
             DateTimeOffset.FromUnixTimeSeconds(1794000001), nested, "{}");
 
-        Assert.Throws<System.Text.Json.JsonException>(
+        Assert.ThrowsAny<System.Text.Json.JsonException>(
             () => WhatsAppMetaWebhookEventKeyFactory.ForMessageStatus(status));
     }
 

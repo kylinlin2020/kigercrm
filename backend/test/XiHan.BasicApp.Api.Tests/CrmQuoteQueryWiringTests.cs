@@ -21,7 +21,7 @@ public sealed class CrmQuoteQueryWiringTests
         var source = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "QueryServices", "CrmQuoteQueryService.cs");
         Assert.Contains("Enum.IsDefined(typeof(CrmQuoteStatus), input.Status.Value)", source, StringComparison.Ordinal);
         Assert.Contains("x.QuoteNumber, x => x.CustomerNameSnapshot", source, StringComparison.Ordinal);
-        Assert.Contains("x => x.CustomerId", source, StringComparison.Ordinal);
+        Assert.Contains("(SysCrmQuote x) => x.CustomerId", source, StringComparison.Ordinal);
         var dto = Read("backend", "src", "modules", "XiHan.BasicApp.Crm", "Application", "Dtos", "CrmQuoteQueryDtos.cs");
         Assert.Contains("GrandTotal", dto, StringComparison.Ordinal);
         Assert.Contains("ValidUntil", dto, StringComparison.Ordinal);

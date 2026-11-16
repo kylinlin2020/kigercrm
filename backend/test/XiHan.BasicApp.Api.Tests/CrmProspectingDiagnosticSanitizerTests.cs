@@ -20,7 +20,10 @@ public sealed class CrmProspectingDiagnosticSanitizerTests
         var result = CrmProspectingDiagnosticSanitizer.Sanitize(input, 500);
 
         Assert.Equal(expected, result);
-        Assert.DoesNotContain("secret", result, StringComparison.OrdinalIgnoreCase);
+        // Assert on the credential value, not the key name: keys such as `client_secret`
+        // legitimately survive redaction as `client_secret=[REDACTED]`.
+        var secretValue = input.Split(new[] { '=', ':' }, StringSplitOptions.RemoveEmptyEntries)[^1].Trim();
+        Assert.DoesNotContain(secretValue, result, StringComparison.Ordinal);
     }
 
     [Fact]
