@@ -228,3 +228,26 @@ The branch integration is complete; feature acceptance is not. The functional ga
 提交 `4d0898a2c`；`origin/kiger-dev` 推送已恢复并同步到该提交，此前积压的 5 笔本地提交全部上传。
 
 本条目状态维持「待运行时验收」：`HAITUO-CRM-FUNCTION-MIGRATION-MATRIX.md` 第 2 节第 25/26 行不改判。测试债清零不等于功能验收通过——实机 HTTP 冒烟、PG 并发、升级脚本、Windows 原生部署仍未取证。
+
+
+## 2026-11-16 实机验收 checkpoint — W3 后端运行时证据补齐（规则 3/4 已取证，规则 5 仍缺）
+
+本次在本地预览整栈（PG 5433 + WebHost 9708 + Vite 9800）完成 W3 的真实运行取证。**迁移条目状态从「待运行时验收」升级为「后端实机已验收；Windows 原生部署待验」**，但仍不满足关闭规则第 5 条（原生部署），矩阵第 2 节第 25/26 行不改判为完成。
+
+取证结果（证据等级 A = 真实 HTTP + 真实 PG）：
+
+| 验收项 | 结果 |
+|---|---|
+| 整栈启动 | 9708/9800/5433 全监听；scalar 200；前端首页 200、`/api` 代理 401 转发正常 |
+| 4 个批量端点真实 HTTP | 全部 HTTP 200；不存在的候选返回 `outcome=2 (Failed)` + 明确原因，逐项事务隔离与错误诚实上报生效 |
+| 候选分页三态筛选（真实 runId，25 条候选） | 全部=25 / 仅短名单=0 / 非短名单=25，三态过滤真实生效 |
+| 短名单写路径 + 落库 | Shortlist 后 `shortlisted_at` 落库非空、Unshortlist 后清空，`outcome=0 (Success)` |
+| 单条转换 | Approved 候选 → Lead 生成成功（lead id 有值），候选转 Converted |
+| **PG 并发转换** | 3 个不同候选并发转换全部 Success、各生成独立 Lead；同一已转换候选 5 并发全部 `outcome=1 (Skipped)` 且返回**同一 leadId**，无重复 Lead；`converted_lead_id` 一对一映射确认 |
+| 升级脚本幂等 | `shortlisted_at timestamptz` 列已存在，`ADD COLUMN IF NOT EXISTS` 重放成功跳过，结构无变化 |
+
+自动化：`Api.Tests` 1111 总 / 0 失败 / 1080 通过 / 31 跳过，零回归。前端页面多选使用原生 `<input type="checkbox">` + `aria-label`，具备 Tab/Space 键盘可达基础（静态证据，未逐键实机）。
+
+**实机暴露并修复的真实 bug**（提交 `f00400545`）：`RecoverExpiredLeasesAsync` 与 `RecoverStaleStartedAsync` 在平台作用域（TenantId=null）启动恢复时，把 null 参数绑定为 SugarParameter，PostgreSQL 推断成 text 导致 `bigint = text`，启动日志报 SQL 错误、租户租约恢复失效。修法：插值 SQL，null 分支渲染 `IS NULL` 字面量，仅租户分支绑定类型化 bigint；更新持久层契约守卫显式校验 null 安全分支。重编译重启后启动期零 SQL 错误。
+
+**仍未取证**：Windows 原生部署实机验收（规则 5）；浏览器多选逐键交互；11 个公开 Provider 真实 Run/许可验收。按关闭规则，W3 迁移条目仍不标记完成。
