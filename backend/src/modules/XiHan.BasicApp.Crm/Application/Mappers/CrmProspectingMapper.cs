@@ -3,6 +3,7 @@
 
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Prospecting;
 
 namespace XiHan.BasicApp.Crm.Application.Mappers;
 
@@ -113,5 +114,39 @@ public static class CrmProspectingMapper
         ContactPoints = entity.ContactPoints,
         ReviewGatesJson = entity.ReviewGatesJson,
         EvaluatedAtUtc = entity.EvaluatedAtUtc
+    };
+
+    /// <summary>Maps a deterministic Super Search plan to its read-only preview DTO.</summary>
+    public static CrmProspectingSuperSearchPreviewDto ToSuperSearchPreviewDto(CrmProspectingSuperSearchPlan plan) => new()
+    {
+        ScopeFingerprint = plan.ScopeFingerprint,
+        MaximumRounds = plan.MaximumRounds,
+        PlannedRounds = plan.PlannedRounds,
+        ProviderCount = plan.ProviderCount,
+        TotalQueryCells = plan.TotalQueryCells,
+        Rounds = plan.Rounds.Select(ToSuperSearchRoundDto).ToArray()
+    };
+
+    private static CrmProspectingSuperSearchRoundDto ToSuperSearchRoundDto(CrmProspectingSuperSearchRoundPlan round) => new()
+    {
+        RoundNumber = round.RoundNumber,
+        ThemeCode = round.ThemeCode,
+        ThemeLabel = round.ThemeLabel,
+        Market = round.Market,
+        CustomerType = round.CustomerType,
+        ExcludedTerms = round.ExcludedTerms,
+        ExcludedDomains = round.ExcludedDomains,
+        QueryCells = round.QueryCells.Select(ToSuperSearchQueryCellDto).ToArray(),
+        Fingerprint = round.Fingerprint
+    };
+
+    private static CrmProspectingSuperSearchQueryCellDto ToSuperSearchQueryCellDto(CrmProspectingSuperSearchQueryCell cell) => new()
+    {
+        ProviderCode = cell.ProviderCode,
+        Market = cell.Market,
+        CustomerType = cell.CustomerType,
+        ThemeCode = cell.ThemeCode,
+        QueryText = cell.QueryText,
+        Fingerprint = cell.Fingerprint
     };
 }

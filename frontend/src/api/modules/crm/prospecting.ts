@@ -17,6 +17,8 @@ import type {
   CrmProspectingStrategyDecisionDto,
   CrmProspectingStrategyDto,
   CrmProspectingStrategyInputDto,
+  CrmProspectingSuperSearchPreviewDto,
+  CrmProspectingSuperSearchPreviewInputDto,
 } from './prospecting.types'
 import { createDynamicApiClient } from '../../base'
 
@@ -27,6 +29,8 @@ const catalogApi = createDynamicApiClient('CrmProspectingProviderCatalogQuery')
 const runQueryApi = createDynamicApiClient('CrmProspectingRunQuery')
 // Paginated candidate review queue; GetPageAsync routes to Page (see crud-client notes).
 const candidateQueryApi = createDynamicApiClient('CrmProspectingCandidateQuery')
+// Read-only deterministic Super Search planner preview (no provider calls, no writes, no Run).
+const superSearchQueryApi = createDynamicApiClient('CrmProspectingSuperSearchQuery')
 
 export const crmProspectingApi = {
   providerCatalog() {
@@ -103,5 +107,8 @@ export const crmProspectingApi = {
   },
   unshortlistCandidates(input: CrmProspectingCandidateBulkDto) {
     return api.post<CrmProspectingBulkResultDto, CrmProspectingCandidateBulkDto>('UnshortlistCandidates', input)
+  },
+  previewSuperSearch(input: CrmProspectingSuperSearchPreviewInputDto) {
+    return superSearchQueryApi.post<CrmProspectingSuperSearchPreviewDto, CrmProspectingSuperSearchPreviewInputDto>('PreviewSuperSearch', input)
   },
 }

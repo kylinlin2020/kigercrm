@@ -82,4 +82,26 @@ describe('crmProspectingApi', () => {
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/ReviewCandidate', { candidateId: '30', approve: true, overrideDuplicate: false }, undefined)
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/ConvertApprovedCandidateToLead', undefined, expect.objectContaining({ params: { candidateId: '30' } }))
   })
+
+  it('posts the Super Search preview to its own read-only QueryService route', async () => {
+    const input = {
+      products: ['pump'],
+      markets: ['DE'],
+      customerTypes: ['distributor'],
+      industries: [],
+      providerCodes: ['provider-a'],
+      excludedTerms: ['spam'],
+      excludedDomains: [],
+      depth: 0,
+      requestedRounds: 2,
+    }
+
+    await crmProspectingApi.previewSuperSearch(input)
+
+    expect(requestMocks.post).toHaveBeenCalledWith(
+      '/CrmProspectingSuperSearchQuery/PreviewSuperSearch',
+      input,
+      undefined,
+    )
+  })
 })

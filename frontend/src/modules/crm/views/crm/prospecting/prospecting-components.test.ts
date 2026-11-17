@@ -12,6 +12,7 @@ const index = source('index.vue')
 const bulkActionBar = source('BulkActionBar.vue')
 const candidateTable = source('CandidateTable.vue')
 const reviewDetailPanel = source('ReviewDetailPanel.vue')
+const superSearchPanel = source('SuperSearchPreviewPanel.vue')
 
 describe('prospecting page component split', () => {
   it('keeps shared state in the page and delegates the three extracted views', () => {
@@ -57,5 +58,20 @@ describe('prospecting page component split', () => {
     expect(reviewDetailPanel).toContain('scoreGates')
     expect(reviewDetailPanel).toContain('useI18n')
     expect(reviewDetailPanel).not.toContain('crmProspectingApi')
+  })
+
+  it('keeps the Super Search preview read-only, permission-gated and keyboard reachable', () => {
+    expect(index).toContain('import SuperSearchPreviewPanel from \'./SuperSearchPreviewPanel.vue\'')
+    expect(index).toContain('<SuperSearchPreviewPanel')
+    expect(superSearchPanel).toContain('usePermission')
+    expect(superSearchPanel).toContain('hasPermission(\'crm_prospecting.execute\')')
+    expect(superSearchPanel).toContain('previewSuperSearch')
+    expect(superSearchPanel).not.toContain('startRun')
+    expect(superSearchPanel).not.toContain('bulkReviewCandidates')
+    expect(superSearchPanel).toContain('role="status"')
+    expect(superSearchPanel).toContain('aria-live="polite"')
+    expect(superSearchPanel).toContain('<details')
+    expect(superSearchPanel).toContain('preview.value = null')
+    expect(superSearchPanel).toContain('useI18n')
   })
 })

@@ -267,3 +267,54 @@ export interface CrmProspectingRunMonitorDto {
   progress: CrmProspectingRunProgressDto
   executions: CrmProspectingRunProviderExecutionDto[]
 }
+
+/** Wire values of backend CrmProspectingSuperSearchDepth (Balanced / Deep / Extreme). */
+export enum CrmProspectingSuperSearchDepth {
+  Balanced = 0,
+  Deep = 1,
+  Extreme = 2,
+}
+
+/** Read-only preview input mirroring the deterministic backend planner; no provider is called. */
+export interface CrmProspectingSuperSearchPreviewInputDto {
+  products: string[]
+  markets: string[]
+  customerTypes: string[]
+  industries: string[]
+  providerCodes: string[]
+  excludedTerms: string[]
+  excludedDomains: string[]
+  depth: CrmProspectingSuperSearchDepth
+  requestedRounds?: number | null
+}
+
+export interface CrmProspectingSuperSearchQueryCellDto {
+  providerCode: string
+  market: string
+  customerType: string
+  themeCode: string
+  queryText: string
+  fingerprint: string
+}
+
+export interface CrmProspectingSuperSearchRoundDto {
+  roundNumber: number
+  themeCode: string
+  themeLabel: string
+  market: string
+  customerType: string
+  excludedTerms: string[]
+  excludedDomains: string[]
+  queryCells: CrmProspectingSuperSearchQueryCellDto[]
+  fingerprint: string
+}
+
+/** Preview result: deterministic round plans plus aggregate bounds; nothing is persisted. */
+export interface CrmProspectingSuperSearchPreviewDto {
+  scopeFingerprint: string
+  maximumRounds: number
+  plannedRounds: number
+  providerCount: number
+  totalQueryCells: number
+  rounds: CrmProspectingSuperSearchRoundDto[]
+}

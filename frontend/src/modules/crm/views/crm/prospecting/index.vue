@@ -39,6 +39,7 @@ import {
 import ProviderCredentialsPanel from './ProviderCredentialsPanel.vue'
 import ReviewDetailPanel from './ReviewDetailPanel.vue'
 import RunMonitorPanel from './RunMonitorPanel.vue'
+import SuperSearchPreviewPanel from './SuperSearchPreviewPanel.vue'
 import { useRunMonitorPolling } from './useRunMonitorPolling'
 
 defineOptions({ name: 'CrmProspectingPage' })
@@ -689,6 +690,7 @@ onMounted(() => {
     </header>
 
     <ProviderCredentialsPanel />
+    <SuperSearchPreviewPanel />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}

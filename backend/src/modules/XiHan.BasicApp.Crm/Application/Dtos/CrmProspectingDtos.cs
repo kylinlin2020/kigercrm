@@ -1,4 +1,5 @@
 using XiHan.BasicApp.Core.Dtos;
+using XiHan.BasicApp.Crm.Domain.Prospecting;
 
 namespace XiHan.BasicApp.Crm.Application.Dtos;
 
@@ -245,4 +246,59 @@ public sealed class CrmProspectingCandidatePageQueryDto : BasicAppPRDto
 
     /// <summary>Tri-state shortlist filter: null = all, true = shortlisted only, false = not shortlisted.</summary>
     public bool? Shortlisted { get; set; }
+}
+
+/// <summary>
+/// Input for a deterministic Super Search planning preview. Mirrors the domain input; the preview
+/// never calls providers, changes Campaign/Strategy state, raises budgets or creates CRM records.
+/// </summary>
+public sealed class CrmProspectingSuperSearchPreviewInputDto
+{
+    public IReadOnlyList<string> Products { get; set; } = [];
+    public IReadOnlyList<string> Markets { get; set; } = [];
+    public IReadOnlyList<string> CustomerTypes { get; set; } = [];
+    public IReadOnlyList<string> Industries { get; set; } = [];
+    public IReadOnlyList<string> ProviderCodes { get; set; } = [];
+    public IReadOnlyList<string> ExcludedTerms { get; set; } = [];
+    public IReadOnlyList<string> ExcludedDomains { get; set; } = [];
+
+    /// <summary>Wire value of <see cref="CrmProspectingSuperSearchDepth"/> (0 = Balanced, 1 = Deep, 2 = Extreme).</summary>
+    public int Depth { get; set; }
+    public int? RequestedRounds { get; set; }
+}
+
+/// <summary>One provider-specific query cell within a planned round.</summary>
+public sealed class CrmProspectingSuperSearchQueryCellDto
+{
+    public string ProviderCode { get; set; } = string.Empty;
+    public string Market { get; set; } = string.Empty;
+    public string CustomerType { get; set; } = string.Empty;
+    public string ThemeCode { get; set; } = string.Empty;
+    public string QueryText { get; set; } = string.Empty;
+    public string Fingerprint { get; set; } = string.Empty;
+}
+
+/// <summary>One deterministic search round; exclusions are carried into every query cell.</summary>
+public sealed class CrmProspectingSuperSearchRoundDto
+{
+    public int RoundNumber { get; set; }
+    public string ThemeCode { get; set; } = string.Empty;
+    public string ThemeLabel { get; set; } = string.Empty;
+    public string Market { get; set; } = string.Empty;
+    public string CustomerType { get; set; } = string.Empty;
+    public IReadOnlyList<string> ExcludedTerms { get; set; } = [];
+    public IReadOnlyList<string> ExcludedDomains { get; set; } = [];
+    public IReadOnlyList<CrmProspectingSuperSearchQueryCellDto> QueryCells { get; set; } = [];
+    public string Fingerprint { get; set; } = string.Empty;
+}
+
+/// <summary>Read-only Super Search plan preview: nothing is persisted and no Run is created.</summary>
+public sealed class CrmProspectingSuperSearchPreviewDto
+{
+    public string ScopeFingerprint { get; set; } = string.Empty;
+    public int MaximumRounds { get; set; }
+    public int PlannedRounds { get; set; }
+    public int ProviderCount { get; set; }
+    public int TotalQueryCells { get; set; }
+    public IReadOnlyList<CrmProspectingSuperSearchRoundDto> Rounds { get; set; } = [];
 }
