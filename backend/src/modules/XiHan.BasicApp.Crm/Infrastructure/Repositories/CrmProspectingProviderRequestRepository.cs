@@ -170,7 +170,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
                 WHERE run.tenant_id = @tenantId
                   AND run.basic_id = @runId
                   AND run.campaign_id = @campaignId
-                  AND run.status = @runningStatus
+                  AND run.status IN (@runningStatus, @pausedStatus)
                   AND run.lease_token = @leaseToken
                   AND run.fencing_version = @fencingVersion
                   AND run.lease_expires_at > clock_timestamp()
@@ -242,6 +242,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion),
             new SugarParameter("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new SugarParameter("@pausedStatus", (int)CrmProspectingRunStatus.Paused),
             new SugarParameter("@coverageScopeHash", coverageScopeHash.ToUpperInvariant()),
             new SugarParameter("@completedAt", completedAt),
             new SugarParameter("@durationMs", durationMs),
@@ -405,7 +406,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
                         WHERE run.tenant_id = request.tenant_id
                           AND run.basic_id = request.run_id
                           AND (
-                                run.status NOT IN (@runningStatus, @cancelRequestedStatus)
+                                run.status NOT IN (@runningStatus, @pausedStatus, @cancelRequestedStatus)
                                 OR run.lease_expires_at IS NOT NULL
                                    AND run.lease_expires_at <= recovery_clock.now
                           )
@@ -418,6 +419,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
         {
             new("@ageMilliseconds", ageMilliseconds),
             new("@runningStatus", (int)CrmProspectingRunStatus.Running),
+            new("@pausedStatus", (int)CrmProspectingRunStatus.Paused),
             new("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested)
         };
         if (currentTenant.TenantId is not null)

@@ -200,6 +200,52 @@ public sealed class CrmProspectingPauseResumeContractTests
         }
     }
 
+    [Fact]
+    public void InFlightFencedWrites_ShouldAdmitPausedAsAnActiveRunState()
+    {
+        // Pause preserves the lease so an already-dispatched provider call can still land its
+        // checkpoint. Every fenced write gated on the parent Run must therefore accept Paused;
+        // otherwise a Pause arriving mid-write fails the write and strands the Run. This was a
+        // real defect found by CrmProspectingPauseResumeWorkerIntegrationTests.
+        var executionRepo = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Repositories", "CrmProspectingRunProviderExecutionRepository.cs");
+        Assert.Equal(5, Count(executionRepo, "run.status IN (@runningStatus, @pausedStatus)"));
+        Assert.Equal(5, Count(executionRepo, "SugarParameter(\"@pausedStatus\""));
+        Assert.DoesNotContain("run.status = @runningStatus", executionRepo, StringComparison.Ordinal);
+
+        var requestRepo = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Repositories", "CrmProspectingProviderRequestRepository.cs");
+        Assert.Contains("run.status IN (@runningStatus, @pausedStatus)", requestRepo, StringComparison.Ordinal);
+        // A paused Run keeps its lease; stale-attempt recovery must not treat it as abandoned.
+        Assert.Contains("run.status NOT IN (@runningStatus, @pausedStatus, @cancelRequestedStatus)",
+            requestRepo, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ProviderStepTransition_ShouldCastNullableIntParametersForPostgres()
+    {
+        // Npgsql infers a null int? bound parameter as text; COALESCE against an integer column
+        // then fails with 42804. The Checkpointed->Projecting replay path passes null and must cast.
+        var repo = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Repositories", "CrmProspectingRunProviderExecutionRepository.cs");
+        Assert.Contains("COALESCE(CAST(@projectedRecordCount AS INTEGER), step.projected_record_count)",
+            repo, StringComparison.Ordinal);
+        Assert.Contains("COALESCE(CAST(@failureCount AS INTEGER), step.failure_count)",
+            repo, StringComparison.Ordinal);
+    }
+
+    private static int Count(string source, string token)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = source.IndexOf(token, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += token.Length;
+        }
+        return count;
+    }
+
     private static bool PrecededByExecutePermission(string source, string methodSignature)
     {
         var index = source.IndexOf(methodSignature, StringComparison.Ordinal);

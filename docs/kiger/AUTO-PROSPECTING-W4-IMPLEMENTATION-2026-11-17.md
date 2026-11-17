@@ -37,7 +37,7 @@
 - [x] 4. Worker 暂停专用出口（`RunPausedException` + 5 个检查点 + catch 释放租约）+ 心跳放行 Paused + Resume 复用现有队列/coordinator
 - [x] 5. Application `PauseRunAsync` / `ResumeRunAsync`（复用 `crm:execute`，无新权限码）+ Cancel 放行 Paused（领域服务）
 - [x] 6. 契约接口 / 前端 API facade + types + 7 语言 i18n + 状态显隐（暂停/恢复/取消按钮）+ 轮询集合排除 Paused
-- [x] 7. 契约守卫测试 10/10 + PG 仓储状态机集成测试 5/5 + 全量 Api.Tests 1121/0失败 + AI.Tests 582/582 + 前端 type-check 通过
+- [x] 7. 契约守卫测试 12/12 + PG 仓储状态机集成测试 5/5 + **Worker 端到端集成 1/1（真实 PG 仓储 + fake provider + 反射驱动 ProcessItemAsync）** + 全量 Api.Tests 1129/0失败 + AI.Tests 582/582 + 前端 type-check 通过
 - [x] 8. 实机 HTTP：Pause/Resume 路由存在、200 状态转换（7→8→0）、终态 422、未登录 401；越权账号与浏览器逐键交互未取证
 
 ### 7 项细粒度行为测试的诚实标注
@@ -51,8 +51,20 @@
 | Resume 推导 Queued/Waiting、清租约、拒绝非 Paused | PG 集成测试 | ✅ 已取证 |
 | 租户隔离（他租户不能 Pause/Resume） | PG 集成测试 | ✅ 已取证 |
 | Worker 5 个检查点观察 Paused + 专用出口不结算 | 源码契约守卫 | ✅ 已取证（静态） |
-| 暂停后不再派发 / in-flight 落盘 / 断点续跑（端到端 Worker 行为） | 未做动态 Worker 测试 | ⚠️ 仅静态+状态机，未端到端 |
+| 暂停后不再派发 / in-flight 落盘 / 断点续跑（端到端 Worker 行为） | **Worker 端到端集成测试（真实 PG + fake provider）** | ✅ 已取证 |
 | 暂停中取消 / 暂停中异步子任务语义（端到端） | 领域取消分支源码守卫 + coordinator 父态守卫 | ⚠️ 仅静态 |
+
+### 端到端测试发现并修复的真实缺陷（2026-11-17 续）
+
+补 `CrmProspectingPauseResumeWorkerIntegrationTests` 时，反射驱动真实 `ProcessItemAsync` + 真实 PG 仓储 + fake provider（在 provider 调用内部触发 Pause），暴露了三个静态守卫与仓储单测都没抓到的集成缺陷：
+
+| # | 缺陷 | 现象 | 修复 |
+|---|---|---|---|
+| 1 | Provider execution / coverage 的 fenced 写入谓词只认 `Running` | Pause 落在 provider 调用内部后，checkpoint 落盘 `TrySaveCheckpointAsync` 失败 → 走通用 catch → 状态停在 Paused 但租约不清、卡死 | `CrmProspectingRunProviderExecutionRepository` 5 处 + `CrmProspectingProviderRequestRepository` coverage 1 处谓词改为 `status IN (Running, Paused)`，与已放宽的 `TryLockLeaseForWriteAsync` 一致 |
+| 2 | stale-attempt 恢复把 Paused 当"非活跃" | Paused 持有保留租约，但 `NOT IN (Running, CancelRequested)` 会把其 in-flight attempt 误判为 stale 并恢复 | 恢复谓词加入 Paused：`NOT IN (Running, Paused, CancelRequested)` |
+| 3 | `TryTransitionAsync` 的 null `int?` 参数被 Npgsql 推断为 text | Resume 重放 checkpoint 的 `Checkpointed→Projecting` 转换不传 count，`COALESCE(@projectedRecordCount, integer列)` 报 42804 | SQL 改为 `COALESCE(CAST(@x AS INTEGER), 列)`；此缺陷为既有问题，仅 Resume 重放路径首次触发 |
+
+三者均补了源码契约守卫防回退（`InFlightFencedWrites_ShouldAdmitPausedAsAnActiveRunState`、`ProviderStepTransition_ShouldCastNullableIntParametersForPostgres`）。端到端测试断言：Pause 后 alpha 调用 1 次、beta 0 次、状态 Paused、租约清空、fencing+1、alpha step=Checkpointed 且 beta step=Queued；Resume 后 alpha 不重复调用、beta 调用 1 次、Run 进入终态——全部通过。
 
 ## 4. 证据等级
 

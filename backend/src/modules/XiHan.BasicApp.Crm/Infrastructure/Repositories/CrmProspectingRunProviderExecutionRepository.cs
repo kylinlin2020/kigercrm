@@ -49,7 +49,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             FROM crm_prospecting_run AS run
             WHERE run.tenant_id = @tenantId
               AND run.basic_id = @runId
-              AND run.status = @runningStatus
+              AND run.status IN (@runningStatus, @pausedStatus)
               AND run.lease_token = @leaseToken
               AND run.fencing_version = @fencingVersion
               AND run.lease_expires_at > clock_timestamp()
@@ -63,6 +63,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
                 new SugarParameter("@tenantId", tenantId),
                 new SugarParameter("@runId", runId),
                 new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
+                new SugarParameter("@pausedStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Paused),
                 new SugarParameter("@leaseToken", leaseToken),
                 new SugarParameter("@fencingVersion", fencingVersion));
             var run = runs.SingleOrDefault()
@@ -164,7 +165,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
                 FROM crm_prospecting_run AS run
                 WHERE run.tenant_id = @tenantId
                   AND run.basic_id = @runId
-                  AND run.status = @runningStatus
+                  AND run.status IN (@runningStatus, @pausedStatus)
                   AND run.lease_token = @leaseToken
                   AND run.fencing_version = @fencingVersion
                   AND run.lease_expires_at > clock_timestamp()
@@ -188,6 +189,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             new SugarParameter("@executionId", executionId),
             new SugarParameter("@runId", runId),
             new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
+            new SugarParameter("@pausedStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Paused),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion)) == 1;
     }
@@ -215,7 +217,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
                 FROM crm_prospecting_run AS run
                 WHERE run.tenant_id = @tenantId
                   AND run.basic_id = @runId
-                  AND run.status = @runningStatus
+                  AND run.status IN (@runningStatus, @pausedStatus)
                   AND run.lease_token = @leaseToken
                   AND run.fencing_version = @fencingVersion
                   AND run.lease_expires_at > clock_timestamp()
@@ -246,6 +248,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
                 new SugarParameter("@executionId", executionId),
                 new SugarParameter("@runId", runId),
                 new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
+                new SugarParameter("@pausedStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Paused),
                 new SugarParameter("@leaseToken", leaseToken),
                 new SugarParameter("@fencingVersion", fencingVersion));
             client.Ado.CommitTran();
@@ -280,7 +283,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
                 FROM crm_prospecting_run AS run
                 WHERE run.tenant_id = @tenantId
                   AND run.basic_id = @runId
-                  AND run.status = @runningStatus
+                  AND run.status IN (@runningStatus, @pausedStatus)
                   AND run.lease_token = @leaseToken
                   AND run.fencing_version = @fencingVersion
                   AND run.lease_expires_at > clock_timestamp()
@@ -308,6 +311,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
                 new SugarParameter("@failureCode", Bound(failureCode, 80)),
                 new SugarParameter("@failureSummary", Bound(safeFailureSummary, MaxFailureSummaryLength)),
                 new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
+                new SugarParameter("@pausedStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Paused),
                 new SugarParameter("@leaseToken", leaseToken),
                 new SugarParameter("@fencingVersion", fencingVersion));
             client.Ado.CommitTran();
@@ -361,7 +365,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
                 FROM crm_prospecting_run AS run
                 WHERE run.tenant_id = @tenantId
                   AND run.basic_id = @runId
-                  AND run.status = @runningStatus
+                  AND run.status IN (@runningStatus, @pausedStatus)
                   AND run.lease_token = @leaseToken
                   AND run.fencing_version = @fencingVersion
                   AND run.lease_expires_at > clock_timestamp()
@@ -369,8 +373,8 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             )
             UPDATE crm_prospecting_run_provider_execution AS step
             SET state = @nextState,
-                projected_record_count = COALESCE(@projectedRecordCount, step.projected_record_count),
-                failure_count = COALESCE(@failureCount, step.failure_count),
+                projected_record_count = COALESCE(CAST(@projectedRecordCount AS INTEGER), step.projected_record_count),
+                failure_count = COALESCE(CAST(@failureCount AS INTEGER), step.failure_count),
                 failure_code = @failureCode,
                 failure_summary = @failureSummary,
                 completed_at = CASE WHEN @isTerminal THEN clock_timestamp() ELSE NULL END
@@ -393,6 +397,7 @@ public sealed class CrmProspectingRunProviderExecutionRepository(ISqlSugarClient
             new SugarParameter("@runId", runId),
             new SugarParameter("@expectedState", expectedState),
             new SugarParameter("@runningStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Running),
+            new SugarParameter("@pausedStatus", (int)XiHan.BasicApp.Crm.Domain.Entities.Enums.CrmProspectingRunStatus.Paused),
             new SugarParameter("@leaseToken", leaseToken),
             new SugarParameter("@fencingVersion", fencingVersion)) == 1;
     }
