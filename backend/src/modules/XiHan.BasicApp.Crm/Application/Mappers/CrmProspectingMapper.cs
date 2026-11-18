@@ -153,6 +153,66 @@ public static class CrmProspectingMapper
         Fingerprint = cell.Fingerprint
     };
 
+    /// <summary>Maps an authoritative LEI match to its wire contract.</summary>
+    public static CrmProspectingIdentityMatchDto ToIdentityMatchDto(CrmProspectingLegalEntityMatch match) => new()
+    {
+        Lei = match.Lei,
+        LegalName = match.LegalName,
+        EntityStatus = match.EntityStatus,
+        RegistrationStatus = match.RegistrationStatus,
+        CountryCode = match.CountryCode,
+        RegisteredAs = match.RegisteredAs,
+        SourceUrl = match.SourceUrl,
+        RetrievedAtUtc = match.RetrievedAtUtc
+    };
+
+    public static CrmProspectingLegalEntityMatch FromIdentityMatchDto(CrmProspectingIdentityMatchDto dto) => new(
+        dto.Lei,
+        dto.LegalName,
+        dto.EntityStatus,
+        dto.RegistrationStatus,
+        dto.CountryCode,
+        dto.RegisteredAs,
+        dto.SourceUrl,
+        string.Empty,
+        dto.RetrievedAtUtc);
+
+    public static CrmProspectingWebsiteAssessmentDto ToWebsiteAssessmentDto(CrmProspectingWebsiteCandidateAssessment assessment) => new()
+    {
+        AcceptedForReview = assessment.AcceptedForReview,
+        CanSetOfficialWebsite = assessment.CanSetOfficialWebsite,
+        NormalizedUrl = assessment.NormalizedUrl,
+        Host = assessment.Host,
+        MatchClass = assessment.MatchClass,
+        ReasonCode = assessment.ReasonCode
+    };
+
+    /// <summary>Maps a frozen report; a corrupt snapshot fails loudly instead of reporting a fake verdict.</summary>
+    public static CrmProspectingVerificationReportDto ToVerificationReportDto(SysCrmProspectingVerificationReport entity)
+    {
+        var snapshot = JsonSerializer.Deserialize<CrmProspectingVerificationReportData>(entity.SnapshotJson, SuperSearchJsonOptions)
+            ?? throw new InvalidOperationException("The persisted verification report snapshot is invalid.");
+        return new()
+        {
+            BasicId = entity.BasicId,
+            CandidateId = entity.CandidateId,
+            Verdict = (int)snapshot.Verdict,
+            IdentityAuthority = snapshot.IdentityAuthority,
+            Fields = snapshot.Fields.Select(field => new CrmProspectingFieldVerificationDto
+            {
+                Field = field.Field,
+                State = (int)field.State,
+                Authority = field.Authority,
+                ReasonCode = field.ReasonCode
+            }).ToArray(),
+            Blockers = snapshot.Blockers,
+            MissingFields = snapshot.MissingFields,
+            RecommendedActions = snapshot.RecommendedActions,
+            Summary = snapshot.Summary,
+            CreatedTime = entity.CreatedTime
+        };
+    }
+
     /// <summary>Maps a recurring schedule to its wire contract.</summary>
     public static CrmProspectingScheduleDto ToScheduleDto(SysCrmProspectingSchedule entity) => new()
     {

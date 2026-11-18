@@ -14,6 +14,8 @@ const candidateTable = source('CandidateTable.vue')
 const reviewDetailPanel = source('ReviewDetailPanel.vue')
 const superSearchPanel = source('SuperSearchPreviewPanel.vue')
 const schedulePanel = source('SchedulePanel.vue')
+const reviewDetail = source('ReviewDetailPanel.vue')
+const verificationPanel = source('VerificationPanel.vue')
 
 describe('prospecting page component split', () => {
   it('keeps shared state in the page and delegates the three extracted views', () => {
@@ -109,5 +111,17 @@ describe('prospecting page component split', () => {
     expect(schedulePanel).toContain('resumeSchedule')
     expect(schedulePanel).toContain('cancelSchedule')
     expect(schedulePanel).not.toContain('startRun')
+  })
+
+  it('keeps the qualification report review-only inside the candidate detail', () => {
+    expect(reviewDetail).toContain('import VerificationPanel from \'./VerificationPanel.vue\'')
+    expect(reviewDetail).toContain('<VerificationPanel')
+    expect(verificationPanel).toContain('resolveIdentity')
+    expect(verificationPanel).toContain('assessWebsite')
+    expect(verificationPanel).toContain('buildVerificationReport')
+    expect(verificationPanel).toContain('verificationReport')
+    expect(verificationPanel).toContain('hasPermission(\'crm_prospecting.execute\')')
+    expect(verificationPanel).not.toContain('reviewCandidate')
+    expect(verificationPanel).not.toContain('convertCandidate')
   })
 })

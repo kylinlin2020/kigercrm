@@ -409,3 +409,72 @@ public sealed class CrmProspectingSuperSearchMissionDto
     public CrmProspectingSuperSearchPreviewDto Plan { get; set; } = new();
     public DateTimeOffset CreatedTime { get; set; }
 }
+
+/// <summary>Exact LEI registry match returned by an authoritative lookup (no fuzzy matches).</summary>
+public sealed class CrmProspectingIdentityMatchDto
+{
+    public string Lei { get; set; } = string.Empty;
+    public string LegalName { get; set; } = string.Empty;
+    public string? EntityStatus { get; set; }
+    public string? RegistrationStatus { get; set; }
+    public string? CountryCode { get; set; }
+    public string? RegisteredAs { get; set; }
+    public string SourceUrl { get; set; } = string.Empty;
+    public DateTimeOffset RetrievedAtUtc { get; set; }
+}
+
+/// <summary>Review-only website assessment input; the policy performs no fetch.</summary>
+public sealed class CrmProspectingWebsiteAssessmentInputDto
+{
+    public string CompanyName { get; set; } = string.Empty;
+    public string CandidateUrl { get; set; } = string.Empty;
+    public string SourceProviderCode { get; set; } = string.Empty;
+
+    /// <summary>Wire value of CrmProspectingWebsiteSourceKind.</summary>
+    public int SourceKind { get; set; }
+    public string? PageTitle { get; set; }
+    public string? RegistryLegalName { get; set; }
+}
+
+public sealed class CrmProspectingWebsiteAssessmentDto
+{
+    public bool AcceptedForReview { get; set; }
+    public bool CanSetOfficialWebsite { get; set; }
+    public string NormalizedUrl { get; set; } = string.Empty;
+    public string Host { get; set; } = string.Empty;
+    public string MatchClass { get; set; } = string.Empty;
+    public string ReasonCode { get; set; } = string.Empty;
+}
+
+/// <summary>Build request for a frozen qualification report; the identity match is explicit, never implicit.</summary>
+public sealed class CrmProspectingVerificationBuildDto
+{
+    public long CandidateId { get; set; }
+    public CrmProspectingIdentityMatchDto? IdentityMatch { get; set; }
+}
+
+public sealed class CrmProspectingFieldVerificationDto
+{
+    public string Field { get; set; } = string.Empty;
+
+    /// <summary>Wire value of CrmProspectingVerificationState.</summary>
+    public int State { get; set; }
+    public string Authority { get; set; } = string.Empty;
+    public string ReasonCode { get; set; } = string.Empty;
+}
+
+public sealed class CrmProspectingVerificationReportDto
+{
+    public long BasicId { get; set; }
+    public long CandidateId { get; set; }
+
+    /// <summary>Wire value of CrmProspectingQualificationVerdict.</summary>
+    public int Verdict { get; set; }
+    public string IdentityAuthority { get; set; } = string.Empty;
+    public IReadOnlyList<CrmProspectingFieldVerificationDto> Fields { get; set; } = [];
+    public IReadOnlyList<string> Blockers { get; set; } = [];
+    public IReadOnlyList<string> MissingFields { get; set; } = [];
+    public IReadOnlyList<string> RecommendedActions { get; set; } = [];
+    public string Summary { get; set; } = string.Empty;
+    public DateTimeOffset CreatedTime { get; set; }
+}

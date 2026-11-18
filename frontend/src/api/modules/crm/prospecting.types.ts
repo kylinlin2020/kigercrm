@@ -421,3 +421,70 @@ export interface CrmProspectingScheduleDto {
   approvedAt?: DateTimeString | null
   createdTime: DateTimeString
 }
+
+export enum CrmProspectingVerificationState {
+  Verified = 0,
+  Unverified = 1,
+  Insufficient = 2,
+  Conflict = 3,
+}
+
+export enum CrmProspectingQualificationVerdict {
+  ReadyForReview = 0,
+  NeedsReview = 1,
+  Blocked = 2,
+}
+
+export interface CrmProspectingIdentityMatchDto {
+  lei: string
+  legalName: string
+  entityStatus?: string | null
+  registrationStatus?: string | null
+  countryCode?: string | null
+  registeredAs?: string | null
+  sourceUrl: string
+  retrievedAt: DateTimeString
+}
+
+export interface CrmProspectingWebsiteAssessmentInputDto {
+  companyName: string
+  candidateUrl: string
+  sourceProviderCode: string
+  sourceKind: number
+  pageTitle?: string | null
+  registryLegalName?: string | null
+}
+
+export interface CrmProspectingWebsiteAssessmentDto {
+  acceptedForReview: boolean
+  canSetOfficialWebsite: boolean
+  normalizedUrl: string
+  host: string
+  matchClass: string
+  reasonCode: string
+}
+
+export interface CrmProspectingVerificationBuildDto {
+  candidateId: ApiId
+  identityMatch?: CrmProspectingIdentityMatchDto | null
+}
+
+export interface CrmProspectingFieldVerificationDto {
+  field: string
+  state: CrmProspectingVerificationState
+  authority: string
+  reasonCode: string
+}
+
+export interface CrmProspectingVerificationReportDto {
+  basicId: ApiId
+  candidateId: ApiId
+  verdict: CrmProspectingQualificationVerdict
+  identityAuthority: string
+  fields: CrmProspectingFieldVerificationDto[]
+  blockers: string[]
+  missingFields: string[]
+  recommendedActions: string[]
+  summary: string
+  createdTime: DateTimeString
+}

@@ -157,3 +157,18 @@
 > **诚实边界**：SQLite 夹具对 `DateTimeOffset` 回读会重挂本地偏移，测试改为断言壁钟与 CAS 而非跨夹具比较瞬时；生产 PG 保留真实瞬时。多实例并发仅在 CAS/请求键层面取证，未做真实双 Worker PG 压测。
 >
 > 批次 3 至此收口；下一步进入 **M2 资格四步**（GLEIF discover/reconcile、联系人补全、验证报告、官网 probe）。
+
+### M2 证据记录（2026-11-18）
+
+- [x] 领域策略 `CrmProspectingVerificationPolicy`：四步收口为可解释报告——权威身份分阶段引导（仅精确 LEI 匹配算 Verified）、官网候选复用既有 review-only 策略、联系人/国家证据佐证、终态/无结果报告（verdict + blockers + missing + actions）。
+- [x] 只读 API `CrmProspectingQualificationAppService`：`ResolveIdentity`（显式调用权威解析器）、`AssessWebsite`（纯策略、不抓取）、`BuildVerificationReport`、`GetVerificationReport`；复用 Execute/Read 权限码；报告落库为 append-only 实体 + 迁移 `5.9.45`。
+- [x] **不自动改写权威字段**：报告是冻结快照；生成报告不调用 GLEIF/不抓取网页（身份匹配由显式命令提供），不批准候选、不创建 Lead。
+- [x] 前端：`VerificationPanel.vue` 嵌入候选审核详情（解析身份 / 评估官网 / 生成报告 + 字段级结果与建议），类型/facade/7 语言 21 键；权限门控。
+- [x] 测试：策略 3 例（缺口报告、精确身份+证据、不安全官网/身份冲突阻断）+ SQLite 2 例（报告冻结与候选不变、越权/不存在拒绝）+ 契约守卫。
+- [x] 门禁：后端 build 0 错误、解决方案测试 **6016 总 / 0 失败**（Api.Tests 1156/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、test 181 文件 / 2639 用例全绿、build 成功；px/token/i18n 无新增条目。
+- [ ] 浏览器实机、真实 HTTP、GLEIF 真实联调与 PG/Windows 验收：**待 M0**，迁移条目不关闭。
+- [ ] 单提交（同一契约同批）；**不推送**。
+
+> **诚实边界**：GLEIF 仍是"精确匹配"层，分阶段 discover/reconcile 与证据历史尚未扩展；证据实体只存哈希与来源、不存字段值，因此"联系人补全"是**佐证级**而非值抽取；官网 probe 只做策略评估，未做有界页面抓取与重定向复核。这三项列入 M2 后续深化，不在本片宣称完成。
+>
+> 下一步：M2 深化（分阶段身份/页面抓取）或 M3 效果复盘与开发信工作区，视源端语义取证结果排序。

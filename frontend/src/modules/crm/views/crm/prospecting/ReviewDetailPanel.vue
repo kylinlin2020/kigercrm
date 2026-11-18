@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { CrmProspectingCandidateReviewDetailDto } from '@/api'
 import { useI18n } from 'vue-i18n'
+import VerificationPanel from './VerificationPanel.vue'
 
 defineOptions({ name: 'CrmProspectingReviewDetailPanel' })
 
@@ -83,6 +84,13 @@ function scoreGates(value: string) {
         </tbody>
       </table>
     </template>
+
+    <VerificationPanel
+      v-if="detail"
+      :candidate-id="detail.candidate.basicId"
+      :company-name="detail.candidate.companyName"
+      :website="detail.candidate.website"
+    />
   </section>
 </template>
 

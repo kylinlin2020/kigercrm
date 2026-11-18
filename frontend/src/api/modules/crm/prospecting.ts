@@ -10,6 +10,7 @@ import type {
   CrmProspectingCandidatePageQueryDto,
   CrmProspectingCandidateReviewDetailDto,
   CrmProspectingCandidateReviewDto,
+  CrmProspectingIdentityMatchDto,
   CrmProspectingProviderCatalogDto,
   CrmProspectingRunDto,
   CrmProspectingRunMonitorDto,
@@ -26,6 +27,10 @@ import type {
   CrmProspectingSuperSearchObjectiveParseResultDto,
   CrmProspectingSuperSearchPreviewDto,
   CrmProspectingSuperSearchPreviewInputDto,
+  CrmProspectingVerificationBuildDto,
+  CrmProspectingVerificationReportDto,
+  CrmProspectingWebsiteAssessmentDto,
+  CrmProspectingWebsiteAssessmentInputDto,
 } from './prospecting.types'
 import { createDynamicApiClient } from '../../base'
 
@@ -38,6 +43,8 @@ const runQueryApi = createDynamicApiClient('CrmProspectingRunQuery')
 const candidateQueryApi = createDynamicApiClient('CrmProspectingCandidateQuery')
 // Read-only deterministic Super Search planner preview (no provider calls, no writes, no Run).
 const superSearchQueryApi = createDynamicApiClient('CrmProspectingSuperSearchQuery')
+// Four-step review-only qualification; commands never overwrite candidate fields.
+const qualificationApi = createDynamicApiClient('CrmProspectingQualification')
 
 export const crmProspectingApi = {
   providerCatalog() {
@@ -150,5 +157,17 @@ export const crmProspectingApi = {
   },
   cancelSchedule(scheduleId: ApiId) {
     return api.post<CrmProspectingScheduleDto, undefined>('CancelSchedule', undefined, { params: { scheduleId } })
+  },
+  resolveIdentity(companyName: string) {
+    return qualificationApi.get<CrmProspectingIdentityMatchDto | null>('ResolveIdentity', { companyName })
+  },
+  assessWebsite(input: CrmProspectingWebsiteAssessmentInputDto) {
+    return qualificationApi.post<CrmProspectingWebsiteAssessmentDto, CrmProspectingWebsiteAssessmentInputDto>('AssessWebsite', input)
+  },
+  buildVerificationReport(input: CrmProspectingVerificationBuildDto) {
+    return qualificationApi.post<CrmProspectingVerificationReportDto, CrmProspectingVerificationBuildDto>('BuildVerificationReport', input)
+  },
+  verificationReport(candidateId: ApiId) {
+    return qualificationApi.get<CrmProspectingVerificationReportDto | null>('VerificationReport', { candidateId })
   },
 }

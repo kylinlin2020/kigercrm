@@ -117,6 +117,25 @@ describe('crmProspectingApi', () => {
     )
   })
 
+  it('routes four-step qualification through the read-only review boundary', async () => {
+    const website = {
+      companyName: 'ACME GmbH',
+      candidateUrl: 'https://acme.example.com',
+      sourceProviderCode: 'manual-review',
+      sourceKind: 3,
+    }
+
+    await crmProspectingApi.resolveIdentity('ACME GmbH')
+    await crmProspectingApi.assessWebsite(website)
+    await crmProspectingApi.buildVerificationReport({ candidateId: '30' })
+    await crmProspectingApi.verificationReport('30')
+
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingQualification/ResolveIdentity', { params: { companyName: 'ACME GmbH' } })
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingQualification/AssessWebsite', website, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingQualification/BuildVerificationReport', { candidateId: '30' }, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingQualification/VerificationReport', { params: { candidateId: '30' } })
+  })
+
   it('routes recurring schedule lifecycle commands through the main Dynamic API service', async () => {
     const input = {
       campaignId: '10',
