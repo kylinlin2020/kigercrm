@@ -153,6 +153,30 @@ public static class CrmProspectingMapper
         Fingerprint = cell.Fingerprint
     };
 
+    /// <summary>Maps a recurring schedule to its wire contract.</summary>
+    public static CrmProspectingScheduleDto ToScheduleDto(SysCrmProspectingSchedule entity) => new()
+    {
+        BasicId = entity.BasicId,
+        CampaignId = entity.CampaignId,
+        Name = entity.Name,
+        RequestKeyPrefix = entity.RequestKeyPrefix,
+        TimeZoneId = entity.TimeZoneId,
+        Frequency = (int)entity.Frequency,
+        Interval = entity.Interval,
+        TimeOfDayMinutes = entity.TimeOfDayMinutes,
+        DayOfWeek = entity.DayOfWeek,
+        DayOfMonth = entity.DayOfMonth,
+        StartDateUtc = entity.StartDateUtc,
+        EndDateUtc = entity.EndDateUtc,
+        Status = (int)entity.Status,
+        NextRunAtUtc = entity.NextRunAtUtc,
+        LastRunAtUtc = entity.LastRunAtUtc,
+        LastRunId = entity.LastRunId,
+        ApprovedBy = entity.ApprovedBy,
+        ApprovedAt = entity.ApprovedAt,
+        CreatedTime = entity.CreatedTime
+    };
+
     /// <summary>Maps a deterministic objective parse into its wire contract, field by field.</summary>
     public static CrmProspectingSuperSearchObjectiveParseResultDto ToSuperSearchObjectiveParseResultDto(
         CrmProspectingObjectiveParseResult result) => new()

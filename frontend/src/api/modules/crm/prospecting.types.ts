@@ -365,3 +365,59 @@ export interface CrmProspectingSuperSearchObjectiveParseResultDto {
   matches: CrmProspectingObjectiveMatchDto[]
   warnings: string[]
 }
+
+export enum CrmProspectingScheduleFrequency {
+  Daily = 0,
+  Weekly = 1,
+  Monthly = 2,
+}
+
+export enum CrmProspectingScheduleStatus {
+  Draft = 0,
+  PendingApproval = 1,
+  Approved = 2,
+  Paused = 3,
+  Cancelled = 4,
+  Rejected = 5,
+}
+
+export interface CrmProspectingScheduleCreateDto {
+  campaignId: ApiId
+  name: string
+  requestKeyPrefix: string
+  timeZoneId: string
+  frequency: CrmProspectingScheduleFrequency
+  interval: number
+  timeOfDayMinutes: number
+  dayOfWeek?: number | null
+  dayOfMonth?: number | null
+  startDate: DateTimeString
+  endDate?: DateTimeString | null
+}
+
+export interface CrmProspectingScheduleDecisionDto {
+  scheduleId: ApiId
+  approve: boolean
+}
+
+export interface CrmProspectingScheduleDto {
+  basicId: ApiId
+  campaignId: ApiId
+  name: string
+  requestKeyPrefix: string
+  timeZoneId: string
+  frequency: CrmProspectingScheduleFrequency
+  interval: number
+  timeOfDayMinutes: number
+  dayOfWeek?: number | null
+  dayOfMonth?: number | null
+  startDate: DateTimeString
+  endDate?: DateTimeString | null
+  status: CrmProspectingScheduleStatus
+  nextRunAt?: DateTimeString | null
+  lastRunAt?: DateTimeString | null
+  lastRunId?: ApiId | null
+  approvedBy?: ApiId | null
+  approvedAt?: DateTimeString | null
+  createdTime: DateTimeString
+}

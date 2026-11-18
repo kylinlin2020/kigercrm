@@ -340,6 +340,57 @@ public sealed class CrmProspectingSuperSearchObjectiveParseResultDto
     public IReadOnlyList<string> Warnings { get; set; } = [];
 }
 
+/// <summary>Create request for a timezone-aware recurring prospecting schedule.</summary>
+public sealed class CrmProspectingScheduleCreateDto
+{
+    public long CampaignId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string RequestKeyPrefix { get; set; } = string.Empty;
+    public string TimeZoneId { get; set; } = "UTC";
+
+    /// <summary>Wire value of CrmProspectingScheduleFrequency (0 = Daily, 1 = Weekly, 2 = Monthly).</summary>
+    public int Frequency { get; set; }
+    public int Interval { get; set; } = 1;
+    public int TimeOfDayMinutes { get; set; }
+    public int? DayOfWeek { get; set; }
+    public int? DayOfMonth { get; set; }
+    public DateTimeOffset StartDateUtc { get; set; }
+    public DateTimeOffset? EndDateUtc { get; set; }
+}
+
+/// <summary>Approval decision for a pending schedule.</summary>
+public sealed class CrmProspectingScheduleDecisionDto
+{
+    public long ScheduleId { get; set; }
+    public bool Approve { get; set; }
+}
+
+/// <summary>Recurring schedule read model; NextRunAtUtc is null once the end date is reached.</summary>
+public sealed class CrmProspectingScheduleDto
+{
+    public long BasicId { get; set; }
+    public long CampaignId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string RequestKeyPrefix { get; set; } = string.Empty;
+    public string TimeZoneId { get; set; } = string.Empty;
+    public int Frequency { get; set; }
+    public int Interval { get; set; }
+    public int TimeOfDayMinutes { get; set; }
+    public int? DayOfWeek { get; set; }
+    public int? DayOfMonth { get; set; }
+    public DateTimeOffset StartDateUtc { get; set; }
+    public DateTimeOffset? EndDateUtc { get; set; }
+
+    /// <summary>Wire value of CrmProspectingScheduleStatus.</summary>
+    public int Status { get; set; }
+    public DateTimeOffset? NextRunAtUtc { get; set; }
+    public DateTimeOffset? LastRunAtUtc { get; set; }
+    public long? LastRunId { get; set; }
+    public long? ApprovedBy { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+}
+
 /// <summary>Durable mission read model: the frozen plan plus its execution link.</summary>
 public sealed class CrmProspectingSuperSearchMissionDto
 {

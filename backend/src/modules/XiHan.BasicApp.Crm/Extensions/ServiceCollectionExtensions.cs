@@ -3,6 +3,7 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using XiHan.BasicApp.Crm.Application.AppServices;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.DomainServices;
 using XiHan.BasicApp.Crm.Domain.DomainServices.Implementations;
@@ -64,6 +65,8 @@ public static class ServiceCollectionExtensions
         services.AddCrmProspectingProviders(configuration);
         services.AddHostedService<CrmProspectingExtractionHostedService>();
         services.AddHostedService<CrmProspectingExtractionCoordinatorHostedService>();
+        services.AddHostedService<CrmProspectingScheduleHostedService>();
+        services.AddScoped<CrmProspectingScheduleDispatcher>();
         return services;
     }
 
@@ -92,6 +95,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrmProspectingEvidenceRepository, CrmProspectingEvidenceRepository>();
         services.AddScoped<ICrmProspectingScoreRepository, CrmProspectingScoreRepository>();
         services.AddScoped<ICrmProspectingSuperSearchMissionRepository, CrmProspectingSuperSearchMissionRepository>();
+        services.AddScoped<ICrmProspectingScheduleRepository, CrmProspectingScheduleRepository>();
         services.AddScoped<ICrmProspectingProviderRequestRepository, CrmProspectingProviderRequestRepository>();
         services.AddScoped<ICrmProspectingExtractionJobRepository, CrmProspectingExtractionJobRepository>();
         services.AddScoped<ICrmProspectingRunProviderExecutionRepository, CrmProspectingRunProviderExecutionRepository>();

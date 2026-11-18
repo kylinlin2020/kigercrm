@@ -39,6 +39,7 @@ import {
 import ProviderCredentialsPanel from './ProviderCredentialsPanel.vue'
 import ReviewDetailPanel from './ReviewDetailPanel.vue'
 import RunMonitorPanel from './RunMonitorPanel.vue'
+import SchedulePanel from './SchedulePanel.vue'
 import SuperSearchPreviewPanel from './SuperSearchPreviewPanel.vue'
 import { useRunMonitorPolling } from './useRunMonitorPolling'
 
@@ -691,6 +692,7 @@ onMounted(() => {
 
     <ProviderCredentialsPanel />
     <SuperSearchPreviewPanel @run-created="loadWorkspace" />
+    <SchedulePanel @schedule-changed="loadWorkspace" />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}

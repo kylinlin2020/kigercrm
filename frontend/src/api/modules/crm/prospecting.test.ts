@@ -117,6 +117,35 @@ describe('crmProspectingApi', () => {
     )
   })
 
+  it('routes recurring schedule lifecycle commands through the main Dynamic API service', async () => {
+    const input = {
+      campaignId: '10',
+      name: 'daily scan',
+      requestKeyPrefix: 'daily-scan',
+      timeZoneId: 'UTC',
+      frequency: 0,
+      interval: 1,
+      timeOfDayMinutes: 540,
+      startDate: '2026-01-01T09:00:00.000Z',
+    }
+
+    await crmProspectingApi.createSchedule(input)
+    await crmProspectingApi.schedules('10')
+    await crmProspectingApi.submitSchedule('20')
+    await crmProspectingApi.decideSchedule({ scheduleId: '20', approve: true })
+    await crmProspectingApi.pauseSchedule('20')
+    await crmProspectingApi.resumeSchedule('20')
+    await crmProspectingApi.cancelSchedule('20')
+
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/CreateSchedule', input, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Schedules', { params: { campaignId: '10' } })
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/SubmitScheduleForApproval', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/DecideSchedule', { scheduleId: '20', approve: true }, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/PauseSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/ResumeSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/CancelSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
+  })
+
   it('routes Super Search mission save/list/execute through the main Dynamic API service', async () => {
     const plan = {
       products: ['pump'],

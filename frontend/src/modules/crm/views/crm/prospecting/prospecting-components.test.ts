@@ -13,6 +13,7 @@ const bulkActionBar = source('BulkActionBar.vue')
 const candidateTable = source('CandidateTable.vue')
 const reviewDetailPanel = source('ReviewDetailPanel.vue')
 const superSearchPanel = source('SuperSearchPreviewPanel.vue')
+const schedulePanel = source('SchedulePanel.vue')
 
 describe('prospecting page component split', () => {
   it('keeps shared state in the page and delegates the three extracted views', () => {
@@ -95,5 +96,18 @@ describe('prospecting page component split', () => {
     expect(superSearchPanel).toContain('products.value = result.input.products.join')
     expect(superSearchPanel).not.toContain('await saveMission()')
     expect(superSearchPanel).not.toContain('await executeMission(')
+  })
+
+  it('keeps schedule approval gated in the UI and dispatch strictly worker-side', () => {
+    expect(index).toContain('import SchedulePanel from \'./SchedulePanel.vue\'')
+    expect(index).toContain('@schedule-changed="loadWorkspace"')
+    expect(schedulePanel).toContain('hasPermission(\'crm_prospecting.execute\')')
+    expect(schedulePanel).toContain('createSchedule')
+    expect(schedulePanel).toContain('submitSchedule')
+    expect(schedulePanel).toContain('decideSchedule')
+    expect(schedulePanel).toContain('pauseSchedule')
+    expect(schedulePanel).toContain('resumeSchedule')
+    expect(schedulePanel).toContain('cancelSchedule')
+    expect(schedulePanel).not.toContain('startRun')
   })
 })

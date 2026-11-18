@@ -141,3 +141,19 @@
 > **诚实边界**：解析是受控的标记语法映射，不是通用自然语言理解；未识别的标记必须报错而非猜测。规划结果仍需人工复核后才可保存为 mission。
 >
 > 下一步：M1.4 定期计划 Schedule → M2 资格四步。
+
+### M1.4 证据记录（2026-11-18）
+
+- [x] 实体 `SysCrmProspectingSchedule` + 频率/状态枚举（含 Rejected）+ 升级脚本 `UpdateScripts/5.9.44/5.9.44.sql`（幂等键与 due 查询索引）；仓储 `GetDueAsync` 与 CAS `TryClaimAsync`。
+- [x] 时区递归 `CrmProspectingScheduleRecurrence`：本地墙钟计算 + IANA/Windows 时区互转；DST 空洞前进到首个有效分钟、回折取较早 UTC 瞬时；月末 31 号截断与 -1 取月末（闰年 2/29 正确）。
+- [x] 审批生命周期 API（Create/Read/Execute 复用既有权限码）：创建 → 提交 → 批准（计算 NextRunAtUtc）→ 暂停/恢复/取消；调度派发**不作为 API 暴露**，仅 Worker 可用。
+- [x] Worker `CrmProspectingScheduleHostedService` + `CrmProspectingScheduleDispatcher`：确定性 occurrence 请求键复用 `StartRunAsync`，CAS 保证多实例不重复派发；派发失败保留 due 状态供重试。
+- [x] 前端 SchedulePanel（活动选择、递归表单、审批/暂停/恢复/取消按状态显隐）+ 类型/facade/7 语言 30 键；页面在计划变更后刷新 Run 区。
+- [x] 测试：递归 6 例（interval/weekday/月末/闰年/DST/结束日期）+ SQLite 4 例（生命周期、幂等与越权、派发与 CAS、契约守卫）。
+- [x] 门禁：后端 build 0 错误、解决方案测试 **6011 总 / 0 失败**（Api.Tests 1151/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、test 181 文件 / 2639 用例全绿、build 成功；px/token/i18n 无新增条目。
+- [ ] 浏览器实机、真实 HTTP、PG 门控与 Windows 原生部署（关闭规则第 5 条）：**待 M0**，不关闭迁移条目。
+- [ ] 单提交（同一契约同批）；**不推送**。
+
+> **诚实边界**：SQLite 夹具对 `DateTimeOffset` 回读会重挂本地偏移，测试改为断言壁钟与 CAS 而非跨夹具比较瞬时；生产 PG 保留真实瞬时。多实例并发仅在 CAS/请求键层面取证，未做真实双 Worker PG 压测。
+>
+> 批次 3 至此收口；下一步进入 **M2 资格四步**（GLEIF discover/reconcile、联系人补全、验证报告、官网 probe）。

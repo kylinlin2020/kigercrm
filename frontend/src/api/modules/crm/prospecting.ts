@@ -14,6 +14,9 @@ import type {
   CrmProspectingRunDto,
   CrmProspectingRunMonitorDto,
   CrmProspectingRunStartDto,
+  CrmProspectingScheduleCreateDto,
+  CrmProspectingScheduleDecisionDto,
+  CrmProspectingScheduleDto,
   CrmProspectingStrategyDecisionDto,
   CrmProspectingStrategyDto,
   CrmProspectingStrategyInputDto,
@@ -126,5 +129,26 @@ export const crmProspectingApi = {
   },
   createRunFromSuperSearchMission(missionId: ApiId) {
     return api.post<CrmProspectingRunDto, undefined>('CreateRunFromSuperSearchMission', undefined, { params: { missionId } })
+  },
+  createSchedule(input: CrmProspectingScheduleCreateDto) {
+    return api.post<CrmProspectingScheduleDto, CrmProspectingScheduleCreateDto>('CreateSchedule', input)
+  },
+  schedules(campaignId: ApiId) {
+    return api.get<CrmProspectingScheduleDto[]>('Schedules', { campaignId })
+  },
+  submitSchedule(scheduleId: ApiId) {
+    return api.post<CrmProspectingScheduleDto, undefined>('SubmitScheduleForApproval', undefined, { params: { scheduleId } })
+  },
+  decideSchedule(input: CrmProspectingScheduleDecisionDto) {
+    return api.post<CrmProspectingScheduleDto, CrmProspectingScheduleDecisionDto>('DecideSchedule', input)
+  },
+  pauseSchedule(scheduleId: ApiId) {
+    return api.post<CrmProspectingScheduleDto, undefined>('PauseSchedule', undefined, { params: { scheduleId } })
+  },
+  resumeSchedule(scheduleId: ApiId) {
+    return api.post<CrmProspectingScheduleDto, undefined>('ResumeSchedule', undefined, { params: { scheduleId } })
+  },
+  cancelSchedule(scheduleId: ApiId) {
+    return api.post<CrmProspectingScheduleDto, undefined>('CancelSchedule', undefined, { params: { scheduleId } })
   },
 }
