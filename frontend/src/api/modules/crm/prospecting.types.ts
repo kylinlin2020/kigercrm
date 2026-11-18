@@ -524,3 +524,111 @@ export interface CrmProspectingPageFetchDto {
   succeeded: boolean
   evidencePersisted: boolean
 }
+
+export enum CrmOutreachSequenceStatus {
+  Draft = 0,
+  Active = 1,
+  Paused = 2,
+  Archived = 3,
+}
+
+export enum CrmOutreachEnrollmentStatus {
+  Active = 0,
+  Paused = 1,
+  Completed = 2,
+  Suppressed = 3,
+}
+
+export enum CrmOutreachTouchpointState {
+  Planned = 0,
+  Approved = 1,
+  Sent = 2,
+  Replied = 3,
+  Bounced = 4,
+  Suppressed = 5,
+}
+
+export enum CrmOutreachChannel {
+  Email = 0,
+  WhatsApp = 1,
+  WebsiteComment = 2,
+  ManualCall = 3,
+}
+
+export enum CrmOutreachReplyClass {
+  None = 0,
+  Interested = 1,
+  NotInterested = 2,
+  OutOfOffice = 3,
+  Unknown = 4,
+}
+
+export interface CrmOutreachStepDto {
+  channel: CrmOutreachChannel
+  delayDays: number
+  template: string
+}
+
+export interface CrmOutreachSequenceCreateDto {
+  name: string
+  steps: CrmOutreachStepDto[]
+}
+
+export interface CrmOutreachSequenceDto {
+  basicId: ApiId
+  name: string
+  steps: CrmOutreachStepDto[]
+  status: CrmOutreachSequenceStatus
+  activatedAt?: DateTimeString | null
+  createdTime: DateTimeString
+}
+
+export interface CrmOutreachEnrollDto {
+  candidateId: ApiId
+  sequenceId: ApiId
+}
+
+export interface CrmOutreachEnrollmentDto {
+  basicId: ApiId
+  sequenceId: ApiId
+  candidateId: ApiId
+  status: CrmOutreachEnrollmentStatus
+  currentStep: number
+  nextActionAt?: DateTimeString | null
+  suppressionReason?: string | null
+  createdTime: DateTimeString
+}
+
+export interface CrmOutreachTouchpointDto {
+  basicId: ApiId
+  enrollmentId: ApiId
+  candidateId: ApiId
+  step: number
+  channel: CrmOutreachChannel
+  state: CrmOutreachTouchpointState
+  replyClass: CrmOutreachReplyClass
+  contentHash: string
+  approvedBy?: ApiId | null
+  approvedAt?: DateTimeString | null
+  occurredAt?: DateTimeString | null
+  createdTime: DateTimeString
+}
+
+export interface CrmOutreachRecordDto {
+  touchpointId: ApiId
+  state: CrmOutreachTouchpointState
+  replyText?: string | null
+}
+
+export interface CrmOutreachReviewDto {
+  sequenceId: ApiId
+  enrollments: number
+  planned: number
+  approved: number
+  sent: number
+  replied: number
+  bounced: number
+  suppressed: number
+  interested: number
+  notInterested: number
+}

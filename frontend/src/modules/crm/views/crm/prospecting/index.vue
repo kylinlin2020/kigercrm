@@ -31,6 +31,7 @@ import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import BulkActionBar from './BulkActionBar.vue'
 import CandidateTable from './CandidateTable.vue'
+import OutreachPanel from './OutreachPanel.vue'
 import { useProspectingLabels } from './prospecting-labels'
 import {
   CRM_PROSPECTING_PROVIDER_FALLBACK_CATALOG,
@@ -693,6 +694,7 @@ onMounted(() => {
     <ProviderCredentialsPanel />
     <SuperSearchPreviewPanel @run-created="loadWorkspace" />
     <SchedulePanel @schedule-changed="loadWorkspace" />
+    <OutreachPanel />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}

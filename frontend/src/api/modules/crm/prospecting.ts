@@ -1,6 +1,13 @@
 import type { ApiId, PageResult } from '../../types'
 import type { CrmLeadDetailDto } from './lead.types'
 import type {
+  CrmOutreachEnrollDto,
+  CrmOutreachEnrollmentDto,
+  CrmOutreachRecordDto,
+  CrmOutreachReviewDto,
+  CrmOutreachSequenceCreateDto,
+  CrmOutreachSequenceDto,
+  CrmOutreachTouchpointDto,
   CrmProspectingBulkResultDto,
   CrmProspectingCampaignDto,
   CrmProspectingCampaignInputDto,
@@ -50,6 +57,8 @@ const superSearchQueryApi = createDynamicApiClient('CrmProspectingSuperSearchQue
 const qualificationApi = createDynamicApiClient('CrmProspectingQualification')
 // Recurring schedules live in their own Dynamic API service, not in CrmProspecting.
 const scheduleApi = createDynamicApiClient('CrmProspectingSchedule')
+// Human-gated outreach has its own Dynamic API service; no method sends anything automatically.
+const outreachApi = createDynamicApiClient('CrmOutreach')
 
 export const crmProspectingApi = {
   providerCatalog() {
@@ -182,5 +191,38 @@ export const crmProspectingApi = {
   },
   probeWebsite(input: CrmProspectingWebsiteProbeInputDto) {
     return qualificationApi.post<CrmProspectingPageFetchDto, CrmProspectingWebsiteProbeInputDto>('ProbeWebsite', input)
+  },
+  createOutreachSequence(input: CrmOutreachSequenceCreateDto) {
+    return outreachApi.post<CrmOutreachSequenceDto, CrmOutreachSequenceCreateDto>('Sequence', input)
+  },
+  outreachSequences() {
+    return outreachApi.get<CrmOutreachSequenceDto[]>('Sequences')
+  },
+  activateOutreachSequence(sequenceId: ApiId) {
+    return outreachApi.post<CrmOutreachSequenceDto, undefined>('ActivateSequence', undefined, { params: { sequenceId } })
+  },
+  pauseOutreachSequence(sequenceId: ApiId) {
+    return outreachApi.post<CrmOutreachSequenceDto, undefined>('PauseSequence', undefined, { params: { sequenceId } })
+  },
+  enrollForOutreach(input: CrmOutreachEnrollDto) {
+    return outreachApi.post<CrmOutreachEnrollmentDto, CrmOutreachEnrollDto>('EnrollCandidate', input)
+  },
+  outreachEnrollments(sequenceId: ApiId) {
+    return outreachApi.get<CrmOutreachEnrollmentDto[]>('Enrollments', { sequenceId })
+  },
+  outreachTouchpoints(enrollmentId: ApiId) {
+    return outreachApi.get<CrmOutreachTouchpointDto[]>('Touchpoints', { enrollmentId })
+  },
+  approveOutreachTouchpoint(touchpointId: ApiId) {
+    return outreachApi.post<CrmOutreachTouchpointDto, undefined>('ApproveTouchpoint', undefined, { params: { touchpointId } })
+  },
+  recordOutreachTouchpoint(input: CrmOutreachRecordDto) {
+    return outreachApi.post<CrmOutreachTouchpointDto, CrmOutreachRecordDto>('RecordTouchpoint', input)
+  },
+  suppressOutreachEnrollment(enrollmentId: ApiId, reason: string) {
+    return outreachApi.post<CrmOutreachEnrollmentDto, undefined>('SuppressEnrollment', undefined, { params: { enrollmentId, reason } })
+  },
+  outreachReview(sequenceId: ApiId) {
+    return outreachApi.get<CrmOutreachReviewDto>('Review', { sequenceId })
   },
 }

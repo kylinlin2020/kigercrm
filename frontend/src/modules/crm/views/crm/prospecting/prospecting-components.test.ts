@@ -16,6 +16,7 @@ const superSearchPanel = source('SuperSearchPreviewPanel.vue')
 const schedulePanel = source('SchedulePanel.vue')
 const reviewDetail = source('ReviewDetailPanel.vue')
 const verificationPanel = source('VerificationPanel.vue')
+const outreachPanel = source('OutreachPanel.vue')
 
 describe('prospecting page component split', () => {
   it('keeps shared state in the page and delegates the three extracted views', () => {
@@ -133,5 +134,17 @@ describe('prospecting page component split', () => {
     expect(verificationPanel).toContain('pageFetch.evidencePersisted')
     expect(verificationPanel).not.toContain('reviewCandidate')
     expect(verificationPanel).not.toContain('startRun')
+  })
+
+  it('keeps outreach send gated behind human approval with no automated channel', () => {
+    expect(index).toContain('import OutreachPanel from \'./OutreachPanel.vue\'')
+    expect(index).toContain('<OutreachPanel')
+    expect(outreachPanel).toContain('approveOutreachTouchpoint')
+    expect(outreachPanel).toContain('recordOutreachTouchpoint')
+    expect(outreachPanel).toContain('suppressOutreachEnrollment')
+    expect(outreachPanel).toContain('hasPermission(\'crm_prospecting.execute\')')
+    expect(outreachPanel).toContain('outreachReview')
+    expect(outreachPanel).not.toContain('sendEmail')
+    expect(outreachPanel).not.toContain('fetch(')
   })
 })

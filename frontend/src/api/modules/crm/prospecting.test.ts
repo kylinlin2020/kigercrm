@@ -117,6 +117,33 @@ describe('crmProspectingApi', () => {
     )
   })
 
+  it('routes human-gated outreach sequences and touchpoints through the outreach service', async () => {
+    const sequence = { name: 'intro', steps: [{ channel: 0, delayDays: 0, template: 'hello' }] }
+    await crmProspectingApi.createOutreachSequence(sequence)
+    await crmProspectingApi.outreachSequences()
+    await crmProspectingApi.activateOutreachSequence('10')
+    await crmProspectingApi.pauseOutreachSequence('10')
+    await crmProspectingApi.enrollForOutreach({ candidateId: '30', sequenceId: '10' })
+    await crmProspectingApi.outreachEnrollments('10')
+    await crmProspectingApi.outreachTouchpoints('20')
+    await crmProspectingApi.approveOutreachTouchpoint('40')
+    await crmProspectingApi.recordOutreachTouchpoint({ touchpointId: '40', state: 2 })
+    await crmProspectingApi.suppressOutreachEnrollment('20', 'opt-out')
+    await crmProspectingApi.outreachReview('10')
+
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOutreach/Sequence', sequence, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmOutreach/Sequences', { params: undefined })
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOutreach/ActivateSequence', undefined, expect.objectContaining({ params: { sequenceId: '10' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOutreach/PauseSequence', undefined, expect.objectContaining({ params: { sequenceId: '10' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOutreach/EnrollCandidate', { candidateId: '30', sequenceId: '10' }, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmOutreach/Enrollments', { params: { sequenceId: '10' } })
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmOutreach/Touchpoints', { params: { enrollmentId: '20' } })
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOutreach/ApproveTouchpoint', undefined, expect.objectContaining({ params: { touchpointId: '40' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOutreach/RecordTouchpoint', { touchpointId: '40', state: 2 }, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmOutreach/SuppressEnrollment', undefined, expect.objectContaining({ params: { enrollmentId: '20', reason: 'opt-out' } }))
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmOutreach/Review', { params: { sequenceId: '10' } })
+  })
+
   it('routes staged identity and bounded website probe through qualification', async () => {
     const probe = { candidateId: '30', companyName: 'ACME GmbH', candidateUrl: 'https://acme.example.com' }
 

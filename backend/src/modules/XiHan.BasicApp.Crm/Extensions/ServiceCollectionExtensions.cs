@@ -98,6 +98,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICrmProspectingSuperSearchMissionRepository, CrmProspectingSuperSearchMissionRepository>();
         services.AddScoped<ICrmProspectingScheduleRepository, CrmProspectingScheduleRepository>();
         services.AddScoped<ICrmProspectingVerificationReportRepository, CrmProspectingVerificationReportRepository>();
+        services.AddScoped<ICrmOutreachSequenceRepository, CrmOutreachSequenceRepository>();
+        services.AddScoped<ICrmOutreachEnrollmentRepository, CrmOutreachEnrollmentRepository>();
+        services.AddScoped<ICrmOutreachTouchpointRepository, CrmOutreachTouchpointRepository>();
         services.AddScoped<ICrmProspectingProviderRequestRepository, CrmProspectingProviderRequestRepository>();
         services.AddScoped<ICrmProspectingExtractionJobRepository, CrmProspectingExtractionJobRepository>();
         services.AddScoped<ICrmProspectingRunProviderExecutionRepository, CrmProspectingRunProviderExecutionRepository>();

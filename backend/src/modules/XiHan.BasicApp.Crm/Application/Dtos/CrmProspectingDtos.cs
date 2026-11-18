@@ -515,3 +515,84 @@ public sealed class CrmProspectingWebsiteProbeInputDto
     public string CompanyName { get; set; } = string.Empty;
     public string CandidateUrl { get; set; } = string.Empty;
 }
+
+/// <summary>Frozen outreach step plan; template text is data for human review, never executed.</summary>
+public sealed class CrmOutreachStepDto
+{
+    public int Channel { get; set; }
+    public int DelayDays { get; set; }
+    public string Template { get; set; } = string.Empty;
+}
+
+public sealed class CrmOutreachSequenceCreateDto
+{
+    public string Name { get; set; } = string.Empty;
+    public IReadOnlyList<CrmOutreachStepDto> Steps { get; set; } = [];
+}
+
+public sealed class CrmOutreachSequenceDto
+{
+    public long BasicId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public IReadOnlyList<CrmOutreachStepDto> Steps { get; set; } = [];
+    public int Status { get; set; }
+    public DateTimeOffset? ActivatedAt { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+}
+
+public sealed class CrmOutreachEnrollDto
+{
+    public long CandidateId { get; set; }
+    public long SequenceId { get; set; }
+}
+
+public sealed class CrmOutreachEnrollmentDto
+{
+    public long BasicId { get; set; }
+    public long SequenceId { get; set; }
+    public long CandidateId { get; set; }
+    public int Status { get; set; }
+    public int CurrentStep { get; set; }
+    public DateTimeOffset? NextActionAtUtc { get; set; }
+    public string? SuppressionReason { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+}
+
+public sealed class CrmOutreachTouchpointDto
+{
+    public long BasicId { get; set; }
+    public long EnrollmentId { get; set; }
+    public long CandidateId { get; set; }
+    public int Step { get; set; }
+    public int Channel { get; set; }
+    public int State { get; set; }
+    public int ReplyClass { get; set; }
+    public string ContentHash { get; set; } = string.Empty;
+    public long? ApprovedBy { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public DateTimeOffset? OccurredAtUtc { get; set; }
+    public DateTimeOffset CreatedTime { get; set; }
+}
+
+public sealed class CrmOutreachRecordDto
+{
+    public long TouchpointId { get; set; }
+
+    /// <summary>Wire value of CrmOutreachTouchpointState: Sent, Replied or Bounced only.</summary>
+    public int State { get; set; }
+    public string? ReplyText { get; set; }
+}
+
+public sealed class CrmOutreachReviewDto
+{
+    public long SequenceId { get; set; }
+    public int Enrollments { get; set; }
+    public int Planned { get; set; }
+    public int Approved { get; set; }
+    public int Sent { get; set; }
+    public int Replied { get; set; }
+    public int Bounced { get; set; }
+    public int Suppressed { get; set; }
+    public int Interested { get; set; }
+    public int NotInterested { get; set; }
+}
