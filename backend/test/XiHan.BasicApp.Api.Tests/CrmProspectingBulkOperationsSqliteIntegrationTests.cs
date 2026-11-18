@@ -140,6 +140,7 @@ public sealed class CrmProspectingBulkOperationsSqliteIntegrationTests : IDispos
             _runQueue.Object,
             _unitOfWorkManager.Object,
             extractionJobs,
+            new CrmProspectingSuperSearchMissionRepository(_resolver.Object),
             CrmProspectingProviderRegistry.Create([], []),
             _configuration.Object);
     }

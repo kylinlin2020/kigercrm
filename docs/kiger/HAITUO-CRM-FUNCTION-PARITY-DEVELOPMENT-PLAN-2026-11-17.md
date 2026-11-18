@@ -112,3 +112,18 @@
 - D 关闭判定：本片是"API/UI 接线"，不关闭任何迁移条目；等价审计第 7 行由"策略迁移、工作流部分"推进为"只读规划 API/UI 可用，Run 执行仍未接线"。
 
 > 完成 M1.1 后按同一切片模板继续 M1.2 → M1.3 → M1.4 → M2…；每片完成即回写本文件与差距台账，未取运行时证据前不关闭迁移条目。
+
+### M1.2 证据记录（2026-11-18）
+
+- [x] 实体 `SysCrmProspectingSuperSearchMission` + 状态枚举 `Planned/Executed` + 升级脚本 `UpdateScripts/5.9.43/5.9.43.sql`（含 RequestKey 软删唯一索引）；仓储接口/实现 + DI 注册。
+- [x] 3 个 Dynamic API：`SaveSuperSearchMission`（Create）、`GetSuperSearchMissions`（Read）、`CreateRunFromSuperSearchMission`（Execute），复用既有权限码；规划在服务端重算，客户端快照不被信任。
+- [x] Run 接线：`CreateRunFromSuperSearchMission` 委托既有 `StartRunAsync`（无第二套派发），执行前校验 mission 的 provider 集合被已批准激活的策略覆盖；重放返回同一 Run，不重复入队。
+- [x] 前端：`*MissionCreateDto`/`*MissionDto` 类型、3 个 facade、面板扩展（活动选择/名称/请求键/保存/列表/创建 Run），保存后刷新列表、创建 Run 后 `runCreated` 事件让页面刷新 Run 区；7 语言再补 10 键。
+- [x] 测试：新增 `CrmProspectingSuperSearchMissionSqliteIntegrationTests` 5/5（幂等、冲突、越权/跨租户、Run 复用重放、策略覆盖拒绝、契约守卫）。
+- [x] 门禁：后端解决方案 build 0 错误、测试 **5998 总 / 0 失败**（Api.Tests 1138/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、test 181 文件 / 2639 用例全绿、build 成功；px/token/i18n 无新增条目。
+- [ ] 浏览器实机与真实 HTTP 401/403、租户隔离、真实 PG Run 创建：**待 M0 预览整栈恢复**，不标记迁移条目完成。
+- [ ] 单提交（同一契约同批）；**不推送**。
+
+> **诚实边界**：mission 的规划快照已持久化并驱动 provider 集合校验，但现有 Run 执行单元仍是"每 provider 一次"的既有管线；多轮 query cell 的逐轮执行、暂停/恢复联动属于 M1.3+ 与 W4 后续，不在本片宣称完成。
+>
+> 下一步：M1.3 自然语言目标解析 → M1.4 定期计划 Schedule → M2 资格四步。

@@ -38,6 +38,7 @@ public sealed class CrmProspectingAppService(
     IRedisDelayQueue<CrmProspectingRunMessage> runQueue,
     IUnitOfWorkManager unitOfWorkManager,
     ICrmProspectingExtractionJobRepository extractionJobs,
+    ICrmProspectingSuperSearchMissionRepository missions,
     CrmProspectingProviderRegistry providerRegistry,
     IConfiguration configuration)
     : CrmApplicationService, ICrmProspectingAppService
@@ -188,6 +189,136 @@ public sealed class CrmProspectingAppService(
             return await StartRunInUnitOfWorkAsync(input, cancellationToken);
         }
     }
+
+    /// <summary>
+    /// Freezes planner output as a durable mission. The plan is recomputed from the submitted inputs
+    /// on the server: a client-supplied snapshot is never persisted. RequestKey is the idempotency
+    /// boundary shared with the eventual Run, and reusing it for a different plan is rejected.
+    /// </summary>
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Create)]
+    public async Task<CrmProspectingSuperSearchMissionDto> SaveSuperSearchMissionAsync(
+        CrmProspectingSuperSearchMissionCreateDto input,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.CampaignId <= 0) throw new ArgumentOutOfRangeException(nameof(input.CampaignId));
+        ArgumentException.ThrowIfNullOrWhiteSpace(input.Name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(input.RequestKey);
+        ArgumentNullException.ThrowIfNull(input.Plan);
+
+        var campaign = await campaigns.GetByIdAsync(input.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
+
+        var plan = CrmProspectingSuperSearchPlanner.Create(ToSuperSearchPlannerInput(input.Plan));
+        var existing = await missions.GetByRequestKeyAsync(input.RequestKey, cancellationToken);
+        if (existing is not null)
+        {
+            if (existing.CampaignId != input.CampaignId
+                || !string.Equals(existing.ScopeFingerprint, plan.ScopeFingerprint, StringComparison.Ordinal))
+                throw new InvalidOperationException("The request key was already used with a different Super Search mission.");
+            return CrmProspectingMapper.ToSuperSearchMissionDto(existing);
+        }
+
+        var entity = new SysCrmProspectingSuperSearchMission
+        {
+            CampaignId = input.CampaignId,
+            Name = input.Name.Trim(),
+            RequestKey = input.RequestKey.Trim(),
+            ScopeFingerprint = plan.ScopeFingerprint,
+            Depth = (int)input.Plan.Depth,
+            PlannedRounds = plan.PlannedRounds,
+            ProviderCount = plan.ProviderCount,
+            ProviderPlanJson = JsonSerializer.Serialize(
+                plan.Rounds.SelectMany(round => round.QueryCells).Select(cell => cell.ProviderCode)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToArray()),
+            PlanSnapshotJson = JsonSerializer.Serialize(plan, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+            Status = CrmProspectingSuperSearchMissionStatus.Planned
+        };
+        // The mission DTO carries no sensitive field, so no field-security policy is registered for
+        // this entity; record authorization above is the enforced boundary for the frozen plan.
+        return CrmProspectingMapper.ToSuperSearchMissionDto(await missions.AddAsync(entity, cancellationToken));
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<IReadOnlyList<CrmProspectingSuperSearchMissionDto>> GetSuperSearchMissionsAsync(
+        long campaignId,
+        CancellationToken cancellationToken = default)
+    {
+        if (campaignId <= 0) throw new ArgumentOutOfRangeException(nameof(campaignId));
+        var campaign = await campaigns.GetByIdAsync(campaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
+        var rows = await missions.GetByCampaignAsync(campaignId, 100, cancellationToken);
+        return rows.Select(CrmProspectingMapper.ToSuperSearchMissionDto).ToArray();
+    }
+
+    /// <summary>
+    /// Creates the Run through the same StartRun pipeline as a manual run: the approved active
+    /// strategy remains the execution truth. The mission's selected providers must be covered by
+    /// that strategy, so a saved plan can never launch unapproved provider work.
+    /// </summary>
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingRunDto> CreateRunFromSuperSearchMissionAsync(
+        long missionId,
+        CancellationToken cancellationToken = default)
+    {
+        if (missionId <= 0) throw new ArgumentOutOfRangeException(nameof(missionId));
+        var mission = await missions.GetByIdAsync(missionId, cancellationToken)
+            ?? throw new InvalidOperationException("Super Search mission does not exist.");
+        var campaign = await campaigns.GetByIdAsync(mission.CampaignId, cancellationToken)
+            ?? throw new InvalidOperationException("Prospecting campaign does not exist.");
+        await CrmAssignmentAuthorization.EnsureRecordAccessibleAsync(dataScope, campaign.OwnerUserId ?? 0, cancellationToken);
+
+        // Replay returns the committed Run: no second Run and no new queue message.
+        if (mission.RunId is > 0)
+        {
+            var existingRun = await runs.GetByIdAsync(mission.RunId.Value, cancellationToken)
+                ?? throw new InvalidOperationException("The Super Search mission references a missing Run.");
+            return ToDto(existingRun);
+        }
+
+        if (campaign.ActiveStrategyVersion is > 0)
+        {
+            var active = (await strategies.GetListAsync(
+                strategy => strategy.CampaignId == campaign.BasicId
+                    && strategy.Version == campaign.ActiveStrategyVersion.Value,
+                cancellationToken)).SingleOrDefault()
+                ?? throw new InvalidOperationException("The campaign active strategy version is missing or ambiguous.");
+            if (active.ApprovalStatus != CrmProspectingStrategyApprovalStatus.Approved || active.ActivatedAt is null)
+                throw new InvalidOperationException("The active strategy is not approved and activated.");
+            var approvedCodes = ParseProviderPlan(active.ProviderPlanJson).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (ParseProviderPlan(mission.ProviderPlanJson).Any(code => !approvedCodes.Contains(code)))
+                throw new InvalidOperationException("The mission provider plan is not covered by the campaign's approved strategy.");
+        }
+
+        var run = await StartRunAsync(new CrmProspectingRunStartDto
+        {
+            CampaignId = mission.CampaignId,
+            RequestKey = mission.RequestKey
+        }, cancellationToken);
+
+        using (var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true))
+        {
+            mission.Status = CrmProspectingSuperSearchMissionStatus.Executed;
+            mission.RunId = run.BasicId;
+            await missions.UpdateAsync(mission, cancellationToken);
+            await uow.CompleteAsync(cancellationToken);
+        }
+        return run;
+    }
+
+    private static CrmProspectingSuperSearchInput ToSuperSearchPlannerInput(CrmProspectingSuperSearchPreviewInputDto input) => new(
+        input.Products,
+        input.Markets,
+        input.CustomerTypes,
+        input.Industries,
+        input.ProviderCodes,
+        input.ExcludedTerms,
+        input.ExcludedDomains,
+        (CrmProspectingSuperSearchDepth)input.Depth,
+        input.RequestedRounds);
 
     private async Task<CrmProspectingRunDto> StartRunInUnitOfWorkAsync(
         CrmProspectingRunStartDto input,

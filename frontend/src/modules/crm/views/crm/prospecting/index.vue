@@ -690,7 +690,7 @@ onMounted(() => {
     </header>
 
     <ProviderCredentialsPanel />
-    <SuperSearchPreviewPanel />
+    <SuperSearchPreviewPanel @run-created="loadWorkspace" />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}

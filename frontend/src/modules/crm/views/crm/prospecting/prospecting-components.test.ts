@@ -74,4 +74,14 @@ describe('prospecting page component split', () => {
     expect(superSearchPanel).toContain('preview.value = null')
     expect(superSearchPanel).toContain('useI18n')
   })
+
+  it('keeps Super Search missions durable and reuses the page run loader after execution', () => {
+    expect(superSearchPanel).toContain('saveSuperSearchMission')
+    expect(superSearchPanel).toContain('superSearchMissions')
+    expect(superSearchPanel).toContain('createRunFromSuperSearchMission')
+    expect(superSearchPanel).toContain('defineEmits')
+    expect(superSearchPanel).toContain('runCreated: [runId: ApiId]')
+    expect(superSearchPanel).toContain('mission.runId')
+    expect(index).toContain('@run-created="loadWorkspace"')
+  })
 })

@@ -302,3 +302,34 @@ public sealed class CrmProspectingSuperSearchPreviewDto
     public int TotalQueryCells { get; set; }
     public IReadOnlyList<CrmProspectingSuperSearchRoundDto> Rounds { get; set; } = [];
 }
+
+/// <summary>
+/// Save request for a durable mission. The plan is recomputed by the server from these inputs;
+/// a client-supplied plan snapshot is never trusted. RequestKey is the idempotency boundary.
+/// </summary>
+public sealed class CrmProspectingSuperSearchMissionCreateDto
+{
+    public long CampaignId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string RequestKey { get; set; } = string.Empty;
+    public CrmProspectingSuperSearchPreviewInputDto Plan { get; set; } = new();
+}
+
+/// <summary>Durable mission read model: the frozen plan plus its execution link.</summary>
+public sealed class CrmProspectingSuperSearchMissionDto
+{
+    public long BasicId { get; set; }
+    public long CampaignId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string RequestKey { get; set; } = string.Empty;
+    public string ScopeFingerprint { get; set; } = string.Empty;
+    public int Depth { get; set; }
+    public int PlannedRounds { get; set; }
+    public int ProviderCount { get; set; }
+
+    /// <summary>Wire value of CrmProspectingSuperSearchMissionStatus (0 = Planned, 1 = Executed).</summary>
+    public int Status { get; set; }
+    public long? RunId { get; set; }
+    public CrmProspectingSuperSearchPreviewDto Plan { get; set; } = new();
+    public DateTimeOffset CreatedTime { get; set; }
+}

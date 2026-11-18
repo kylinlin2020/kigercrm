@@ -17,6 +17,8 @@ import type {
   CrmProspectingStrategyDecisionDto,
   CrmProspectingStrategyDto,
   CrmProspectingStrategyInputDto,
+  CrmProspectingSuperSearchMissionCreateDto,
+  CrmProspectingSuperSearchMissionDto,
   CrmProspectingSuperSearchPreviewDto,
   CrmProspectingSuperSearchPreviewInputDto,
 } from './prospecting.types'
@@ -110,5 +112,14 @@ export const crmProspectingApi = {
   },
   previewSuperSearch(input: CrmProspectingSuperSearchPreviewInputDto) {
     return superSearchQueryApi.post<CrmProspectingSuperSearchPreviewDto, CrmProspectingSuperSearchPreviewInputDto>('PreviewSuperSearch', input)
+  },
+  saveSuperSearchMission(input: CrmProspectingSuperSearchMissionCreateDto) {
+    return api.post<CrmProspectingSuperSearchMissionDto, CrmProspectingSuperSearchMissionCreateDto>('SaveSuperSearchMission', input)
+  },
+  superSearchMissions(campaignId: ApiId) {
+    return api.get<CrmProspectingSuperSearchMissionDto[]>('SuperSearchMissions', { campaignId })
+  },
+  createRunFromSuperSearchMission(missionId: ApiId) {
+    return api.post<CrmProspectingRunDto, undefined>('CreateRunFromSuperSearchMission', undefined, { params: { missionId } })
   },
 }

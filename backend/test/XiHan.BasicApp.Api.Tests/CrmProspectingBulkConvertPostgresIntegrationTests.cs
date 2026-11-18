@@ -199,6 +199,7 @@ public sealed class CrmProspectingBulkConvertPostgresIntegrationTests : IDisposa
             new Mock<IRedisDelayQueue<CrmProspectingRunMessage>>().Object,
             unitOfWorkManager.Object,
             extractionJobs,
+            new CrmProspectingSuperSearchMissionRepository(resolver.Object),
             CrmProspectingProviderRegistry.Create([], []),
             new Mock<IConfiguration>().Object);
     }

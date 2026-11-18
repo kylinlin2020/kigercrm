@@ -318,3 +318,31 @@ export interface CrmProspectingSuperSearchPreviewDto {
   totalQueryCells: number
   rounds: CrmProspectingSuperSearchRoundDto[]
 }
+
+/** The plan is recomputed server-side; only the inputs and the idempotency key are sent. */
+export interface CrmProspectingSuperSearchMissionCreateDto {
+  campaignId: ApiId
+  name: string
+  requestKey: string
+  plan: CrmProspectingSuperSearchPreviewInputDto
+}
+
+export enum CrmProspectingSuperSearchMissionStatus {
+  Planned = 0,
+  Executed = 1,
+}
+
+export interface CrmProspectingSuperSearchMissionDto {
+  basicId: ApiId
+  campaignId: ApiId
+  name: string
+  requestKey: string
+  scopeFingerprint: string
+  depth: CrmProspectingSuperSearchDepth
+  plannedRounds: number
+  providerCount: number
+  status: CrmProspectingSuperSearchMissionStatus
+  runId?: ApiId | null
+  plan: CrmProspectingSuperSearchPreviewDto
+  createdTime: DateTimeString
+}

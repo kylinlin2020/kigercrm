@@ -36,4 +36,13 @@ public interface ICrmProspectingAppService : IApplicationService
 
     /// <summary>Remove every listed candidate from the shortlist; already-clean items are idempotent successes.</summary>
     Task<CrmProspectingBulkResultDto> UnshortlistCandidatesAsync(CrmProspectingCandidateBulkDto input, CancellationToken cancellationToken = default);
+
+    /// <summary>Freeze a deterministic Super Search plan as a durable, idempotent mission.</summary>
+    Task<CrmProspectingSuperSearchMissionDto> SaveSuperSearchMissionAsync(CrmProspectingSuperSearchMissionCreateDto input, CancellationToken cancellationToken = default);
+
+    /// <summary>Recent missions of one campaign under the same record authorization as its Run history.</summary>
+    Task<IReadOnlyList<CrmProspectingSuperSearchMissionDto>> GetSuperSearchMissionsAsync(long campaignId, CancellationToken cancellationToken = default);
+
+    /// <summary>Create a mission's Run through the existing approved pipeline; replay returns the same Run.</summary>
+    Task<CrmProspectingRunDto> CreateRunFromSuperSearchMissionAsync(long missionId, CancellationToken cancellationToken = default);
 }

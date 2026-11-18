@@ -1,6 +1,7 @@
 // Copyright (c) 2026 KIGER contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Text.Json;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
@@ -12,6 +13,8 @@ namespace XiHan.BasicApp.Crm.Application.Mappers;
 /// </summary>
 public static class CrmProspectingMapper
 {
+    private static readonly JsonSerializerOptions SuperSearchJsonOptions = new(JsonSerializerDefaults.Web);
+
     /// <summary>Maps a prospecting candidate entity to its review-list DTO.</summary>
     public static CrmProspectingCandidateDto ToCandidateDto(SysCrmProspectingCandidate entity) => new()
     {
@@ -149,4 +152,26 @@ public static class CrmProspectingMapper
         QueryText = cell.QueryText,
         Fingerprint = cell.Fingerprint
     };
+
+    /// <summary>Maps a durable mission with its frozen plan; a corrupt snapshot fails loudly.</summary>
+    public static CrmProspectingSuperSearchMissionDto ToSuperSearchMissionDto(SysCrmProspectingSuperSearchMission entity)
+    {
+        var plan = JsonSerializer.Deserialize<CrmProspectingSuperSearchPreviewDto>(entity.PlanSnapshotJson, SuperSearchJsonOptions)
+            ?? throw new InvalidOperationException("The persisted Super Search mission plan snapshot is invalid.");
+        return new()
+        {
+            BasicId = entity.BasicId,
+            CampaignId = entity.CampaignId,
+            Name = entity.Name,
+            RequestKey = entity.RequestKey,
+            ScopeFingerprint = entity.ScopeFingerprint,
+            Depth = entity.Depth,
+            PlannedRounds = entity.PlannedRounds,
+            ProviderCount = entity.ProviderCount,
+            Status = (int)entity.Status,
+            RunId = entity.RunId,
+            Plan = plan,
+            CreatedTime = entity.CreatedTime
+        };
+    }
 }

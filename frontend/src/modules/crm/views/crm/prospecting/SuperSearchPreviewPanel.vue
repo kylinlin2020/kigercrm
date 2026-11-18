@@ -1,19 +1,34 @@
 <script setup lang="ts">
-import type { CrmProspectingSuperSearchPreviewDto } from '@/api'
-import { computed, ref } from 'vue'
+import type {
+  ApiId,
+  CrmProspectingCampaignDto,
+  CrmProspectingSuperSearchMissionDto,
+  CrmProspectingSuperSearchPreviewDto,
+  CrmProspectingSuperSearchPreviewInputDto,
+} from '@/api'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   crmProspectingApi,
   CrmProspectingSuperSearchDepth,
+  CrmProspectingSuperSearchMissionStatus,
 } from '@/api'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
 defineOptions({ name: 'CrmProspectingSuperSearchPreviewPanel' })
 
+const emit = defineEmits<{ runCreated: [runId: ApiId] }>()
+
 const { t } = useI18n()
 const { hasPermission } = usePermission()
 const canExecute = computed(() => hasPermission('crm_prospecting.execute'))
+
+const campaigns = ref<CrmProspectingCampaignDto[]>([])
+const campaignId = ref('')
+const missionName = ref('')
+const requestKey = ref('')
+const missions = ref<CrmProspectingSuperSearchMissionDto[]>([])
 
 const products = ref('')
 const markets = ref('')
@@ -27,6 +42,7 @@ const rounds = ref('')
 
 const preview = ref<CrmProspectingSuperSearchPreviewDto | null>(null)
 const submitting = ref(false)
+const savingMission = ref(false)
 
 const maxRounds = computed(() => [4, 8, 16][Number(depth.value)] ?? 4)
 
@@ -34,23 +50,61 @@ function splitList(value: string): string[] {
   return value.split(/[\n,，;；]+/).map(item => item.trim()).filter(Boolean)
 }
 
+function buildPlanInput(): CrmProspectingSuperSearchPreviewInputDto {
+  return {
+    products: splitList(products.value),
+    markets: splitList(markets.value),
+    customerTypes: splitList(customerTypes.value),
+    industries: splitList(industries.value),
+    providerCodes: splitList(providerCodes.value),
+    excludedTerms: splitList(excludedTerms.value),
+    excludedDomains: splitList(excludedDomains.value),
+    depth: Number(depth.value) as CrmProspectingSuperSearchDepth,
+    requestedRounds: rounds.value === '' ? null : Number(rounds.value),
+  }
+}
+
+async function loadCampaigns() {
+  try {
+    campaigns.value = await crmProspectingApi.campaigns()
+    if (!campaigns.value.some(item => String(item.basicId) === campaignId.value)) {
+      campaignId.value = campaigns.value[0] ? String(campaigns.value[0].basicId) : ''
+    }
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.loadError'))
+  }
+}
+
+async function loadMissions() {
+  if (!campaignId.value) {
+    missions.value = []
+    return
+  }
+  try {
+    missions.value = await crmProspectingApi.superSearchMissions(campaignId.value)
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.loadError'))
+  }
+}
+
+onMounted(async () => {
+  await loadCampaigns()
+  await loadMissions()
+})
+
+watch(campaignId, () => {
+  void loadMissions()
+})
+
 async function submitPreview() {
   if (!canExecute.value || submitting.value) {
     return
   }
   submitting.value = true
   try {
-    preview.value = await crmProspectingApi.previewSuperSearch({
-      products: splitList(products.value),
-      markets: splitList(markets.value),
-      customerTypes: splitList(customerTypes.value),
-      industries: splitList(industries.value),
-      providerCodes: splitList(providerCodes.value),
-      excludedTerms: splitList(excludedTerms.value),
-      excludedDomains: splitList(excludedDomains.value),
-      depth: Number(depth.value) as CrmProspectingSuperSearchDepth,
-      requestedRounds: rounds.value === '' ? null : Number(rounds.value),
-    })
+    preview.value = await crmProspectingApi.previewSuperSearch(buildPlanInput())
   }
   catch (error) {
     // A rejected preview must never leave a stale plan on screen.
@@ -59,6 +113,44 @@ async function submitPreview() {
   }
   finally {
     submitting.value = false
+  }
+}
+
+async function saveMission() {
+  if (!canExecute.value || savingMission.value || !campaignId.value) {
+    return
+  }
+  savingMission.value = true
+  try {
+    await crmProspectingApi.saveSuperSearchMission({
+      campaignId: campaignId.value,
+      name: missionName.value,
+      requestKey: requestKey.value,
+      plan: buildPlanInput(),
+    })
+    toast.success(t('crm.prospecting.superSearchSaved'))
+    await loadMissions()
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.superSearchError'))
+  }
+  finally {
+    savingMission.value = false
+  }
+}
+
+async function executeMission(mission: CrmProspectingSuperSearchMissionDto) {
+  if (!canExecute.value || mission.runId) {
+    return
+  }
+  try {
+    const run = await crmProspectingApi.createRunFromSuperSearchMission(mission.basicId)
+    toast.success(t('crm.prospecting.superSearchMissionRunCreated', { id: run.basicId }))
+    emit('runCreated', run.basicId)
+    await loadMissions()
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.superSearchError'))
   }
 }
 
@@ -86,6 +178,20 @@ function fingerprintShort(value: string) {
     </header>
 
     <div class="search-form">
+      <label>{{ t('crm.prospecting.campaign') }}
+        <select v-model="campaignId">
+          <option value="">{{ t('crm.prospecting.selectCampaign') }}</option>
+          <option v-for="campaign in campaigns" :key="campaign.basicId" :value="String(campaign.basicId)">
+            {{ campaign.name }}
+          </option>
+        </select>
+      </label>
+      <label>{{ t('crm.prospecting.superSearchMissionName') }}
+        <input v-model="missionName" type="text" maxlength="160">
+      </label>
+      <label>{{ t('crm.prospecting.superSearchMissionRequestKey') }}
+        <input v-model="requestKey" type="text" maxlength="100">
+      </label>
       <label>{{ t('crm.prospecting.superSearchProducts') }}
         <textarea v-model="products" rows="2" placeholder="industrial pump, valve" />
       </label>
@@ -117,6 +223,15 @@ function fingerprintShort(value: string) {
       <label>{{ t('crm.prospecting.superSearchRounds') }}
         <input v-model="rounds" type="number" min="1" :max="maxRounds" :placeholder="`1–${maxRounds}`">
       </label>
+      <button
+        v-if="canExecute"
+        class="primary-button"
+        type="button"
+        :disabled="savingMission || !campaignId"
+        @click="saveMission"
+      >
+        {{ t('crm.prospecting.superSearchSaveMission') }}
+      </button>
     </div>
 
     <p class="read-only-notice">
@@ -169,6 +284,32 @@ function fingerprintShort(value: string) {
           </table>
         </details>
       </template>
+    </div>
+
+    <div class="mission-list">
+      <h3>{{ t('crm.prospecting.superSearchMissionList') }}</h3>
+      <p v-if="missions.length === 0" class="empty-state">
+        {{ t('crm.prospecting.superSearchMissionEmpty') }}
+      </p>
+      <div v-for="mission in missions" :key="mission.basicId" class="mission-row">
+        <div class="mission-main">
+          <strong>{{ mission.name }}</strong>
+          <small>{{ mission.requestKey }} · {{ mission.plannedRounds }} {{ t('crm.prospecting.superSearchRounds') }} · {{ fingerprintShort(mission.scopeFingerprint) }}</small>
+        </div>
+        <span class="status-pill">
+          {{ mission.status === CrmProspectingSuperSearchMissionStatus.Executed
+            ? t('crm.prospecting.superSearchMissionExecuted')
+            : t('crm.prospecting.superSearchMissionPlanned') }}
+        </span>
+        <button
+          v-if="canExecute && !mission.runId"
+          type="button"
+          @click="executeMission(mission)"
+        >
+          {{ t('crm.prospecting.superSearchMissionExecute') }}
+        </button>
+        <code v-if="mission.runId">#{{ mission.runId }}</code>
+      </div>
     </div>
   </section>
 </template>
@@ -243,6 +384,33 @@ function fingerprintShort(value: string) {
 .query-cell {
   max-width: 24rem;
   overflow-wrap: anywhere;
+}
+.mission-list {
+  display: grid;
+  gap: 0.4rem;
+  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  padding-top: 0.5rem;
+}
+.mission-list h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.mission-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--xh-border-subtle, #ddd);
+  font-size: 0.85rem;
+}
+.mission-main {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.mission-main small {
+  color: var(--xh-fg-muted, #777);
 }
 .empty-state {
   margin: 0;

@@ -104,4 +104,31 @@ describe('crmProspectingApi', () => {
       undefined,
     )
   })
+
+  it('routes Super Search mission save/list/execute through the main Dynamic API service', async () => {
+    const plan = {
+      products: ['pump'],
+      markets: ['DE'],
+      customerTypes: ['distributor'],
+      industries: [],
+      providerCodes: ['provider-a'],
+      excludedTerms: [],
+      excludedDomains: [],
+      depth: 0,
+      requestedRounds: 2,
+    }
+    const input = { campaignId: '10', name: 'industrial plan', requestKey: 'mission-1', plan }
+
+    await crmProspectingApi.saveSuperSearchMission(input)
+    await crmProspectingApi.superSearchMissions('10')
+    await crmProspectingApi.createRunFromSuperSearchMission('30')
+
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/SaveSuperSearchMission', input, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/SuperSearchMissions', { params: { campaignId: '10' } })
+    expect(requestMocks.post).toHaveBeenCalledWith(
+      '/CrmProspecting/CreateRunFromSuperSearchMission',
+      undefined,
+      expect.objectContaining({ params: { missionId: '30' } }),
+    )
+  })
 })
