@@ -186,3 +186,14 @@
 > **诚实边界**：页面抓取只取哈希/标题/字节数供人工复核，不解析正文为 CRM 事实；分阶段身份未持久化"决策历史"实体，步骤随请求返回但不入库（报告快照可再引用）。SSE/实时事件仍不在范围。
 >
 > 下一步：M3（效果复盘、开发信工作区、结果反馈/触达资格）或转入 M0 运行时验收。
+
+### M0 运行时验收证据（2026-11-18）
+
+- **整栈**：PG 5433 + WebHost 9708（重编 Debug 含全部新代码）+ Vite 9800 全部监听；日志确认 `CrmProspectingScheduleHostedService` 已启动。
+- **真实 HTTP（A 级）**：登录 200；新端点未登录 401；`PreviewSuperSearch` / `ParseSuperSearchObjective` / `SaveSuperSearchMission` / `SuperSearchMissions` / `CreateSchedule` / `Schedules` / `BuildVerificationReport` / `GetVerificationReport` / `ProbeWebsite` 均 200；Schedule 提交→批准→暂停→恢复→取消全 200，终态 Cancelled；已批准策略内 provider 的 mission 创建 Run 200，**重放返回同一 RunId**；策略覆盖不足时 422（守卫生效）；opt-in 解析器未开启时 Bootstrap 返回 Unresolved + `resolver_not_registered`、Resolve 明确失败。
+- **实机暴露并修复的真实缺陷**：① `ICrmProspectingIdentityResolver` 是 opt-in 注册，新服务强依赖导致启动期 DI 校验失败 → 改为可选依赖 + 诚实降级；② Schedule API 属独立 DynamicApi 服务且 `CreateScheduleAsync` 路由去掉 `Create` 前缀，前端 facade 误用旧服务名/路由 → 修正；③ 前端 Schedule DTO 用 `startDate` 而后端是 `startDateUtc`，导致 400 → 对齐；④ `CreateRunFromSuperSearchMissionAsync` 路由为 `RunFromSuperSearchMission` → 修正；⑤ `BootstrapIdentity`/`ResolveIdentity` 为 POST，前端误用 GET → 修正。
+- **浏览器（C 级）**：获客页新面板全部渲染；候选详情中的资格验证面板可生成/展示报告；点击"分阶段解析身份"真实 POST 成功并显示阶段结果；暗/亮主题切换、390px 窄视口（按钮换行、禁用态正确）均正常；无控制台错误。截图：`.openchamber/screenshots/m0-prospecting-{dark,light,mobile}-*.jpg`。
+- **门禁**：后端解决方案 build 0 错误 / 测试 **6021 总 / 0 失败**；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **181 文件 / 2649 用例全绿**、build 成功。
+- **仍未取证**：Windows 原生部署（关闭规则第 5 条）、PG 门控并发、opt-in GLEIF 真实联调、11 个 Provider 真实 Run。迁移条目按规则继续不关闭。
+>
+> 下一步：M3 或在用户要求下推进 Windows 原生部署验收。

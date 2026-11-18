@@ -89,7 +89,7 @@ public sealed class CrmProspectingQualificationTests : IDisposable
             .Returns(() => Task.FromResult(_scope));
         _service = new CrmProspectingQualificationAppService(
             _candidates, _evidence, _reports, runs, campaigns,
-            _identityResolver.Object, _pageFetcher.Object, _dataScope.Object);
+            _pageFetcher.Object, _dataScope.Object, _identityResolver.Object);
     }
 
     [Fact]
@@ -267,6 +267,22 @@ public sealed class CrmProspectingQualificationTests : IDisposable
         var result = await fetcher.FetchAsync("http://facebook.com/company");
         Assert.False(result.Succeeded);
         Assert.Equal("unsafe_url_shape", result.ReasonCode);
+    }
+
+    [Fact]
+    public async Task Qualification_ShouldStartWithoutOptInResolverAndReportItHonestly()
+    {
+        // The GLEIF resolver is opt-in; preview servers without the switch must still boot.
+        var service = new CrmProspectingQualificationAppService(
+            _candidates, _evidence, _reports,
+            new CrmProspectingRunRepository(_resolver.Object),
+            new CrmProspectingCampaignRepository(_resolver.Object),
+            _pageFetcher.Object,
+            _dataScope.Object);
+        var bootstrap = await service.BootstrapIdentityAsync("ACME GmbH");
+        Assert.Equal((int)CrmProspectingIdentityBootstrapStage.Unresolved, bootstrap.Stage);
+        Assert.Contains(bootstrap.Steps, step => step.ReasonCode == "resolver_not_registered");
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.ResolveIdentityAsync("ACME GmbH"));
     }
 
     private static SysCrmProspectingCandidate Candidate(string companyName) => new()

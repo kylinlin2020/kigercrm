@@ -30,9 +30,9 @@ public sealed class CrmProspectingQualificationAppService(
     ICrmProspectingVerificationReportRepository reports,
     ICrmProspectingRunRepository runs,
     ICrmProspectingCampaignRepository campaigns,
-    ICrmProspectingIdentityResolver identityResolver,
     ICrmProspectingPageFetcher pageFetcher,
-    IUserDataScopeFilterService dataScope)
+    IUserDataScopeFilterService dataScope,
+    ICrmProspectingIdentityResolver? identityResolver = null)
     : CrmApplicationService, ICrmProspectingQualificationAppService
 {
     private static readonly JsonSerializerOptions ReportJsonOptions = new(JsonSerializerDefaults.Web);
@@ -43,6 +43,8 @@ public sealed class CrmProspectingQualificationAppService(
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(companyName);
+        if (identityResolver is null)
+            throw new InvalidOperationException("Authoritative identity resolution is not enabled on this server.");
         var match = await identityResolver.ResolveExactAsync(companyName, cancellationToken);
         return match is null ? null : CrmProspectingMapper.ToIdentityMatchDto(match);
     }
@@ -108,6 +110,9 @@ public sealed class CrmProspectingQualificationAppService(
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(companyName);
+        if (identityResolver is null)
+            return CrmProspectingMapper.ToIdentityBootstrapDto(
+                CrmProspectingIdentityBootstrapPolicy.Unavailable("resolver_not_registered"));
         var discovered = await identityResolver.DiscoverAsync(companyName, cancellationToken);
         return CrmProspectingMapper.ToIdentityBootstrapDto(
             CrmProspectingIdentityBootstrapPolicy.Build(companyName, countryCode, discovered));

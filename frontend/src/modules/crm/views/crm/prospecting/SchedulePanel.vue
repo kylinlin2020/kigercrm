@@ -110,8 +110,8 @@ function createSchedule() {
     timeOfDayMinutes: Number(timeOfDayMinutes.value),
     dayOfWeek: dayOfWeek.value === '' ? null : Number(dayOfWeek.value),
     dayOfMonth: dayOfMonth.value === '' ? null : Number(dayOfMonth.value),
-    startDate: start,
-    endDate: end,
+    startDateUtc: start,
+    endDateUtc: end,
   }))
 }
 

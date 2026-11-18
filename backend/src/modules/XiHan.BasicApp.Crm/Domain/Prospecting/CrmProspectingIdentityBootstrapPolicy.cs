@@ -23,6 +23,11 @@ public sealed record CrmProspectingIdentityBootstrapResult(
 
 public static class CrmProspectingIdentityBootstrapPolicy
 {
+    /// <summary>Explicit unresolved result when the opt-in resolver is not registered on this server.</summary>
+    public static CrmProspectingIdentityBootstrapResult Unavailable(string reasonCode)
+        => new(CrmProspectingIdentityBootstrapStage.Unresolved, null, [],
+            [new CrmProspectingIdentityBootstrapStep("discover", reasonCode, string.Empty)]);
+
     public static CrmProspectingIdentityBootstrapResult Build(
         string companyName,
         string? countryCode,

@@ -123,7 +123,7 @@ describe('crmProspectingApi', () => {
     await crmProspectingApi.bootstrapIdentity('ACME GmbH')
     await crmProspectingApi.probeWebsite(probe)
 
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingQualification/BootstrapIdentity', {
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingQualification/BootstrapIdentity', undefined, {
       params: { companyName: 'ACME GmbH', countryCode: '' },
     })
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingQualification/ProbeWebsite', probe, undefined)
@@ -142,7 +142,7 @@ describe('crmProspectingApi', () => {
     await crmProspectingApi.buildVerificationReport({ candidateId: '30' })
     await crmProspectingApi.verificationReport('30')
 
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingQualification/ResolveIdentity', { params: { companyName: 'ACME GmbH' } })
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingQualification/ResolveIdentity', undefined, { params: { companyName: 'ACME GmbH' } })
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingQualification/AssessWebsite', website, undefined)
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingQualification/BuildVerificationReport', { candidateId: '30' }, undefined)
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingQualification/VerificationReport', { params: { candidateId: '30' } })
@@ -157,7 +157,7 @@ describe('crmProspectingApi', () => {
       frequency: 0,
       interval: 1,
       timeOfDayMinutes: 540,
-      startDate: '2026-01-01T09:00:00.000Z',
+      startDateUtc: '2026-01-01T09:00:00.000Z',
     }
 
     await crmProspectingApi.createSchedule(input)
@@ -168,13 +168,13 @@ describe('crmProspectingApi', () => {
     await crmProspectingApi.resumeSchedule('20')
     await crmProspectingApi.cancelSchedule('20')
 
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/CreateSchedule', input, undefined)
-    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/Schedules', { params: { campaignId: '10' } })
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/SubmitScheduleForApproval', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/DecideSchedule', { scheduleId: '20', approve: true }, undefined)
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/PauseSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/ResumeSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
-    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/CancelSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingSchedule/Schedule', input, undefined)
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingSchedule/Schedules', { params: { campaignId: '10' } })
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingSchedule/SubmitScheduleForApproval', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingSchedule/DecideSchedule', { scheduleId: '20', approve: true }, undefined)
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingSchedule/PauseSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingSchedule/ResumeSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingSchedule/CancelSchedule', undefined, expect.objectContaining({ params: { scheduleId: '20' } }))
   })
 
   it('routes Super Search mission save/list/execute through the main Dynamic API service', async () => {
@@ -198,7 +198,7 @@ describe('crmProspectingApi', () => {
     expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspecting/SaveSuperSearchMission', input, undefined)
     expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspecting/SuperSearchMissions', { params: { campaignId: '10' } })
     expect(requestMocks.post).toHaveBeenCalledWith(
-      '/CrmProspecting/CreateRunFromSuperSearchMission',
+      '/CrmProspecting/RunFromSuperSearchMission',
       undefined,
       expect.objectContaining({ params: { missionId: '30' } }),
     )

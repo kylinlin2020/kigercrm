@@ -391,8 +391,8 @@ export interface CrmProspectingScheduleCreateDto {
   timeOfDayMinutes: number
   dayOfWeek?: number | null
   dayOfMonth?: number | null
-  startDate: DateTimeString
-  endDate?: DateTimeString | null
+  startDateUtc: DateTimeString
+  endDateUtc?: DateTimeString | null
 }
 
 export interface CrmProspectingScheduleDecisionDto {
@@ -411,8 +411,8 @@ export interface CrmProspectingScheduleDto {
   timeOfDayMinutes: number
   dayOfWeek?: number | null
   dayOfMonth?: number | null
-  startDate: DateTimeString
-  endDate?: DateTimeString | null
+  startDateUtc: DateTimeString
+  endDateUtc?: DateTimeString | null
   status: CrmProspectingScheduleStatus
   nextRunAt?: DateTimeString | null
   lastRunAt?: DateTimeString | null

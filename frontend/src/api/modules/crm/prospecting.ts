@@ -48,6 +48,8 @@ const candidateQueryApi = createDynamicApiClient('CrmProspectingCandidateQuery')
 const superSearchQueryApi = createDynamicApiClient('CrmProspectingSuperSearchQuery')
 // Four-step review-only qualification; commands never overwrite candidate fields.
 const qualificationApi = createDynamicApiClient('CrmProspectingQualification')
+// Recurring schedules live in their own Dynamic API service, not in CrmProspecting.
+const scheduleApi = createDynamicApiClient('CrmProspectingSchedule')
 
 export const crmProspectingApi = {
   providerCatalog() {
@@ -138,31 +140,31 @@ export const crmProspectingApi = {
     return api.get<CrmProspectingSuperSearchMissionDto[]>('SuperSearchMissions', { campaignId })
   },
   createRunFromSuperSearchMission(missionId: ApiId) {
-    return api.post<CrmProspectingRunDto, undefined>('CreateRunFromSuperSearchMission', undefined, { params: { missionId } })
+    return api.post<CrmProspectingRunDto, undefined>('RunFromSuperSearchMission', undefined, { params: { missionId } })
   },
   createSchedule(input: CrmProspectingScheduleCreateDto) {
-    return api.post<CrmProspectingScheduleDto, CrmProspectingScheduleCreateDto>('CreateSchedule', input)
+    return scheduleApi.post<CrmProspectingScheduleDto, CrmProspectingScheduleCreateDto>('Schedule', input)
   },
   schedules(campaignId: ApiId) {
-    return api.get<CrmProspectingScheduleDto[]>('Schedules', { campaignId })
+    return scheduleApi.get<CrmProspectingScheduleDto[]>('Schedules', { campaignId })
   },
   submitSchedule(scheduleId: ApiId) {
-    return api.post<CrmProspectingScheduleDto, undefined>('SubmitScheduleForApproval', undefined, { params: { scheduleId } })
+    return scheduleApi.post<CrmProspectingScheduleDto, undefined>('SubmitScheduleForApproval', undefined, { params: { scheduleId } })
   },
   decideSchedule(input: CrmProspectingScheduleDecisionDto) {
-    return api.post<CrmProspectingScheduleDto, CrmProspectingScheduleDecisionDto>('DecideSchedule', input)
+    return scheduleApi.post<CrmProspectingScheduleDto, CrmProspectingScheduleDecisionDto>('DecideSchedule', input)
   },
   pauseSchedule(scheduleId: ApiId) {
-    return api.post<CrmProspectingScheduleDto, undefined>('PauseSchedule', undefined, { params: { scheduleId } })
+    return scheduleApi.post<CrmProspectingScheduleDto, undefined>('PauseSchedule', undefined, { params: { scheduleId } })
   },
   resumeSchedule(scheduleId: ApiId) {
-    return api.post<CrmProspectingScheduleDto, undefined>('ResumeSchedule', undefined, { params: { scheduleId } })
+    return scheduleApi.post<CrmProspectingScheduleDto, undefined>('ResumeSchedule', undefined, { params: { scheduleId } })
   },
   cancelSchedule(scheduleId: ApiId) {
-    return api.post<CrmProspectingScheduleDto, undefined>('CancelSchedule', undefined, { params: { scheduleId } })
+    return scheduleApi.post<CrmProspectingScheduleDto, undefined>('CancelSchedule', undefined, { params: { scheduleId } })
   },
   resolveIdentity(companyName: string) {
-    return qualificationApi.get<CrmProspectingIdentityMatchDto | null>('ResolveIdentity', { companyName })
+    return qualificationApi.post<CrmProspectingIdentityMatchDto | null, undefined>('ResolveIdentity', undefined, { params: { companyName } })
   },
   assessWebsite(input: CrmProspectingWebsiteAssessmentInputDto) {
     return qualificationApi.post<CrmProspectingWebsiteAssessmentDto, CrmProspectingWebsiteAssessmentInputDto>('AssessWebsite', input)
@@ -174,7 +176,9 @@ export const crmProspectingApi = {
     return qualificationApi.get<CrmProspectingVerificationReportDto | null>('VerificationReport', { candidateId })
   },
   bootstrapIdentity(companyName: string, countryCode?: string | null) {
-    return qualificationApi.get<CrmProspectingIdentityBootstrapDto>('BootstrapIdentity', { companyName, countryCode: countryCode ?? '' })
+    return qualificationApi.post<CrmProspectingIdentityBootstrapDto, undefined>('BootstrapIdentity', undefined, {
+      params: { companyName, countryCode: countryCode ?? '' },
+    })
   },
   probeWebsite(input: CrmProspectingWebsiteProbeInputDto) {
     return qualificationApi.post<CrmProspectingPageFetchDto, CrmProspectingWebsiteProbeInputDto>('ProbeWebsite', input)
