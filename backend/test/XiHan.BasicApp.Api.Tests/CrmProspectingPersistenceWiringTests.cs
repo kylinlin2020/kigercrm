@@ -825,8 +825,15 @@ public sealed class CrmProspectingPersistenceWiringTests
         Assert.Contains("EvidenceType = \"registry\"", worker, StringComparison.Ordinal);
         Assert.Contains("VerificationStatus = \"unverified\"", worker, StringComparison.Ordinal);
         Assert.Contains("api.gleif.org/api/v1/lei-records", resolver, StringComparison.Ordinal);
-        Assert.Contains("matches.Count == 1", resolver, StringComparison.Ordinal);
+        // Exact uniqueness still gates ResolveExactAsync; DiscoverAsync now exposes candidates
+        // for staged review, and the bootstrap policy refuses to promote ambiguity.
+        Assert.Contains("candidates.Count == 1 ? candidates[0] : null", resolver, StringComparison.Ordinal);
+        Assert.Contains("DiscoverAsync", resolver, StringComparison.Ordinal);
         Assert.Contains("NormalizeName(legalName)", resolver, StringComparison.Ordinal);
+        var bootstrap = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Domain", "Prospecting", "CrmProspectingIdentityBootstrapPolicy.cs");
+        Assert.Contains("NeedsOperatorReconciliation", bootstrap, StringComparison.Ordinal);
+        Assert.Contains("ambiguous_candidates", bootstrap, StringComparison.Ordinal);
     }
 
     [Fact]

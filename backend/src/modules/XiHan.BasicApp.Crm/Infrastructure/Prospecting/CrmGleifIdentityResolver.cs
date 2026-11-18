@@ -24,13 +24,21 @@ public sealed class CrmGleifIdentityResolver : ICrmProspectingIdentityResolver, 
         string companyName,
         CancellationToken cancellationToken = default)
     {
+        var candidates = await DiscoverAsync(companyName, cancellationToken);
+        return candidates.Count == 1 ? candidates[0] : null;
+    }
+
+    public async Task<IReadOnlyList<CrmProspectingLegalEntityMatch>> DiscoverAsync(
+        string companyName,
+        CancellationToken cancellationToken = default)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(companyName);
         var queryName = companyName.Trim();
         if (queryName.Length > 200)
             queryName = queryName[..200];
 
         var normalizedQuery = NormalizeName(queryName);
-        if (normalizedQuery.Length < 4) return null;
+        if (normalizedQuery.Length < 4) return [];
 
         var query = $"filter%5Bentity.legalName%5D={Uri.EscapeDataString(queryName)}&page%5Bsize%5D=10";
         using var message = new HttpRequestMessage(HttpMethod.Get, new Uri(Endpoint + "?" + query));
@@ -64,14 +72,14 @@ public sealed class CrmGleifIdentityResolver : ICrmProspectingIdentityResolver, 
         if (!document.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("GLEIF response did not contain a JSON:API data array.");
 
-        // If the first page is not the whole result set, uniqueness cannot be established
-        // without scanning the complete registry result. Fail closed rather than guessing.
+        // If the first page is not the whole result set, neither uniqueness nor a complete
+        // candidate set can be established. Fail closed rather than offering a partial view.
         if (!document.RootElement.TryGetProperty("meta", out var meta) ||
             !meta.TryGetProperty("pagination", out var pagination) ||
             !pagination.TryGetProperty("total", out var totalElement) ||
             !totalElement.TryGetInt32(out var totalMatches) ||
             totalMatches > 10)
-            return null;
+            return [];
 
         var matches = new List<CrmProspectingLegalEntityMatch>();
         foreach (var item in data.EnumerateArray())
@@ -100,8 +108,8 @@ public sealed class CrmGleifIdentityResolver : ICrmProspectingIdentityResolver, 
                 DateTimeOffset.UtcNow));
         }
 
-        // Do not guess when a legal name maps to multiple entities.
-        return matches.Count == 1 ? matches[0] : null;
+        // Ambiguity is surfaced as a candidate set for the staged bootstrap to reconcile.
+        return matches;
     }
 
     private static string NormalizeName(string value)

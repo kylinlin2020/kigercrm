@@ -478,3 +478,40 @@ public sealed class CrmProspectingVerificationReportDto
     public string Summary { get; set; } = string.Empty;
     public DateTimeOffset CreatedTime { get; set; }
 }
+
+public sealed class CrmProspectingIdentityBootstrapStepDto
+{
+    public string Stage { get; set; } = string.Empty;
+    public string ReasonCode { get; set; } = string.Empty;
+    public string Detail { get; set; } = string.Empty;
+}
+
+/// <summary>Explainable staged identity result; ambiguous sets are never auto-promoted.</summary>
+public sealed class CrmProspectingIdentityBootstrapDto
+{
+    /// <summary>Wire value of CrmProspectingIdentityBootstrapStage.</summary>
+    public int Stage { get; set; }
+    public CrmProspectingIdentityMatchDto? AuthoritativeMatch { get; set; }
+    public IReadOnlyList<CrmProspectingIdentityMatchDto> Candidates { get; set; } = [];
+    public IReadOnlyList<CrmProspectingIdentityBootstrapStepDto> Steps { get; set; } = [];
+}
+
+/// <summary>Bounded page fetch outcome; no page content is interpreted as CRM fact.</summary>
+public sealed class CrmProspectingPageFetchDto
+{
+    public string FinalUrl { get; set; } = string.Empty;
+    public int StatusCode { get; set; }
+    public string? Title { get; set; }
+    public string BodyHash { get; set; } = string.Empty;
+    public int ByteCount { get; set; }
+    public string ReasonCode { get; set; } = string.Empty;
+    public bool Succeeded { get; set; }
+    public bool EvidencePersisted { get; set; }
+}
+
+public sealed class CrmProspectingWebsiteProbeInputDto
+{
+    public long CandidateId { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string CandidateUrl { get; set; } = string.Empty;
+}

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type {
   ApiId,
+  CrmProspectingIdentityBootstrapDto,
   CrmProspectingIdentityMatchDto,
+  CrmProspectingPageFetchDto,
   CrmProspectingQualificationVerdict,
   CrmProspectingVerificationReportDto,
   CrmProspectingVerificationState,
@@ -9,7 +11,7 @@ import type {
 } from '@/api'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { crmProspectingApi } from '@/api'
+import { crmProspectingApi, CrmProspectingIdentityBootstrapStage } from '@/api'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -28,6 +30,8 @@ const canExecute = computed(() => hasPermission('crm_prospecting.execute'))
 const report = ref<CrmProspectingVerificationReportDto | null>(null)
 const identityMatch = ref<CrmProspectingIdentityMatchDto | null>(null)
 const websiteAssessment = ref<CrmProspectingWebsiteAssessmentDto | null>(null)
+const bootstrap = ref<CrmProspectingIdentityBootstrapDto | null>(null)
+const pageFetch = ref<CrmProspectingPageFetchDto | null>(null)
 const busy = ref(false)
 
 function verdictLabel(value: CrmProspectingQualificationVerdict) {
@@ -105,6 +109,55 @@ async function assessWebsite() {
   }
 }
 
+async function bootstrapIdentity() {
+  if (!canExecute.value || busy.value) {
+    return
+  }
+  busy.value = true
+  try {
+    bootstrap.value = await crmProspectingApi.bootstrapIdentity(props.companyName)
+    if (bootstrap.value.stage === CrmProspectingIdentityBootstrapStage.ExactRegistryMatch) {
+      identityMatch.value = bootstrap.value.authoritativeMatch ?? null
+    }
+    toast.success(t('crm.prospecting.verifyBootstrapStage', { stage: bootstrapStageLabel(bootstrap.value.stage) }))
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.verifyError'))
+  }
+  finally {
+    busy.value = false
+  }
+}
+
+function bootstrapStageLabel(value: CrmProspectingIdentityBootstrapStage) {
+  return [
+    t('crm.prospecting.verifyStageUnresolved'),
+    t('crm.prospecting.verifyStageAmbiguous'),
+    t('crm.prospecting.verifyStageExact'),
+  ][value] ?? String(value)
+}
+
+async function probeWebsite() {
+  if (!canExecute.value || busy.value || !props.website) {
+    return
+  }
+  busy.value = true
+  try {
+    pageFetch.value = await crmProspectingApi.probeWebsite({
+      candidateId: props.candidateId,
+      companyName: props.companyName,
+      candidateUrl: props.website,
+    })
+    toast.success(t('crm.prospecting.verifyProbeReason', { reason: pageFetch.value.reasonCode }))
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.prospecting.verifyError'))
+  }
+  finally {
+    busy.value = false
+  }
+}
+
 async function buildReport() {
   if (!canExecute.value || busy.value) {
     return
@@ -134,11 +187,17 @@ async function buildReport() {
         <p>{{ t('crm.prospecting.verifyDescription') }}</p>
       </div>
       <div class="verify-actions">
+        <button v-if="canExecute" type="button" :disabled="busy" @click="bootstrapIdentity">
+          {{ t('crm.prospecting.verifyBootstrap') }}
+        </button>
         <button v-if="canExecute" type="button" :disabled="busy" @click="resolveIdentity">
           {{ t('crm.prospecting.verifyResolveIdentity') }}
         </button>
         <button v-if="canExecute" type="button" :disabled="busy || !website" @click="assessWebsite">
           {{ t('crm.prospecting.verifyAssessWebsite') }}
+        </button>
+        <button v-if="canExecute" type="button" :disabled="busy || !website" @click="probeWebsite">
+          {{ t('crm.prospecting.verifyProbeWebsite') }}
         </button>
         <button v-if="canExecute" class="primary-button" type="button" :disabled="busy" @click="buildReport">
           {{ t('crm.prospecting.verifyBuildReport') }}
@@ -149,6 +208,27 @@ async function buildReport() {
     <p v-if="websiteAssessment" class="verify-note">
       {{ t('crm.prospecting.verifyWebsiteReason', { reason: websiteAssessment.reasonCode }) }}
     </p>
+
+    <div v-if="bootstrap" class="verify-note">
+      <strong>{{ t('crm.prospecting.verifyBootstrapStage', { stage: bootstrapStageLabel(bootstrap.stage) }) }}</strong>
+      <span v-for="candidate in bootstrap.candidates" :key="candidate.lei">
+        {{ candidate.legalName }} ({{ candidate.lei }})
+      </span>
+      <span v-for="step in bootstrap.steps" :key="step.stage + step.reasonCode">
+        {{ step.stage }}: {{ step.reasonCode }} = {{ step.detail }}
+      </span>
+    </div>
+
+    <div v-if="pageFetch" class="verify-note">
+      {{ t('crm.prospecting.verifyProbeResult', {
+        status: pageFetch.statusCode,
+        bytes: pageFetch.byteCount,
+        reason: pageFetch.reasonCode,
+      }) }}
+      <span v-if="pageFetch.evidencePersisted">{{ t('crm.prospecting.verifyEvidenceSaved') }}</span>
+      <code v-if="pageFetch.bodyHash">{{ pageFetch.bodyHash.slice(0, 12) }}</code>
+      <span v-if="pageFetch.title">{{ pageFetch.title }}</span>
+    </div>
 
     <template v-if="report">
       <div class="verify-summary">

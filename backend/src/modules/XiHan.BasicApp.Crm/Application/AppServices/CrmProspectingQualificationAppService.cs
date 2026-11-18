@@ -1,6 +1,8 @@
 // Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
@@ -29,6 +31,7 @@ public sealed class CrmProspectingQualificationAppService(
     ICrmProspectingRunRepository runs,
     ICrmProspectingCampaignRepository campaigns,
     ICrmProspectingIdentityResolver identityResolver,
+    ICrmProspectingPageFetcher pageFetcher,
     IUserDataScopeFilterService dataScope)
     : CrmApplicationService, ICrmProspectingQualificationAppService
 {
@@ -96,6 +99,61 @@ public sealed class CrmProspectingQualificationAppService(
         await EnsureAccessibleAsync(candidateId, cancellationToken);
         var report = await reports.GetLatestByCandidateAsync(candidateId, cancellationToken);
         return report is null ? null : CrmProspectingMapper.ToVerificationReportDto(report);
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingIdentityBootstrapDto> BootstrapIdentityAsync(
+        string companyName,
+        string? countryCode = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(companyName);
+        var discovered = await identityResolver.DiscoverAsync(companyName, cancellationToken);
+        return CrmProspectingMapper.ToIdentityBootstrapDto(
+            CrmProspectingIdentityBootstrapPolicy.Build(companyName, countryCode, discovered));
+    }
+
+    [UnitOfWork(true)]
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    public async Task<CrmProspectingPageFetchDto> ProbeWebsiteAsync(
+        CrmProspectingWebsiteProbeInputDto input,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.CandidateId > 0)
+            await EnsureAccessibleAsync(input.CandidateId, cancellationToken);
+
+        var result = await pageFetcher.FetchAsync(input.CandidateUrl, cancellationToken);
+        var dto = CrmProspectingMapper.ToPageFetchDto(result);
+        if (!result.Succeeded || input.CandidateId <= 0) return dto;
+
+        // Only bounded, policy-accepted fetches become evidence. Identical URL + body hash is a
+        // no-op replay instead of a duplicate evidence row.
+        var urlHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(result.FinalUrl))).ToLowerInvariant();
+        var existing = await evidence.GetListAsync(item =>
+            item.CandidateId == input.CandidateId
+            && item.SourceUrlHash == urlHash
+            && item.RawPayloadHash == result.BodyHash, cancellationToken);
+        if (existing.Count == 0)
+        {
+            await evidence.AddAsync(new SysCrmProspectingEvidence
+            {
+                CandidateId = input.CandidateId,
+                ProviderCode = "website-probe",
+                ProviderRecordId = input.CandidateId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                FieldName = "website_probe",
+                FieldValueHash = result.BodyHash,
+                SourceUrl = result.FinalUrl,
+                SourceUrlHash = urlHash,
+                EvidenceType = "website_probe",
+                VerificationStatus = "unverified",
+                EvidenceSummary = $"status={result.StatusCode}; bytes={result.ByteCount}; title={result.Title ?? string.Empty}",
+                RetrievedAtUtc = DateTimeOffset.UtcNow,
+                RawPayloadHash = result.BodyHash
+            }, cancellationToken);
+        }
+        dto.EvidencePersisted = true;
+        return dto;
     }
 
     private async Task<SysCrmProspectingCandidate> EnsureAccessibleAsync(long candidateId, CancellationToken cancellationToken)

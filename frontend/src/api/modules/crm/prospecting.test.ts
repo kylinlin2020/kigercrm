@@ -117,6 +117,18 @@ describe('crmProspectingApi', () => {
     )
   })
 
+  it('routes staged identity and bounded website probe through qualification', async () => {
+    const probe = { candidateId: '30', companyName: 'ACME GmbH', candidateUrl: 'https://acme.example.com' }
+
+    await crmProspectingApi.bootstrapIdentity('ACME GmbH')
+    await crmProspectingApi.probeWebsite(probe)
+
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmProspectingQualification/BootstrapIdentity', {
+      params: { companyName: 'ACME GmbH', countryCode: '' },
+    })
+    expect(requestMocks.post).toHaveBeenCalledWith('/CrmProspectingQualification/ProbeWebsite', probe, undefined)
+  })
+
   it('routes four-step qualification through the read-only review boundary', async () => {
     const website = {
       companyName: 'ACME GmbH',

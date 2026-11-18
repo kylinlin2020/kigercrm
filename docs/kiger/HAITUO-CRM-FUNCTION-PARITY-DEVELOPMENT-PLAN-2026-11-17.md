@@ -172,3 +172,17 @@
 > **诚实边界**：GLEIF 仍是"精确匹配"层，分阶段 discover/reconcile 与证据历史尚未扩展；证据实体只存哈希与来源、不存字段值，因此"联系人补全"是**佐证级**而非值抽取；官网 probe 只做策略评估，未做有界页面抓取与重定向复核。这三项列入 M2 后续深化，不在本片宣称完成。
 >
 > 下一步：M2 深化（分阶段身份/页面抓取）或 M3 效果复盘与开发信工作区，视源端语义取证结果排序。
+
+### M2 深化证据记录（2026-11-18）
+
+- [x] 分阶段身份：`CrmGleifIdentityResolver.DiscoverAsync` 暴露有界候选集（结果集不完整时 fail closed 返回空集，不提供部分视图），`ResolveExactAsync` 仍只在唯一精确匹配时返回；`CrmProspectingIdentityBootstrapPolicy` 按"归一化名称 → 国家兼容 → 唯一提升"输出阶段/候选/步骤，歧义一律 `NeedsOperatorReconciliation`。
+- [x] 有界官网抓取：`CrmProspectingPinnedPageFetcher` 复用 DNS pinning 处理器，HTTPS-only、256KB 上限、10s 超时、跨主机重定向拒绝、最终 URL 二次策略校验；成功抓取才写入 `SysCrmProspectingEvidence`（`website_probe`、unverified、URL+body 哈希幂等），失败返回带 reason 的失败结果，不伪造成功。
+- [x] API：`BootstrapIdentity`、`ProbeWebsite`（Execute）追加到资格服务；前端面板新增两按钮与阶段/候选/步骤/抓取结果展示，7 语言再补 9 键。
+- [x] 测试：分阶段策略 1 例 + 服务接线 1 例 + 抓取证据幂等/失败不落库 1 例 + unsafe URL 零网络 1 例；既有 GLEIF 契约守卫按真实实现加强（唯一性 + 歧义拒绝双重校验）。
+- [x] 门禁：后端 build 0 错误、解决方案测试 **6020 总 / 0 失败**（Api.Tests 1160/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、test 181 文件 / 2639 用例全绿、build 成功；px/token/i18n 无新增条目。
+- [ ] 浏览器实机、GLEIF/Meta 真实联调、真实抓取与 PG/Windows 验收：**待 M0**，迁移条目不关闭。
+- [ ] 单提交（同一契约同批）；**不推送**。
+
+> **诚实边界**：页面抓取只取哈希/标题/字节数供人工复核，不解析正文为 CRM 事实；分阶段身份未持久化"决策历史"实体，步骤随请求返回但不入库（报告快照可再引用）。SSE/实时事件仍不在范围。
+>
+> 下一步：M3（效果复盘、开发信工作区、结果反馈/触达资格）或转入 M0 运行时验收。

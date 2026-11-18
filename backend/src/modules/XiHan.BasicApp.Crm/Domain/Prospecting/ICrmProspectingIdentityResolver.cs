@@ -21,4 +21,12 @@ public interface ICrmProspectingIdentityResolver
     Task<CrmProspectingLegalEntityMatch?> ResolveExactAsync(
         string companyName,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the bounded first page of registry candidates for staged, operator-reviewed
+    /// reconciliation. Implementations must never promote an ambiguous match to authoritative.
+    /// </summary>
+    Task<IReadOnlyList<CrmProspectingLegalEntityMatch>> DiscoverAsync(
+        string companyName,
+        CancellationToken cancellationToken = default);
 }

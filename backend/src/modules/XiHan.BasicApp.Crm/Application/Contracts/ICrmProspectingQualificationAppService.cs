@@ -10,4 +10,6 @@ public interface ICrmProspectingQualificationAppService : IApplicationService
     Task<CrmProspectingWebsiteAssessmentDto> AssessWebsiteAsync(CrmProspectingWebsiteAssessmentInputDto input, CancellationToken cancellationToken = default);
     Task<CrmProspectingVerificationReportDto> BuildVerificationReportAsync(CrmProspectingVerificationBuildDto input, CancellationToken cancellationToken = default);
     Task<CrmProspectingVerificationReportDto?> GetVerificationReportAsync(long candidateId, CancellationToken cancellationToken = default);
+    Task<CrmProspectingIdentityBootstrapDto> BootstrapIdentityAsync(string companyName, string? countryCode = null, CancellationToken cancellationToken = default);
+    Task<CrmProspectingPageFetchDto> ProbeWebsiteAsync(CrmProspectingWebsiteProbeInputDto input, CancellationToken cancellationToken = default);
 }

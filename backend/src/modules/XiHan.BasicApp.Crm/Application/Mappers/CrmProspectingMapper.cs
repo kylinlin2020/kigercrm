@@ -153,6 +153,30 @@ public static class CrmProspectingMapper
         Fingerprint = cell.Fingerprint
     };
 
+    public static CrmProspectingIdentityBootstrapDto ToIdentityBootstrapDto(CrmProspectingIdentityBootstrapResult result) => new()
+    {
+        Stage = (int)result.Stage,
+        AuthoritativeMatch = result.AuthoritativeMatch is null ? null : ToIdentityMatchDto(result.AuthoritativeMatch),
+        Candidates = result.Candidates.Select(ToIdentityMatchDto).ToArray(),
+        Steps = result.Steps.Select(step => new CrmProspectingIdentityBootstrapStepDto
+        {
+            Stage = step.Stage,
+            ReasonCode = step.ReasonCode,
+            Detail = step.Detail
+        }).ToArray()
+    };
+
+    public static CrmProspectingPageFetchDto ToPageFetchDto(CrmProspectingPageFetchResult result) => new()
+    {
+        FinalUrl = result.FinalUrl,
+        StatusCode = result.StatusCode,
+        Title = result.Title,
+        BodyHash = result.BodyHash,
+        ByteCount = result.ByteCount,
+        ReasonCode = result.ReasonCode,
+        Succeeded = result.Succeeded
+    };
+
     /// <summary>Maps an authoritative LEI match to its wire contract.</summary>
     public static CrmProspectingIdentityMatchDto ToIdentityMatchDto(CrmProspectingLegalEntityMatch match) => new()
     {

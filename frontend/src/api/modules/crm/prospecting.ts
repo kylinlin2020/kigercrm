@@ -10,7 +10,9 @@ import type {
   CrmProspectingCandidatePageQueryDto,
   CrmProspectingCandidateReviewDetailDto,
   CrmProspectingCandidateReviewDto,
+  CrmProspectingIdentityBootstrapDto,
   CrmProspectingIdentityMatchDto,
+  CrmProspectingPageFetchDto,
   CrmProspectingProviderCatalogDto,
   CrmProspectingRunDto,
   CrmProspectingRunMonitorDto,
@@ -31,6 +33,7 @@ import type {
   CrmProspectingVerificationReportDto,
   CrmProspectingWebsiteAssessmentDto,
   CrmProspectingWebsiteAssessmentInputDto,
+  CrmProspectingWebsiteProbeInputDto,
 } from './prospecting.types'
 import { createDynamicApiClient } from '../../base'
 
@@ -169,5 +172,11 @@ export const crmProspectingApi = {
   },
   verificationReport(candidateId: ApiId) {
     return qualificationApi.get<CrmProspectingVerificationReportDto | null>('VerificationReport', { candidateId })
+  },
+  bootstrapIdentity(companyName: string, countryCode?: string | null) {
+    return qualificationApi.get<CrmProspectingIdentityBootstrapDto>('BootstrapIdentity', { companyName, countryCode: countryCode ?? '' })
+  },
+  probeWebsite(input: CrmProspectingWebsiteProbeInputDto) {
+    return qualificationApi.post<CrmProspectingPageFetchDto, CrmProspectingWebsiteProbeInputDto>('ProbeWebsite', input)
   },
 }

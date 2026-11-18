@@ -124,4 +124,14 @@ describe('prospecting page component split', () => {
     expect(verificationPanel).not.toContain('reviewCandidate')
     expect(verificationPanel).not.toContain('convertCandidate')
   })
+
+  it('keeps staged identity and bounded probing review-only', () => {
+    expect(verificationPanel).toContain('bootstrapIdentity')
+    expect(verificationPanel).toContain('probeWebsite')
+    expect(verificationPanel).toContain('bootstrap.candidates')
+    expect(verificationPanel).toContain('bootstrap.steps')
+    expect(verificationPanel).toContain('pageFetch.evidencePersisted')
+    expect(verificationPanel).not.toContain('reviewCandidate')
+    expect(verificationPanel).not.toContain('startRun')
+  })
 })

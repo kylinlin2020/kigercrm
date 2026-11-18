@@ -11,6 +11,7 @@ using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Prospecting;
 using XiHan.BasicApp.Crm.Domain.Repositories;
+using XiHan.BasicApp.Crm.Infrastructure.Prospecting;
 using XiHan.BasicApp.Crm.Infrastructure.Repositories;
 using XiHan.BasicApp.Saas.Application.QueryServices;
 using XiHan.Framework.Data.SqlSugar.Clients;
@@ -35,6 +36,7 @@ public sealed class CrmProspectingQualificationTests : IDisposable
     private readonly Mock<ISqlSugarClientResolver> _resolver = new();
     private readonly Mock<IUserDataScopeFilterService> _dataScope = new();
     private readonly Mock<ICrmProspectingIdentityResolver> _identityResolver = new();
+    private readonly Mock<ICrmProspectingPageFetcher> _pageFetcher = new();
     private readonly CrmProspectingCandidateRepository _candidates;
     private readonly CrmProspectingEvidenceRepository _evidence;
     private readonly CrmProspectingVerificationReportRepository _reports;
@@ -86,7 +88,8 @@ public sealed class CrmProspectingQualificationTests : IDisposable
             .Setup(value => value.ResolveAccessibleUsersAsync(It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .Returns(() => Task.FromResult(_scope));
         _service = new CrmProspectingQualificationAppService(
-            _candidates, _evidence, _reports, runs, campaigns, _identityResolver.Object, _dataScope.Object);
+            _candidates, _evidence, _reports, runs, campaigns,
+            _identityResolver.Object, _pageFetcher.Object, _dataScope.Object);
     }
 
     [Fact]
@@ -189,6 +192,81 @@ public sealed class CrmProspectingQualificationTests : IDisposable
         Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]\n    public async Task<CrmProspectingVerificationReportDto> BuildVerificationReportAsync", app, StringComparison.Ordinal);
         Assert.DoesNotContain("Status = CrmProspectingCandidateStatus", app, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE IF NOT EXISTS crm_prospecting_verification_report", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BootstrapPolicy_ShouldPromoteOnlyUniqueCountryCompatibleExactMatch()
+    {
+        var acme = new CrmProspectingLegalEntityMatch(
+            "LEI-1", "ACME GmbH", "ACTIVE", "ACTIVE", "DE", null, "https://example.com/1", "h1", DateTimeOffset.UtcNow);
+        var unique = CrmProspectingIdentityBootstrapPolicy.Build("ACME GmbH", "DE", [acme]);
+        Assert.Equal(CrmProspectingIdentityBootstrapStage.ExactRegistryMatch, unique.Stage);
+        Assert.Equal("LEI-1", unique.AuthoritativeMatch!.Lei);
+        Assert.NotEmpty(unique.Steps);
+
+        var ambiguous = CrmProspectingIdentityBootstrapPolicy.Build("ACME GmbH", null, [acme, acme with { Lei = "LEI-2" }]);
+        Assert.Equal(CrmProspectingIdentityBootstrapStage.NeedsOperatorReconciliation, ambiguous.Stage);
+        Assert.Null(ambiguous.AuthoritativeMatch);
+        Assert.Equal(2, ambiguous.Candidates.Count);
+
+        Assert.Equal(CrmProspectingIdentityBootstrapStage.Unresolved,
+            CrmProspectingIdentityBootstrapPolicy.Build("ACME GmbH", "DE", []).Stage);
+    }
+
+    [Fact]
+    public async Task Bootstrap_ShouldUseResolverAndExposeExplainableStages()
+    {
+        var acme = new CrmProspectingLegalEntityMatch(
+            "LEI-1", "ACME GmbH", "ACTIVE", "ACTIVE", "DE", null, "https://example.com/1", "h1", DateTimeOffset.UtcNow);
+        _identityResolver
+            .Setup(value => value.DiscoverAsync("ACME GmbH", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([acme]);
+
+        var result = await _service.BootstrapIdentityAsync("ACME GmbH", "DE");
+
+        Assert.Equal((int)CrmProspectingIdentityBootstrapStage.ExactRegistryMatch, result.Stage);
+        Assert.Equal("LEI-1", result.AuthoritativeMatch!.Lei);
+        Assert.Contains(result.Steps, step => step.ReasonCode == "exact_registry_match");
+    }
+
+    [Fact]
+    public async Task ProbeWebsite_ShouldPersistBoundedEvidenceOnlyOnSuccessAndBeIdempotent()
+    {
+        var candidateId = await SeedCandidateAsync();
+        var fetch = new CrmProspectingPageFetchResult("https://acme.example.com", 200, "ACME", "bodyhash", 512, "ok");
+        _pageFetcher
+            .Setup(value => value.FetchAsync("https://acme.example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fetch);
+        var input = new CrmProspectingWebsiteProbeInputDto
+        {
+            CandidateId = candidateId,
+            CompanyName = "ACME GmbH",
+            CandidateUrl = "https://acme.example.com"
+        };
+
+        var first = await _service.ProbeWebsiteAsync(input);
+        var replay = await _service.ProbeWebsiteAsync(input);
+        Assert.True(first.Succeeded);
+        Assert.True(first.EvidencePersisted);
+        Assert.True(replay.EvidencePersisted);
+        Assert.Single(await _evidence.GetListAsync(item => item.CandidateId == candidateId));
+
+        _pageFetcher
+            .Setup(value => value.FetchAsync("https://acme.example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CrmProspectingPageFetchResult("https://acme.example.com", 0, null, string.Empty, 0, "fetch_failed"));
+        var failed = await _service.ProbeWebsiteAsync(input);
+        Assert.False(failed.Succeeded);
+        Assert.False(failed.EvidencePersisted);
+        Assert.Single(await _evidence.GetListAsync(item => item.CandidateId == candidateId));
+    }
+
+    [Fact]
+    public async Task PinnedFetcher_ShouldRejectUnsafeUrlBeforeAnyNetworkCall()
+    {
+        var fetcher = new CrmProspectingPinnedPageFetcher();
+        var result = await fetcher.FetchAsync("http://facebook.com/company");
+        Assert.False(result.Succeeded);
+        Assert.Equal("unsafe_url_shape", result.ReasonCode);
     }
 
     private static SysCrmProspectingCandidate Candidate(string companyName) => new()

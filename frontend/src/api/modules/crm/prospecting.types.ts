@@ -488,3 +488,39 @@ export interface CrmProspectingVerificationReportDto {
   summary: string
   createdTime: DateTimeString
 }
+
+export enum CrmProspectingIdentityBootstrapStage {
+  Unresolved = 0,
+  NeedsOperatorReconciliation = 1,
+  ExactRegistryMatch = 2,
+}
+
+export interface CrmProspectingIdentityBootstrapStepDto {
+  stage: string
+  reasonCode: string
+  detail: string
+}
+
+export interface CrmProspectingIdentityBootstrapDto {
+  stage: CrmProspectingIdentityBootstrapStage
+  authoritativeMatch?: CrmProspectingIdentityMatchDto | null
+  candidates: CrmProspectingIdentityMatchDto[]
+  steps: CrmProspectingIdentityBootstrapStepDto[]
+}
+
+export interface CrmProspectingWebsiteProbeInputDto {
+  candidateId: ApiId
+  companyName: string
+  candidateUrl: string
+}
+
+export interface CrmProspectingPageFetchDto {
+  finalUrl: string
+  statusCode: number
+  title?: string | null
+  bodyHash: string
+  byteCount: number
+  reasonCode: string
+  succeeded: boolean
+  evidencePersisted: boolean
+}
