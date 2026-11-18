@@ -4,6 +4,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using XiHan.BasicApp.Chat.Application.EventHandlers;
 using XiHan.BasicApp.Chat.Domain.DomainServices;
+using XiHan.BasicApp.Chat.Domain.Repositories;
+using XiHan.BasicApp.Chat.Infrastructure.Channels;
+using XiHan.BasicApp.Chat.Infrastructure.Repositories;
 using XiHan.BasicApp.Chat.Infrastructure.Seeders;
 using XiHan.Framework.Data.Extensions.DependencyInjection;
 using XiHan.Framework.EventBus.Local;
@@ -34,6 +37,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddChatDomainServices(this IServiceCollection services)
     {
         services.AddScoped<IChatDomainService, ChatDomainService>();
+        services.AddScoped<IWhatsAppChannelAccountRepository, WhatsAppChannelAccountRepository>();
+        services.AddScoped<WhatsAppMetaWebhookIngestService>();
         return services;
     }
 

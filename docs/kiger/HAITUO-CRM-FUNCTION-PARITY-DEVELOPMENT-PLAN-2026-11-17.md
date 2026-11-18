@@ -212,3 +212,17 @@
 > **诚实边界**：本片只完成"人工执行 + 审计 + 效果复盘"闭环；模板变量替换、真实渠道发送、退订链接与频率限制属于后续渠道集成，未在本文宣称完成。M3.5 3D 雷达仍需先做范围决策。
 >
 > 下一步：M3 余项（3D 雷达范围决策）或 Windows 原生部署验收。
+
+### M4 证据记录（2026-11-18/19）
+
+- [x] 实体/迁移：租户自有 WhatsApp 账号绑定 `5.9.47`（WABA/phone 唯一索引含 IsDeleted），只存密钥库引用、不存 Token/AppSecret；复用既有持久收件箱的唯一键。
+- [x] 幂等摄取 `WhatsAppMetaWebhookIngestService`：按 WABA+phone 路由租户（无绑定则 fail-closed），事件键用既有工厂（含 migration 5.9.40 之前的 legacy key 兼容检查），数据库唯一索引兜底；Webhook POST 仅在持久写入后返回 200，否则 503 让 Meta 重试。
+- [x] 管理 API `WhatsAppChannel`（binding 增删改隔离、绑定列表、inbox 复核，Read/Manage 权限码）+ 前端渠道面板（嵌入聊天审计页、按钮码 `message.chat-audit.whatsapp_manage` 遵循权限卫生）。
+- [x] 测试：摄取路由/持久化/重放幂等/legacy key/契约 5 例；既有 Webhook 契约守卫按新实现加强（仍校验原始体签名、413、UTF-8、401）。
+- [x] 门禁：后端 build 0 错误 / **6030 总 / 0 失败**（Api.Tests 1170/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **181 文件 / 2651 用例全绿**、build 成功；px/token/i18n 无新增条目。
+- [x] 实机 HTTP：匿名 401；绑定 API（`/WhatsAppChannel/UpsertBinding`、`/Bindings`、`/Inbox`）200；Webhook 无 token GET 401、未签名 POST 401；浏览器面板读到 HTTP 创建的绑定。
+- [ ] Meta 真实签名事件联调、Baileys/企业微信、真实发送与 Windows 原生部署：**待取证**。
+>
+> **诚实边界**：本片只收口 Meta Webhook 的"验签→路由→持久收件箱→确认"链路；Baileys（QR/会话/重连/设备注销）、企业微信连接器、外发 Outbox 与真实渠道发送均未完成；消息正文仅存哈希/原始 envelope 供复核，不自动投影为 CRM 事实。
+>
+> 下一步：M4 余项（Baileys/企业微信需范围与协议取证）或 Windows 原生部署验收。

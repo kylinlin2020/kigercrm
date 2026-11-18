@@ -46,6 +46,7 @@ public static class WhatsAppMetaWebhookEndpoints
         HttpRequest request,
         IConfiguration configuration,
         ILoggerFactory loggerFactory,
+        WhatsAppMetaWebhookIngestService ingestService,
         CancellationToken cancellationToken)
     {
         if (request.ContentLength is > MaxWebhookBodyBytes)
@@ -84,13 +85,21 @@ public static class WhatsAppMetaWebhookEndpoints
             !WhatsAppMetaWebhookPayloadParser.TryParseStatuses(rawJson, out var statuses))
             return Results.BadRequest();
 
-        // Do not return 200 here. Until a server-owned WABA/phone_number_id -> tenant binding
-        // and atomic unique-key inbox insert are available, the event is not durably accepted.
-        // Meta should retry rather than the application silently acknowledging and losing it.
-        loggerFactory.CreateLogger("WhatsAppMetaWebhookEndpoints").LogWarning(
-            "Verified Meta webhook received {MessageCount} messages and {StatusCount} status receipts, but durable inbox routing is not configured; returning 503 for provider retry.",
-            messages.Count,
-            statuses.Count);
-        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        var ingest = await ingestService.IngestAsync(messages, statuses, rawJson, cancellationToken);
+        if (ingest.Unbound > 0 && ingest.Accepted == 0)
+        {
+            // No event could be routed to a tenant-owned account: stay fail-closed so Meta retries
+            // instead of the application silently acknowledging and losing the message.
+            loggerFactory.CreateLogger("WhatsAppMetaWebhookEndpoints").LogWarning(
+                "Verified Meta webhook had {Unbound} unrouted event(s); returning 503 for provider retry.",
+                ingest.Unbound);
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+        return Results.Ok(new
+        {
+            ingest.Accepted,
+            ingest.Duplicates,
+            ingest.Unbound,
+        });
     }
 }

@@ -25,7 +25,7 @@ public sealed class WhatsAppMetaWebhookEndpointContractTests
     }
 
     [Fact]
-    public void PostBoundary_ShouldVerifyRawSignatureBoundBodyAndFailClosedBeforeDurableInbox()
+    public void PostBoundary_ShouldVerifyRawSignatureAndAcknowledgeOnlyAfterDurableIngest()
     {
         var root = RepositoryRoot();
         var source = File.ReadAllText(Path.Combine(
@@ -38,8 +38,10 @@ public sealed class WhatsAppMetaWebhookEndpointContractTests
         Assert.Contains("WhatsAppMetaWebhookSignatureValidator.IsValid(rawBody, signature, appSecret)", source, StringComparison.Ordinal);
         Assert.Contains("WhatsAppMetaWebhookPayloadParser.TryParseInboundMessages(rawJson, out var messages)", source, StringComparison.Ordinal);
         Assert.Contains("WhatsAppMetaWebhookPayloadParser.TryParseStatuses(rawJson, out var statuses)", source, StringComparison.Ordinal);
-        Assert.Contains("Status503ServiceUnavailable", source, StringComparison.Ordinal);
-        Assert.Contains("Do not return 200 here", source, StringComparison.Ordinal);
+        // 503 stays only for unrouted events; durable ingest must precede any 200 acknowledgement.
+        Assert.Contains("StatusCodes.Status503ServiceUnavailable", source, StringComparison.Ordinal);
+        Assert.Contains("ingestService.IngestAsync(messages, statuses, rawJson, cancellationToken)", source, StringComparison.Ordinal);
+        Assert.Contains("Results.Ok(new", source, StringComparison.Ordinal);
     }
 
     private static string RepositoryRoot([CallerFilePath] string filePath = "") =>

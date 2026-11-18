@@ -45,5 +45,6 @@ public static class PageRegistry
     [
         new("message.chat.send", "发送", "message.chat", ChatPermissionCodes.Send, 1),
         new("message.chat.manage", "会话管理", "message.chat", ChatPermissionCodes.Manage, 2),
+        new("message.chat-audit.whatsapp_manage", "WhatsApp 渠道账号管理", "message.chat-audit", ChatPermissionCodes.Manage, 1),
     ];
 }

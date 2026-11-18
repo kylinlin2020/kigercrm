@@ -9,6 +9,7 @@ import { createPageRequest, querySortsFromSchema } from '@/api'
 import { SchemaPage } from '~/components'
 import { getOptionLabel } from '~/utils'
 import { chatAuditApi } from '../../../api/chat-audit'
+import WhatsAppChannelPanel from './WhatsAppChannelPanel.vue'
 
 // 路由名须与后端 PageRegistry 的 RouteName（MessageChatAudit）一致
 defineOptions({ name: 'MessageChatAudit' })
@@ -115,5 +116,8 @@ const schema = computed<PageSchema>(() => ({
 </script>
 
 <template>
-  <SchemaPage :schema="schema" />
+  <div class="chat-audit-page">
+    <WhatsAppChannelPanel />
+    <SchemaPage :schema="schema" />
+  </div>
 </template>
