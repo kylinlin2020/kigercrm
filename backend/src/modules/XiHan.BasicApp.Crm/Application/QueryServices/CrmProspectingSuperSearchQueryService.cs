@@ -43,4 +43,16 @@ public sealed class CrmProspectingSuperSearchQueryService : CrmApplicationServic
             input.RequestedRounds));
         return Task.FromResult(CrmProspectingMapper.ToSuperSearchPreviewDto(plan));
     }
+
+    [PermissionAuthorize(CrmPermissionCodes.Execute)]
+    [HttpPost]
+    public Task<CrmProspectingSuperSearchObjectiveParseResultDto> ParseSuperSearchObjectiveAsync(
+        CrmProspectingSuperSearchObjectiveParseDto input,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = CrmProspectingObjectiveParser.Parse(input.Objective);
+        return Task.FromResult(CrmProspectingMapper.ToSuperSearchObjectiveParseResultDto(result));
+    }
 }

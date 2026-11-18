@@ -346,3 +346,22 @@ export interface CrmProspectingSuperSearchMissionDto {
   plan: CrmProspectingSuperSearchPreviewDto
   createdTime: DateTimeString
 }
+
+/** Bounded natural-language objective; only explicit marker lines are accepted. */
+export interface CrmProspectingSuperSearchObjectiveParseDto {
+  objective: string
+}
+
+/** Explainable evidence for one parsed field. */
+export interface CrmProspectingObjectiveMatchDto {
+  field: string
+  marker: string
+  values: string[]
+}
+
+/** Controlled parse result: reviewable input plus the evidence used to build it. */
+export interface CrmProspectingSuperSearchObjectiveParseResultDto {
+  input: CrmProspectingSuperSearchPreviewInputDto
+  matches: CrmProspectingObjectiveMatchDto[]
+  warnings: string[]
+}

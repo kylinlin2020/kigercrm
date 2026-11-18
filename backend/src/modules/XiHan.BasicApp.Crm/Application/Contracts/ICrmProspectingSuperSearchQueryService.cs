@@ -13,4 +13,9 @@ public interface ICrmProspectingSuperSearchQueryService : IApplicationService
     Task<CrmProspectingSuperSearchPreviewDto> PreviewSuperSearchAsync(
         CrmProspectingSuperSearchPreviewInputDto input,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Map a bounded natural-language objective into reviewable planner inputs; never executes it.</summary>
+    Task<CrmProspectingSuperSearchObjectiveParseResultDto> ParseSuperSearchObjectiveAsync(
+        CrmProspectingSuperSearchObjectiveParseDto input,
+        CancellationToken cancellationToken = default);
 }

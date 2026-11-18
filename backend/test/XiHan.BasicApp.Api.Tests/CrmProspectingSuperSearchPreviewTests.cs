@@ -4,6 +4,7 @@
 using System.Runtime.CompilerServices;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Application.QueryServices;
+using XiHan.BasicApp.Crm.Domain.Prospecting;
 
 namespace XiHan.BasicApp.Api.Tests;
 
@@ -133,6 +134,90 @@ public sealed class CrmProspectingSuperSearchPreviewTests
         Assert.Contains("export interface CrmProspectingSuperSearchPreviewDto", frontendTypes, StringComparison.Ordinal);
         Assert.Contains("'PreviewSuperSearch'", frontendClient, StringComparison.Ordinal);
         Assert.Contains("CrmProspectingSuperSearchQuery", frontendClient, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ParseObjective_ShouldMapBilingualMarkersIntoBoundedPlanInput()
+    {
+        var service = new CrmProspectingSuperSearchQueryService();
+        var result = await service.ParseSuperSearchObjectiveAsync(new CrmProspectingSuperSearchObjectiveParseDto
+        {
+            Objective = """
+                产品：工业泵, 阀门
+                市场：德国, BR
+                客户类型：经销商, importer
+                行业：制造业
+                数据源：provider-a, Provider-B
+                排除：spam, competitor
+                排除域名：.example.com
+                深度：深入
+                轮次：3
+                """
+        });
+
+        Assert.Equal(new[] { "工业泵", "阀门" }, result.Input.Products);
+        Assert.Equal(new[] { "DE", "BR" }, result.Input.Markets);
+        Assert.Equal(new[] { "经销商", "importer" }, result.Input.CustomerTypes);
+        Assert.Equal(new[] { "制造业" }, result.Input.Industries);
+        Assert.Equal(new[] { "provider-a", "provider-b" }, result.Input.ProviderCodes);
+        Assert.Equal(new[] { "spam", "competitor" }, result.Input.ExcludedTerms);
+        Assert.Equal(new[] { "example.com" }, result.Input.ExcludedDomains);
+        Assert.Equal((int)CrmProspectingSuperSearchDepth.Deep, result.Input.Depth);
+        Assert.Equal(3, result.Input.RequestedRounds);
+        Assert.Equal(9, result.Matches.Count);
+        Assert.Equal("市场", result.Matches.Single(match => match.Field == "markets").Marker);
+        Assert.Equal(new[] { "DE", "BR" }, result.Matches.Single(match => match.Field == "markets").Values);
+        Assert.Empty(result.Warnings);
+    }
+
+    [Fact]
+    public async Task ParseObjective_ShouldRejectAmbiguityAndInjectionLikeInput()
+    {
+        var service = new CrmProspectingSuperSearchQueryService();
+        Task Parse(string objective) => service.ParseSuperSearchObjectiveAsync(
+            new CrmProspectingSuperSearchObjectiveParseDto { Objective = objective });
+
+        await Assert.ThrowsAsync<ArgumentException>(() => Parse("随便：x"));
+        await Assert.ThrowsAsync<ArgumentException>(() => Parse("市场：DE\n市场：BR"));
+        await Assert.ThrowsAsync<ArgumentException>(() => Parse("找德国的工业泵"));
+        await Assert.ThrowsAsync<ArgumentException>(() => Parse("市场：DE 排除：spam"));
+        await Assert.ThrowsAsync<ArgumentException>(() => Parse("产品：泵\n深度：超级"));
+        await Assert.ThrowsAsync<ArgumentException>(() => Parse("产品：泵\n轮次：99"));
+        await Assert.ThrowsAsync<ArgumentException>(() => Parse("产品：泵\u0001"));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => Parse(new string('x', 2001)));
+    }
+
+    [Fact]
+    public async Task ParseObjective_ShouldBeDeterministicAndMirrorTheFrontendContract()
+    {
+        var service = new CrmProspectingSuperSearchQueryService();
+        var input = new CrmProspectingSuperSearchObjectiveParseDto { Objective = "产品：泵\n市场：德国\n数据源：provider-a" };
+
+        var first = await service.ParseSuperSearchObjectiveAsync(input);
+        var second = await service.ParseSuperSearchObjectiveAsync(input);
+        Assert.Equal(first.Input.Products, second.Input.Products);
+        Assert.Equal(first.Matches.Count, second.Matches.Count);
+
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            service.ParseSuperSearchObjectiveAsync(input, cancellation.Token));
+
+        var serviceSource = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "QueryServices", "CrmProspectingSuperSearchQueryService.cs");
+        var contract = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "Contracts", "ICrmProspectingSuperSearchQueryService.cs");
+        var mapper = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "Mappers", "CrmProspectingMapper.cs");
+        var frontendTypes = Read("frontend", "src", "api", "modules", "crm", "prospecting.types.ts");
+        var frontendClient = Read("frontend", "src", "api", "modules", "crm", "prospecting.ts");
+
+        Assert.Contains("[PermissionAuthorize(CrmPermissionCodes.Execute)]\n    [HttpPost]\n    public Task<CrmProspectingSuperSearchObjectiveParseResultDto> ParseSuperSearchObjectiveAsync", serviceSource, StringComparison.Ordinal);
+        Assert.Contains("CrmProspectingObjectiveParser.Parse(input.Objective)", serviceSource, StringComparison.Ordinal);
+        Assert.Contains("ParseSuperSearchObjectiveAsync", contract, StringComparison.Ordinal);
+        Assert.Contains("ToSuperSearchObjectiveParseResultDto", mapper, StringComparison.Ordinal);
+        Assert.Contains("export interface CrmProspectingSuperSearchObjectiveParseResultDto", frontendTypes, StringComparison.Ordinal);
+        Assert.Contains("'ParseSuperSearchObjective'", frontendClient, StringComparison.Ordinal);
     }
 
     private static string Read(params string[] segments) =>

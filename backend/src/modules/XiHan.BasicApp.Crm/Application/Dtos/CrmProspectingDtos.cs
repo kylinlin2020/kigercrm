@@ -315,6 +315,31 @@ public sealed class CrmProspectingSuperSearchMissionCreateDto
     public CrmProspectingSuperSearchPreviewInputDto Plan { get; set; } = new();
 }
 
+/// <summary>Natural-language objective to be mapped into a bounded Super Search plan input.</summary>
+public sealed class CrmProspectingSuperSearchObjectiveParseDto
+{
+    public string Objective { get; set; } = string.Empty;
+}
+
+/// <summary>Explainable evidence for one parsed field (marker and normalized values).</summary>
+public sealed class CrmProspectingObjectiveMatchDto
+{
+    public string Field { get; set; } = string.Empty;
+    public string Marker { get; set; } = string.Empty;
+    public IReadOnlyList<string> Values { get; set; } = [];
+}
+
+/// <summary>
+/// Controlled parse result: the input is ready for the planner preview but never executes anything;
+/// matches and warnings let the reviewer see exactly how free text was interpreted.
+/// </summary>
+public sealed class CrmProspectingSuperSearchObjectiveParseResultDto
+{
+    public CrmProspectingSuperSearchPreviewInputDto Input { get; set; } = new();
+    public IReadOnlyList<CrmProspectingObjectiveMatchDto> Matches { get; set; } = [];
+    public IReadOnlyList<string> Warnings { get; set; } = [];
+}
+
 /// <summary>Durable mission read model: the frozen plan plus its execution link.</summary>
 public sealed class CrmProspectingSuperSearchMissionDto
 {

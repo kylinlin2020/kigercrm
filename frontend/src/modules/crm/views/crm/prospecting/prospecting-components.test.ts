@@ -84,4 +84,16 @@ describe('prospecting page component split', () => {
     expect(superSearchPanel).toContain('mission.runId')
     expect(index).toContain('@run-created="loadWorkspace"')
   })
+
+  it('keeps objective parsing review-only, filling the form without auto-saving', () => {
+    expect(superSearchPanel).toContain('parseSuperSearchObjective')
+    expect(superSearchPanel).toContain('parseResult.value = result')
+    expect(superSearchPanel).toContain('preview.value = null')
+    expect(superSearchPanel).toContain('parseResult.matches')
+    expect(superSearchPanel).toContain('parseResult.warnings')
+    // The parsed values land in the form for human review; no command is issued by the parser.
+    expect(superSearchPanel).toContain('products.value = result.input.products.join')
+    expect(superSearchPanel).not.toContain('await saveMission()')
+    expect(superSearchPanel).not.toContain('await executeMission(')
+  })
 })

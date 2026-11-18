@@ -3,6 +3,7 @@ import type {
   ApiId,
   CrmProspectingCampaignDto,
   CrmProspectingSuperSearchMissionDto,
+  CrmProspectingSuperSearchObjectiveParseResultDto,
   CrmProspectingSuperSearchPreviewDto,
   CrmProspectingSuperSearchPreviewInputDto,
 } from '@/api'
@@ -41,6 +42,9 @@ const depth = ref(CrmProspectingSuperSearchDepth.Balanced)
 const rounds = ref('')
 
 const preview = ref<CrmProspectingSuperSearchPreviewDto | null>(null)
+const parseResult = ref<CrmProspectingSuperSearchObjectiveParseResultDto | null>(null)
+const objective = ref('')
+const parsing = ref(false)
 const submitting = ref(false)
 const savingMission = ref(false)
 
@@ -97,6 +101,35 @@ onMounted(async () => {
 watch(campaignId, () => {
   void loadMissions()
 })
+
+async function parseObjective() {
+  if (!canExecute.value || parsing.value) {
+    return
+  }
+  parsing.value = true
+  try {
+    const result = await crmProspectingApi.parseSuperSearchObjective({ objective: objective.value })
+    // Parsed values only fill the form for human review: no auto-save, no auto-execution.
+    products.value = result.input.products.join(', ')
+    markets.value = result.input.markets.join(', ')
+    customerTypes.value = result.input.customerTypes.join(', ')
+    industries.value = result.input.industries.join(', ')
+    providerCodes.value = result.input.providerCodes.join(', ')
+    excludedTerms.value = result.input.excludedTerms.join(', ')
+    excludedDomains.value = result.input.excludedDomains.join(', ')
+    depth.value = result.input.depth as CrmProspectingSuperSearchDepth
+    rounds.value = result.input.requestedRounds == null ? '' : String(result.input.requestedRounds)
+    parseResult.value = result
+    preview.value = null
+  }
+  catch (error) {
+    parseResult.value = null
+    toast.danger((error as Error)?.message || t('crm.prospecting.superSearchError'))
+  }
+  finally {
+    parsing.value = false
+  }
+}
 
 async function submitPreview() {
   if (!canExecute.value || submitting.value) {
@@ -176,6 +209,37 @@ function fingerprintShort(value: string) {
         {{ submitting ? t('crm.prospecting.superSearchSubmitting') : t('crm.prospecting.superSearchPreviewButton') }}
       </button>
     </header>
+
+    <div class="objective-block">
+      <label>
+        {{ t('crm.prospecting.superSearchObjective') }}
+        <textarea
+          v-model="objective"
+          rows="3"
+          :placeholder="t('crm.prospecting.superSearchObjectivePlaceholder')"
+        />
+      </label>
+      <button
+        v-if="canExecute"
+        type="button"
+        :disabled="parsing"
+        @click="parseObjective"
+      >
+        {{ parsing ? t('crm.prospecting.superSearchSubmitting') : t('crm.prospecting.superSearchParse') }}
+      </button>
+    </div>
+
+    <div v-if="parseResult" class="parse-result">
+      <p>{{ t('crm.prospecting.superSearchParsed') }}</p>
+      <ul>
+        <li v-for="match in parseResult.matches" :key="match.field">
+          {{ match.field }} ({{ match.marker }}): {{ match.values.join(', ') }}
+        </li>
+      </ul>
+      <p v-if="parseResult.warnings.length > 0">
+        {{ t('crm.prospecting.superSearchParseWarnings') }}: {{ parseResult.warnings.join(' ') }}
+      </p>
+    </div>
 
     <div class="search-form">
       <label>{{ t('crm.prospecting.campaign') }}
@@ -322,6 +386,32 @@ function fingerprintShort(value: string) {
   border: 1px solid var(--xh-border-default, #ddd);
   border-radius: 0.5rem;
   background: var(--xh-bg-subtle, #f5f5f5);
+}
+.objective-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+}
+.objective-block label {
+  display: grid;
+  flex: 1 1 24rem;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+.objective-block textarea {
+  width: 100%;
+  font: inherit;
+}
+.parse-result {
+  font-size: 0.8rem;
+}
+.parse-result p {
+  margin: 0.2rem 0;
+}
+.parse-result ul {
+  margin: 0.2rem 0;
+  padding-left: 1.2rem;
 }
 .search-form {
   display: grid;

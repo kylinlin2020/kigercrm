@@ -153,6 +153,31 @@ public static class CrmProspectingMapper
         Fingerprint = cell.Fingerprint
     };
 
+    /// <summary>Maps a deterministic objective parse into its wire contract, field by field.</summary>
+    public static CrmProspectingSuperSearchObjectiveParseResultDto ToSuperSearchObjectiveParseResultDto(
+        CrmProspectingObjectiveParseResult result) => new()
+    {
+        Input = new CrmProspectingSuperSearchPreviewInputDto
+        {
+            Products = result.Input.Products,
+            Markets = result.Input.Markets,
+            CustomerTypes = result.Input.CustomerTypes,
+            Industries = result.Input.Industries,
+            ProviderCodes = result.Input.ProviderCodes,
+            ExcludedTerms = result.Input.ExcludedTerms,
+            ExcludedDomains = result.Input.ExcludedDomains,
+            Depth = (int)result.Input.Depth,
+            RequestedRounds = result.Input.RequestedRounds
+        },
+        Matches = result.Matches.Select(match => new CrmProspectingObjectiveMatchDto
+        {
+            Field = match.Field,
+            Marker = match.Marker,
+            Values = match.Values
+        }).ToArray(),
+        Warnings = result.Warnings
+    };
+
     /// <summary>Maps a durable mission with its frozen plan; a corrupt snapshot fails loudly.</summary>
     public static CrmProspectingSuperSearchMissionDto ToSuperSearchMissionDto(SysCrmProspectingSuperSearchMission entity)
     {

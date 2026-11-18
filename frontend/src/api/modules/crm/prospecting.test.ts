@@ -105,6 +105,18 @@ describe('crmProspectingApi', () => {
     )
   })
 
+  it('posts objective parsing to the read-only Super Search QueryService', async () => {
+    const input = { objective: '产品：泵\n市场：德国\n数据源：provider-a' }
+
+    await crmProspectingApi.parseSuperSearchObjective(input)
+
+    expect(requestMocks.post).toHaveBeenCalledWith(
+      '/CrmProspectingSuperSearchQuery/ParseSuperSearchObjective',
+      input,
+      undefined,
+    )
+  })
+
   it('routes Super Search mission save/list/execute through the main Dynamic API service', async () => {
     const plan = {
       products: ['pump'],
