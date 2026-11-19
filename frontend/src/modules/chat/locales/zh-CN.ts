@@ -159,6 +159,22 @@ export default {
     time: {
       yesterday: '昨天',
     },
+    baileys: {
+      title: 'Baileys 会话（仅契约）',
+      description: '由操作者确认的会话生命周期；本页不暴露 QR 内容、认证状态或设备操作。',
+      displayName: '显示名称',
+      authStateRef: '加密认证状态引用',
+      create: '创建会话',
+      created: '会话已创建',
+      loadError: 'Baileys 会话操作失败。',
+      disconnected: '已断开',
+      qrPending: '待扫码',
+      connected: '已连接',
+      revoked: '已注销',
+      issueQr: '发起扫码',
+      confirmConnected: '确认已连接',
+      revoke: '注销（设备登出）',
+    },
     wecom: {
       title: '企业微信命令网关',
       description: '租户自有绑定与签名命令审计；本页不发送任何外部消息。',

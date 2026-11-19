@@ -158,6 +158,22 @@ export default {
     time: {
       yesterday: 'Yesterday',
     },
+    baileys: {
+      title: 'Baileys sessions (contract only)',
+      description: 'Operator-confirmed session lifecycle. No QR payload, auth state or device action is exposed by this page.',
+      displayName: 'Display name',
+      authStateRef: 'Encrypted auth-state reference',
+      create: 'Create session',
+      created: 'Session created',
+      loadError: 'Baileys session operation failed.',
+      disconnected: 'Disconnected',
+      qrPending: 'QR pending',
+      connected: 'Connected',
+      revoked: 'Revoked',
+      issueQr: 'Issue QR',
+      confirmConnected: 'Confirm connected',
+      revoke: 'Revoke (device logout)',
+    },
     wecom: {
       title: 'WeCom command gateway',
       description: 'Tenant-owned bindings and signed command audit. No external message is sent by this page.',

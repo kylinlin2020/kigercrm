@@ -159,6 +159,22 @@ export default {
     time: {
       yesterday: '어제',
     },
+    baileys: {
+      title: 'Baileys 세션(계약만)',
+      description: '운영자가 확인하는 세션 수명 주기. QR 내용, 인증 상태, 기기 작업은 이 화면에 없습니다.',
+      displayName: '표시 이름',
+      authStateRef: '암호화된 인증 상태 참조',
+      create: '세션 만들기',
+      created: '세션을 만들었습니다',
+      loadError: 'Baileys 세션 작업에 실패했습니다.',
+      disconnected: '연결 끊김',
+      qrPending: 'QR 대기',
+      connected: '연결됨',
+      revoked: '취소됨',
+      issueQr: 'QR 발급',
+      confirmConnected: '연결 확인',
+      revoke: '취소(기기 로그아웃)',
+    },
     wecom: {
       title: 'WeCom 명령 게이트웨이',
       description: '테넌트 소유 연결과 서명된 명령 감사. 이 화면에서는 외부 메시지를 보내지 않습니다.',

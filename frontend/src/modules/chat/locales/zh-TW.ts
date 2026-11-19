@@ -159,6 +159,22 @@ export default {
     time: {
       yesterday: '昨日',
     },
+    baileys: {
+      title: 'Baileys 工作階段（僅契約）',
+      description: '由操作者確認的工作階段生命週期；本頁不暴露 QR 內容、驗證狀態或裝置操作。',
+      displayName: '顯示名稱',
+      authStateRef: '加密驗證狀態參考',
+      create: '建立工作階段',
+      created: '工作階段已建立',
+      loadError: 'Baileys 工作階段操作失敗。',
+      disconnected: '已中斷',
+      qrPending: '待掃碼',
+      connected: '已連線',
+      revoked: '已註銷',
+      issueQr: '發起掃碼',
+      confirmConnected: '確認已連線',
+      revoke: '註銷（裝置登出）',
+    },
     wecom: {
       title: '企業微信命令閘道',
       description: '租戶自有綁定與簽章命令稽核；本頁不傳送任何外部訊息。',

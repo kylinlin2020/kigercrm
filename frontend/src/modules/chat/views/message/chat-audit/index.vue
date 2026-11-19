@@ -9,6 +9,7 @@ import { createPageRequest, querySortsFromSchema } from '@/api'
 import { SchemaPage } from '~/components'
 import { getOptionLabel } from '~/utils'
 import { chatAuditApi } from '../../../api/chat-audit'
+import BaileysSessionPanel from './BaileysSessionPanel.vue'
 import ChatHistoryImportPanel from './ChatHistoryImportPanel.vue'
 import WecomGatewayPanel from './WecomGatewayPanel.vue'
 import WhatsAppChannelPanel from './WhatsAppChannelPanel.vue'
@@ -122,6 +123,7 @@ const schema = computed<PageSchema>(() => ({
     <WhatsAppChannelPanel />
     <ChatHistoryImportPanel />
     <WecomGatewayPanel />
+    <BaileysSessionPanel />
     <SchemaPage :schema="schema" />
   </div>
 </template>

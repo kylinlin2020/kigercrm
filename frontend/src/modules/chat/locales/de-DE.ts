@@ -158,6 +158,22 @@ export default {
     time: {
       yesterday: 'Gestern',
     },
+    baileys: {
+      title: 'Baileys-Sitzungen (nur Vertrag)',
+      description: 'Vom Operator bestätigter Sitzungslebenszyklus. Keine QR-Daten, kein Auth-State und keine Geräteaktion auf dieser Seite.',
+      displayName: 'Anzeigename',
+      authStateRef: 'Verschlüsselte Auth-State-Referenz',
+      create: 'Sitzung erstellen',
+      created: 'Sitzung erstellt',
+      loadError: 'Baileys-Sitzungsoperation fehlgeschlagen.',
+      disconnected: 'Getrennt',
+      qrPending: 'QR ausstehend',
+      connected: 'Verbunden',
+      revoked: 'Widerrufen',
+      issueQr: 'QR ausstellen',
+      confirmConnected: 'Verbindung bestätigen',
+      revoke: 'Widerrufen (Geräteabmeldung)',
+    },
     wecom: {
       title: 'WeCom-Befehlsgateway',
       description: 'Mandanteneigene Bindungen und signierte Befehlsprüfung. Von hier wird keine externe Nachricht gesendet.',

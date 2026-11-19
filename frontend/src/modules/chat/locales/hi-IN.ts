@@ -159,6 +159,22 @@ export default {
     time: {
       yesterday: 'कल',
     },
+    baileys: {
+      title: 'Baileys सत्र (केवल अनुबंध)',
+      description: 'ऑपरेटर द्वारा पुष्टि किया गया सत्र जीवनचक्र। इस पृष्ठ पर QR, प्रमाणीकरण स्थिति या डिवाइस क्रिया नहीं है।',
+      displayName: 'प्रदर्शन नाम',
+      authStateRef: 'एन्क्रिप्टेड ऑथ-स्टेट संदर्भ',
+      create: 'सत्र बनाएँ',
+      created: 'सत्र बनाया गया',
+      loadError: 'Baileys सत्र ऑपरेशन विफल रहा।',
+      disconnected: 'डिस्कनेक्ट',
+      qrPending: 'QR लंबित',
+      connected: 'कनेक्टेड',
+      revoked: 'रद्द',
+      issueQr: 'QR जारी करें',
+      confirmConnected: 'कनेक्शन की पुष्टि करें',
+      revoke: 'रद्द करें (डिवाइस लॉगआउट)',
+    },
     wecom: {
       title: 'WeCom कमांड गेटवे',
       description: 'टेनेंट के स्वामित्व वाले कनेक्शन और हस्ताक्षरित कमांड ऑडिट। इस पृष्ठ से बाहरी संदेश नहीं भेजे जाते।',

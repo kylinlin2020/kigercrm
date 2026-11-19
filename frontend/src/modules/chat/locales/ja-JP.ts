@@ -159,6 +159,22 @@ export default {
     time: {
       yesterday: '昨日',
     },
+    baileys: {
+      title: 'Baileys セッション（契約のみ）',
+      description: '運用者が確認するセッションのライフサイクル。QR 内容・認証状態・デバイス操作はこの画面にありません。',
+      displayName: '表示名',
+      authStateRef: '暗号化された認証状態の参照',
+      create: 'セッションを作成',
+      created: 'セッションを作成しました',
+      loadError: 'Baileys セッション操作に失敗しました。',
+      disconnected: '切断済み',
+      qrPending: 'QR 待ち',
+      connected: '接続済み',
+      revoked: '取り消し済み',
+      issueQr: 'QR を発行',
+      confirmConnected: '接続を確認',
+      revoke: '取り消す（デバイスログアウト）',
+    },
     wecom: {
       title: 'WeCom コマンドゲートウェイ',
       description: 'テナント所有の接続と署名付きコマンド監査。この画面から外部メッセージは送信しません。',
