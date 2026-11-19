@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { crmDashboardApi } from './dashboard'
 import { crmProspectingApi } from './prospecting'
 import { CrmProspectingCandidateStatus } from './prospecting.types'
 
@@ -115,6 +116,18 @@ describe('crmProspectingApi', () => {
       input,
       undefined,
     )
+  })
+
+  it('routes read-only dashboard reports through the dashboard QueryService', async () => {
+    await crmDashboardApi.overview()
+    await crmDashboardApi.leadFunnel()
+    await crmDashboardApi.prospectSources()
+    await crmDashboardApi.opportunityStages()
+
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmDashboardQuery/Overview', { params: undefined })
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmDashboardQuery/LeadFunnel', { params: undefined })
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmDashboardQuery/ProspectSources', { params: undefined })
+    expect(requestMocks.get).toHaveBeenCalledWith('/CrmDashboardQuery/OpportunityStages', { params: undefined })
   })
 
   it('routes human-gated outreach sequences and touchpoints through the outreach service', async () => {

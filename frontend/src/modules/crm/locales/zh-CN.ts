@@ -14,6 +14,17 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardTitle: 'CRM 效果看板',
+      dashboardDescription: '只读指标；线索与商机数字遵循当前用户数据范围。',
+      dashboardLeads: '线索 {count}',
+      dashboardOpportunities: '商机 {count}',
+      dashboardProspects: '候选 {count}',
+      dashboardActiveRuns: '进行中任务 {count}',
+      dashboardFunnel: '线索漏斗',
+      dashboardSources: '候选来源',
+      dashboardStages: '商机阶段',
+      dashboardEmpty: '暂无可展示数据。',
+      dashboardError: '看板加载失败。',
       superSearchTitle: '超级搜索规划预览',
       superSearchDescription: '使用现有确定性规划器生成有界多轮查询；不会向 Provider 发起任何请求。',
       superSearchProducts: '产品（逗号或换行分隔）',

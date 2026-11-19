@@ -14,6 +14,17 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardTitle: 'CRM effect dashboard',
+      dashboardDescription: 'Read-only figures; lead and opportunity metrics follow your data scope.',
+      dashboardLeads: 'Leads {count}',
+      dashboardOpportunities: 'Opportunities {count}',
+      dashboardProspects: 'Prospects {count}',
+      dashboardActiveRuns: 'Active runs {count}',
+      dashboardFunnel: 'Lead funnel',
+      dashboardSources: 'Prospect sources',
+      dashboardStages: 'Opportunity stages',
+      dashboardEmpty: 'No data to display.',
+      dashboardError: 'Dashboard load failed.',
       superSearchTitle: 'Super Search preview',
       superSearchDescription: 'Plan bounded multi-round queries with the existing deterministic planner; no provider is called.',
       superSearchProducts: 'Products (comma or newline separated)',

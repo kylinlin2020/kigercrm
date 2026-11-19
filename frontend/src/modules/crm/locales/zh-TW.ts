@@ -14,6 +14,17 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardTitle: 'CRM 效果看板',
+      dashboardDescription: '唯讀指標；線索與商機數字遵循目前使用者資料範圍。',
+      dashboardLeads: '線索 {count}',
+      dashboardOpportunities: '商機 {count}',
+      dashboardProspects: '候選 {count}',
+      dashboardActiveRuns: '進行中任務 {count}',
+      dashboardFunnel: '線索漏斗',
+      dashboardSources: '候選來源',
+      dashboardStages: '商機階段',
+      dashboardEmpty: '暫無可顯示資料。',
+      dashboardError: '看板載入失敗。',
       superSearchTitle: '超級搜尋規劃預覽',
       superSearchDescription: '使用現有決定性規劃器產生有界多輪查詢；不會向 Provider 發出任何請求。',
       superSearchProducts: '產品（逗號或換行分隔）',

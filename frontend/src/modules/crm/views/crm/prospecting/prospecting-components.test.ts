@@ -17,6 +17,7 @@ const schedulePanel = source('SchedulePanel.vue')
 const reviewDetail = source('ReviewDetailPanel.vue')
 const verificationPanel = source('VerificationPanel.vue')
 const outreachPanel = source('OutreachPanel.vue')
+const dashboardPanel = source('CrmDashboardPanel.vue')
 
 describe('prospecting page component split', () => {
   it('keeps shared state in the page and delegates the three extracted views', () => {
@@ -146,5 +147,16 @@ describe('prospecting page component split', () => {
     expect(outreachPanel).toContain('outreachReview')
     expect(outreachPanel).not.toContain('sendEmail')
     expect(outreachPanel).not.toContain('fetch(')
+  })
+
+  it('keeps the dashboard read-only with bounded SVG bars', () => {
+    expect(index).toContain('import CrmDashboardPanel from \'./CrmDashboardPanel.vue\'')
+    expect(index).toContain('<CrmDashboardPanel')
+    expect(dashboardPanel).toContain('crmDashboardApi.overview')
+    expect(dashboardPanel).toContain('crmDashboardApi.leadFunnel')
+    expect(dashboardPanel).toContain('crmDashboardApi.prospectSources')
+    expect(dashboardPanel).toContain('crmDashboardApi.opportunityStages')
+    expect(dashboardPanel).toContain('<svg')
+    expect(dashboardPanel).not.toContain('post(')
   })
 })

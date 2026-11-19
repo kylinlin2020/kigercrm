@@ -31,6 +31,7 @@ import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import BulkActionBar from './BulkActionBar.vue'
 import CandidateTable from './CandidateTable.vue'
+import CrmDashboardPanel from './CrmDashboardPanel.vue'
 import OutreachPanel from './OutreachPanel.vue'
 import { useProspectingLabels } from './prospecting-labels'
 import {
@@ -694,6 +695,7 @@ onMounted(() => {
     <ProviderCredentialsPanel />
     <SuperSearchPreviewPanel @run-created="loadWorkspace" />
     <SchedulePanel @schedule-changed="loadWorkspace" />
+    <CrmDashboardPanel />
     <OutreachPanel />
 
     <section class="toolbar">

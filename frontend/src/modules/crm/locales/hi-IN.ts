@@ -14,6 +14,17 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardTitle: 'CRM प्रभाव डैशबोर्ड',
+      dashboardDescription: 'केवल पढ़ने वाले आंकड़े; लीड/अवसर डेटा स्कोप का पालन करते हैं।',
+      dashboardLeads: 'लीड {count}',
+      dashboardOpportunities: 'अवसर {count}',
+      dashboardProspects: 'संभावित {count}',
+      dashboardActiveRuns: 'सक्रिय रन {count}',
+      dashboardFunnel: 'लीड फ़नल',
+      dashboardSources: 'संभावित स्रोत',
+      dashboardStages: 'अवसर चरण',
+      dashboardEmpty: 'दिखाने के लिए कोई डेटा नहीं।',
+      dashboardError: 'डैशबोर्ड लोड विफल रहा।',
       superSearchTitle: 'सुपर सर्च पूर्वावलोकन',
       superSearchDescription: 'मौजूदा निश्चित प्लानर से सीमित बहु-चरण क्वेरी तैयार करें; किसी प्रदाता को कॉल नहीं किया जाता।',
       superSearchProducts: 'उत्पाद (अल्पविराम या नई पंक्ति से अलग करें)',

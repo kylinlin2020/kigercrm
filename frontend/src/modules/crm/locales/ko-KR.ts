@@ -14,6 +14,17 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardTitle: 'CRM 효과 대시보드',
+      dashboardDescription: '읽기 전용 수치이며 리드/기회는 데이터 범위를 따릅니다.',
+      dashboardLeads: '리드 {count}',
+      dashboardOpportunities: '기회 {count}',
+      dashboardProspects: '잠재고객 {count}',
+      dashboardActiveRuns: '진행 중 실행 {count}',
+      dashboardFunnel: '리드 퍼널',
+      dashboardSources: '잠재고객 출처',
+      dashboardStages: '기회 단계',
+      dashboardEmpty: '표시할 데이터가 없습니다.',
+      dashboardError: '대시보드를 불러오지 못했습니다.',
       superSearchTitle: '슈퍼 검색 미리보기',
       superSearchDescription: '기존 결정론적 플래너로 범위가 제한된 다단계 쿼리를 계획합니다. 공급자를 호출하지 않습니다.',
       superSearchProducts: '제품 (쉼표 또는 줄바꿈으로 구분)',

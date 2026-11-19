@@ -14,6 +14,17 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardTitle: 'CRM 効果ダッシュボード',
+      dashboardDescription: '読み取り専用の数値。リードと商機はデータスコープに従います。',
+      dashboardLeads: 'リード {count}',
+      dashboardOpportunities: '商機 {count}',
+      dashboardProspects: '見込み {count}',
+      dashboardActiveRuns: '実行中 {count}',
+      dashboardFunnel: 'リードファネル',
+      dashboardSources: '見込みソース',
+      dashboardStages: '商機ステージ',
+      dashboardEmpty: '表示するデータがありません。',
+      dashboardError: 'ダッシュボードの読み込みに失敗しました。',
       superSearchTitle: 'スーパー検索プレビュー',
       superSearchDescription: '既存の決定的プランナーで上限付きの複数ラウンド検索を計画します。プロバイダーは呼び出しません。',
       superSearchProducts: '製品（カンマまたは改行で区切る）',

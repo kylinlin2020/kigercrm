@@ -14,6 +14,17 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardTitle: 'CRM-Wirkungsübersicht',
+      dashboardDescription: 'Nur-Lese-Zahlen; Lead- und Opportunity-Kennzahlen folgen Ihrem Datenbereich.',
+      dashboardLeads: 'Leads {count}',
+      dashboardOpportunities: 'Opportunities {count}',
+      dashboardProspects: 'Interessenten {count}',
+      dashboardActiveRuns: 'Aktive Runs {count}',
+      dashboardFunnel: 'Lead-Trichter',
+      dashboardSources: 'Interessentenquellen',
+      dashboardStages: 'Opportunity-Phasen',
+      dashboardEmpty: 'Keine Daten vorhanden.',
+      dashboardError: 'Dashboard konnte nicht geladen werden.',
       superSearchTitle: 'Super-Search-Vorschau',
       superSearchDescription: 'Begrenzte mehrstufige Abfragen mit dem vorhandenen deterministischen Planer erstellen; es werden keine Provider aufgerufen.',
       superSearchProducts: 'Produkte (durch Komma oder Zeilenumbruch getrennt)',
