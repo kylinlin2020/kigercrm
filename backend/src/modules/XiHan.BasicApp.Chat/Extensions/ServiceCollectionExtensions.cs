@@ -38,6 +38,8 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<IChatDomainService, ChatDomainService>();
         services.AddScoped<IWhatsAppChannelAccountRepository, WhatsAppChannelAccountRepository>();
+        services.AddScoped<IChatHistoryImportBatchRepository, ChatHistoryImportBatchRepository>();
+        services.AddScoped<IChatHistoryImportRowRepository, ChatHistoryImportRowRepository>();
         services.AddScoped<WhatsAppMetaWebhookIngestService>();
         return services;
     }

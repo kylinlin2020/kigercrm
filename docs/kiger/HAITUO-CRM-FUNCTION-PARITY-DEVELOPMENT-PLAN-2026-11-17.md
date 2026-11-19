@@ -226,3 +226,17 @@
 > **诚实边界**：本片只收口 Meta Webhook 的"验签→路由→持久收件箱→确认"链路；Baileys（QR/会话/重连/设备注销）、企业微信连接器、外发 Outbox 与真实渠道发送均未完成；消息正文仅存哈希/原始 envelope 供复核，不自动投影为 CRM 事实。
 >
 > 下一步：M4 余项（Baileys/企业微信需范围与协议取证）或 Windows 原生部署验收。
+
+### M4 历史聊天导入证据（2026-11-19）
+
+- [x] 领域/实体：`ChatHistoryImportPolicy` 纯校验（500 行上限、字段/时间校验、文件内与跨批次 externalId 去重、内容只存 SHA-256）；批次/行实体 + 迁移 `5.9.48`（行唯一索引含 IsDeleted）。
+- [x] API `ChatHistoryImport`：`Preview` 纯校验零写入；`Import` 生成可审计批次与逐行判定；`Batches`/`Rows` 复核；Read/Manage 权限码。无效/重复行也作为审计记录落库，不会伪造成功。
+- [x] 前端面板嵌入聊天审计页（JSON 行粘贴、预览/暂存导入、逐行判定与批次列表）+ 类型/facade + 7 语言 15 键；按钮码沿用 `message.chat-audit.whatsapp_manage`。
+- [x] 测试：策略 1 例 + SQLite 2 例（零写入预览、导入与重放去重）+ 契约守卫（不投影会话）。
+- [x] 门禁：后端 build 0 错误 / **6033 总 / 0 失败**（Api.Tests 1173/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **181 文件 / 2651 用例全绿**、build 成功；px/token/i18n 无新增条目。
+- [x] 实机 HTTP：匿名 401；Preview 200（imported=2/invalid=1，零落库）；Import 200；重放 200（imported=0/duplicates=2）；Batches/Rows 200；浏览器面板渲染。
+- [ ] 真实历史文件（CSV/XLSX）解析、消息投影进会话、失败重试队列与 Windows 原生部署：**待取证**。
+>
+> **诚实边界**：导入目前只生成"暂存审计行"，不自动创建会话或消息；解析输入限于 JSON 行数组（CSV/XLSX 与字段映射属后续）。Baileys/企业微信仍未实现。
+>
+> 下一步：M4 余项（Baileys/企业微信）或由用户指定 Windows 原生部署验收。
