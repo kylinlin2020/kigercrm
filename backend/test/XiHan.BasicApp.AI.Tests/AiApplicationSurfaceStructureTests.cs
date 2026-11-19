@@ -71,7 +71,8 @@ public sealed class AiApplicationSurfaceStructureTests
     [Fact]
     public void ModuleAssembly_ShouldExposeApplicationServices()
     {
-        Assert.Equal(10, ApplicationServiceTypes().Count);
+        // 知识文档审核是新增的第 11 个应用服务；新增服务必须同步更新此下限守卫。
+        Assert.Equal(11, ApplicationServiceTypes().Count);
     }
 
     /// <summary>

@@ -38,7 +38,7 @@ const globbed = {
     { eager: true },
   ),
   ...import.meta.glob<Record<string, unknown>>(
-    ['/src/modules/*/api/**/*.ts', '!/src/modules/chat/api/chat.types.ts'],
+    ['/src/modules/*/api/**/*.ts', '!/src/modules/chat/api/chat.types.ts', '!/src/modules/*/api/**/*.test.ts'],
     { eager: true },
   ),
 }

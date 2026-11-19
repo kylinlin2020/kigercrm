@@ -131,6 +131,18 @@ export default {
       validate_model: 'Bitte geben Sie den Modellnamen ein',
     },
     knowledge: {
+      reviewTitle: 'Dokumentprüfung',
+      reviewDescription: 'Freigabe ist von der Indexierung getrennt. Eine Änderung des Inhalts erfordert eine neue Entscheidung.',
+      reviewDocumentId: 'Dokument-ID',
+      reviewComment: 'Kommentar (für Ablehnung erforderlich)',
+      reviewSubmit: 'Zur Prüfung senden',
+      reviewSubmitted: 'Zur Prüfung gesendet',
+      reviewApproveAction: 'Freigeben',
+      reviewRejectAction: 'Ablehnen',
+      reviewPending: 'Ausstehend',
+      reviewApproved: 'Freigegeben',
+      reviewRejected: 'Abgelehnt',
+      reviewError: 'Wissensprüfung fehlgeschlagen.',
       tabs: {
         documents: 'Dokumente',
         playground: 'Testbereich',

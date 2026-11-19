@@ -131,6 +131,18 @@ export default {
       validate_model: 'कृपया मॉडल का नाम भरें',
     },
     knowledge: {
+      reviewTitle: 'दस्तावेज़ समीक्षा',
+      reviewDescription: 'अनुमोदन अनुक्रमणिका से अलग है; मूल सामग्री बदलने पर नया निर्णय आवश्यक है।',
+      reviewDocumentId: 'दस्तावेज़ ID',
+      reviewComment: 'टिप्पणी (अस्वीकार के लिए आवश्यक)',
+      reviewSubmit: 'समीक्षा के लिए भेजें',
+      reviewSubmitted: 'समीक्षा के लिए भेजा गया',
+      reviewApproveAction: 'स्वीकार करें',
+      reviewRejectAction: 'अस्वीकार करें',
+      reviewPending: 'लंबित',
+      reviewApproved: 'स्वीकृत',
+      reviewRejected: 'अस्वीकृत',
+      reviewError: 'ज्ञान समीक्षा ऑपरेशन विफल रहा।',
       tabs: {
         documents: 'दस्तावेज़',
         playground: 'खोज प्लेग्राउंड',

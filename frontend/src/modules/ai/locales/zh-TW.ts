@@ -131,6 +131,18 @@ export default {
       validate_model: '請填寫模型名稱',
     },
     knowledge: {
+      reviewTitle: '文件審核',
+      reviewDescription: '審核與索引相互獨立；修改原文後需要重新審核。',
+      reviewDocumentId: '文件 ID',
+      reviewComment: '意見（駁回必填）',
+      reviewSubmit: '提交審核',
+      reviewSubmitted: '已提交審核',
+      reviewApproveAction: '通過',
+      reviewRejectAction: '駁回',
+      reviewPending: '待審核',
+      reviewApproved: '已通過',
+      reviewRejected: '已駁回',
+      reviewError: '知識審核操作失敗。',
       tabs: {
         documents: '文件',
         playground: '檢索試玩',

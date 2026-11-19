@@ -131,6 +131,18 @@ export default {
       validate_model: '请填写模型名称',
     },
     knowledge: {
+      reviewTitle: '文档审核',
+      reviewDescription: '审批与索引相互独立；修改原文后需要重新审核。',
+      reviewDocumentId: '文档 ID',
+      reviewComment: '意见（驳回必填）',
+      reviewSubmit: '提交审核',
+      reviewSubmitted: '已提交审核',
+      reviewApproveAction: '通过',
+      reviewRejectAction: '驳回',
+      reviewPending: '待审核',
+      reviewApproved: '已通过',
+      reviewRejected: '已驳回',
+      reviewError: '知识审核操作失败。',
       tabs: {
         documents: '文档',
         playground: '检索试玩',

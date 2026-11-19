@@ -131,6 +131,18 @@ export default {
       validate_model: 'モデル名を入力してください',
     },
     knowledge: {
+      reviewTitle: 'ドキュメント審査',
+      reviewDescription: '承認はインデックスとは別です。本文を変更すると再審査が必要です。',
+      reviewDocumentId: 'ドキュメント ID',
+      reviewComment: 'コメント（拒否時に必須）',
+      reviewSubmit: '審査に送信',
+      reviewSubmitted: '審査に送信しました',
+      reviewApproveAction: '承認',
+      reviewRejectAction: '拒否',
+      reviewPending: '保留中',
+      reviewApproved: '承認済み',
+      reviewRejected: '拒否済み',
+      reviewError: 'ナレッジ審査操作に失敗しました。',
       tabs: {
         documents: 'ドキュメント',
         playground: '検索プレイグラウンド',

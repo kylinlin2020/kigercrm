@@ -278,3 +278,15 @@
 - [ ] 时间范围筛选、团队排行、跟进健康度、看板权限码细分与 Windows 原生部署：**待取证**。
 >
 > 下一步：批次 4 余项（知识资料库、外贸工具/考试/OCR 等 P1）或 Windows 原生部署验收。
+
+### 批次 4 知识资料审核证据（2026-11-19）
+
+- [x] 在既有平台知识文档之上新增独立审核实体 `5.9.51`（不改动索引状态字段）：文档哈希、审批人、意见、审批时间，平台数据隔离。
+- [x] 策略 `KnowledgeReviewPolicy`：仅首次提交或原文变更需重审；驳回必须填写理由；每份文档保留完整决策历史。
+- [x] API `KnowledgeReview`（Submit/Decide/Reviews，Execute/Read）与前端审核面板嵌入 AI 知识页；7 语言 12 键。
+- [x] 测试：纯策略 1 例 + SQLite 审核闭环（提交→驳回理由校验→通过→未变更拒绝重提→修改后重提）1 例 + 契约守卫 1 例。
+- [x] 门禁：后端 build 0 错误 / **6052 总 / 0 失败**（Api.Tests 1185/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **182 文件 / 2654 用例全绿**、build 成功；i18n/px/token 无新增条目；同步修复 `AiApplicationSurfaceStructureTests` 服务数量守卫（10→11）与 `enum-contract.test.ts` 的 modules api glob 误引入测试文件。
+- [ ] 实机审核流：预览账号无 `ai:read`/`ai:execute` 权限（已知 403）；实机仅确认新路由已注册（403 而非 404），完整审批链路由集成测试覆盖。
+- [ ] 知识库 ACL/引用来源、增量索引与 Windows 原生部署：**待取证**。
+>
+> 下一步：批次 4 余项（考试、OCR、外贸工具等 P1）或 Windows 原生部署验收。

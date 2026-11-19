@@ -131,6 +131,18 @@ export default {
       validate_model: '모델 이름을 입력하세요',
     },
     knowledge: {
+      reviewTitle: '문서 검토',
+      reviewDescription: '승인은 색인과 별개이며 원문을 수정하면 다시 검토해야 합니다.',
+      reviewDocumentId: '문서 ID',
+      reviewComment: '의견(거부 시 필수)',
+      reviewSubmit: '검토 요청',
+      reviewSubmitted: '검토를 요청했습니다',
+      reviewApproveAction: '승인',
+      reviewRejectAction: '거부',
+      reviewPending: '대기 중',
+      reviewApproved: '승인됨',
+      reviewRejected: '거부됨',
+      reviewError: '지식 검토 작업에 실패했습니다.',
       tabs: {
         documents: '문서',
         playground: '검색 플레이그라운드',

@@ -27,6 +27,7 @@ import {
   KnowledgeIndexStatus,
   KnowledgeSourceType,
 } from '../../../api'
+import KnowledgeReviewPanel from './KnowledgeReviewPanel.vue'
 
 defineOptions({ name: 'DevelopKnowledgePage' })
 
@@ -311,6 +312,7 @@ function onQueryKeydown(event: KeyboardEvent) {
 <template>
   <div class="knowledge">
     <!-- 面板内容各不相同，标签与面板手摆而不喂 collection -->
+    <KnowledgeReviewPanel />
     <XhTabsRoot v-model:value="activeTab" variant="line" class="knowledge__tabs">
       <XhTabsList>
         <XhTabsTrigger value="documents">

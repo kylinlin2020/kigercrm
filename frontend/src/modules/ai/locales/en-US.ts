@@ -131,6 +131,18 @@ export default {
       validate_model: 'Please enter the model name',
     },
     knowledge: {
+      reviewTitle: 'Document review',
+      reviewDescription: 'Approval is separate from indexing. Editing raw content requires a new decision.',
+      reviewDocumentId: 'Document ID',
+      reviewComment: 'Comment (required to reject)',
+      reviewSubmit: 'Submit for review',
+      reviewSubmitted: 'Submitted for review',
+      reviewApproveAction: 'Approve',
+      reviewRejectAction: 'Reject',
+      reviewPending: 'Pending',
+      reviewApproved: 'Approved',
+      reviewRejected: 'Rejected',
+      reviewError: 'Knowledge review operation failed.',
       tabs: {
         documents: 'Documents',
         playground: 'Playground',
