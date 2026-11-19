@@ -159,6 +159,19 @@ export default {
     time: {
       yesterday: '昨日',
     },
+    wecom: {
+      title: 'WeCom コマンドゲートウェイ',
+      description: 'テナント所有の接続と署名付きコマンド監査。この画面から外部メッセージは送信しません。',
+      displayName: '表示名',
+      corpId: 'Corp ID',
+      agentId: 'Agent ID',
+      credentialRef: 'シークレットストア参照（秘密情報禁止）',
+      save: '接続を保存',
+      saved: '接続を保存しました',
+      loadError: 'WeCom ゲートウェイ操作に失敗しました。',
+      auditTitle: 'コマンド監査',
+      auditEmpty: 'コマンド コールバックはまだありません。',
+    },
     history: {
       title: 'チャット履歴インポート（ステージング）',
       description: 'プレビューは書き込まずに検証します。インポートは監査用レコードを作成し、会話へメッセージを挿入しません。',

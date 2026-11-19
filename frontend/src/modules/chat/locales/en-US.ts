@@ -158,6 +158,19 @@ export default {
     time: {
       yesterday: 'Yesterday',
     },
+    wecom: {
+      title: 'WeCom command gateway',
+      description: 'Tenant-owned bindings and signed command audit. No external message is sent by this page.',
+      displayName: 'Display name',
+      corpId: 'Corp ID',
+      agentId: 'Agent ID',
+      credentialRef: 'Secret-store reference (never a secret)',
+      save: 'Save binding',
+      saved: 'Binding saved',
+      loadError: 'WeCom gateway operation failed.',
+      auditTitle: 'Command audit',
+      auditEmpty: 'No command callbacks yet.',
+    },
     history: {
       title: 'Chat history import (staged)',
       description: 'Preview validates rows without writing. Import stages audited records; it never injects messages into conversations.',

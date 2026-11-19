@@ -158,6 +158,19 @@ export default {
     time: {
       yesterday: 'Gestern',
     },
+    wecom: {
+      title: 'WeCom-Befehlsgateway',
+      description: 'Mandanteneigene Bindungen und signierte Befehlsprüfung. Von hier wird keine externe Nachricht gesendet.',
+      displayName: 'Anzeigename',
+      corpId: 'Corp-ID',
+      agentId: 'Agent-ID',
+      credentialRef: 'Secret-Store-Referenz (niemals ein Geheimnis)',
+      save: 'Bindung speichern',
+      saved: 'Bindung gespeichert',
+      loadError: 'WeCom-Gatewayoperation fehlgeschlagen.',
+      auditTitle: 'Befehlsprüfung',
+      auditEmpty: 'Noch keine Befehls-Callbacks.',
+    },
     history: {
       title: 'Chat-Verlaufsimport (vorbereitet)',
       description: 'Die Vorschau prüft Zeilen ohne zu schreiben. Der Import erstellt geprüfte Datensätze, keine Nachrichten in Konversationen.',

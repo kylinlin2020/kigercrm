@@ -53,6 +53,7 @@ public class XiHanBasicAppChatModule : XiHanModule
         {
             endpoints.MapXiHanHub<BasicAppChatHub>(SignalRConstants.HubPaths.Chat);
             endpoints.MapWhatsAppMetaWebhookEndpoints();
+            endpoints.MapWecomCallbackEndpoints();
         });
     }
 }

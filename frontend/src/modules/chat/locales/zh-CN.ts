@@ -159,6 +159,19 @@ export default {
     time: {
       yesterday: '昨天',
     },
+    wecom: {
+      title: '企业微信命令网关',
+      description: '租户自有绑定与签名命令审计；本页不发送任何外部消息。',
+      displayName: '显示名称',
+      corpId: '企业 CorpID',
+      agentId: '应用 AgentID',
+      credentialRef: '密钥库引用（绝非密钥）',
+      save: '保存绑定',
+      saved: '绑定已保存',
+      loadError: '企业微信网关操作失败。',
+      auditTitle: '命令审计',
+      auditEmpty: '暂无命令回调。',
+    },
     history: {
       title: '聊天历史导入（暂存）',
       description: '预览只校验不写入；导入生成可审计记录，不会向会话插入消息。',

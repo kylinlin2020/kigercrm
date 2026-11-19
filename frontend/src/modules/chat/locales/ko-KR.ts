@@ -159,6 +159,19 @@ export default {
     time: {
       yesterday: '어제',
     },
+    wecom: {
+      title: 'WeCom 명령 게이트웨이',
+      description: '테넌트 소유 연결과 서명된 명령 감사. 이 화면에서는 외부 메시지를 보내지 않습니다.',
+      displayName: '표시 이름',
+      corpId: 'Corp ID',
+      agentId: 'Agent ID',
+      credentialRef: '시크릿 스토어 참조(비밀 금지)',
+      save: '연결 저장',
+      saved: '연결을 저장했습니다',
+      loadError: 'WeCom 게이트웨이 작업에 실패했습니다.',
+      auditTitle: '명령 감사',
+      auditEmpty: '아직 명령 콜백이 없습니다.',
+    },
     history: {
       title: '채팅 기록 가져오기(준비)',
       description: '미리보기는 쓰기 없이 검증합니다. 가져오기는 감사 레코드만 만들며 대화에 메시지를 넣지 않습니다.',

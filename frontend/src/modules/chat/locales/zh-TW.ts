@@ -159,6 +159,19 @@ export default {
     time: {
       yesterday: '昨日',
     },
+    wecom: {
+      title: '企業微信命令閘道',
+      description: '租戶自有綁定與簽章命令稽核；本頁不傳送任何外部訊息。',
+      displayName: '顯示名稱',
+      corpId: '企業 CorpID',
+      agentId: '應用 AgentID',
+      credentialRef: '金鑰庫參考（絕非金鑰）',
+      save: '儲存綁定',
+      saved: '綁定已儲存',
+      loadError: '企業微信閘道操作失敗。',
+      auditTitle: '命令稽核',
+      auditEmpty: '尚無命令回呼。',
+    },
     history: {
       title: '聊天歷史匯入（暫存）',
       description: '預覽只驗證不寫入；匯入產生可稽核記錄，不會向工作階段插入訊息。',
