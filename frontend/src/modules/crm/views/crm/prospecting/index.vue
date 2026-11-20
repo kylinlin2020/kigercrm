@@ -33,6 +33,7 @@ import BulkActionBar from './BulkActionBar.vue'
 import BusinessCardImportPanel from './BusinessCardImportPanel.vue'
 import CandidateTable from './CandidateTable.vue'
 import CrmDashboardPanel from './CrmDashboardPanel.vue'
+import CustomsExportPanel from './CustomsExportPanel.vue'
 import ExamPanel from './ExamPanel.vue'
 import OutreachPanel from './OutreachPanel.vue'
 import { useProspectingLabels } from './prospecting-labels'
@@ -703,6 +704,7 @@ onMounted(() => {
     <ExamPanel />
     <BusinessCardImportPanel />
     <TradeDocumentImportPanel />
+    <CustomsExportPanel />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}
