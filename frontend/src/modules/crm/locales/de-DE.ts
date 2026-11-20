@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      csvLoad: 'CSV-Datei laden',
+      csvHint: 'Die erste Zeile gilt als Spaltennamen; zitierte Felder werden unterstützt.',
+      csvLoaded: '{count} Zeilen aus CSV geladen',
+      csvError: 'CSV-Datei konnte nicht gelesen werden.',
       customerImportTitle: 'Kundendatenimport',
       customerImportDescription: 'Quellspalten auf CRM-Felder abbilden, Validierung und Duplikate prüfen und mit Auditprotokoll importieren.',
       customerImportRows: 'Zeilen (JSON-Array)',

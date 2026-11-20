@@ -8,6 +8,7 @@ import {
 
 } from '@/api/modules/crm/customer-import.types'
 import { toast } from '~/composables'
+import { csvToRows, suggestCustomerMapping } from './csv-to-rows'
 
 defineOptions({ name: 'CrmCustomerImportPanel' })
 
@@ -21,6 +22,7 @@ const mapping = ref<Array<{ source: string, target: string }>>([
 ])
 const preview = ref<CrmCustomerImportPreviewDto | null>(null)
 const result = ref<CrmCustomerImportResultDto | null>(null)
+const csvNotice = ref('')
 
 const example = '[{"company":"Acme GmbH","site":"www.acme.com","region":"DE","sector":"Pumps"}]'
 
@@ -31,6 +33,26 @@ function payload() {
       map[item.source.trim()] = item.target
   }
   return { rowsJson: rowsJson.value, mapping: map, fileName: fileName.value || null }
+}
+
+async function loadCsv(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file)
+    return
+  try {
+    const converted = csvToRows(await file.text())
+    rowsJson.value = converted.rowsJson
+    const suggested = suggestCustomerMapping(converted.headers)
+    if (suggested.length > 0)
+      mapping.value = suggested
+    csvNotice.value = t('crm.prospecting.csvLoaded', { count: converted.rowCount })
+  }
+  catch {
+    csvNotice.value = ''
+    toast.danger(t('crm.prospecting.csvError'))
+  }
+  input.value = ''
 }
 
 async function runPreview() {
@@ -94,6 +116,14 @@ function removeMapping(index: number) {
       {{ t('crm.prospecting.customerImportFileName') }}
       <input v-model="fileName" type="text">
     </label>
+    <label class="ci-csv">
+      {{ t('crm.prospecting.csvLoad') }}
+      <input type="file" accept=".csv,text/csv" @change="loadCsv">
+      <small>{{ t('crm.prospecting.csvHint') }}</small>
+    </label>
+    <p v-if="csvNotice" class="ci-csv-notice">
+      {{ csvNotice }}
+    </p>
     <div class="ci-actions">
       <button type="button" :disabled="!rowsJson" @click="runPreview">
         {{ t('crm.prospecting.customerImportPreview') }}
@@ -150,6 +180,15 @@ function removeMapping(index: number) {
 .ci-map-row select {
   width: 100%;
   font: inherit;
+}
+.ci-csv {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+}
+.ci-csv-notice {
+  font-size: 0.82rem;
+  color: var(--xh-success, #2a0);
 }
 .ci-actions {
   display: flex;

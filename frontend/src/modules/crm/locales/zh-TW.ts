@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      csvLoad: '載入 CSV 檔案',
+      csvHint: '首列作為欄名，支援引號欄位。',
+      csvLoaded: '已從 CSV 載入 {count} 筆',
+      csvError: 'CSV 檔案解析失敗。',
       customerImportTitle: '客戶資料匯入',
       customerImportDescription: '將來源欄位對應至 CRM 欄位，預覽驗證與重複，再附審計記錄匯入。',
       customerImportRows: '資料列（JSON 陣列）',

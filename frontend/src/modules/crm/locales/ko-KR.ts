@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      csvLoad: 'CSV 파일 불러오기',
+      csvHint: '첫 행은 열 이름으로 사용하며 따옴표 필드를 지원합니다.',
+      csvLoaded: 'CSV에서 {count}건을 불러왔습니다',
+      csvError: 'CSV 파일을 읽을 수 없습니다.',
       customerImportTitle: '고객 데이터 가져오기',
       customerImportDescription: '원본 열을 CRM 필드에 매핑하고 검증·중복을 확인한 뒤 감사 기록과 함께 가져옵니다.',
       customerImportRows: '행 (JSON 배열)',

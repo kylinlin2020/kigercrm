@@ -8,6 +8,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmTradeDocumentImportApi } from '@/api/modules/crm/trade-document-import'
 import { toast } from '~/composables'
+import { csvToRows } from './csv-to-rows'
 
 defineOptions({ name: 'CrmTradeDocumentImportPanel' })
 
@@ -48,6 +49,22 @@ async function reloadRows() {
   catch (error) {
     toast.danger((error as Error)?.message || t('crm.prospecting.tradeError'))
   }
+}
+
+async function loadCsv(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file)
+    return
+  try {
+    const converted = csvToRows(await file.text())
+    rowsJson.value = converted.rowsJson
+    toast.success(t('crm.prospecting.csvLoaded', { count: converted.rowCount }))
+  }
+  catch {
+    toast.danger(t('crm.prospecting.csvError'))
+  }
+  input.value = ''
 }
 
 async function reloadBatches() {
@@ -168,6 +185,11 @@ async function reject(row: CrmTradeDocumentRowDto) {
       {{ t('crm.prospecting.tradeSalesOrderId') }}
       <input v-model="salesOrderId" type="text">
     </label>
+    <label class="csv-load">
+      {{ t('crm.prospecting.csvLoad') }}
+      <input type="file" accept=".csv,text/csv" @change="loadCsv">
+      <small>{{ t('crm.prospecting.csvHint') }}</small>
+    </label>
     <div class="ti-actions">
       <button type="button" :disabled="!rowsJson" @click="runPreview">
         {{ t('crm.prospecting.tradePreview') }}
@@ -234,6 +256,12 @@ async function reject(row: CrmTradeDocumentRowDto) {
 </template>
 
 <style scoped>
+.csv-load {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+}
+
 .trade-import {
   display: grid;
   gap: 0.6rem;

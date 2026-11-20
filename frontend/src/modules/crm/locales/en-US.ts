@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      csvLoad: 'Load CSV file',
+      csvHint: 'First row is treated as column names; quoted fields are supported.',
+      csvLoaded: 'Loaded {count} rows from CSV',
+      csvError: 'CSV file could not be parsed.',
       customerImportTitle: 'Customer data import',
       customerImportDescription: 'Map source columns to CRM fields, preview validation and duplicates, then import with an audit record.',
       customerImportRows: 'Rows (JSON array)',

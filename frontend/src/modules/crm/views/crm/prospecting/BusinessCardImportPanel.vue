@@ -7,6 +7,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmBusinessCardImportApi } from '@/api/modules/crm/business-card-import'
 import { toast } from '~/composables'
+import { csvToRows } from './csv-to-rows'
 
 defineOptions({ name: 'CrmBusinessCardImportPanel' })
 
@@ -26,6 +27,22 @@ function statusLabel(status: number) {
     t('crm.prospecting.cardConfirmed'),
     t('crm.prospecting.cardRejected'),
   ][status] ?? String(status)
+}
+
+async function loadCsv(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file)
+    return
+  try {
+    const converted = csvToRows(await file.text())
+    rowsJson.value = converted.rowsJson
+    toast.success(t('crm.prospecting.csvLoaded', { count: converted.rowCount }))
+  }
+  catch {
+    toast.danger(t('crm.prospecting.csvError'))
+  }
+  input.value = ''
 }
 
 async function reloadBatches() {
@@ -97,6 +114,11 @@ async function decide(rowId: string, approve: boolean) {
       {{ t('crm.prospecting.cardPayload') }}
       <textarea v-model="rowsJson" rows="4" :placeholder="example" />
     </label>
+    <label class="csv-load">
+      {{ t('crm.prospecting.csvLoad') }}
+      <input type="file" accept=".csv,text/csv" @change="loadCsv">
+      <small>{{ t('crm.prospecting.csvHint') }}</small>
+    </label>
     <div class="ci-actions">
       <button type="button" :disabled="!rowsJson" @click="runPreview">
         {{ t('crm.prospecting.cardPreview') }}
@@ -149,6 +171,12 @@ async function decide(rowId: string, approve: boolean) {
 </template>
 
 <style scoped>
+.csv-load {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+}
+
 .card-import {
   display: grid;
   gap: 0.6rem;

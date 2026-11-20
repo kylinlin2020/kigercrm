@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      csvLoad: 'CSV ファイルを読み込む',
+      csvHint: '先頭行は列名として扱われ、引用符付きフィールドに対応します。',
+      csvLoaded: 'CSV から {count} 件を読み込みました',
+      csvError: 'CSV ファイルを解析できませんでした。',
       customerImportTitle: '顧客データ取り込み',
       customerImportDescription: 'ソース列を CRM 項目に割り当て、検証と重複を確認して監査記録付きで取り込みます。',
       customerImportRows: '行（JSON 配列）',

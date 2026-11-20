@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      csvLoad: '载入 CSV 文件',
+      csvHint: '首行作为列名，支持带引号的字段。',
+      csvLoaded: '已从 CSV 载入 {count} 行',
+      csvError: 'CSV 文件解析失败。',
       customerImportTitle: '客户数据导入',
       customerImportDescription: '将源列映射到 CRM 字段，预览校验与重复，再带审计记录导入。',
       customerImportRows: '数据行（JSON 数组）',

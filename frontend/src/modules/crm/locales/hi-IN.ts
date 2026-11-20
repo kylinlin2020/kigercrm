@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      csvLoad: 'CSV फ़ाइल लोड करें',
+      csvHint: 'पहली पंक्ति कॉलम नाम मानी जाती है; उद्धृत फ़ील्ड समर्थित हैं।',
+      csvLoaded: 'CSV से {count} पंक्तियाँ लोड की गईं',
+      csvError: 'CSV फ़ाइल पार्स नहीं हो सकी।',
       customerImportTitle: 'ग्राहक डेटा आयात',
       customerImportDescription: 'स्रोत कॉलम को CRM फ़ील्ड से मैप करें, सत्यापन और डुप्लिकेट देखें, फिर ऑडिट रिकॉर्ड के साथ आयात करें।',
       customerImportRows: 'पंक्तियाँ (JSON सरणी)',
