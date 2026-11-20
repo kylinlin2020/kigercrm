@@ -45,6 +45,7 @@ import ReviewDetailPanel from './ReviewDetailPanel.vue'
 import RunMonitorPanel from './RunMonitorPanel.vue'
 import SchedulePanel from './SchedulePanel.vue'
 import SuperSearchPreviewPanel from './SuperSearchPreviewPanel.vue'
+import TradeDocumentImportPanel from './TradeDocumentImportPanel.vue'
 import { useRunMonitorPolling } from './useRunMonitorPolling'
 
 defineOptions({ name: 'CrmProspectingPage' })
@@ -701,6 +702,7 @@ onMounted(() => {
     <OutreachPanel />
     <ExamPanel />
     <BusinessCardImportPanel />
+    <TradeDocumentImportPanel />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}
