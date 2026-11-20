@@ -30,6 +30,7 @@ import {
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import BulkActionBar from './BulkActionBar.vue'
+import BusinessCardImportPanel from './BusinessCardImportPanel.vue'
 import CandidateTable from './CandidateTable.vue'
 import CrmDashboardPanel from './CrmDashboardPanel.vue'
 import ExamPanel from './ExamPanel.vue'
@@ -699,6 +700,7 @@ onMounted(() => {
     <CrmDashboardPanel />
     <OutreachPanel />
     <ExamPanel />
+    <BusinessCardImportPanel />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}

@@ -55,4 +55,22 @@ public sealed class CrmLeadRepository(ISqlSugarClientResolver clientResolver)
 
         return matches.Values.ToArray();
     }
+
+    public async Task<IReadOnlyList<SysCrmLead>> GetByPhoneDigitsAsync(
+        IReadOnlyCollection<string> phoneDigits,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(phoneDigits);
+        cancellationToken.ThrowIfCancellationRequested();
+        var matches = new List<SysCrmLead>();
+        foreach (var batch in phoneDigits.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct().Chunk(300))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var keys = batch.ToArray();
+            matches.AddRange(await CreateQueryable()
+                .Where(lead => lead.PhoneDigits != null && keys.Contains(lead.PhoneDigits))
+                .ToListAsync(cancellationToken));
+        }
+        return matches;
+    }
 }

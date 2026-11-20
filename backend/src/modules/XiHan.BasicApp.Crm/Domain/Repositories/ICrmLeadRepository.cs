@@ -14,4 +14,9 @@ public interface ICrmLeadRepository : ISaasRepository<SysCrmLead>
         IReadOnlyCollection<string> normalizedEmails,
         IReadOnlyCollection<string> websiteHosts,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Find tenant Leads matching any normalized phone digit key.</summary>
+    Task<IReadOnlyList<SysCrmLead>> GetByPhoneDigitsAsync(
+        IReadOnlyCollection<string> phoneDigits,
+        CancellationToken cancellationToken = default);
 }
