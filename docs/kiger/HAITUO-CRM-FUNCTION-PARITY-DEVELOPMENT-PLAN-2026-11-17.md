@@ -290,3 +290,15 @@
 - [ ] 知识库 ACL/引用来源、增量索引与 Windows 原生部署：**待取证**。
 >
 > 下一步：批次 4 余项（考试、OCR、外贸工具等 P1）或 Windows 原生部署验收。
+
+### 批次 4 销售培训考试证据（2026-11-20）
+
+- [x] 归属：CRM 子域（不新建模块），租户隔离实体 + 迁移 `5.9.52`：题库、试卷、考试尝试；答案与解析只在服务端。
+- [x] 规则 `CrmExamPolicy`：题量 1–50、时长 1–180 分钟、及格分在总分内、最多 10 次、重考间隔、超时判定、按题积分评分；未发布试卷不可开考，同一尝试不可重复交卷。
+- [x] API `CrmExam`（Question/Questions/Paper/Papers/PublishPaper/Start/Submit/MyAttempts，Create/Read/Update/Execute）与前端考试面板嵌入获客页；候选端 DTO 与 wire 类型均不含 `CorrectAnswer`/`Explanation`；7 语言 27 键。
+- [x] 测试：纯策略 1 例 + SQLite 闭环 2 例（发布/评分/判卷/重复交卷拒绝、超时与重考上限）+ 契约守卫 1 例；前端 API 路由与候选端 wire 守卫 2 例。
+- [x] 门禁：后端 build 0 错误 / **6056 总 / 0 失败**（Api.Tests 1189/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **183 文件 / 2656 用例全绿**、build 成功；px/token/i18n 无新增条目。
+- [x] 实机 HTTP：匿名 401；建题/列表/建卷/发布/开考/交卷/尝试列表 200；未发布开考 422；交卷得分 60/100 且状态=通过；实机修正服务名为 `CrmExam`（类名去 AppService，非 `Exam`）；浏览器面板渲染正常。
+- [ ] 多选题、题库分类/抽题策略、考试证书与 Windows 原生部署：**待取证**。
+>
+> 下一步：批次 4 余项（名片/单据 OCR、外贸工具等 P1）或 Windows 原生部署验收。

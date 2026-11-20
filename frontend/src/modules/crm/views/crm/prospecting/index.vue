@@ -32,6 +32,7 @@ import { usePermission } from '~/hooks'
 import BulkActionBar from './BulkActionBar.vue'
 import CandidateTable from './CandidateTable.vue'
 import CrmDashboardPanel from './CrmDashboardPanel.vue'
+import ExamPanel from './ExamPanel.vue'
 import OutreachPanel from './OutreachPanel.vue'
 import { useProspectingLabels } from './prospecting-labels'
 import {
@@ -697,6 +698,7 @@ onMounted(() => {
     <SchedulePanel @schedule-changed="loadWorkspace" />
     <CrmDashboardPanel />
     <OutreachPanel />
+    <ExamPanel />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}
