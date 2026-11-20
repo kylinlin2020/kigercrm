@@ -341,3 +341,15 @@
 >
 > 下一步：批次 4 P1 已按受控范围收口；可转 Windows 原生部署验收或用户指定的真实外部接入授权。
 
+### 批次 4 客户数据导入证据（2026-11-20）
+
+- [x] CRM 级字段映射导入：源列→CRM 字段（name/legalName/website/countryRegion/industry/source/notes）显式映射，必填 name；≤500 行；字段长度/归一化校验；批次内与既有客户按规范化名称查重。客户仓储新增有界名称查重；重复与非法行不创建客户但明确计数。
+- [x] API `CrmCustomerImport`（Preview 零写入 / Import，Read/Create）：创建走既有 `ICrmCustomerDomainService`，并通过 SaaS `IImportHistoryAppService` 写入审计留痕（页面码 `crm.customer-import`、成功/失败计数、错误摘要）。
+- [x] 前端面板嵌入获客页（映射编辑器、JSON 数据、文件名、预览、导入结果与审计编号）+ 类型/facade + 7 语言 20 键。
+- [x] 测试：策略 1 例 + SQLite 闭环 1 例（预览零写入→导入创建 1/跳过重复 1/非法 1→重放零新建→审计一次）+ 契约守卫 1 例；前端 API 路由与字段清单守卫 2 例。修复去重键大小写与仓储 `Name.ToLower()` 的比较不一致。
+- [x] 门禁：后端 build 0 错误 / **6070 总 / 0 失败**（Api.Tests 1203/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **187 文件 / 2664 用例全绿**、build 成功；px/token/i18n 无新增条目。
+- [x] 实机 HTTP：匿名 401；预览 200（3 行→2 有效/1 重复，客户数不变）；导入 200（创建 1、非法 1、重复 1，返回审计 ID）；客户数 1→2；重放 200（创建 0、重复 2）；浏览器面板渲染正常。
+- [ ] CSV/XLSX 文件解析、水印/导出任务集成、微信/线索等其他资源映射与 Windows 原生部署：**待取证**。
+>
+> 下一步：Windows 原生部署验收，或用户明确授权的真实外部接入/文件解析。
+
