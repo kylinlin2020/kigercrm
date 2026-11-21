@@ -131,6 +131,10 @@ export default {
       validate_model: 'Please enter the model name',
     },
     knowledge: {
+      action_sync: 'Sync if changed',
+      sync_rebuilt: 'Content changed — chunks rebuilt.',
+      sync_skipped: 'Content unchanged — skipped, no vector I/O.',
+      sync_failed: 'Incremental sync failed.',
       tagTitle: 'Knowledge tags & duplicates',
       tagDescription: 'Tag documents for classification and find byte-identical raw content. Duplicates are reported, never auto-merged.',
       tagDocumentId: 'Document ID',

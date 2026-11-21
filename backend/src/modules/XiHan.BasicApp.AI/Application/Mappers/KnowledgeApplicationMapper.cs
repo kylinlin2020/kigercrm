@@ -75,6 +75,8 @@ public static class KnowledgeApplicationMapper
             ModifiedTime = item.ModifiedTime,
             RawContent = entity.RawContent,
             Remark = entity.Remark,
+            ContentHash = entity.ContentHash,
+            IndexedContentHash = entity.IndexedContentHash,
             CreatedId = entity.CreatedId,
             CreatedBy = entity.CreatedBy,
             ModifiedId = entity.ModifiedId,

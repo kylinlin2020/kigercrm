@@ -58,6 +58,7 @@ public sealed class KnowledgeDocumentDomainService : IKnowledgeDocumentDomainSer
             Source = Optional(command.Source, 500, nameof(command.Source), "来源标识不能超过 500 个字符。"),
             RawContent = text,
             ContentHash = KnowledgeTagPolicy.HashContent(text),
+            IndexedContentHash = null,
             EmbeddingProviderCode = Optional(command.EmbeddingProviderCode, 100, nameof(command.EmbeddingProviderCode), "嵌入 provider 编码不能超过 100 个字符。"),
             Status = KnowledgeIndexStatus.Pending,
             ChunkCount = 0,
@@ -82,6 +83,22 @@ public sealed class KnowledgeDocumentDomainService : IKnowledgeDocumentDomainSer
         await _ingestor.RemoveDocumentAsync(document.BasicId.ToString(), document.ChunkCount, cancellationToken);
         await IndexAsync(document, cancellationToken);
         return new KnowledgeDocumentCommandResult(document);
+    }
+
+    /// <summary>
+    /// 增量同步：仅在原文哈希与最近成功索引的哈希不同（或从未成功索引）时重建切片。
+    /// 未变化的文档直接返回，不触碰向量库，也不修改索引状态。
+    /// </summary>
+    public async Task<KnowledgeDocumentSyncResult> SyncAsync(long id, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var document = await GetDocumentOrThrowAsync(id, cancellationToken);
+        if (!KnowledgeIndexPolicy.NeedsReindex(document))
+            return new KnowledgeDocumentSyncResult(document, Rebuilt: false);
+
+        await _ingestor.RemoveDocumentAsync(document.BasicId.ToString(), document.ChunkCount, cancellationToken);
+        await IndexAsync(document, cancellationToken);
+        return new KnowledgeDocumentSyncResult(document, Rebuilt: true);
     }
 
     /// <summary>
@@ -124,6 +141,8 @@ public sealed class KnowledgeDocumentDomainService : IKnowledgeDocumentDomainSer
             document.ChunkCount = writtenChunkCount;
             document.Status = writtenChunkCount > 0 ? KnowledgeIndexStatus.Indexed : KnowledgeIndexStatus.Failed;
             document.ErrorMessage = writtenChunkCount > 0 ? null : "未产生任何切片。";
+            if (writtenChunkCount > 0) KnowledgeIndexPolicy.MarkIndexed(document);
+            else KnowledgeIndexPolicy.MarkFailed(document);
         }
         catch (OperationCanceledException)
         {
@@ -134,6 +153,7 @@ public sealed class KnowledgeDocumentDomainService : IKnowledgeDocumentDomainSer
             document.ChunkCount = 0;
             document.Status = KnowledgeIndexStatus.Failed;
             document.ErrorMessage = Truncate(ex.Message, 1000);
+            KnowledgeIndexPolicy.MarkFailed(document);
         }
 
         try

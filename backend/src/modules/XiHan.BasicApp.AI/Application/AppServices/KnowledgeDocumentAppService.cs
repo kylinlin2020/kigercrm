@@ -66,6 +66,23 @@ public sealed class KnowledgeDocumentAppService : AiApplicationService, IKnowled
     }
 
     /// <summary>
+    /// 增量同步：原文未变化则跳过，不触碰向量库。
+    /// </summary>
+    [PermissionAuthorize(KnowledgePermissionCodes.Update)]
+    [HttpPost]
+    public async Task<KnowledgeSyncResultDto> SyncAsync(KnowledgeActionDto input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(input);
+        cancellationToken.ThrowIfCancellationRequested();
+        var result = await _documentDomainService.SyncAsync(input.BasicId, cancellationToken);
+        return new KnowledgeSyncResultDto
+        {
+            Document = KnowledgeApplicationMapper.ToDetailDto(result.Document),
+            Rebuilt = result.Rebuilt
+        };
+    }
+
+    /// <summary>
     /// 删除文档
     /// </summary>
     [PermissionAuthorize(KnowledgePermissionCodes.Delete)]

@@ -19,6 +19,11 @@ public interface IKnowledgeDocumentDomainService
     Task<KnowledgeDocumentCommandResult> ReindexAsync(long id, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 增量同步：仅在原文变化时重建切片，未变化则不触碰向量库。
+    /// </summary>
+    Task<KnowledgeDocumentSyncResult> SyncAsync(long id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 删除文档（清向量 + 软删元信息）
     /// </summary>
     Task DeleteAsync(long id, CancellationToken cancellationToken = default);

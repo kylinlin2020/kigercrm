@@ -131,6 +131,10 @@ export default {
       validate_model: 'Bitte geben Sie den Modellnamen ein',
     },
     knowledge: {
+      action_sync: 'Bei Änderung synchronisieren',
+      sync_rebuilt: 'Inhalt geändert — Chunks neu erstellt.',
+      sync_skipped: 'Inhalt unverändert — übersprungen, keine Vektor-I/O.',
+      sync_failed: 'Inkrementelle Synchronisierung fehlgeschlagen.',
       tagTitle: 'Wissens-Tags & Duplikate',
       tagDescription: 'Dokumente zur Klassifizierung markieren und byte-identische Inhalte finden. Duplikate werden gemeldet, nie automatisch zusammengeführt.',
       tagDocumentId: 'Dokument-ID',

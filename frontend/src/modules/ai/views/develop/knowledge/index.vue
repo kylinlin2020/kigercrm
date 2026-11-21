@@ -109,6 +109,7 @@ const schema = computed<PageSchema>(() => ({
   actions: [
     { key: 'create', title: t('develop.knowledge.add'), scope: 'page', tone: 'brand', icon: 'lucide:plus', permission: 'knowledge_base.create' },
     { key: 'reindex', title: t('develop.knowledge.action_reindex'), scope: 'row', tone: 'info', icon: 'lucide:refresh-cw', permission: 'knowledge_base.update' },
+    { key: 'sync', title: t('develop.knowledge.action_sync'), scope: 'row', tone: 'info', icon: 'lucide:refresh', permission: 'knowledge_base.update' },
     { key: 'delete', title: t('common.actions.delete'), scope: 'row', tone: 'danger', icon: 'lucide:trash-2', permission: 'knowledge_base.delete' },
   ],
 }))
@@ -124,11 +125,29 @@ function onAction(payload: SchemaActionPayload) {
         handleReindex(row)
       }
       break
+    case 'sync':
+      if (row) {
+        handleSync(row)
+      }
+      break
     case 'delete':
       if (row) {
         handleDelete(row)
       }
       break
+  }
+}
+
+async function handleSync(row: KnowledgeListItemDto) {
+  try {
+    const result = await knowledgeApi.sync(row.basicId)
+    if (result.rebuilt)
+      toast.success(t('develop.knowledge.sync_rebuilt'))
+    else toast.info(t('develop.knowledge.sync_skipped'))
+    reload()
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('develop.knowledge.sync_failed'))
   }
 }
 

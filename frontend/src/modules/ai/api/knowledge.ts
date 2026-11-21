@@ -20,6 +20,9 @@ export const knowledgeApi = {
   reindex(id: ApiId) {
     return command.post<KnowledgeDetailDto, { basicId: ApiId }>('Reindex', { basicId: id })
   },
+  sync(id: ApiId) {
+    return command.post<{ document: KnowledgeDetailDto | null, rebuilt: boolean, skipped: boolean }, { basicId: ApiId }>('Sync', { basicId: id })
+  },
   delete(id: ApiId) {
     return command.delete('Delete', { id })
   },

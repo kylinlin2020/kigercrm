@@ -61,10 +61,19 @@ public class KnowledgeListItemDto : BasicAppDto
 /// <summary>
 /// 知识文档详情 DTO（含原文）
 /// </summary>
+public sealed class KnowledgeSyncResultDto
+{
+    public KnowledgeDetailDto? Document { get; set; }
+    public bool Rebuilt { get; set; }
+    public bool Skipped => !Rebuilt;
+}
+
 public sealed class KnowledgeDetailDto : KnowledgeListItemDto
 {
     public string? RawContent { get; set; }
     public string? Remark { get; set; }
+    public string? ContentHash { get; set; }
+    public string? IndexedContentHash { get; set; }
     public long? CreatedId { get; set; }
     public string? CreatedBy { get; set; }
     public long? ModifiedId { get; set; }

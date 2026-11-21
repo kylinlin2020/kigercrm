@@ -21,3 +21,6 @@ public sealed record KnowledgeIngestCommand(
 /// 知识文档命令结果
 /// </summary>
 public sealed record KnowledgeDocumentCommandResult(SysKnowledgeDocument Document);
+
+/// <summary>Incremental sync outcome: Rebuilt=false means content was unchanged and no I/O ran.</summary>
+public sealed record KnowledgeDocumentSyncResult(SysKnowledgeDocument Document, bool Rebuilt);

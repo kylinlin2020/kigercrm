@@ -23,6 +23,11 @@ public interface IKnowledgeDocumentAppService : IApplicationService
     Task<KnowledgeDetailDto> ReindexAsync(KnowledgeActionDto input, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 增量同步：仅在原文变化时重建切片
+    /// </summary>
+    Task<KnowledgeSyncResultDto> SyncAsync(KnowledgeActionDto input, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 删除文档
     /// </summary>
     Task DeleteAsync(long id, CancellationToken cancellationToken = default);

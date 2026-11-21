@@ -131,6 +131,10 @@ export default {
       validate_model: 'モデル名を入力してください',
     },
     knowledge: {
+      action_sync: '変更時のみ同期',
+      sync_rebuilt: '内容が変更されました — チャンクを再構築しました。',
+      sync_skipped: '内容は未変更 — スキップ（ベクター I/O なし）。',
+      sync_failed: '差分同期に失敗しました。',
       tagTitle: 'ナレッジタグと重複',
       tagDescription: '分類用にドキュメントへタグ付けし、バイト単位で同一の原文を検出します。重複は報告のみで自動マージしません。',
       tagDocumentId: 'ドキュメント ID',

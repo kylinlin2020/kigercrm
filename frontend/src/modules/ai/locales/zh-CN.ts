@@ -131,6 +131,10 @@ export default {
       validate_model: '请填写模型名称',
     },
     knowledge: {
+      action_sync: '变更时同步',
+      sync_rebuilt: '内容已变更，切片已重建。',
+      sync_skipped: '内容未变更，已跳过（无向量读写）。',
+      sync_failed: '增量同步失败。',
       tagTitle: '知识标签与重复检测',
       tagDescription: '为文档打标签用于分类，检测原文完全相同的重复项；重复项只报告，不自动合并。',
       tagDocumentId: '文档 ID',

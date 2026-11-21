@@ -131,6 +131,10 @@ export default {
       validate_model: '請填寫模型名稱',
     },
     knowledge: {
+      action_sync: '變更時同步',
+      sync_rebuilt: '內容已變更，切片已重建。',
+      sync_skipped: '內容未變更，已略過（無向量讀寫）。',
+      sync_failed: '增量同步失敗。',
       tagTitle: '知識標籤與重複偵測',
       tagDescription: '為文件加上標籤分類，偵測原文完全相同的重複項；重複項只回報，不自動合併。',
       tagDocumentId: '文件 ID',

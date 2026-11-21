@@ -97,4 +97,10 @@ public partial class SysKnowledgeDocument : BasicAppFullAuditedEntity, IStrictMu
     /// </summary>
     [SugarColumn(ColumnName = "Content_Hash", ColumnDescription = "原文哈希", Length = 64, IsNullable = true)]
     public virtual string? ContentHash { get; set; }
+
+    /// <summary>
+    /// 最近一次成功索引时的原文哈希；用于增量重索引判定。
+    /// </summary>
+    [SugarColumn(ColumnName = "Indexed_Content_Hash", ColumnDescription = "已索引原文哈希", Length = 64, IsNullable = true)]
+    public virtual string? IndexedContentHash { get; set; }
 }

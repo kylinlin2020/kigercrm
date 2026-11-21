@@ -131,6 +131,10 @@ export default {
       validate_model: '모델 이름을 입력하세요',
     },
     knowledge: {
+      action_sync: '변경 시에만 동기화',
+      sync_rebuilt: '내용이 변경되었습니다 — 청크를 다시 만들었습니다.',
+      sync_skipped: '내용이 변경되지 않았습니다 — 건너뜀(벡터 I/O 없음).',
+      sync_failed: '증분 동기화에 실패했습니다.',
       tagTitle: '지식 태그 및 중복',
       tagDescription: '분류용 태그를 지정하고 바이트 단위로 동일한 원문을 찾습니다. 중복은 보고만 하며 자동 병합하지 않습니다.',
       tagDocumentId: '문서 ID',
