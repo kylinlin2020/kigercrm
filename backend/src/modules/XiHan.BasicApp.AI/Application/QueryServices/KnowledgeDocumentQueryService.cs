@@ -7,12 +7,14 @@ using XiHan.BasicApp.AI.Application.Dtos;
 using XiHan.BasicApp.AI.Application.Mappers;
 using XiHan.BasicApp.AI.Domain.Entities;
 using XiHan.BasicApp.AI.Domain.Permissions;
+using XiHan.BasicApp.AI.Domain.Policies;
 using XiHan.BasicApp.AI.Domain.Repositories;
 using XiHan.BasicApp.Core.Dtos;
 using XiHan.BasicApp.Saas.Application.Extensions;
 using XiHan.BasicApp.Saas.Application.Services;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
+using XiHan.Framework.Security.Users;
 using XiHan.Framework.Domain.Shared.Paging.Dtos;
 using XiHan.Framework.Domain.Shared.Paging.Enums;
 using XiHan.Framework.Domain.Shared.Paging.Models;
@@ -32,13 +34,19 @@ public sealed class KnowledgeDocumentQueryService : AiApplicationService, IKnowl
     /// </summary>
     private readonly IFieldSecurityService _fieldSecurity;
 
+    private readonly ICurrentUser _currentUser;
+
     /// <summary>
     /// 构造函数
     /// </summary>
-    public KnowledgeDocumentQueryService(IKnowledgeDocumentRepository documentRepository, IFieldSecurityService fieldSecurityService)
+    public KnowledgeDocumentQueryService(
+        IKnowledgeDocumentRepository documentRepository,
+        IFieldSecurityService fieldSecurityService,
+        ICurrentUser currentUser)
     {
         _documentRepository = documentRepository;
         _fieldSecurity = fieldSecurityService;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -69,7 +77,10 @@ public sealed class KnowledgeDocumentQueryService : AiApplicationService, IKnowl
             };
         }
 
-        var items = documentPage.Items
+        // ACL: hide restricted documents the caller cannot view. Filtering here (after paging)
+        // keeps the change bounded; page totals may be slightly larger than visible rows.
+        var visible = documentPage.Items.Where(item => KnowledgeAccessPolicy.CanView(item, _currentUser.IsInRole));
+        var items = visible
             .Select(KnowledgeApplicationMapper.ToListItemDto)
             .ToList();
         return new PageResultDtoBase<KnowledgeListItemDto>(items, documentPage.Page)
@@ -92,7 +103,9 @@ public sealed class KnowledgeDocumentQueryService : AiApplicationService, IKnowl
         cancellationToken.ThrowIfCancellationRequested();
 
         var document = await _documentRepository.GetByIdAsync(id, cancellationToken);
-        return document is null ? null : KnowledgeApplicationMapper.ToDetailDto(document);
+        if (document is null || !KnowledgeAccessPolicy.CanView(document, _currentUser.IsInRole))
+            return null;
+        return KnowledgeApplicationMapper.ToDetailDto(document);
     }
 
     /// <summary>

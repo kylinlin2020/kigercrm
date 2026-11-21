@@ -442,3 +442,15 @@
 >
 > 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
 
+### 批次 4 知识库访问控制（ACL）证据（2026-11-22）
+
+- [x] 迁移 `5.9.60`：知识文档加 `Visibility`（Public/Restricted）与 `AllowedRoles`（逗号分隔角色名）。策略 `KnowledgeAccessPolicy`：Public 全员可见；Restricted 需命中白名单角色或 `super_admin`；白名单为空仅超管可见（fail-closed）。
+- [x] 应用层接入：`GetPageAsync`/`GetDetailAsync` 过滤不可见文档；`KnowledgeQueryAppService` 在 citations 进入响应与 prompt **之前**按文档可见性二次过滤（不侵入 Framework `RetrievalFilter`）；管理 API `KnowledgeAccess`（Get/PUT Update，Update/Read）。受限文档即使被向量检索命中也不会泄漏原文。
+- [x] 前端 AI 知识页加访问控制面板（文档 ID、可见性、角色白名单）+ 类型/facade + 7 语言 11 键。
+- [x] 测试：策略 1 例（公开/受限/角色/超管/空白名单）+ SQLite 闭环 1 例（更新可见性、清理角色、边界）+ 契约守卫 1 例；调整 `AiKnowledgeQueryTests` 夹具返回 Public 文档以适配新参数；同步 AI 服务计数守卫 12→13 与 `GroupName`。
+- [x] 门禁：后端 build 0 错误 / **6103 总 / 0 失败**（Api.Tests 1222、AI.Tests 603 全绿）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **192 文件 / 2674 用例全绿**、build 成功。
+- [ ] 实机端到端：`KnowledgeAccess/Get`、`Update` 路由已确认注册（403 权限拒绝，非 404）；预览账号无 AI 模块权限，知识页被动态过滤，无法实机点击验证。完整 ACL 链路由测试覆盖；需有 AI 权限账号或 Windows 部署环境取证。
+- [ ] 检索侧（Framework）原生 ACL 下推、按标签/项目的更细粒度授权、Windows 原生部署：**待取证/待授权**。
+>
+> 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
+

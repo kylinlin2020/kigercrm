@@ -72,7 +72,8 @@ public sealed class AiApplicationSurfaceStructureTests
     public void ModuleAssembly_ShouldExposeApplicationServices()
     {
         // 知识文档审核 + 知识标签服务是新增的第 12 个应用服务；新增服务必须同步更新此下限守卫。
-        Assert.Equal(12, ApplicationServiceTypes().Count);
+        // 知识文档审核 + 知识标签 + 知识访问控制是新增的第 13 个应用服务；新增服务必须同步更新此下限守卫。
+        Assert.Equal(13, ApplicationServiceTypes().Count);
     }
 
     /// <summary>

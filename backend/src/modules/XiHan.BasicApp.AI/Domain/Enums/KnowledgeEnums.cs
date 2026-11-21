@@ -46,3 +46,10 @@ public enum KnowledgeIndexStatus
     [Description("失败")]
     Failed = 2
 }
+
+/// <summary>Document visibility for role-based access control.</summary>
+public enum KnowledgeVisibility
+{
+    Public = 0,
+    Restricted = 1,
+}

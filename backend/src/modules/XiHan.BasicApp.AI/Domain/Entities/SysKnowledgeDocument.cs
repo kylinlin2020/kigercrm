@@ -103,4 +103,16 @@ public partial class SysKnowledgeDocument : BasicAppFullAuditedEntity, IStrictMu
     /// </summary>
     [SugarColumn(ColumnName = "Indexed_Content_Hash", ColumnDescription = "已索引原文哈希", Length = 64, IsNullable = true)]
     public virtual string? IndexedContentHash { get; set; }
+
+    /// <summary>
+    /// 可见性：公开或受限（需角色白名单）。
+    /// </summary>
+    [SugarColumn(ColumnName = "Visibility", ColumnDescription = "可见性")]
+    public virtual KnowledgeVisibility Visibility { get; set; } = KnowledgeVisibility.Public;
+
+    /// <summary>
+    /// 受限文档允许的角色名（逗号分隔）；仅 Visibility=Restricted 时生效。
+    /// </summary>
+    [SugarColumn(ColumnName = "Allowed_Roles", ColumnDescription = "允许角色", Length = 500, IsNullable = true)]
+    public virtual string? AllowedRoles { get; set; }
 }

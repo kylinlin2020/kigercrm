@@ -5,12 +5,16 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using Moq;
 using XiHan.BasicApp.AI.Application.AppServices;
+using XiHan.BasicApp.AI.Domain.Entities;
+using XiHan.BasicApp.AI.Domain.Enums;
+using XiHan.BasicApp.AI.Domain.Repositories;
 using XiHan.BasicApp.AI.Infrastructure.Configuration;
 using XiHan.BasicApp.AI.Infrastructure.Skills;
 using XiHan.Framework.AI.Abstractions.Chat;
 using XiHan.Framework.AI.Abstractions.Rag;
 using XiHan.Framework.AI.Abstractions.Rag.Models;
 using XiHan.Framework.MultiTenancy.Abstractions;
+using XiHan.Framework.Security.Users;
 
 namespace XiHan.BasicApp.AI.Tests;
 
@@ -432,11 +436,24 @@ public sealed class AiKnowledgeQueryTests
         var currentTenant = new Mock<ICurrentTenant>(MockBehavior.Strict);
         _ = currentTenant.SetupGet(item => item.Id).Returns(currentTenantId);
 
+        var currentUser = new Mock<ICurrentUser>(MockBehavior.Strict);
+        _ = currentUser.Setup(item => item.IsInRole(It.IsAny<string>())).Returns(false);
+        var documents = new Mock<IKnowledgeDocumentRepository>(MockBehavior.Strict);
+        _ = documents.Setup(item => item.GetByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((long id, CancellationToken _) => new SysKnowledgeDocument
+            {
+                Title = "acl-public",
+                RawContent = "content",
+                Visibility = KnowledgeVisibility.Public
+            });
+
         var service = new KnowledgeQueryAppService(
             retriever.Object,
             augmenter.Object,
             aiService.Object,
             currentTenant.Object,
+            currentUser.Object,
+            documents.Object,
             Options.Create(new XiHanRagOptions { DefaultTopK = defaultTopK }));
 
         return new KnowledgeQueryFixture(service, retriever, augmenter, aiService);
