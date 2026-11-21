@@ -14,4 +14,12 @@ namespace XiHan.BasicApp.AI.Infrastructure.Repositories;
 public sealed class KnowledgeDocumentRepository(ISqlSugarClientResolver clientResolver)
     : SaasRepository<SysKnowledgeDocument>(clientResolver), IKnowledgeDocumentRepository
 {
+    public async Task<SysKnowledgeDocument?> GetByContentHashAsync(
+        string hash,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(hash);
+        return (await CreateQueryable().Where(item => item.ContentHash == hash)
+            .Take(1).ToListAsync(cancellationToken)).FirstOrDefault();
+    }
 }

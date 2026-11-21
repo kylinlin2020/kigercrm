@@ -85,4 +85,16 @@ public partial class SysKnowledgeDocument : BasicAppFullAuditedEntity, IStrictMu
     /// </summary>
     [SugarColumn(ColumnName = "Remark", ColumnDescription = "备注", Length = 500, IsNullable = true)]
     public virtual string? Remark { get; set; }
+
+    /// <summary>
+    /// 标签（JSON 字符串数组），用于分类与过滤。
+    /// </summary>
+    [SugarColumn(ColumnName = "Tags_Json", ColumnDescription = "标签 JSON", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
+    public virtual string? TagsJson { get; set; }
+
+    /// <summary>
+    /// 原文 SHA-256，用于重复检测；由应用层在写入时计算。
+    /// </summary>
+    [SugarColumn(ColumnName = "Content_Hash", ColumnDescription = "原文哈希", Length = 64, IsNullable = true)]
+    public virtual string? ContentHash { get; set; }
 }

@@ -409,3 +409,14 @@
 >
 > 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
 
+### 批次 4 知识标签与重复检测证据（2026-11-21）
+
+- [x] 迁移 `5.9.57`：知识文档加 `TagsJson` 与 `ContentHash`（原文 SHA-256，摄取时写入）。策略 `KnowledgeTagPolicy`：标签归一化/去重/上限 20；内容哈希；按哈希分组报告**字节完全相同**的重复文档；重复只报告，不自动合并或删除。
+- [x] API `KnowledgeTag`（SetTags/Tags/Duplicates，Update/Read）+ 前端面板嵌入 AI 知识页（标签编辑、标签云、重复分组）+ 类型/facade + 7 语言 10 键。明确边界：不侵入 RAG 检索侧过滤（属 Framework `RetrievalFilter` 契约），不做语义相似去重。
+- [x] 测试：策略 1 例 + SQLite 闭环 1 例（打标签、重复报告、内容哈希查重）+ 契约守卫 1 例；同步把 AI 应用服务计数守卫 11→12 与 `GroupName` 对齐为 `AI 服务`。
+- [x] 门禁：后端 build 0 错误 / **6089 总 / 0 失败**（Api.Tests 1215/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **191 文件 / 2673 用例全绿**、build 成功。
+- [x] 实机：服务名修正为单数 `KnowledgeTag`（非 `KnowledgeTags`）；匿名/无 AI 权限账号访问返回 403（路由已注册，非 404）；`KnowledgeReview/Submit` 同为 403，与已知预览账号缺 `ai:read`/`ai:execute` 一致。完整标签/查重链路由 SQLite 集成测试覆盖。
+- [ ] 按角色/项目的 ACL 过滤（需 Framework 检索侧支持）、语义相似去重、Windows 原生部署：**待取证/待授权**。
+>
+> 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
+

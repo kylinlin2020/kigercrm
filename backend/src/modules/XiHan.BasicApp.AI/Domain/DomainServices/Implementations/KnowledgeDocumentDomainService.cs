@@ -4,6 +4,7 @@
 using Microsoft.Extensions.Logging;
 using XiHan.BasicApp.AI.Domain.Entities;
 using XiHan.BasicApp.AI.Domain.Enums;
+using XiHan.BasicApp.AI.Domain.Policies;
 using XiHan.BasicApp.AI.Domain.Repositories;
 using XiHan.Framework.AI.Abstractions.Rag;
 
@@ -56,6 +57,7 @@ public sealed class KnowledgeDocumentDomainService : IKnowledgeDocumentDomainSer
             SourceType = command.SourceType,
             Source = Optional(command.Source, 500, nameof(command.Source), "来源标识不能超过 500 个字符。"),
             RawContent = text,
+            ContentHash = KnowledgeTagPolicy.HashContent(text),
             EmbeddingProviderCode = Optional(command.EmbeddingProviderCode, 100, nameof(command.EmbeddingProviderCode), "嵌入 provider 编码不能超过 100 个字符。"),
             Status = KnowledgeIndexStatus.Pending,
             ChunkCount = 0,

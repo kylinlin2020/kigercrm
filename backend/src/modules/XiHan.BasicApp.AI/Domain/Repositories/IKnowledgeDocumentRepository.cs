@@ -11,4 +11,5 @@ namespace XiHan.BasicApp.AI.Domain.Repositories;
 /// </summary>
 public interface IKnowledgeDocumentRepository : ISaasRepository<SysKnowledgeDocument>
 {
+    Task<SysKnowledgeDocument?> GetByContentHashAsync(string hash, CancellationToken cancellationToken = default);
 }
