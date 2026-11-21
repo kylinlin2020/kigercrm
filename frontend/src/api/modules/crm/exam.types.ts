@@ -1,5 +1,11 @@
 import type { ApiId, DateTimeString } from '../../types'
 
+export enum CrmExamQuestionType {
+  SingleChoice = 0,
+  TrueFalse = 1,
+  MultipleChoice = 2,
+}
+
 export enum CrmExamPaperStatus {
   Draft = 0,
   Published = 1,
@@ -18,6 +24,7 @@ export interface CrmExamQuestionCreateDto {
   type: number
   options: string[]
   correctAnswer: string
+  correctAnswers?: string[]
   explanation?: string | null
   points: number
 }

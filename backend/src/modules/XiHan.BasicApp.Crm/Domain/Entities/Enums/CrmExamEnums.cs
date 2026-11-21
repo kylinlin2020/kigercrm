@@ -4,6 +4,7 @@ public enum CrmExamQuestionType
 {
     SingleChoice = 0,
     TrueFalse = 1,
+    MultipleChoice = 2,
 }
 
 public enum CrmExamPaperStatus

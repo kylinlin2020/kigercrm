@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2021-Present XiHanFun and contributors.
+// Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Runtime.CompilerServices;
@@ -108,6 +108,26 @@ public sealed class CrmExamTests : IDisposable
     }
 
     [Fact]
+    public void MultiChoice_ShouldCompareAnswerSetsOrderIndependently()
+    {
+        var question = MakeQuestion(20, "a,b", 40);
+        typeof(SysCrmExamQuestion).GetProperty(nameof(SysCrmExamQuestion.Type))!.SetValue(
+            question, CrmExamQuestionType.MultipleChoice);
+        var correct = CrmExamPolicy.ParseCorrectAnswers(CrmExamQuestionType.MultipleChoice, "A, B");
+        Assert.Equal(new[] { "a", "b" }, correct);
+        Assert.True(CrmExamPolicy.IsAnswerCorrect(CrmExamQuestionType.MultipleChoice, "A,B", "B,A"));
+        Assert.False(CrmExamPolicy.IsAnswerCorrect(CrmExamQuestionType.MultipleChoice, "A,B", "A"));
+        Assert.False(CrmExamPolicy.IsAnswerCorrect(CrmExamQuestionType.MultipleChoice, "A,B", "A,B,C"));
+        Assert.Throws<ArgumentException>(() => CrmExamPolicy.ValidateQuestion(
+            CrmExamQuestionType.MultipleChoice, new[] { "A", "B", "C" }, new[] { "a" }));
+        CrmExamPolicy.ValidateQuestion(
+            CrmExamQuestionType.MultipleChoice, new[] { "A", "B", "C" }, new[] { "a", "c" });
+        var grade = CrmExamPolicy.Grade(new Dictionary<long, string> { [20] = "b,a" }, [question]);
+        Assert.Equal(40, grade.Score);
+        Assert.True(grade.Answers[0].Correct);
+        Assert.False(CrmExamPolicy.IsAnswerCorrect(CrmExamQuestionType.SingleChoice, "A", "A,B"));
+    }
+    [Fact]
     public async Task ExamFlow_ShouldPublishGradeAndHideAnswerKey()
     {
         var q1 = await _service.CreateQuestionAsync(new CrmExamQuestionCreateDto
@@ -194,6 +214,44 @@ public sealed class CrmExamTests : IDisposable
             _service.StartAsync(new CrmExamStartDto { PaperId = paper.BasicId }));
     }
 
+    [Fact]
+    public async Task MultiChoiceFlow_ShouldCreateGradeAndHideAnswerKey()
+    {
+        var created = await _service.CreateQuestionAsync(new CrmExamQuestionCreateDto
+        {
+            Prompt = "Select all that apply",
+            Type = (int)CrmExamQuestionType.MultipleChoice,
+            Options = ["A", "B", "C"],
+            CorrectAnswers = ["A", "C"],
+            Points = 50
+        });
+        Assert.Equal((int)CrmExamQuestionType.MultipleChoice, created.Type);
+        Assert.Equal(2, created.CorrectAnswers.Length);
+        Assert.Contains("A", created.CorrectAnswers);
+        Assert.Contains("C", created.CorrectAnswers);
+
+        var paper = await _service.PublishPaperAsync((await _service.CreatePaperAsync(new CrmExamPaperCreateDto
+        {
+            Name = "Multi-choice exam",
+            QuestionIds = [created.BasicId],
+            DurationMinutes = 30,
+            PassScore = 50,
+            MaxAttempts = 2
+        })).BasicId);
+        var attempt = await _service.StartAsync(new CrmExamStartDto { PaperId = paper.BasicId });
+        var candidatePayload = System.Text.Json.JsonSerializer.Serialize(attempt);
+        Assert.DoesNotContain("CorrectAnswer", candidatePayload, StringComparison.Ordinal);
+        Assert.DoesNotContain("CorrectAnswers", candidatePayload, StringComparison.Ordinal);
+
+        var submitted = await _service.SubmitAsync(new CrmExamSubmissionDto
+        {
+            AttemptId = attempt.BasicId,
+            Answers = new Dictionary<long, string> { [created.BasicId] = "C,A" }
+        });
+        Assert.Equal((int)CrmExamAttemptStatus.Passed, submitted.Status);
+        Assert.Equal(50, submitted.Score);
+        Assert.True(submitted.Verdicts[0].Correct);
+    }
     [Fact]
     public void Contract_ShouldGuardPermissionsAndCandidateSurface()
     {

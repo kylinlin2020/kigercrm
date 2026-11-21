@@ -14,6 +14,11 @@ export default {
   },
   crm: {
     prospecting: {
+      examType: '문제 유형',
+      examTypeSingle: '단일 선택',
+      examTypeTrueFalse: '참/거짓',
+      examTypeMulti: '다중 선택',
+      examCorrectMulti: '정답 (쉼표로 구분)',
       dashboardRangeFrom: '시작 (UTC)',
       dashboardRangeTo: '종료 (UTC)',
       dashboardRefresh: '새로고침',

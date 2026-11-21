@@ -14,6 +14,11 @@ export default {
   },
   crm: {
     prospecting: {
+      examType: '題型',
+      examTypeSingle: '單選題',
+      examTypeTrueFalse: '判斷題',
+      examTypeMulti: '多選題',
+      examCorrectMulti: '正確答案（逗號分隔）',
       dashboardRangeFrom: '開始（UTC）',
       dashboardRangeTo: '結束（UTC）',
       dashboardRefresh: '重新整理',

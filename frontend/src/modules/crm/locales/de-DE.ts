@@ -14,6 +14,11 @@ export default {
   },
   crm: {
     prospecting: {
+      examType: 'Fragentyp',
+      examTypeSingle: 'Einzelauswahl',
+      examTypeTrueFalse: 'Wahr / falsch',
+      examTypeMulti: 'Mehrfachauswahl',
+      examCorrectMulti: 'Richtige Antworten (durch Komma getrennt)',
       dashboardRangeFrom: 'Von (UTC)',
       dashboardRangeTo: 'Bis (UTC)',
       dashboardRefresh: 'Aktualisieren',

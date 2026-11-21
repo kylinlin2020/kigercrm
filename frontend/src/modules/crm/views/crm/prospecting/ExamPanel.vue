@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type {
-  CrmExamAttemptDto,
-  CrmExamPaperDto,
-  CrmExamQuestionDto,
-} from '@/api/modules/crm/exam.types'
+import type { CrmExamAttemptDto, CrmExamPaperDto, CrmExamQuestionDto } from '@/api/modules/crm/exam.types'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmExamApi } from '@/api/modules/crm/exam'
+import {
+
+  CrmExamQuestionType,
+} from '@/api/modules/crm/exam.types'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmExamPanel' })
@@ -19,7 +19,7 @@ const attempts = ref<CrmExamAttemptDto[]>([])
 const active = ref<CrmExamAttemptDto | null>(null)
 const answers = ref<Record<string, string>>({})
 
-const newQuestion = ref({ prompt: '', options: 'A, B', correctAnswer: 'A', points: 1 })
+const newQuestion = ref({ prompt: '', type: CrmExamQuestionType.SingleChoice, options: 'A, B', correctAnswer: 'A', correctAnswers: 'A, B', points: 1 })
 const newPaper = ref({ name: '', questionIds: '', durationMinutes: 30, passScore: 60, maxAttempts: 3 })
 
 function statusLabel(status: number) {
@@ -51,9 +51,12 @@ async function addQuestion() {
   try {
     await crmExamApi.createQuestion({
       prompt: newQuestion.value.prompt,
-      type: 0,
+      type: newQuestion.value.type,
       options: newQuestion.value.options.split(',').map(option => option.trim()).filter(Boolean),
       correctAnswer: newQuestion.value.correctAnswer.trim(),
+      correctAnswers: newQuestion.value.type === CrmExamQuestionType.MultipleChoice
+        ? newQuestion.value.correctAnswers.split(',').map(value => value.trim()).filter(Boolean)
+        : [],
       points: Number(newQuestion.value.points),
     })
     newQuestion.value.prompt = ''
@@ -102,6 +105,18 @@ async function start(paperId: string) {
   }
 }
 
+function toggleMulti(questionId: string, option: string, event: Event) {
+  const selected = new Set((answers.value[questionId] ?? '').split(',').filter(Boolean))
+  if ((event.target as HTMLInputElement).checked)
+    selected.add(option)
+  else selected.delete(option)
+  answers.value[questionId] = [...selected].join(',')
+}
+
+function isMultiSelected(questionId: string, option: string) {
+  return (answers.value[questionId] ?? '').split(',').includes(option)
+}
+
 async function submit() {
   if (!active.value)
     return
@@ -126,8 +141,16 @@ async function submit() {
       <div class="ce-block">
         <h4>{{ t('crm.prospecting.examQuestions') }}</h4>
         <label>{{ t('crm.prospecting.examPrompt') }}<input v-model="newQuestion.prompt" type="text"></label>
+        <label>{{ t('crm.prospecting.examType') }}
+          <select v-model.number="newQuestion.type">
+            <option :value="0">{{ t('crm.prospecting.examTypeSingle') }}</option>
+            <option :value="1">{{ t('crm.prospecting.examTypeTrueFalse') }}</option>
+            <option :value="2">{{ t('crm.prospecting.examTypeMulti') }}</option>
+          </select>
+        </label>
         <label>{{ t('crm.prospecting.examOptions') }}<input v-model="newQuestion.options" type="text"></label>
-        <label>{{ t('crm.prospecting.examCorrect') }}<input v-model="newQuestion.correctAnswer" type="text"></label>
+        <label v-if="newQuestion.type === 2">{{ t('crm.prospecting.examCorrectMulti') }}<input v-model="newQuestion.correctAnswers" type="text"></label>
+        <label v-else>{{ t('crm.prospecting.examCorrect') }}<input v-model="newQuestion.correctAnswer" type="text"></label>
         <label>{{ t('crm.prospecting.examPoints') }}<input v-model.number="newQuestion.points" type="number" min="1"></label>
         <button type="button" :disabled="!newQuestion.prompt" @click="addQuestion">
           {{ t('crm.prospecting.examAddQuestion') }}
@@ -167,7 +190,13 @@ async function submit() {
         <template v-if="active">
           <p v-for="question in active.questions" :key="question.basicId" class="ce-question">
             {{ question.prompt }}
-            <select v-model="answers[question.basicId]">
+            <template v-if="question.type === 2">
+              <label v-for="option in question.options" :key="option" class="ce-option">
+                <input type="checkbox" :checked="isMultiSelected(question.basicId, option)" @change="toggleMulti(question.basicId, option, $event)">
+                {{ option }}
+              </label>
+            </template>
+            <select v-else v-model="answers[question.basicId]">
               <option value="">
                 {{ t('crm.prospecting.examNoAnswer') }}
               </option>
@@ -234,6 +263,11 @@ async function submit() {
   display: grid;
   gap: 0.3rem;
   font-size: 0.85rem;
+}
+.ce-option {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
 }
 .ce-result {
   font-weight: 600;

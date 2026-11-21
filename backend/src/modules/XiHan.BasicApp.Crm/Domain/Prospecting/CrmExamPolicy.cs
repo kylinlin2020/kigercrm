@@ -53,6 +53,49 @@ public static class CrmExamPolicy
     public static bool IsTimeout(DateTimeOffset startedAtUtc, DateTimeOffset nowUtc, int durationMinutes)
         => nowUtc - startedAtUtc > TimeSpan.FromMinutes(durationMinutes);
 
+    /// <summary>Normalised correct-answer set. Multi-choice answers are comma-separated.</summary>
+    public static IReadOnlyList<string> ParseCorrectAnswers(CrmExamQuestionType type, string raw)
+    {
+        ArgumentNullException.ThrowIfNull(raw);
+        var parts = type == CrmExamQuestionType.MultipleChoice
+            ? raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            : [raw.Trim()];
+        return parts.Where(value => value.Length > 0)
+            .Select(value => value.ToLowerInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public static void ValidateQuestion(
+        CrmExamQuestionType type,
+        IReadOnlyList<string> options,
+        IReadOnlyList<string> correctAnswers)
+    {
+        if (options.Count < 2)
+            throw new ArgumentException("An exam question needs at least two options.", nameof(options));
+        if (correctAnswers.Count == 0)
+            throw new ArgumentException("A correct answer is required.", nameof(correctAnswers));
+        if (type == CrmExamQuestionType.MultipleChoice && correctAnswers.Count < 2)
+            throw new ArgumentException("A multiple-choice question needs at least two correct answers.", nameof(correctAnswers));
+        if (type != CrmExamQuestionType.MultipleChoice && correctAnswers.Count != 1)
+            throw new ArgumentException("Single-choice questions accept exactly one correct answer.", nameof(correctAnswers));
+        var available = options.Select(value => value.ToLowerInvariant()).ToHashSet(StringComparer.Ordinal);
+        if (correctAnswers.Any(answer => !available.Contains(answer)))
+            throw new ArgumentException("Every correct answer must be one of the options.", nameof(correctAnswers));
+    }
+
+    public static bool IsAnswerCorrect(
+        CrmExamQuestionType type,
+        string correctAnswer,
+        string submittedAnswer)
+    {
+        var expected = ParseCorrectAnswers(type, correctAnswer);
+        var actual = ParseCorrectAnswers(type, submittedAnswer);
+        if (type != CrmExamQuestionType.MultipleChoice && actual.Count > 1) actual = actual.Take(1).ToArray();
+        return expected.Count > 0 && expected.SequenceEqual(actual);
+    }
+
     public static CrmExamGradeResult Grade(
         IReadOnlyDictionary<long, string> answers,
         IReadOnlyList<SysCrmExamQuestion> questions)
@@ -66,7 +109,7 @@ public static class CrmExamPolicy
         {
             total += Math.Max(0, question.Points);
             var correct = answers.TryGetValue(question.BasicId, out var answer)
-                && string.Equals(answer?.Trim(), question.CorrectAnswer.Trim(), StringComparison.OrdinalIgnoreCase);
+                && IsAnswerCorrect(question.Type, question.CorrectAnswer, answer ?? string.Empty);
             if (correct) score += Math.Max(0, question.Points);
             verdicts.Add(new CrmExamAnswerVerdict(question.BasicId, correct));
         }

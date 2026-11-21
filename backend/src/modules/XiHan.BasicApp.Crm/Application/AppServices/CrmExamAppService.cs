@@ -39,15 +39,19 @@ public sealed class CrmExamAppService(
             .Select(value => value.Trim()).Distinct(StringComparer.Ordinal).ToArray();
         if (options.Length < 2) throw new ArgumentException("An exam question needs at least two options.", nameof(input));
         if (input.Points < 1) throw new ArgumentOutOfRangeException(nameof(input.Points));
-        ArgumentException.ThrowIfNullOrWhiteSpace(input.CorrectAnswer);
-        if (!options.Contains(input.CorrectAnswer.Trim(), StringComparer.OrdinalIgnoreCase))
-            throw new ArgumentException("The correct answer must be one of the options.", nameof(input));
+        var type = (CrmExamQuestionType)input.Type;
+        if (!Enum.IsDefined(type)) throw new ArgumentOutOfRangeException(nameof(input.Type));
+        var correct = type == CrmExamQuestionType.MultipleChoice && input.CorrectAnswers.Length > 0
+            ? input.CorrectAnswers
+            : [input.CorrectAnswer];
+        var correctAnswers = CrmExamPolicy.ParseCorrectAnswers(type, string.Join(',', correct));
+        CrmExamPolicy.ValidateQuestion(type, options, correctAnswers);
         var created = await questions.AddAsync(new SysCrmExamQuestion
         {
             Prompt = input.Prompt.Trim(),
-            Type = (CrmExamQuestionType)input.Type,
+            Type = type,
             OptionsJson = JsonSerializer.Serialize(options, JsonOptions),
-            CorrectAnswer = input.CorrectAnswer.Trim(),
+            CorrectAnswer = string.Join(',', correctAnswers),
             Explanation = input.Explanation?.Trim(),
             Points = input.Points
         }, cancellationToken);
@@ -228,10 +232,19 @@ public sealed class CrmExamAppService(
         Type = (int)entity.Type,
         Options = JsonSerializer.Deserialize<string[]>(entity.OptionsJson, JsonOptions) ?? [],
         CorrectAnswer = entity.CorrectAnswer,
+        CorrectAnswers = ToOriginalAnswers(entity),
         Explanation = entity.Explanation,
         Points = entity.Points
     };
 
+    private static string[] ToOriginalAnswers(SysCrmExamQuestion entity)
+    {
+        var options = JsonSerializer.Deserialize<string[]>(entity.OptionsJson, JsonOptions) ?? [];
+        var normalized = CrmExamPolicy.ParseCorrectAnswers(entity.Type, entity.CorrectAnswer);
+        return normalized
+            .Select(key => options.FirstOrDefault(option => string.Equals(option.Trim(), key, StringComparison.OrdinalIgnoreCase)) ?? key)
+            .ToArray();
+    }
     private static CrmExamCandidateQuestionDto ToCandidateQuestionDto(SysCrmExamQuestion entity) => new()
     {
         BasicId = entity.BasicId,

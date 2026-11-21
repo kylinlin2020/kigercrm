@@ -6,6 +6,8 @@ public sealed class CrmExamQuestionCreateDto
     public int Type { get; set; }
     public string[] Options { get; set; } = [];
     public string CorrectAnswer { get; set; } = string.Empty;
+    /// <summary>Multiple-choice correct options; joined into CorrectAnswer on write.</summary>
+    public string[] CorrectAnswers { get; set; } = [];
     public string? Explanation { get; set; }
     public int Points { get; set; } = 1;
 }
@@ -18,6 +20,7 @@ public sealed class CrmExamQuestionDto
     public int Type { get; set; }
     public string[] Options { get; set; } = [];
     public string CorrectAnswer { get; set; } = string.Empty;
+    public string[] CorrectAnswers { get; set; } = [];
     public string? Explanation { get; set; }
     public int Points { get; set; }
 }

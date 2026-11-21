@@ -14,6 +14,11 @@ export default {
   },
   crm: {
     prospecting: {
+      examType: 'प्रश्न प्रकार',
+      examTypeSingle: 'एकल विकल्प',
+      examTypeTrueFalse: 'सही / गलत',
+      examTypeMulti: 'बहु विकल्प',
+      examCorrectMulti: 'सही उत्तर (अल्पविराम से अलग)',
       dashboardRangeFrom: 'शुरुआत (UTC)',
       dashboardRangeTo: 'अंत (UTC)',
       dashboardRefresh: 'रीफ़्रेश',
