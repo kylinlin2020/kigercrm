@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      examCategory: 'カテゴリ（抽題用）',
+      examNoCategory: '未分類',
+      examSelectionRules: '出題ルール',
+      examSelectionRulesHint: 'カテゴリ:件数;カテゴリ:件数（例: 製品:2;コンプライアンス:1）',
       examType: '問題タイプ',
       examTypeSingle: '単一選択',
       examTypeTrueFalse: '正誤',

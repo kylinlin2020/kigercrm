@@ -10,6 +10,9 @@ namespace XiHan.BasicApp.Crm.Domain.Entities;
 [SugarIndex("IX_{table}_Te_CrTi", nameof(TenantId), OrderByType.Asc, nameof(CreatedTime), OrderByType.Desc)]
 public sealed class SysCrmExamQuestion : BasicAppFullAuditedEntity, IStrictMultiTenantEntity
 {
+    [SugarColumn(ColumnName = "Category", Length = 80, IsNullable = true)]
+    public string? Category { get; set; }
+
     [SugarColumn(ColumnName = "Prompt", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = false)]
     public string Prompt { get; set; } = string.Empty;
 

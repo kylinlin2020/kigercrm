@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      examCategory: '分類（用於抽題）',
+      examNoCategory: '未分類',
+      examSelectionRules: '抽題規則',
+      examSelectionRulesHint: '分類:數量;分類:數量（如 產品:2;合規:1）',
       examType: '題型',
       examTypeSingle: '單選題',
       examTypeTrueFalse: '判斷題',

@@ -19,8 +19,8 @@ const attempts = ref<CrmExamAttemptDto[]>([])
 const active = ref<CrmExamAttemptDto | null>(null)
 const answers = ref<Record<string, string>>({})
 
-const newQuestion = ref({ prompt: '', type: CrmExamQuestionType.SingleChoice, options: 'A, B', correctAnswer: 'A', correctAnswers: 'A, B', points: 1 })
-const newPaper = ref({ name: '', questionIds: '', durationMinutes: 30, passScore: 60, maxAttempts: 3 })
+const newQuestion = ref({ prompt: '', type: CrmExamQuestionType.SingleChoice, category: '', options: 'A, B', correctAnswer: 'A', correctAnswers: 'A, B', points: 1 })
+const newPaper = ref({ name: '', questionIds: '', selectionRules: '', durationMinutes: 30, passScore: 60, maxAttempts: 3 })
 
 function statusLabel(status: number) {
   return [
@@ -52,6 +52,7 @@ async function addQuestion() {
     await crmExamApi.createQuestion({
       prompt: newQuestion.value.prompt,
       type: newQuestion.value.type,
+      category: newQuestion.value.category || null,
       options: newQuestion.value.options.split(',').map(option => option.trim()).filter(Boolean),
       correctAnswer: newQuestion.value.correctAnswer.trim(),
       correctAnswers: newQuestion.value.type === CrmExamQuestionType.MultipleChoice
@@ -72,6 +73,10 @@ async function addPaper() {
     await crmExamApi.createPaper({
       name: newPaper.value.name,
       questionIds: newPaper.value.questionIds.split(',').map(id => id.trim()).filter(Boolean),
+      selectionRules: newPaper.value.selectionRules.split(';').map((pair) => {
+        const [category, count] = pair.split(':').map(value => value.trim())
+        return { category, count: Number(count) }
+      }).filter(rule => rule.category && rule.count > 0).map(rule => ({ category: rule.category as string, count: rule.count })),
       durationMinutes: Number(newPaper.value.durationMinutes),
       passScore: Number(newPaper.value.passScore),
       maxAttempts: Number(newPaper.value.maxAttempts),
@@ -141,6 +146,7 @@ async function submit() {
       <div class="ce-block">
         <h4>{{ t('crm.prospecting.examQuestions') }}</h4>
         <label>{{ t('crm.prospecting.examPrompt') }}<input v-model="newQuestion.prompt" type="text"></label>
+        <label>{{ t('crm.prospecting.examCategory') }}<input v-model="newQuestion.category" type="text"></label>
         <label>{{ t('crm.prospecting.examType') }}
           <select v-model.number="newQuestion.type">
             <option :value="0">{{ t('crm.prospecting.examTypeSingle') }}</option>
@@ -157,7 +163,7 @@ async function submit() {
         </button>
         <ul>
           <li v-for="question in questions" :key="question.basicId">
-            {{ question.prompt }} ({{ question.points }})
+            {{ question.prompt }} [{{ question.category || t('crm.prospecting.examNoCategory') }}] ({{ question.points }})
           </li>
         </ul>
       </div>
@@ -166,6 +172,9 @@ async function submit() {
         <h4>{{ t('crm.prospecting.examPapers') }}</h4>
         <label>{{ t('crm.prospecting.examPaperName') }}<input v-model="newPaper.name" type="text"></label>
         <label>{{ t('crm.prospecting.examQuestionIds') }}<input v-model="newPaper.questionIds" type="text"></label>
+        <label>{{ t('crm.prospecting.examSelectionRules') }}
+          <input v-model="newPaper.selectionRules" type="text" :placeholder="t('crm.prospecting.examSelectionRulesHint')">
+        </label>
         <label>{{ t('crm.prospecting.examDuration') }}<input v-model.number="newPaper.durationMinutes" type="number" min="1" max="180"></label>
         <label>{{ t('crm.prospecting.examPassScore') }}<input v-model.number="newPaper.passScore" type="number" min="1"></label>
         <label>{{ t('crm.prospecting.examMaxAttempts') }}<input v-model.number="newPaper.maxAttempts" type="number" min="1" max="10"></label>
@@ -175,6 +184,7 @@ async function submit() {
         <ul>
           <li v-for="paper in papers" :key="paper.basicId">
             {{ paper.name }} · {{ paper.questionCount }} · {{ paper.totalScore }} · {{ statusLabel(paper.status) }}
+            <small v-if="paper.selectionRules.length">{{ paper.selectionRules.map(rule => `${rule.category}:${rule.count}`).join(' ') }}</small>
             <button v-if="paper.status === 0" type="button" @click="publish(paper.basicId)">
               {{ t('crm.prospecting.examPublish') }}
             </button>

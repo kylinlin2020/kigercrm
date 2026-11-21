@@ -25,6 +25,10 @@ public sealed class SysCrmExamPaper : BasicAppFullAuditedEntity, IStrictMultiTen
     [SugarColumn(ColumnName = "Max_Attempts", IsNullable = false, DefaultValue = "3")]
     public int MaxAttempts { get; set; } = 3;
 
+    /// <summary>Frozen selection rules (category -> count) used to compose QuestionIdsJson at creation.</summary>
+    [SugarColumn(ColumnName = "Selection_Rules_Json", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = true)]
+    public string? SelectionRulesJson { get; set; }
+
     [SugarColumn(ColumnName = "Status", IsNullable = false, DefaultValue = "0")]
     public CrmExamPaperStatus Status { get; set; }
 }

@@ -50,6 +50,7 @@ public sealed class CrmExamAppService(
         {
             Prompt = input.Prompt.Trim(),
             Type = type,
+            Category = string.IsNullOrWhiteSpace(input.Category) ? null : input.Category.Trim(),
             OptionsJson = JsonSerializer.Serialize(options, JsonOptions),
             CorrectAnswer = string.Join(',', correctAnswers),
             Explanation = input.Explanation?.Trim(),
@@ -62,6 +63,26 @@ public sealed class CrmExamAppService(
     public async Task<IReadOnlyList<CrmExamQuestionDto>> GetQuestionsAsync(CancellationToken cancellationToken = default)
         => (await questions.GetAllAsync(cancellationToken)).Select(ToQuestionDto).ToArray();
 
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<IReadOnlyList<CrmExamQuestionDto>> GetQuestionsByCategoryAsync(
+        string? category,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await questions.GetAllAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(category)) return rows.Select(ToQuestionDto).ToArray();
+        return rows.Where(item => string.Equals(item.Category, category.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Select(ToQuestionDto).ToArray();
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<IReadOnlyList<string>> GetCategoriesAsync(CancellationToken cancellationToken = default)
+        => (await questions.GetAllAsync(cancellationToken))
+            .Where(item => !string.IsNullOrWhiteSpace(item.Category))
+            .Select(item => item.Category!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
     [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Create)]
     public async Task<CrmExamPaperDto> CreatePaperAsync(
@@ -70,7 +91,12 @@ public sealed class CrmExamAppService(
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentException.ThrowIfNullOrWhiteSpace(input.Name);
-        var ids = CrmExamPolicy.ParseQuestionIds(JsonSerializer.Serialize(input.QuestionIds, JsonOptions));
+        var rules = CrmExamSelectionPolicy.ParseRules(
+            input.SelectionRules.Length == 0 ? null : JsonSerializer.Serialize(input.SelectionRules, JsonOptions));
+        var allQuestions = await questions.GetAllAsync(cancellationToken);
+        var ids = rules.Count > 0
+            ? CrmExamSelectionPolicy.Select(rules, allQuestions)
+            : CrmExamPolicy.ParseQuestionIds(JsonSerializer.Serialize(input.QuestionIds, JsonOptions));
         var bank = await questions.GetByIdsAsync(ids, cancellationToken);
         if (bank.Count != ids.Count)
             throw new InvalidOperationException("Some exam questions do not exist in this tenant.");
@@ -80,6 +106,7 @@ public sealed class CrmExamAppService(
         {
             Name = input.Name.Trim(),
             QuestionIdsJson = JsonSerializer.Serialize(ids, JsonOptions),
+            SelectionRulesJson = rules.Count == 0 ? null : JsonSerializer.Serialize(rules, JsonOptions),
             DurationMinutes = input.DurationMinutes,
             PassScore = input.PassScore,
             MaxAttempts = input.MaxAttempts,
@@ -230,6 +257,7 @@ public sealed class CrmExamAppService(
         BasicId = entity.BasicId,
         Prompt = entity.Prompt,
         Type = (int)entity.Type,
+        Category = entity.Category,
         Options = JsonSerializer.Deserialize<string[]>(entity.OptionsJson, JsonOptions) ?? [],
         CorrectAnswer = entity.CorrectAnswer,
         CorrectAnswers = ToOriginalAnswers(entity),
@@ -250,6 +278,7 @@ public sealed class CrmExamAppService(
         BasicId = entity.BasicId,
         Prompt = entity.Prompt,
         Type = (int)entity.Type,
+        Category = entity.Category,
         Options = JsonSerializer.Deserialize<string[]>(entity.OptionsJson, JsonOptions) ?? [],
         Points = entity.Points
     };
@@ -259,6 +288,8 @@ public sealed class CrmExamAppService(
         BasicId = entity.BasicId,
         Name = entity.Name,
         QuestionCount = CrmExamPolicy.ParseQuestionIds(entity.QuestionIdsJson).Count,
+        SelectionRules = CrmExamSelectionPolicy.ParseRules(entity.SelectionRulesJson)
+            .Select(rule => new CrmExamSelectionRuleDto { Category = rule.Category, Count = rule.Count }).ToArray(),
         DurationMinutes = entity.DurationMinutes,
         PassScore = entity.PassScore,
         MaxAttempts = entity.MaxAttempts,

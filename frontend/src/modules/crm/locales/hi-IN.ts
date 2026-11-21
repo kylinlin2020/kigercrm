@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      examCategory: 'श्रेणी (चयन के लिए)',
+      examNoCategory: 'अश्रेणीकृत',
+      examSelectionRules: 'चयन नियम',
+      examSelectionRulesHint: 'श्रेणी:संख्या;श्रेणी:संख्या (जैसे Product:2;Compliance:1)',
       examType: 'प्रश्न प्रकार',
       examTypeSingle: 'एकल विकल्प',
       examTypeTrueFalse: 'सही / गलत',

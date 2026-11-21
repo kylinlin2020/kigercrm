@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      examCategory: '카테고리 (출제용)',
+      examNoCategory: '미분류',
+      examSelectionRules: '출제 규칙',
+      examSelectionRulesHint: '카테고리:개수;카테고리:개수 (예: 제품:2;컴플라이언스:1)',
       examType: '문제 유형',
       examTypeSingle: '단일 선택',
       examTypeTrueFalse: '참/거짓',

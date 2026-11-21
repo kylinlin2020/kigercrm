@@ -20,6 +20,12 @@ export const crmExamApi = {
   questions() {
     return api.get<CrmExamQuestionDto[]>('Questions')
   },
+  questionsByCategory(category: string) {
+    return api.get<CrmExamQuestionDto[]>('QuestionsByCategory', { category })
+  },
+  categories() {
+    return api.get<string[]>('Categories')
+  },
   createPaper(input: CrmExamPaperCreateDto) {
     return api.post<CrmExamPaperDto, CrmExamPaperCreateDto>('Paper', input)
   },

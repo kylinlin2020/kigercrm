@@ -19,9 +19,15 @@ export enum CrmExamAttemptStatus {
   Failed = 3,
 }
 
+export interface CrmExamSelectionRuleDto {
+  category: string
+  count: number
+}
+
 export interface CrmExamQuestionCreateDto {
   prompt: string
   type: number
+  category?: string | null
   options: string[]
   correctAnswer: string
   correctAnswers?: string[]
@@ -39,6 +45,7 @@ export interface CrmExamCandidateQuestionDto {
   basicId: ApiId
   prompt: string
   type: number
+  category?: string | null
   options: string[]
   points: number
 }
@@ -46,6 +53,7 @@ export interface CrmExamCandidateQuestionDto {
 export interface CrmExamPaperCreateDto {
   name: string
   questionIds: ApiId[]
+  selectionRules?: CrmExamSelectionRuleDto[]
   durationMinutes: number
   passScore: number
   maxAttempts: number
@@ -54,6 +62,7 @@ export interface CrmExamPaperCreateDto {
 export interface CrmExamPaperDto extends CrmExamPaperCreateDto {
   basicId: ApiId
   questionCount: number
+  selectionRules: CrmExamSelectionRuleDto[]
   totalScore: number
   status: CrmExamPaperStatus
 }

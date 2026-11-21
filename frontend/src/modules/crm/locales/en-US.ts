@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      examCategory: 'Category (for selection)',
+      examNoCategory: 'uncategorized',
+      examSelectionRules: 'Selection rules',
+      examSelectionRulesHint: 'Category:count;Category:count (e.g. Product:2;Compliance:1)',
       examType: 'Question type',
       examTypeSingle: 'Single choice',
       examTypeTrueFalse: 'True / false',

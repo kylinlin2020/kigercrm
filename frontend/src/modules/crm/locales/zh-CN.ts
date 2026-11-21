@@ -14,6 +14,10 @@ export default {
   },
   crm: {
     prospecting: {
+      examCategory: '分类（用于抽题）',
+      examNoCategory: '未分类',
+      examSelectionRules: '抽题规则',
+      examSelectionRulesHint: '分类:数量;分类:数量（如 产品:2;合规:1）',
       examType: '题型',
       examTypeSingle: '单选题',
       examTypeTrueFalse: '判断题',

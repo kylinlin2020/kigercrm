@@ -128,6 +128,57 @@ public sealed class CrmExamTests : IDisposable
         Assert.False(CrmExamPolicy.IsAnswerCorrect(CrmExamQuestionType.SingleChoice, "A", "A,B"));
     }
     [Fact]
+    public async Task CategorySelection_ShouldFreezeIdsAtCreation()
+    {
+        var ids = new List<long>();
+        foreach (var category in new[] { "Product", "Product", "Compliance", "Compliance" })
+        {
+            var created = await _service.CreateQuestionAsync(new CrmExamQuestionCreateDto
+            {
+                Prompt = $"{category} question {ids.Count}",
+                Type = (int)CrmExamQuestionType.SingleChoice,
+                Category = category,
+                Options = ["A", "B"],
+                CorrectAnswer = "A",
+                Points = 10
+            });
+            ids.Add(created.BasicId);
+        }
+
+        Assert.Equal(new[] { "Compliance", "Product" }, await _service.GetCategoriesAsync());
+        Assert.Equal(2, (await _service.GetQuestionsByCategoryAsync("product")).Count);
+        Assert.Empty(await _service.GetQuestionsByCategoryAsync("missing"));
+
+        var paper = await _service.CreatePaperAsync(new CrmExamPaperCreateDto
+        {
+            Name = "Selected exam",
+            DurationMinutes = 30,
+            PassScore = 20,
+            MaxAttempts = 2,
+            SelectionRules =
+            [
+                new CrmExamSelectionRuleDto { Category = "Compliance", Count = 1 },
+                new CrmExamSelectionRuleDto { Category = "Product", Count = 1 }
+            ]
+        });
+        Assert.Equal(2, paper.QuestionCount);
+        Assert.Equal(2, paper.SelectionRules.Length);
+        Assert.Equal(new[] { "Compliance", "Product" }, paper.SelectionRules.Select(rule => rule.Category));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CreatePaperAsync(new CrmExamPaperCreateDto
+        {
+            Name = "Too many",
+            DurationMinutes = 30,
+            PassScore = 10,
+            SelectionRules = [new CrmExamSelectionRuleDto { Category = "Compliance", Count = 5 }]
+        }));
+        Assert.Throws<ArgumentException>(() => CrmExamSelectionPolicy.ParseRules(
+            "[{\"category\":\"A\",\"count\":1},{\"category\":\"a\",\"count\":1}]"));
+        Assert.Throws<ArgumentOutOfRangeException>(() => CrmExamSelectionPolicy.ParseRules(
+            "[{\"category\":\"A\",\"count\":51}]"));
+    }
+
+    [Fact]
     public async Task ExamFlow_ShouldPublishGradeAndHideAnswerKey()
     {
         var q1 = await _service.CreateQuestionAsync(new CrmExamQuestionCreateDto
