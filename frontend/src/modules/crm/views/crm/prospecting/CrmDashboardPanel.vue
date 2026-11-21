@@ -3,7 +3,7 @@ import type {
   CrmDashboardOverviewDto,
   CrmDashboardReportDto,
 } from '@/api/modules/crm/dashboard.types'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmDashboardApi } from '@/api/modules/crm/dashboard'
 import { toast } from '~/composables'
@@ -15,24 +15,44 @@ const overview = ref<CrmDashboardOverviewDto | null>(null)
 const funnel = ref<CrmDashboardReportDto | null>(null)
 const sources = ref<CrmDashboardReportDto | null>(null)
 const stages = ref<CrmDashboardReportDto | null>(null)
+const team = ref<CrmDashboardReportDto | null>(null)
+const followUp = ref<CrmDashboardReportDto | null>(null)
+const rangeStart = ref('')
+const rangeEnd = ref('')
 
-onMounted(async () => {
+function toIso(value: string) {
+  if (!value)
+    return undefined
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+}
+
+async function load() {
   try {
-    const [summary, leadReport, sourceReport, stageReport] = await Promise.all([
+    const from = toIso(rangeStart.value)
+    const to = toIso(rangeEnd.value)
+    const [summary, leadReport, sourceReport, stageReport, teamReport, healthReport] = await Promise.all([
       crmDashboardApi.overview(),
       crmDashboardApi.leadFunnel(),
       crmDashboardApi.prospectSources(),
       crmDashboardApi.opportunityStages(),
+      crmDashboardApi.teamRanking(from, to),
+      crmDashboardApi.followUpHealth(from, to),
     ])
     overview.value = summary
     funnel.value = leadReport
     sources.value = sourceReport
     stages.value = stageReport
+    team.value = teamReport
+    followUp.value = healthReport
   }
   catch (error) {
     toast.danger((error as Error)?.message || t('crm.prospecting.dashboardError'))
   }
-})
+}
+
+onMounted(load)
+watch([rangeStart, rangeEnd], load)
 
 function reportTitle(key: 'funnel' | 'sources' | 'stages') {
   return key === 'funnel'
@@ -52,6 +72,13 @@ function reportTitle(key: 'funnel' | 'sources' | 'stages') {
       </div>
     </header>
 
+    <div class="dash-range">
+      <label>{{ t('crm.prospecting.dashboardRangeFrom') }}<input v-model="rangeStart" type="date"></label>
+      <label>{{ t('crm.prospecting.dashboardRangeTo') }}<input v-model="rangeEnd" type="date"></label>
+      <button type="button" @click="load">
+        {{ t('crm.prospecting.dashboardRefresh') }}
+      </button>
+    </div>
     <div v-if="overview" class="dash-metrics">
       <span>{{ t('crm.prospecting.dashboardLeads', { count: overview.leadsTotal }) }}</span>
       <span>{{ t('crm.prospecting.dashboardOpportunities', { count: overview.opportunitiesTotal }) }}</span>
@@ -75,10 +102,43 @@ function reportTitle(key: 'funnel' | 'sources' | 'stages') {
         </p>
       </div>
     </div>
+
+    <div class="dash-grid">
+      <div class="dash-card">
+        <h3>{{ t('crm.prospecting.dashboardTeam') }}</h3>
+        <div v-for="bucket in team?.buckets ?? []" :key="bucket.key" class="dash-row">
+          <span class="dash-label">{{ bucket.label }}</span>
+          <span class="dash-value">{{ bucket.count }} · {{ bucket.amount }}</span>
+        </div>
+        <p v-if="(team?.buckets.length ?? 0) === 0" class="dash-empty">
+          {{ t('crm.prospecting.dashboardEmpty') }}
+        </p>
+      </div>
+      <div class="dash-card">
+        <h3>{{ t('crm.prospecting.dashboardFollowUp') }}</h3>
+        <div v-for="bucket in followUp?.buckets ?? []" :key="bucket.key" class="dash-row">
+          <span class="dash-label">{{ t(`crm.prospecting.dashboardBucket_${bucket.key}`) }}</span>
+          <span class="dash-value">{{ bucket.count }} · {{ bucket.sharePercent }}%</span>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
 <style scoped>
+.dash-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: end;
+  margin-bottom: 0.6rem;
+}
+.dash-range label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.82rem;
+}
+
 .dashboard-panel {
   display: grid;
   gap: 0.75rem;

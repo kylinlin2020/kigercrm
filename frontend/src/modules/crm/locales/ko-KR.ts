@@ -14,6 +14,15 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardRangeFrom: '시작 (UTC)',
+      dashboardRangeTo: '종료 (UTC)',
+      dashboardRefresh: '새로고침',
+      dashboardTeam: '팀 순위 (리드 / 금액)',
+      dashboardFollowUp: '팔로업 상태',
+      dashboardBucket_contacted_7d: '7일 이내 접촉',
+      dashboardBucket_contacted_30d: '30일 이내 접촉',
+      dashboardBucket_overdue: '기한 초과 (30일 초과)',
+      dashboardBucket_never: '접촉 없음',
       csvLoad: 'CSV 파일 불러오기',
       csvHint: '첫 행은 열 이름으로 사용하며 따옴표 필드를 지원합니다.',
       csvLoaded: 'CSV에서 {count}건을 불러왔습니다',

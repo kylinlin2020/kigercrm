@@ -20,4 +20,10 @@ export const crmDashboardApi = {
   opportunityStages() {
     return api.get<CrmDashboardReportDto>('OpportunityStages')
   },
+  teamRanking(fromUtc?: string, toUtc?: string) {
+    return api.get<CrmDashboardReportDto>('TeamRanking', { fromUtc, toUtc })
+  },
+  followUpHealth(fromUtc?: string, toUtc?: string) {
+    return api.get<CrmDashboardReportDto>('FollowUpHealth', { fromUtc, toUtc })
+  },
 }

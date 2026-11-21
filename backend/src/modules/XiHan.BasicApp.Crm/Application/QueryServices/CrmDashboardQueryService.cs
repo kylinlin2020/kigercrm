@@ -1,4 +1,4 @@
-﻿using XiHan.BasicApp.Crm.Application;
+using XiHan.BasicApp.Crm.Application;
 using XiHan.BasicApp.Crm.Application.Contracts;
 using XiHan.BasicApp.Crm.Application.Dtos;
 using XiHan.BasicApp.Crm.Domain.Entities;
@@ -96,6 +96,83 @@ public sealed class CrmDashboardQueryService(
             Total = total,
             TotalAmount = rows.Sum(item => item.Amount)
         };
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<CrmDashboardReportDto> GetTeamRankingAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRange(fromUtc, toUtc);
+        var now = DateTimeOffset.UtcNow;
+        var scope = await dataScope.ResolveAccessibleUsersAsync(now, cancellationToken);
+        var unrestricted = scope.Unrestricted;
+        var userIds = scope.UserIds;
+        var from = fromUtc ?? DateTimeOffset.MinValue;
+        var to = toUtc ?? DateTimeOffset.MaxValue;
+        var leadRows = (await leads.GetListAsync(item => (unrestricted || (item.OwnerUserId > 0 && userIds.Contains(item.OwnerUserId.Value)))
+                && item.CreatedTime >= from && item.CreatedTime <= to, cancellationToken))
+            .GroupBy(item => item.OwnerUserId ?? 0)
+            .ToDictionary(group => group.Key, group => group.Count());
+        var opportunityRows = await opportunities.GetListAsync(
+            item => (unrestricted || (item.OwnerUserId > 0 && userIds.Contains(item.OwnerUserId.Value)))
+                && item.CreatedTime >= from && item.CreatedTime <= to, cancellationToken);
+        var keys = leadRows.Keys.Concat(opportunityRows.Select(item => item.OwnerUserId ?? 0))
+            .Distinct().OrderBy(key => key).ToArray();
+        var buckets = keys.Select(key => new CrmDashboardBucketDto
+        {
+            Key = key.ToString(),
+            Label = key == 0 ? "unassigned" : $"user:{key}",
+            Count = leadRows.GetValueOrDefault(key),
+            Amount = opportunityRows.Where(item => (item.OwnerUserId ?? 0) == key)
+                .Sum(item => item.Amount)
+        }).ToArray();
+        return Build(buckets, leadRows.Values.Sum() + opportunityRows.Count, opportunityRows.Sum(item => item.Amount));
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<CrmDashboardReportDto> GetFollowUpHealthAsync(
+        DateTimeOffset? fromUtc,
+        DateTimeOffset? toUtc,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateRange(fromUtc, toUtc);
+        var now = DateTimeOffset.UtcNow;
+        var scope = await dataScope.ResolveAccessibleUsersAsync(now, cancellationToken);
+        var unrestricted = scope.Unrestricted;
+        var userIds = scope.UserIds;
+        var from = fromUtc ?? DateTimeOffset.MinValue;
+        var to = toUtc ?? DateTimeOffset.MaxValue;
+        var rows = await leads.GetListAsync(
+            item => (unrestricted || (item.OwnerUserId > 0 && userIds.Contains(item.OwnerUserId.Value)))
+                && item.CreatedTime >= from && item.CreatedTime <= to, cancellationToken);
+        var buckets = new[]
+        {
+            new CrmDashboardBucketDto { Key = "contacted_7d", Label = "contacted_7d" },
+            new CrmDashboardBucketDto { Key = "contacted_30d", Label = "contacted_30d" },
+            new CrmDashboardBucketDto { Key = "overdue", Label = "overdue" },
+            new CrmDashboardBucketDto { Key = "never", Label = "never" }
+        };
+        foreach (var lead in rows)
+        {
+            var key = lead.LastContactedAt is null
+                ? "never"
+                : (now - new DateTimeOffset(lead.LastContactedAt.Value, TimeSpan.Zero)).TotalDays switch
+                {
+                    <= 7 => "contacted_7d",
+                    <= 30 => "contacted_30d",
+                    _ => "overdue"
+                };
+            buckets.Single(bucket => bucket.Key == key).Count++;
+        }
+        return Build(buckets, rows.Count, 0);
+    }
+
+    private static void ValidateRange(DateTimeOffset? fromUtc, DateTimeOffset? toUtc)
+    {
+        if (fromUtc.HasValue && toUtc.HasValue && fromUtc.Value > toUtc.Value)
+            throw new ArgumentOutOfRangeException(nameof(fromUtc), "The range start must not be later than its end.");
     }
 
     private static CrmDashboardReportDto Build(

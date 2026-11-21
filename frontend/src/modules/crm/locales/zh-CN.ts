@@ -14,6 +14,15 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardRangeFrom: '开始（UTC）',
+      dashboardRangeTo: '结束（UTC）',
+      dashboardRefresh: '刷新',
+      dashboardTeam: '团队排行（线索 / 金额）',
+      dashboardFollowUp: '跟进健康度',
+      dashboardBucket_contacted_7d: '7 天内已联系',
+      dashboardBucket_contacted_30d: '30 天内已联系',
+      dashboardBucket_overdue: '逾期（超过 30 天）',
+      dashboardBucket_never: '从未联系',
       csvLoad: '载入 CSV 文件',
       csvHint: '首行作为列名，支持带引号的字段。',
       csvLoaded: '已从 CSV 载入 {count} 行',

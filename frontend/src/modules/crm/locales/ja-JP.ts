@@ -14,6 +14,15 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardRangeFrom: '開始（UTC）',
+      dashboardRangeTo: '終了（UTC）',
+      dashboardRefresh: '更新',
+      dashboardTeam: 'チームランキング（リード / 金額）',
+      dashboardFollowUp: 'フォローアップ状況',
+      dashboardBucket_contacted_7d: '7 日以内に接触',
+      dashboardBucket_contacted_30d: '30 日以内に接触',
+      dashboardBucket_overdue: '期限超過（30 日超）',
+      dashboardBucket_never: '未接触',
       csvLoad: 'CSV ファイルを読み込む',
       csvHint: '先頭行は列名として扱われ、引用符付きフィールドに対応します。',
       csvLoaded: 'CSV から {count} 件を読み込みました',

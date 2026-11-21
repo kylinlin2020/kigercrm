@@ -14,6 +14,15 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardRangeFrom: 'Von (UTC)',
+      dashboardRangeTo: 'Bis (UTC)',
+      dashboardRefresh: 'Aktualisieren',
+      dashboardTeam: 'Team-Rangliste (Leads / Betrag)',
+      dashboardFollowUp: 'Nachverfolgungsstatus',
+      dashboardBucket_contacted_7d: 'Kontakt innerhalb 7 Tage',
+      dashboardBucket_contacted_30d: 'Kontakt innerhalb 30 Tage',
+      dashboardBucket_overdue: 'Überfällig (>30 Tage)',
+      dashboardBucket_never: 'Nie kontaktiert',
       csvLoad: 'CSV-Datei laden',
       csvHint: 'Die erste Zeile gilt als Spaltennamen; zitierte Felder werden unterstützt.',
       csvLoaded: '{count} Zeilen aus CSV geladen',

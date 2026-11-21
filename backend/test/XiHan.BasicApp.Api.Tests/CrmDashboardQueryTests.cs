@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2021-Present XiHanFun and contributors.
+// Copyright (c) 2021-Present XiHanFun and contributors.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.Runtime.CompilerServices;
@@ -123,11 +123,60 @@ public sealed class CrmDashboardQueryTests : IDisposable
         var service = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
             "Application", "QueryServices", "CrmDashboardQueryService.cs");
         Assert.Contains("[DynamicApi(", service, StringComparison.Ordinal);
-        Assert.Equal(4, CountOccurrences(service, "[PermissionAuthorize(CrmPermissionCodes.Read)]"));
+        // 团队排行与跟进健康度是新增的两个只读方法，权限标注计数 4→6。
+        Assert.Equal(6, CountOccurrences(service, "[PermissionAuthorize(CrmPermissionCodes.Read)]"));
         Assert.DoesNotContain("UpdateAsync", service, StringComparison.Ordinal);
         Assert.DoesNotContain("AddAsync", service, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task TeamRanking_ShouldGroupByOwnerAndHonorRange()
+    {
+        await SeedAsync();
+        var now = DateTimeOffset.UtcNow;
+        var all = await _service.GetTeamRankingAsync(null, null);
+        Assert.Equal(2, all.Buckets.Count);
+        Assert.Equal(4, all.Total); // two leads + two opportunities in the dataset
+        Assert.Contains(all.Buckets, bucket => bucket.Key == OwnerId.ToString() && bucket.Amount == 100m);
+        Assert.Contains(all.Buckets, bucket => bucket.Key == (OwnerId + 1).ToString() && bucket.Amount == 200m);
+
+        var future = await _service.GetTeamRankingAsync(now.AddDays(1), null);
+        Assert.Empty(future.Buckets);
+        Assert.Equal(0, future.Total);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            _service.GetTeamRankingAsync(now.AddDays(1), now));
+    }
+
+    [Fact]
+    public async Task FollowUpHealth_ShouldBucketByLastContact()
+    {
+        await SeedAsync();
+        var leads = new CrmLeadRepository(_resolver.Object);
+        var rows = await leads.GetListAsync(_ => true);
+        var fresh = rows.First(item => item.OwnerUserId == OwnerId);
+        var stale = rows.First(item => item.OwnerUserId == OwnerId + 1);
+        fresh.LastContactedAt = DateTime.UtcNow.AddDays(-3);
+        stale.LastContactedAt = DateTime.UtcNow.AddDays(-15);
+        await leads.UpdateAsync(fresh);
+        await leads.UpdateAsync(stale);
+
+        var health = await _service.GetFollowUpHealthAsync(null, null);
+        Assert.Equal(2, health.Total);
+        Assert.Equal(1, Assert.Single(health.Buckets.Where(bucket => bucket.Key == "contacted_7d")).Count);
+        Assert.Equal(1, Assert.Single(health.Buckets.Where(bucket => bucket.Key == "contacted_30d")).Count);
+        Assert.Equal(0, health.Buckets.Single(bucket => bucket.Key == "never").Count);
+        Assert.Equal(4, health.Buckets.Count);
+    }
+
+    [Fact]
+    public void Contract_ShouldGuardNewReportMethods()
+    {
+        var query = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Application", "Contracts", "ICrmDashboardQueryService.cs");
+        Assert.Contains("GetTeamRankingAsync", query, StringComparison.Ordinal);
+        Assert.Contains("GetFollowUpHealthAsync", query, StringComparison.Ordinal);
+        Assert.Contains("DateTimeOffset? fromUtc", query, StringComparison.Ordinal);
+    }
     private async Task SeedAsync()
     {
         var leads = new CrmLeadRepository(_resolver.Object);

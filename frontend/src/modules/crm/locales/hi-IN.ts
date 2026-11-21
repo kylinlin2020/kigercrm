@@ -14,6 +14,15 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardRangeFrom: 'शुरुआत (UTC)',
+      dashboardRangeTo: 'अंत (UTC)',
+      dashboardRefresh: 'रीफ़्रेश',
+      dashboardTeam: 'टीम रैंकिंग (लीड / राशि)',
+      dashboardFollowUp: 'फ़ॉलो-अप स्थिति',
+      dashboardBucket_contacted_7d: '7 दिनों में संपर्क',
+      dashboardBucket_contacted_30d: '30 दिनों में संपर्क',
+      dashboardBucket_overdue: 'अतिदेय (>30 दिन)',
+      dashboardBucket_never: 'कभी संपर्क नहीं',
       csvLoad: 'CSV फ़ाइल लोड करें',
       csvHint: 'पहली पंक्ति कॉलम नाम मानी जाती है; उद्धृत फ़ील्ड समर्थित हैं।',
       csvLoaded: 'CSV से {count} पंक्तियाँ लोड की गईं',

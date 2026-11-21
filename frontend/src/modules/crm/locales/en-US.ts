@@ -14,6 +14,15 @@ export default {
   },
   crm: {
     prospecting: {
+      dashboardRangeFrom: 'From (UTC)',
+      dashboardRangeTo: 'To (UTC)',
+      dashboardRefresh: 'Refresh',
+      dashboardTeam: 'Team ranking (leads / amount)',
+      dashboardFollowUp: 'Follow-up health',
+      dashboardBucket_contacted_7d: 'Contacted within 7 days',
+      dashboardBucket_contacted_30d: 'Contacted within 30 days',
+      dashboardBucket_overdue: 'Overdue (>30 days)',
+      dashboardBucket_never: 'Never contacted',
       csvLoad: 'Load CSV file',
       csvHint: 'First row is treated as column names; quoted fields are supported.',
       csvLoaded: 'Loaded {count} rows from CSV',
