@@ -54,6 +54,8 @@ export interface CrmExamPaperCreateDto {
   name: string
   questionIds: ApiId[]
   selectionRules?: CrmExamSelectionRuleDto[]
+  randomizeSelection?: boolean
+  selectionSeed?: number | null
   durationMinutes: number
   passScore: number
   maxAttempts: number
@@ -63,6 +65,8 @@ export interface CrmExamPaperDto extends CrmExamPaperCreateDto {
   basicId: ApiId
   questionCount: number
   selectionRules: CrmExamSelectionRuleDto[]
+  randomizeSelection: boolean
+  selectionSeed?: number | null
   totalScore: number
   status: CrmExamPaperStatus
 }

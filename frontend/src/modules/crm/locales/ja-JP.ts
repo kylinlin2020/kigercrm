@@ -14,6 +14,8 @@ export default {
   },
   crm: {
     prospecting: {
+      examRandomize: 'シード付きランダム出題',
+      examSeed: 'シード',
       certTitle: '試験証明書',
       certDescription: '合格した受験から証明書を発行します。番号とハッシュで検証し、失効・期限は検証時に判定します。',
       certAttemptId: '合格受験 ID',

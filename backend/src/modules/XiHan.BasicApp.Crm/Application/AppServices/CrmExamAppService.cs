@@ -95,7 +95,7 @@ public sealed class CrmExamAppService(
             input.SelectionRules.Length == 0 ? null : JsonSerializer.Serialize(input.SelectionRules, JsonOptions));
         var allQuestions = await questions.GetAllAsync(cancellationToken);
         var ids = rules.Count > 0
-            ? CrmExamSelectionPolicy.Select(rules, allQuestions)
+            ? CrmExamSelectionPolicy.Select(rules, allQuestions, input.RandomizeSelection, input.SelectionSeed)
             : CrmExamPolicy.ParseQuestionIds(JsonSerializer.Serialize(input.QuestionIds, JsonOptions));
         var bank = await questions.GetByIdsAsync(ids, cancellationToken);
         if (bank.Count != ids.Count)
@@ -107,6 +107,8 @@ public sealed class CrmExamAppService(
             Name = input.Name.Trim(),
             QuestionIdsJson = JsonSerializer.Serialize(ids, JsonOptions),
             SelectionRulesJson = rules.Count == 0 ? null : JsonSerializer.Serialize(rules, JsonOptions),
+            RandomizeSelection = input.RandomizeSelection,
+            SelectionSeed = input.SelectionSeed,
             DurationMinutes = input.DurationMinutes,
             PassScore = input.PassScore,
             MaxAttempts = input.MaxAttempts,
@@ -290,6 +292,8 @@ public sealed class CrmExamAppService(
         QuestionCount = CrmExamPolicy.ParseQuestionIds(entity.QuestionIdsJson).Count,
         SelectionRules = CrmExamSelectionPolicy.ParseRules(entity.SelectionRulesJson)
             .Select(rule => new CrmExamSelectionRuleDto { Category = rule.Category, Count = rule.Count }).ToArray(),
+        RandomizeSelection = entity.RandomizeSelection,
+        SelectionSeed = entity.SelectionSeed,
         DurationMinutes = entity.DurationMinutes,
         PassScore = entity.PassScore,
         MaxAttempts = entity.MaxAttempts,

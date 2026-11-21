@@ -14,6 +14,8 @@ export default {
   },
   crm: {
     prospecting: {
+      examRandomize: '随机抽题（带种子）',
+      examSeed: '种子',
       certTitle: '考试证书',
       certDescription: '通过后签发证书，用编号与校验码验证；撤销与过期在验证时判定。',
       certAttemptId: '通过的考试尝试 ID',

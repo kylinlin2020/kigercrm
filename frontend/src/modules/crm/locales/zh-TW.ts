@@ -14,6 +14,8 @@ export default {
   },
   crm: {
     prospecting: {
+      examRandomize: '隨機抽題（含種子）',
+      examSeed: '種子',
       certTitle: '考試證書',
       certDescription: '通過後簽發證書，用編號與驗證碼驗證；撤銷與過期在驗證時判定。',
       certAttemptId: '通過的考試嘗試 ID',

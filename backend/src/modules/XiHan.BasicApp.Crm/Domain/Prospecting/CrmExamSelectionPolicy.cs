@@ -1,5 +1,6 @@
 using System.Text.Json;
 using XiHan.BasicApp.Crm.Domain.Entities;
+using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 
 namespace XiHan.BasicApp.Crm.Domain.Prospecting;
 
@@ -48,27 +49,59 @@ public static class CrmExamSelectionPolicy
 
     public static IReadOnlyList<long> Select(
         IReadOnlyList<CrmExamSelectionRule> rules,
-        IReadOnlyList<SysCrmExamQuestion> bank)
+        IReadOnlyList<SysCrmExamQuestion> bank,
+        bool randomize = false,
+        int? seed = null)
     {
         ArgumentNullException.ThrowIfNull(rules);
         ArgumentNullException.ThrowIfNull(bank);
         if (rules.Count == 0) throw new ArgumentException("Selection rules are required.", nameof(rules));
+        if (randomize && !seed.HasValue)
+            throw new ArgumentException("A seed is required for randomised selection.", nameof(seed));
         var selected = new List<long>();
         foreach (var rule in rules)
         {
             var matches = bank.Where(question =>
                     string.Equals(Normalize(question.Category), Normalize(rule.Category), StringComparison.OrdinalIgnoreCase))
-                .OrderBy(question => question.BasicId)
-                .Take(rule.Count)
                 .Select(question => question.BasicId)
+                .OrderBy(id => id)
                 .ToArray();
             if (matches.Length < rule.Count)
                 throw new InvalidOperationException($"Category '{rule.Category}' has fewer than {rule.Count} questions.");
-            selected.AddRange(matches);
+            if (randomize) Shuffle(matches, CategorySeed(seed!.Value, rule.Category));
+            selected.AddRange(matches.Take(rule.Count));
         }
         if (selected.Distinct().Count() != selected.Count)
             throw new InvalidOperationException("Selection produced duplicate question ids.");
         return selected;
+    }
+
+    /// <summary>Fisher-Yates shuffle driven by a derived seed; same seed and ids give the same order.</summary>
+    public static void Shuffle(long[] ids, int seed)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        var random = new Random(seed);
+        for (var index = ids.Length - 1; index > 0; index--)
+        {
+            var swap = random.Next(index + 1);
+            (ids[index], ids[swap]) = (ids[swap], ids[index]);
+        }
+    }
+
+    // FNV-1a 32-bit is deterministic across processes/runs (unlike HashCode, which is seeded).
+    private static int CategorySeed(int seed, string category)
+    {
+        unchecked
+        {
+            uint hash = 2166136261;
+            var text = $"{seed}:{Normalize(category)}";
+            foreach (var character in text)
+            {
+                hash ^= (uint)char.ToLowerInvariant(character);
+                hash *= 16777619;
+            }
+            return (int)hash;
+        }
     }
 
     private static string Normalize(string? value) => value?.Trim() ?? string.Empty;

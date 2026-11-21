@@ -14,6 +14,8 @@ export default {
   },
   crm: {
     prospecting: {
+      examRandomize: 'Randomised draw (seeded)',
+      examSeed: 'Seed',
       certTitle: 'Exam certificates',
       certDescription: 'Certificates are issued from passed attempts. Verification uses the certificate number and hash; revocation and expiry are checked at verification time.',
       certAttemptId: 'Passed attempt ID',

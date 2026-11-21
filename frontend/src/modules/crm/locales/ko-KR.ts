@@ -14,6 +14,8 @@ export default {
   },
   crm: {
     prospecting: {
+      examRandomize: '시드 기반 무작위 출제',
+      examSeed: '시드',
       certTitle: '시험 증명서',
       certDescription: '합격한 응시에서 증명서를 발급합니다. 번호와 해시로 검증하며 취소·만료는 검증 시 확인합니다.',
       certAttemptId: '합격 응시 ID',

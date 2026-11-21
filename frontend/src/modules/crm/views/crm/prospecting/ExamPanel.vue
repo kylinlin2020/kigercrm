@@ -20,7 +20,7 @@ const active = ref<CrmExamAttemptDto | null>(null)
 const answers = ref<Record<string, string>>({})
 
 const newQuestion = ref({ prompt: '', type: CrmExamQuestionType.SingleChoice, category: '', options: 'A, B', correctAnswer: 'A', correctAnswers: 'A, B', points: 1 })
-const newPaper = ref({ name: '', questionIds: '', selectionRules: '', durationMinutes: 30, passScore: 60, maxAttempts: 3 })
+const newPaper = ref({ name: '', questionIds: '', selectionRules: '', randomizeSelection: false, selectionSeed: '42', durationMinutes: 30, passScore: 60, maxAttempts: 3 })
 
 function statusLabel(status: number) {
   return [
@@ -77,6 +77,8 @@ async function addPaper() {
         const [category, count] = pair.split(':').map(value => value.trim())
         return { category, count: Number(count) }
       }).filter(rule => rule.category && rule.count > 0).map(rule => ({ category: rule.category as string, count: rule.count })),
+      randomizeSelection: newPaper.value.randomizeSelection,
+      selectionSeed: newPaper.value.selectionSeed ? Number(newPaper.value.selectionSeed) : null,
       durationMinutes: Number(newPaper.value.durationMinutes),
       passScore: Number(newPaper.value.passScore),
       maxAttempts: Number(newPaper.value.maxAttempts),
@@ -175,6 +177,11 @@ async function submit() {
         <label>{{ t('crm.prospecting.examSelectionRules') }}
           <input v-model="newPaper.selectionRules" type="text" :placeholder="t('crm.prospecting.examSelectionRulesHint')">
         </label>
+        <label class="ce-check">
+          <input v-model="newPaper.randomizeSelection" type="checkbox">
+          {{ t('crm.prospecting.examRandomize') }}
+        </label>
+        <label v-if="newPaper.randomizeSelection">{{ t('crm.prospecting.examSeed') }}<input v-model="newPaper.selectionSeed" type="number"></label>
         <label>{{ t('crm.prospecting.examDuration') }}<input v-model.number="newPaper.durationMinutes" type="number" min="1" max="180"></label>
         <label>{{ t('crm.prospecting.examPassScore') }}<input v-model.number="newPaper.passScore" type="number" min="1"></label>
         <label>{{ t('crm.prospecting.examMaxAttempts') }}<input v-model.number="newPaper.maxAttempts" type="number" min="1" max="10"></label>
@@ -184,7 +191,7 @@ async function submit() {
         <ul>
           <li v-for="paper in papers" :key="paper.basicId">
             {{ paper.name }} · {{ paper.questionCount }} · {{ paper.totalScore }} · {{ statusLabel(paper.status) }}
-            <small v-if="paper.selectionRules.length">{{ paper.selectionRules.map(rule => `${rule.category}:${rule.count}`).join(' ') }}</small>
+            <small v-if="paper.selectionRules.length">{{ paper.selectionRules.map(rule => `${rule.category}:${rule.count}`).join(' ') }}{{ paper.randomizeSelection ? ` · ${t('crm.prospecting.examSeed')}:${paper.selectionSeed}` : '' }}</small>
             <button v-if="paper.status === 0" type="button" @click="publish(paper.basicId)">
               {{ t('crm.prospecting.examPublish') }}
             </button>
@@ -273,6 +280,11 @@ async function submit() {
   display: grid;
   gap: 0.3rem;
   font-size: 0.85rem;
+}
+.ce-check {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 .ce-option {
   display: inline-flex;

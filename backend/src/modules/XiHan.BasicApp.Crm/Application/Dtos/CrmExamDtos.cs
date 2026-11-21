@@ -50,6 +50,8 @@ public sealed class CrmExamPaperCreateDto
     public long[] QuestionIds { get; set; } = [];
     /// <summary>When set, questions are selected by category at creation and QuestionIds is ignored.</summary>
     public CrmExamSelectionRuleDto[] SelectionRules { get; set; } = [];
+    public bool RandomizeSelection { get; set; }
+    public int? SelectionSeed { get; set; }
     public int DurationMinutes { get; set; } = 30;
     public int PassScore { get; set; } = 60;
     public int MaxAttempts { get; set; } = 3;
@@ -61,6 +63,8 @@ public sealed class CrmExamPaperDto
     public string Name { get; set; } = string.Empty;
     public int QuestionCount { get; set; }
     public CrmExamSelectionRuleDto[] SelectionRules { get; set; } = [];
+    public bool RandomizeSelection { get; set; }
+    public int? SelectionSeed { get; set; }
     public int DurationMinutes { get; set; }
     public int PassScore { get; set; }
     public int MaxAttempts { get; set; }

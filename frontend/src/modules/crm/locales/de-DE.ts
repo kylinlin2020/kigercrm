@@ -14,6 +14,8 @@ export default {
   },
   crm: {
     prospecting: {
+      examRandomize: 'Zufällige Auswahl (mit Seed)',
+      examSeed: 'Seed',
       certTitle: 'Prüfungszertifikate',
       certDescription: 'Zertifikate werden aus bestandenen Prüfungen ausgestellt. Die Prüfung nutzt Nummer und Hash; Widerruf und Ablauf werden bei der Prüfung geprüft.',
       certAttemptId: 'Bestandene Prüfungs-ID',

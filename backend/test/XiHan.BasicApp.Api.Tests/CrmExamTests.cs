@@ -179,6 +179,30 @@ public sealed class CrmExamTests : IDisposable
     }
 
     [Fact]
+    public async Task RandomSelection_ShouldBeSeededReproducibleAndDifferFromSequential()
+    {
+        var rules = new[] { new CrmExamSelectionRule("Bank", 4) };
+        var bank = Enumerable.Range(1, 12)
+            .Select(id => MakeQuestion(id, "A", 10))
+            .ToArray();
+        foreach (var question in bank)
+            typeof(SysCrmExamQuestion).GetProperty(nameof(SysCrmExamQuestion.Category))!.SetValue(question, "Bank");
+
+        var sequential = CrmExamSelectionPolicy.Select(rules, bank);
+        var randomA = CrmExamSelectionPolicy.Select(rules, bank, randomize: true, seed: 42);
+        var randomB = CrmExamSelectionPolicy.Select(rules, bank, randomize: true, seed: 42);
+        var randomOther = CrmExamSelectionPolicy.Select(rules, bank, randomize: true, seed: 43);
+        Assert.Equal(12, bank.Length);
+        Assert.Equal(4, randomA.Count);
+        Assert.Equal(randomA.OrderBy(id => id), randomB.OrderBy(id => id)); // same 4 ids from same seed
+        Assert.Equal(randomA, randomB); // reproducible exact order
+        Assert.NotEqual(sequential, randomA); // random draw is not simply the first-N sequence
+        Assert.NotEqual(randomA, randomOther); // different seed -> different draw
+        Assert.Throws<ArgumentException>(() => CrmExamSelectionPolicy.Select(
+            rules, bank, randomize: true, seed: null));
+    }
+
+    [Fact]
     public async Task ExamFlow_ShouldPublishGradeAndHideAnswerKey()
     {
         var q1 = await _service.CreateQuestionAsync(new CrmExamQuestionCreateDto

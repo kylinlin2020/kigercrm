@@ -16,6 +16,14 @@ public sealed class SysCrmExamPaper : BasicAppFullAuditedEntity, IStrictMultiTen
     [SugarColumn(ColumnName = "Question_Ids_Json", ColumnDataType = StaticConfig.CodeFirst_BigString, IsNullable = false)]
     public string QuestionIdsJson { get; set; } = "[]";
 
+    /// <summary>When true, selection draws a seeded deterministic sample instead of the first N ids.</summary>
+    [SugarColumn(ColumnName = "Randomize_Selection", IsNullable = false, DefaultValue = "0")]
+    public bool RandomizeSelection { get; set; }
+
+    /// <summary>Stable seed making a randomised draw reproducible across rebuilds.</summary>
+    [SugarColumn(ColumnName = "Selection_Seed", IsNullable = true)]
+    public int? SelectionSeed { get; set; }
+
     [SugarColumn(ColumnName = "Duration_Minutes", IsNullable = false, DefaultValue = "30")]
     public int DurationMinutes { get; set; } = 30;
 
