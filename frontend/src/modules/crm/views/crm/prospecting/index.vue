@@ -35,6 +35,7 @@ import CandidateTable from './CandidateTable.vue'
 import CrmDashboardPanel from './CrmDashboardPanel.vue'
 import CustomerImportPanel from './CustomerImportPanel.vue'
 import CustomsExportPanel from './CustomsExportPanel.vue'
+import ExamCertificatePanel from './ExamCertificatePanel.vue'
 import ExamPanel from './ExamPanel.vue'
 import OutreachPanel from './OutreachPanel.vue'
 import { useProspectingLabels } from './prospecting-labels'
@@ -703,6 +704,7 @@ onMounted(() => {
     <CrmDashboardPanel />
     <OutreachPanel />
     <ExamPanel />
+    <ExamCertificatePanel />
     <BusinessCardImportPanel />
     <TradeDocumentImportPanel />
     <CustomsExportPanel />

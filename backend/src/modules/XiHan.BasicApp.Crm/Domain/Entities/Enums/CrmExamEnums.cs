@@ -21,3 +21,9 @@ public enum CrmExamAttemptStatus
     Passed = 2,
     Failed = 3,
 }
+
+public enum CrmExamCertificateStatus
+{
+    Active = 0,
+    Revoked = 1,
+}

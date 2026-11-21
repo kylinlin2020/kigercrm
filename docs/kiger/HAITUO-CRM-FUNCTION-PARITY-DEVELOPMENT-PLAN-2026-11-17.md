@@ -397,3 +397,15 @@
 >
 > 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
 
+### 批次 4 考试证书证据（2026-11-21）
+
+- [x] 迁移 `5.9.56`：租户隔离证书实体（编号、尝试/试卷/持有人、分数、签发/到期、SHA-256 校验码、状态、撤销信息），编号唯一索引含 `IsDeleted`。策略 `CrmExamCertificatePolicy`：仅通过的尝试可签发且每个尝试仅一次；编号 `EX-<尝试ID>-<日期>`；校验码由不可变数据派生且撤销不改动；验证分别检查哈希/撤销/过期；有效期 365 天。
+- [x] API `CrmExamCertificate`（Issue/Mine/Verify/Revoke，Execute/Read/Update）：验证为只读；撤销必填理由。前端面板（签发、我的证书、编号+校验码验证、撤销）+ 类型/facade + 7 语言 15 键。
+- [x] 测试：策略 1 例（稳定哈希/撤销/过期/签发门槛）+ SQLite 闭环 1 例（签发一次、验证、错误哈希、撤销前后）+ 契约守卫 1 例；补回归断言：读回偏移与微秒精度变化后哈希仍一致。
+- [x] **实机发现并修复真实契约缺陷**：初次实机签发后立即验证恒为 `hash_mismatch` — PostgreSQL `timestamptz` 只存微秒，而 `DateTimeOffset.UtcNow` 带 100ns 刻度，全精度 `O` 字符串在往返后变化。校验码时间规范化到秒（`yyyy-MM-ddTHH:mm:ssZ`），跨 SQLite/PostgreSQL 稳定；补回归测试。
+- [x] 门禁：后端 build 0 错误 / **6079 总 / 0 失败**（Api.Tests 1212/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **190 文件 / 2672 用例全绿**、build 成功。
+- [x] 实机 HTTP（服务名 `CrmExamCertificate`）：匿名 401；签发 200、重复签发 422、验证有效 200、错误哈希 `hash_mismatch`、无理由撤销 400、撤销后验证 `revoked`；浏览器面板渲染正常。
+- [ ] 随机抽题、证书 PDF/二维码、Windows 原生部署：**待取证**。
+>
+> 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
+
