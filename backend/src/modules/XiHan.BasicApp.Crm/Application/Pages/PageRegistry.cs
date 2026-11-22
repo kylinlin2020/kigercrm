@@ -15,6 +15,7 @@ public static class PageRegistry
         new("crm_customers", "客户", "menu.crm_customers", MenuType.Menu, "/crm/customers", "CrmCustomer", "Crm/Customer/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:building-2", 510),
         new("crm_customer_pool", "客户公海", "menu.crm_customer_pool", MenuType.Menu, "/crm/customer-pool", "CrmCustomerPool", "Crm/CustomerPool/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:users-round", 512),
         new("crm_background_research", "背景调研", "menu.crm_background_research", MenuType.Menu, "/crm/background-research", "CrmBackgroundResearch", "Crm/BackgroundResearch/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:file-search", 513),
+        new("crm_outreach_draft", "邮件草稿审批", "menu.crm_outreach_draft", MenuType.Menu, "/crm/outreach-draft", "CrmOutreachDraft", "Crm/OutreachDraft/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:mail-check", 514),
         new("crm_contacts", "联系人", "menu.crm_contacts", MenuType.Menu, "/crm/contacts", "CrmContact", "Crm/Contact/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:contact", 515),
         new("crm_activities", "活动记录", "menu.crm_activities", MenuType.Menu, "/crm/activities", "CrmActivity", "Crm/Activity/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:history", 525),
         new("crm_leads", "销售线索", "menu.crm_leads", MenuType.Menu, "/crm/leads", "CrmLead", "Crm/Lead/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:user-round-search", 520),

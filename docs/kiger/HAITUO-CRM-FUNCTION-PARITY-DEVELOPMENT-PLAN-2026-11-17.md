@@ -496,5 +496,18 @@
 - [x] 浏览器：新菜单可见，端到端生成成功；深色 muted 文本改用 `hsl(var(--muted-foreground))`（实测深色 `rgb(161,161,170)`、浅色 `rgb(113,113,122)`），390px 窄屏无横向溢出。截图 `.openchamber/screenshots/research-dark-mobile-*.jpg`、`research-light-desktop-*.jpg`。
 - [ ] 外部情报源接入（需授权）、报告导出与定时重索引：**待取证**。
 
+### 批次 4 外呼邮件草稿审批证据（2026-11-22）
+
+- [x] 迁移 `5.9.63`：渲染草稿表（渲染文本 + SHA256 内容哈希 + 审批状态 + 审批人/时间 + 驳回原因），租户隔离；草稿正文落库以便审批人核对，模块本身不发送任何消息。
+- [x] 领域：`CrmOutreachTemplateRenderer` 为纯函数，白名单 `{{Variable}}` 插值（CompanyName / ContactName / FirstName / BusinessEmail / Website / WebsiteHost / Source / Summary），未知变量、空值、超长模板均显式抛错；单次正则扫描，变量值中的 `{{...}}` 不会被二次解析。`CrmOutreachDraftPolicy` 仅允许 Planned→Approved/Rejected，驳回原因必填。叠加在现有序列/报名/触点状态机之上，不改发送资格与抑制逻辑。
+- [x] 契约：Dynamic API `CrmOutreachDraft`（Preview / Create / List / GetDraft / Approve / Reject，Read / Create / Execute）；报名处于 Suppressed/Completed 时禁止创建草稿，审批用 CAS 守卫并记录审批留痕。
+- [x] 独立菜单页 `/crm/outreach-draft`（不堆进现有 OutreachPanel）+ 类型化 API/facade + 7 语言菜单、页面与状态文案。
+- [x] 测试 4 例（插值白名单与边界 / 审批状态守卫 / SQLite 预览-创建-审批闭环 / 契约守卫）。
+- [x] 门禁：后端 build 0 错误 / **6114 总 / 0 失败**（Api.Tests 1233/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **196 文件 / 2679 用例全绿**、build 成功。
+- [x] 实机 HTTP：匿名 401；插值成功 200（`Welcome to Omega Space`）、未知变量 422、缺失值 422、已抑制报名创建草稿 422、草稿列表 200。审批闭环由 SQLite 测试覆盖（预览环境无可用 Active 报名）。
+- [x] 浏览器：新菜单可见，端到端预览成功；深色 muted 文本 `rgb(161,161,170)`、390px 窄屏无横向溢出。截图 `.openchamber/screenshots/draft-dark-mobile-*.jpg`、`draft-light-desktop-*.jpg`。
+- [x] 已修复：vue-i18n 把 i18n 文案中的 `{{FirstName}}` 当作消息占位符导致页面渲染失败，文案改用无大括号的变量名提示；模板输入框默认值仍支持 `{{...}}`。
+- [ ] 真实 SMTP / Provider 发送、草稿审批后自动关联 Touchpoint：**待授权 / 待取证**。
+
 > 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
 
