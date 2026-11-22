@@ -482,7 +482,8 @@
 - [x] 测试：策略 1 例 + SQLite 闭环 1 例（加入/领取/重复领取拒绝/我的领取/退回/分配/超时回收）+ 契约守卫 1 例。
 - [x] 门禁：后端 build 0 错误 / **6106 总 / 0 失败**（Api.Tests 1225/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **194 文件 / 2677 用例全绿**、build 成功。
 - [x] 实机 HTTP：匿名 401；加入公海 200、列表 200、领取 200、重复领取 422、我的领取 200、退回 200、分配 200、回收 200（未超时返回 0）；浏览器新菜单与页面渲染正常。
-- [ ] 超时回收 Worker 定时化（当前需显式触发）、批量分配、与线索转化的联动：**待取证**。
+- [x] 超时回收 Worker 定时化：`CrmCustomerPoolRecoveryHostedService` 每 60 秒跨租户扫描，与手动 API 共用 `CrmCustomerPoolReclamation.RecoverIdleAsync`（见下方证据）。
+- [ ] 批量分配、与线索转化的联动：**待取证**。
 
 ### 批次 4 客户背景调研证据（2026-11-22）
 
@@ -508,6 +509,14 @@
 - [x] 浏览器：新菜单可见，端到端预览成功；深色 muted 文本 `rgb(161,161,170)`、390px 窄屏无横向溢出。截图 `.openchamber/screenshots/draft-dark-mobile-*.jpg`、`draft-light-desktop-*.jpg`。
 - [x] 已修复：vue-i18n 把 i18n 文案中的 `{{FirstName}}` 当作消息占位符导致页面渲染失败，文案改用无大括号的变量名提示；模板输入框默认值仍支持 `{{...}}`。
 - [ ] 真实 SMTP / Provider 发送、草稿审批后自动关联 Touchpoint：**待授权 / 待取证**。
+
+### 批次 4 客户公海超时回收 Worker 证据（2026-11-22）
+
+- [x] 回收逻辑提取为 `CrmCustomerPoolReclamation.RecoverIdleAsync`（静态领域函数），手动 API 与定时任务共用同一实现；每批 100 条，CAS 守卫保证重复扫描幂等。
+- [x] `CrmCustomerPoolRecoveryHostedService` 继承 `XiHanBackgroundServiceBase`，通过 `ITenantDataScopeRunner` 在租户数据作用域内执行，并发 1、空闲 60 秒；不执行外部 I/O、不自动外联。已在 CRM `ServiceCollectionExtensions` 注册。
+- [x] 测试 2 例（静态回收幂等 / Worker 契约与注册）。
+- [x] 门禁：后端 build 0 错误 / **6116 总 / 0 失败**（Api.Tests 1235/0）。
+- [x] 实机：服务启动无 DI 错误；手动 `POST /CrmCustomerPool/RecoverIdle` 200（当前无超时条目返回 0）。真实超时回收路径由 SQLite 闭环测试覆盖（不手工修改数据库制造 7 天超时数据）。
 
 > 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
 

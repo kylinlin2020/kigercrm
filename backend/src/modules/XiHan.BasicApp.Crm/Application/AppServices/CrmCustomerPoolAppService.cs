@@ -118,18 +118,7 @@ public sealed class CrmCustomerPoolAppService(
     [UnitOfWork(true)]
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public async Task<int> RecoverIdleAsync(CancellationToken cancellationToken = default)
-    {
-        var now = DateTimeOffset.UtcNow;
-        var threshold = now.Add(-CrmCustomerPoolPolicy.ClaimIdleTimeout);
-        var idle = await entries.GetIdleClaimsAsync(threshold, MaxListSize, cancellationToken);
-        var recovered = 0;
-        foreach (var entry in idle)
-        {
-            if (await entries.TryRecoverAsync(entry.BasicId, threshold, now, cancellationToken))
-                recovered++;
-        }
-        return recovered;
-    }
+        => await CrmCustomerPoolReclamation.RecoverIdleAsync(entries, cancellationToken);
 
     private long RequireUserId()
         => currentUser.UserId ?? throw new InvalidOperationException("An authenticated user is required.");

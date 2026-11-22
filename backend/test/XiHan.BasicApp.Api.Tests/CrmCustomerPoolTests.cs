@@ -158,6 +158,37 @@ public sealed class CrmCustomerPoolTests : IDisposable
         Assert.Contains("CREATE TABLE IF NOT EXISTS crm_customer_pool_entry", migration, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Reclamation_ShouldBeIdempotentAcrossRuns()
+    {
+        var customer = await _customers.AddAsync(new SysCrmCustomer { Name = "reclaim-customer" });
+        var added = await _service.AddAsync(new CrmCustomerPoolAddDto { CustomerId = customer.BasicId });
+        await _service.ClaimAsync(new CrmCustomerPoolActionDto { EntryId = added.BasicId });
+        await _db.Updateable<SysCrmCustomerPoolEntry>()
+            .SetColumns(item => item.ClaimedAtUtc == DateTimeOffset.UtcNow.AddDays(-8))
+            .Where(item => item.BasicId == added.BasicId)
+            .ExecuteCommandAsync();
+
+        Assert.Equal(1, await CrmCustomerPoolReclamation.RecoverIdleAsync(_entries));
+        Assert.Equal(0, await CrmCustomerPoolReclamation.RecoverIdleAsync(_entries));
+        var final = await _entries.GetByIdAsync(added.BasicId);
+        Assert.Equal(CrmCustomerPoolStatus.Recovered, final!.Status);
+    }
+
+    [Fact]
+    public void Worker_ShouldBeTenantScopedAndRegistered()
+    {
+        var worker = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Infrastructure", "Prospecting", "CrmCustomerPoolRecoveryHostedService.cs");
+        var registration = Read("backend", "src", "modules", "XiHan.BasicApp.Crm",
+            "Extensions", "ServiceCollectionExtensions.cs");
+        Assert.Contains("XiHanBackgroundServiceBase<CrmCustomerPoolRecoveryHostedService>", worker, StringComparison.Ordinal);
+        Assert.Contains("ITenantDataScopeRunner", worker, StringComparison.Ordinal);
+        Assert.Contains("CrmCustomerPoolReclamation.RecoverIdleAsync", worker, StringComparison.Ordinal);
+        Assert.DoesNotContain("HttpClient", worker, StringComparison.Ordinal);
+        Assert.Contains("AddHostedService<CrmCustomerPoolRecoveryHostedService>()", registration, StringComparison.Ordinal);
+    }
+
     public void Dispose()
     {
         _tenantScope.Dispose();

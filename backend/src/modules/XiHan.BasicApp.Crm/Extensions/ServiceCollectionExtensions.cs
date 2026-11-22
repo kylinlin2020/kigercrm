@@ -66,6 +66,7 @@ public static class ServiceCollectionExtensions
         services.AddHostedService<CrmProspectingExtractionHostedService>();
         services.AddHostedService<CrmProspectingExtractionCoordinatorHostedService>();
         services.AddHostedService<CrmProspectingScheduleHostedService>();
+        services.AddHostedService<CrmCustomerPoolRecoveryHostedService>();
         services.AddScoped<CrmProspectingScheduleDispatcher>();
         services.AddTransient<ICrmProspectingPageFetcher, CrmProspectingPinnedPageFetcher>();
         return services;
