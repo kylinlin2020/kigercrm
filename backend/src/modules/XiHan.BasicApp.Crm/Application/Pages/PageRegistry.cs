@@ -22,6 +22,10 @@ public static class PageRegistry
         new("crm_sales_orders", "销售订单", "menu.crm_sales_orders", MenuType.Menu, "/crm/sales-orders", "CrmSalesOrder", "Crm/SalesOrder/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:shopping-cart", 560),
         new("crm_shipments", "发货管理", "menu.crm_shipments", MenuType.Menu, "/crm/shipments", "CrmShipment", "Crm/Shipment/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:truck", 570),
         new("crm_prospecting", "自动获客", "menu.crm_prospecting", MenuType.Menu, "/crm/prospecting", "CrmProspecting", "Crm/Prospecting/Index", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:radar", 580),
+        new("crm_prospecting_planning", "规划与调度", "menu.crm_prospecting_planning", MenuType.Menu, "/crm/prospecting-planning", "CrmProspectingPlanning", "Crm/Prospecting/Planning", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:calendar-clock", 581),
+        new("crm_prospecting_dashboard", "效果看板", "menu.crm_prospecting_dashboard", MenuType.Menu, "/crm/prospecting-dashboard", "CrmProspectingDashboard", "Crm/Prospecting/Dashboard", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:chart-no-axes-combined", 582),
+        new("crm_prospecting_training", "外联与培训", "menu.crm_prospecting_training", MenuType.Menu, "/crm/prospecting-training", "CrmProspectingTraining", "Crm/Prospecting/Training", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:graduation-cap", 583),
+        new("crm_prospecting_data", "数据工具", "menu.crm_prospecting_data", MenuType.Menu, "/crm/prospecting-data", "CrmProspectingData", "Crm/Prospecting/Data", CrmDirectoryCode, CrmPermissionCodes.Read, "lucide:database", 584),
     ];
 
     public static IReadOnlyList<ButtonDescriptor> Buttons { get; } =

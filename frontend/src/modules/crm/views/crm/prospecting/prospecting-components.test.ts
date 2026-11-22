@@ -9,6 +9,9 @@ function source(name: string) {
 }
 
 const index = source('index.vue')
+const planning = source('planning.vue')
+const dashboard = source('dashboard.vue')
+const training = source('training.vue')
 const bulkActionBar = source('BulkActionBar.vue')
 const candidateTable = source('CandidateTable.vue')
 const reviewDetailPanel = source('ReviewDetailPanel.vue')
@@ -20,7 +23,7 @@ const outreachPanel = source('OutreachPanel.vue')
 const dashboardPanel = source('CrmDashboardPanel.vue')
 
 describe('prospecting page component split', () => {
-  it('keeps shared state in the page and delegates the three extracted views', () => {
+  it('keeps shared state in the workspace page and delegates the three extracted views', () => {
     expect(index).toContain('import BulkActionBar from \'./BulkActionBar.vue\'')
     expect(index).toContain('import CandidateTable from \'./CandidateTable.vue\'')
     expect(index).toContain('import ReviewDetailPanel from \'./ReviewDetailPanel.vue\'')
@@ -33,6 +36,31 @@ describe('prospecting page component split', () => {
     expect(index).not.toContain('class="bulk-action-bar"')
     expect(index).not.toContain('class="pagination-bar"')
     expect(index).not.toContain('class="panel review-detail"')
+  })
+
+  it('moves auxiliary panels out of the workspace page into dedicated menu pages', () => {
+    for (const panel of [
+      'SuperSearchPreviewPanel',
+      'SchedulePanel',
+      'CrmDashboardPanel',
+      'OutreachPanel',
+      'ExamPanel',
+      'ExamCertificatePanel',
+      'BusinessCardImportPanel',
+      'TradeDocumentImportPanel',
+      'CustomerImportPanel',
+      'CustomsExportPanel',
+      'ProviderCredentialsPanel',
+    ]) {
+      expect(index).not.toContain(`<${panel}`)
+    }
+    expect(index).toContain('workspace.refreshToken')
+    expect(planning).toContain('<SuperSearchPreviewPanel')
+    expect(planning).toContain('<SchedulePanel')
+    expect(dashboard).toContain('<CrmDashboardPanel')
+    expect(training).toContain('<OutreachPanel')
+    expect(training).toContain('<ExamPanel')
+    expect(training).toContain('<ExamCertificatePanel')
   })
 
   it('keeps bulk commands permission-gated and free of direct API calls', () => {
@@ -66,8 +94,8 @@ describe('prospecting page component split', () => {
   })
 
   it('keeps the Super Search preview read-only, permission-gated and keyboard reachable', () => {
-    expect(index).toContain('import SuperSearchPreviewPanel from \'./SuperSearchPreviewPanel.vue\'')
-    expect(index).toContain('<SuperSearchPreviewPanel')
+    expect(planning).toContain('import SuperSearchPreviewPanel from \'./SuperSearchPreviewPanel.vue\'')
+    expect(planning).toContain('<SuperSearchPreviewPanel')
     expect(superSearchPanel).toContain('usePermission')
     expect(superSearchPanel).toContain('hasPermission(\'crm_prospecting.execute\')')
     expect(superSearchPanel).toContain('previewSuperSearch')
@@ -80,14 +108,14 @@ describe('prospecting page component split', () => {
     expect(superSearchPanel).toContain('useI18n')
   })
 
-  it('keeps Super Search missions durable and reuses the page run loader after execution', () => {
+  it('keeps Super Search missions durable and notifies the workspace after execution', () => {
     expect(superSearchPanel).toContain('saveSuperSearchMission')
     expect(superSearchPanel).toContain('superSearchMissions')
     expect(superSearchPanel).toContain('createRunFromSuperSearchMission')
     expect(superSearchPanel).toContain('defineEmits')
     expect(superSearchPanel).toContain('runCreated: [runId: ApiId]')
     expect(superSearchPanel).toContain('mission.runId')
-    expect(index).toContain('@run-created="loadWorkspace"')
+    expect(planning).toContain('@run-created="notifyWorkspace"')
   })
 
   it('keeps objective parsing review-only, filling the form without auto-saving', () => {
@@ -96,15 +124,14 @@ describe('prospecting page component split', () => {
     expect(superSearchPanel).toContain('preview.value = null')
     expect(superSearchPanel).toContain('parseResult.matches')
     expect(superSearchPanel).toContain('parseResult.warnings')
-    // The parsed values land in the form for human review; no command is issued by the parser.
     expect(superSearchPanel).toContain('products.value = result.input.products.join')
     expect(superSearchPanel).not.toContain('await saveMission()')
     expect(superSearchPanel).not.toContain('await executeMission(')
   })
 
   it('keeps schedule approval gated in the UI and dispatch strictly worker-side', () => {
-    expect(index).toContain('import SchedulePanel from \'./SchedulePanel.vue\'')
-    expect(index).toContain('@schedule-changed="loadWorkspace"')
+    expect(planning).toContain('import SchedulePanel from \'./SchedulePanel.vue\'')
+    expect(planning).toContain('@schedule-changed="notifyWorkspace"')
     expect(schedulePanel).toContain('hasPermission(\'crm_prospecting.execute\')')
     expect(schedulePanel).toContain('createSchedule')
     expect(schedulePanel).toContain('submitSchedule')
@@ -138,8 +165,8 @@ describe('prospecting page component split', () => {
   })
 
   it('keeps outreach send gated behind human approval with no automated channel', () => {
-    expect(index).toContain('import OutreachPanel from \'./OutreachPanel.vue\'')
-    expect(index).toContain('<OutreachPanel')
+    expect(training).toContain('import OutreachPanel from \'./OutreachPanel.vue\'')
+    expect(training).toContain('<OutreachPanel')
     expect(outreachPanel).toContain('approveOutreachTouchpoint')
     expect(outreachPanel).toContain('recordOutreachTouchpoint')
     expect(outreachPanel).toContain('suppressOutreachEnrollment')
@@ -150,8 +177,8 @@ describe('prospecting page component split', () => {
   })
 
   it('keeps the dashboard read-only with bounded SVG bars', () => {
-    expect(index).toContain('import CrmDashboardPanel from \'./CrmDashboardPanel.vue\'')
-    expect(index).toContain('<CrmDashboardPanel')
+    expect(dashboard).toContain('import CrmDashboardPanel from \'./CrmDashboardPanel.vue\'')
+    expect(dashboard).toContain('<CrmDashboardPanel')
     expect(dashboardPanel).toContain('crmDashboardApi.overview')
     expect(dashboardPanel).toContain('crmDashboardApi.leadFunnel')
     expect(dashboardPanel).toContain('crmDashboardApi.prospectSources')

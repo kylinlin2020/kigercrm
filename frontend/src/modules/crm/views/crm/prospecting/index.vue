@@ -30,25 +30,15 @@ import {
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import BulkActionBar from './BulkActionBar.vue'
-import BusinessCardImportPanel from './BusinessCardImportPanel.vue'
 import CandidateTable from './CandidateTable.vue'
-import CrmDashboardPanel from './CrmDashboardPanel.vue'
-import CustomerImportPanel from './CustomerImportPanel.vue'
-import CustomsExportPanel from './CustomsExportPanel.vue'
-import ExamCertificatePanel from './ExamCertificatePanel.vue'
-import ExamPanel from './ExamPanel.vue'
-import OutreachPanel from './OutreachPanel.vue'
 import { useProspectingLabels } from './prospecting-labels'
+import { useProspectingWorkspaceStore } from './prospecting-workspace'
 import {
   CRM_PROSPECTING_PROVIDER_FALLBACK_CATALOG,
   CRM_PROSPECTING_PROVIDER_GROUPS,
 } from './provider-catalog'
-import ProviderCredentialsPanel from './ProviderCredentialsPanel.vue'
 import ReviewDetailPanel from './ReviewDetailPanel.vue'
 import RunMonitorPanel from './RunMonitorPanel.vue'
-import SchedulePanel from './SchedulePanel.vue'
-import SuperSearchPreviewPanel from './SuperSearchPreviewPanel.vue'
-import TradeDocumentImportPanel from './TradeDocumentImportPanel.vue'
 import { useRunMonitorPolling } from './useRunMonitorPolling'
 
 defineOptions({ name: 'CrmProspectingPage' })
@@ -56,6 +46,7 @@ defineOptions({ name: 'CrmProspectingPage' })
 const { t } = useI18n()
 const { candidateStatus } = useProspectingLabels()
 const { hasPermission } = usePermission()
+const workspace = useProspectingWorkspaceStore()
 const loading = ref(false)
 const submitting = ref(false)
 const campaigns = ref<CrmProspectingCampaignDto[]>([])
@@ -314,6 +305,10 @@ function selectRun(run: CrmProspectingRunDto) {
 }
 
 watch(selectedCampaignId, () => {
+  void loadWorkspace()
+})
+// 规划与调度页创建 Run / 变更计划后通过 store 通知，主工作区重新拉取活动与执行记录。
+watch(() => workspace.refreshToken, () => {
   void loadWorkspace()
 })
 watch(selectedRunId, () => {
@@ -697,18 +692,6 @@ onMounted(() => {
         {{ t('crm.prospecting.createCampaign') }}
       </button>
     </header>
-
-    <ProviderCredentialsPanel />
-    <SuperSearchPreviewPanel @run-created="loadWorkspace" />
-    <SchedulePanel @schedule-changed="loadWorkspace" />
-    <CrmDashboardPanel />
-    <OutreachPanel />
-    <ExamPanel />
-    <ExamCertificatePanel />
-    <BusinessCardImportPanel />
-    <TradeDocumentImportPanel />
-    <CustomsExportPanel />
-    <CustomerImportPanel />
 
     <section class="toolbar">
       <label>{{ t('crm.prospecting.campaign') }}
