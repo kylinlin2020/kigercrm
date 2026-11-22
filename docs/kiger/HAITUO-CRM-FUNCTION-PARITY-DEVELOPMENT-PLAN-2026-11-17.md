@@ -474,3 +474,15 @@
 - [ ] **团队排行按姓名展示（维持待授权）**：排查确认 `IUserQueryService.GetUserDetailAsync`/`GetUserPageAsync` 均带 `SaasPermissionCodes.User.Read`，而 CRM 看板用户未必有 `user:read`；强行按 ID 拉用户会越权，失败降级又属规范禁止的静默 fallback。需明确的跨模块授权或专门的用户展示名契约后再实现。
 - 本轮无代码改动、无提交。
 
+### 批次 4 客户公海证据（2026-11-22）
+
+- [x] 迁移 `5.9.61`：租户隔离的客户公海条目（`CustomerId` + 状态 + 领取人/时间 + 领取次数 + 最近退回时间），客户唯一索引含 `IsDeleted`。策略 `CrmCustomerPoolPolicy`：领取独占且限领 10 次、退回仅限领取人、超时（7 天）回收；只报告不自动外联。
+- [x] 仓储用 `UpdateAsync(selector, predicate)` 做 CAS：领取仅在 Available 时翻转并原子 `ClaimCount+1`，退回在 SQL WHERE 中校验领取人，回收在 SQL WHERE 中校验超时——并发只有一个赢家。
+- [x] 独立 API `CrmCustomerPool`（Add/Available/Mine/Claim/Release/Assign/RecoverIdle，Read/Create/Execute/Update）+ 独立菜单页 `/crm/customer-pool`（不堆进客户列表页）+ 类型/facade + 7 语言菜单与页面文案。
+- [x] 测试：策略 1 例 + SQLite 闭环 1 例（加入/领取/重复领取拒绝/我的领取/退回/分配/超时回收）+ 契约守卫 1 例。
+- [x] 门禁：后端 build 0 错误 / **6106 总 / 0 失败**（Api.Tests 1225/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **194 文件 / 2677 用例全绿**、build 成功。
+- [x] 实机 HTTP：匿名 401；加入公海 200、列表 200、领取 200、重复领取 422、我的领取 200、退回 200、分配 200、回收 200（未超时返回 0）；浏览器新菜单与页面渲染正常。
+- [ ] 超时回收 Worker 定时化（当前需显式触发）、批量分配、与线索转化的联动：**待取证**。
+
+> 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
+
