@@ -484,5 +484,17 @@
 - [x] 实机 HTTP：匿名 401；加入公海 200、列表 200、领取 200、重复领取 422、我的领取 200、退回 200、分配 200、回收 200（未超时返回 0）；浏览器新菜单与页面渲染正常。
 - [ ] 超时回收 Worker 定时化（当前需显式触发）、批量分配、与线索转化的联动：**待取证**。
 
+### 批次 4 客户背景调研证据（2026-11-22）
+
+- [x] 迁移 `5.9.62`：调研报告 / 结构化证据 / 市场机会三张租户隔离表。事实以 `FactKey` + `FactValue` 存储，自然语言标签交给前端 7 语言 i18n，后端不硬编码文案。
+- [x] 领域：`CrmBackgroundResearchAggregator` 为纯函数，只从三个本地来源聚合——客户档案（注册名/行业/地区/官网/来源/备注）、在途商机（已赢/已输仅作证据不生成机会）、转化来源线索；置信度下限 40、每报告最多 50 条证据 / 20 个机会。机会优先级确定性公式 `round(概率×0.6 + min(金额/1000, 40))`，无 AI、无网络、无客户端、无静默兜底。
+- [x] 契约：Dynamic API `CrmBackgroundResearch`（Generate / Current / History / ReviewOpportunity，Execute / Read / Update）；重新生成时将旧报告标记 `Superseded`，客户调研历史可追溯；机会审核只允许 Proposed→Confirmed/Dismissed 且 CAS 守卫。仓储接口未继承 `ISaasRepository<T>`，已在 CRM `ServiceCollectionExtensions` 显式注册。
+- [x] 独立菜单页 `/crm/background-research`（不堆进客户列表页）+ 类型化 API/facade + 7 语言菜单、页面、来源、事实键与机会状态文案。
+- [x] 测试 4 例（确定性策略 / 纯聚合器 / SQLite 生成-取代-审核闭环 / 契约守卫）。
+- [x] 门禁：后端 build 0 错误 / **6110 总 / 0 失败**（Api.Tests 1229/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **195 文件 / 2678 用例全绿**、build 成功。
+- [x] 实机 HTTP：匿名 401；Generate 200（5 证据 / 1 机会）、Current 200、History 200（多次生成可追溯）、Review 确认 200、重复审核 422、非法状态 400；优先级 73 与确定性公式一致。
+- [x] 浏览器：新菜单可见，端到端生成成功；深色 muted 文本改用 `hsl(var(--muted-foreground))`（实测深色 `rgb(161,161,170)`、浅色 `rgb(113,113,122)`），390px 窄屏无横向溢出。截图 `.openchamber/screenshots/research-dark-mobile-*.jpg`、`research-light-desktop-*.jpg`。
+- [ ] 外部情报源接入（需授权）、报告导出与定时重索引：**待取证**。
+
 > 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
 
