@@ -3,9 +3,17 @@ import type {
   CrmExamCertificateDto,
   CrmExamCertificateVerdictDto,
 } from '@/api/modules/crm/exam-certificate.types'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmExamCertificateApi } from '@/api/modules/crm/exam-certificate'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmExamCertificatePanel' })
@@ -80,13 +88,18 @@ async function revoke(certificate: CrmExamCertificateDto) {
       <p>{{ t('crm.prospecting.certDescription') }}</p>
     </header>
     <div class="ec-actions">
-      <label>{{ t('crm.prospecting.certAttemptId') }}<input v-model="attemptId" type="text"></label>
-      <button type="button" :disabled="!attemptId" @click="issue">
-        {{ t('crm.prospecting.certIssue') }}
-      </button>
-      <button type="button" @click="reload">
-        {{ t('crm.prospecting.certRefresh') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.certAttemptId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="attemptId" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" :disabled="!attemptId" @click="issue">
+        <XhButtonLabel>{{ t('crm.prospecting.certIssue') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" @click="reload">
+        <XhButtonLabel>{{ t('crm.prospecting.certRefresh') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <ul class="ec-list">
@@ -94,26 +107,38 @@ async function revoke(certificate: CrmExamCertificateDto) {
         <strong>{{ certificate.certificateNo }}</strong>
         <span>{{ certificate.score }}/{{ certificate.totalScore }} · {{ statusLabel(certificate.status) }}</span>
         <small>{{ certificate.verificationHash.slice(0, 16) }}…</small>
-        <button v-if="certificate.status === 0" type="button" @click="revoke(certificate)">
-          {{ t('crm.prospecting.certRevoke') }}
-        </button>
+        <XhButton v-if="certificate.status === 0" variant="subtle" @click="revoke(certificate)">
+          <XhButtonLabel>{{ t('crm.prospecting.certRevoke') }}</XhButtonLabel>
+        </XhButton>
       </li>
     </ul>
 
     <div class="ec-verify">
-      <label>{{ t('crm.prospecting.certVerifyNo') }}<input v-model="verifyNo" type="text"></label>
-      <label>{{ t('crm.prospecting.certVerifyHash') }}<input v-model="verifyHash" type="text"></label>
-      <button type="button" :disabled="!verifyNo || !verifyHash" @click="verify">
-        {{ t('crm.prospecting.certVerify') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.certVerifyNo') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="verifyNo" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.certVerifyHash') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="verifyHash" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" :disabled="!verifyNo || !verifyHash" @click="verify">
+        <XhButtonLabel>{{ t('crm.prospecting.certVerify') }}</XhButtonLabel>
+      </XhButton>
       <p v-if="verdict" :class="verdict.valid ? 'ec-valid' : 'ec-invalid'">
         {{ t('crm.prospecting.certVerdict', { result: verdict.reason }) }}
       </p>
     </div>
-    <label class="ec-reason">
-      {{ t('crm.prospecting.certRevokeReason') }}
-      <input v-model="revokeReason" type="text">
-    </label>
+    <XhFieldRoot class="ec-reason">
+      <XhFieldLabel>{{ t('crm.prospecting.certRevokeReason') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="revokeReason" />
+      </XhFieldControl>
+    </XhFieldRoot>
   </section>
 </template>
 
@@ -130,19 +155,6 @@ async function revoke(certificate: CrmExamCertificateDto) {
   align-items: end;
   gap: 0.5rem;
 }
-.ec-actions label,
-.ec-verify label,
-.ec-reason {
-  display: grid;
-  gap: 0.2rem;
-  font-size: 0.82rem;
-}
-.ec-actions input,
-.ec-verify input,
-.ec-reason input {
-  width: 100%;
-  font: inherit;
-}
 .ec-list {
   list-style: none;
   margin: 0;
@@ -154,12 +166,12 @@ async function revoke(certificate: CrmExamCertificateDto) {
   flex-wrap: wrap;
   gap: 0.6rem;
   padding: 0.3rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
 }
 .ec-valid {
-  color: var(--xh-success, #2a0);
+  color: hsl(var(--success));
 }
 .ec-invalid {
-  color: var(--xh-danger, #c00);
+  color: hsl(var(--destructive));
 }
 </style>

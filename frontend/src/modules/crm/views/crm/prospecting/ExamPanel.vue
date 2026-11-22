@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import type { CrmExamAttemptDto, CrmExamPaperDto, CrmExamQuestionDto } from '@/api/modules/crm/exam.types'
-import { ref } from 'vue'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhCheckbox,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmExamApi } from '@/api/modules/crm/exam'
 import {
 
   CrmExamQuestionType,
 } from '@/api/modules/crm/exam.types'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmExamPanel' })
@@ -19,8 +28,14 @@ const attempts = ref<CrmExamAttemptDto[]>([])
 const active = ref<CrmExamAttemptDto | null>(null)
 const answers = ref<Record<string, string>>({})
 
-const newQuestion = ref({ prompt: '', type: CrmExamQuestionType.SingleChoice, category: '', options: 'A, B', correctAnswer: 'A', correctAnswers: 'A, B', points: 1 })
-const newPaper = ref({ name: '', questionIds: '', selectionRules: '', randomizeSelection: false, selectionSeed: '42', durationMinutes: 30, passScore: 60, maxAttempts: 3 })
+const newQuestion = ref({ prompt: '', type: CrmExamQuestionType.SingleChoice, category: '', options: 'A, B', correctAnswer: 'A', correctAnswers: 'A, B', points: '1' })
+const newPaper = ref({ name: '', questionIds: '', selectionRules: '', randomizeSelection: false, selectionSeed: '42', durationMinutes: '30', passScore: '60', maxAttempts: '3' })
+
+const questionTypeOptions = computed(() => [
+  { label: t('crm.prospecting.examTypeSingle'), value: 0 },
+  { label: t('crm.prospecting.examTypeTrueFalse'), value: 1 },
+  { label: t('crm.prospecting.examTypeMulti'), value: 2 },
+])
 
 function statusLabel(status: number) {
   return [
@@ -112,9 +127,9 @@ async function start(paperId: string) {
   }
 }
 
-function toggleMulti(questionId: string, option: string, event: Event) {
+function toggleMulti(questionId: string, option: string, checked: boolean) {
   const selected = new Set((answers.value[questionId] ?? '').split(',').filter(Boolean))
-  if ((event.target as HTMLInputElement).checked)
+  if (checked)
     selected.add(option)
   else selected.delete(option)
   answers.value[questionId] = [...selected].join(',')
@@ -147,22 +162,51 @@ async function submit() {
     <div class="ce-grid">
       <div class="ce-block">
         <h4>{{ t('crm.prospecting.examQuestions') }}</h4>
-        <label>{{ t('crm.prospecting.examPrompt') }}<input v-model="newQuestion.prompt" type="text"></label>
-        <label>{{ t('crm.prospecting.examCategory') }}<input v-model="newQuestion.category" type="text"></label>
-        <label>{{ t('crm.prospecting.examType') }}
-          <select v-model.number="newQuestion.type">
-            <option :value="0">{{ t('crm.prospecting.examTypeSingle') }}</option>
-            <option :value="1">{{ t('crm.prospecting.examTypeTrueFalse') }}</option>
-            <option :value="2">{{ t('crm.prospecting.examTypeMulti') }}</option>
-          </select>
-        </label>
-        <label>{{ t('crm.prospecting.examOptions') }}<input v-model="newQuestion.options" type="text"></label>
-        <label v-if="newQuestion.type === 2">{{ t('crm.prospecting.examCorrectMulti') }}<input v-model="newQuestion.correctAnswers" type="text"></label>
-        <label v-else>{{ t('crm.prospecting.examCorrect') }}<input v-model="newQuestion.correctAnswer" type="text"></label>
-        <label>{{ t('crm.prospecting.examPoints') }}<input v-model.number="newQuestion.points" type="number" min="1"></label>
-        <button type="button" :disabled="!newQuestion.prompt" @click="addQuestion">
-          {{ t('crm.prospecting.examAddQuestion') }}
-        </button>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examPrompt') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newQuestion.prompt" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examCategory') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newQuestion.category" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examType') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XSelect v-model:value="newQuestion.type" :options="questionTypeOptions" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examOptions') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newQuestion.options" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot v-if="newQuestion.type === 2">
+          <XhFieldLabel>{{ t('crm.prospecting.examCorrectMulti') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newQuestion.correctAnswers" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot v-else>
+          <XhFieldLabel>{{ t('crm.prospecting.examCorrect') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newQuestion.correctAnswer" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examPoints') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newQuestion.points" inputmode="numeric" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhButton variant="outline" :disabled="!newQuestion.prompt" @click="addQuestion">
+          <XhButtonLabel>{{ t('crm.prospecting.examAddQuestion') }}</XhButtonLabel>
+        </XhButton>
         <ul>
           <li v-for="question in questions" :key="question.basicId">
             {{ question.prompt }} [{{ question.category || t('crm.prospecting.examNoCategory') }}] ({{ question.points }})
@@ -172,32 +216,65 @@ async function submit() {
 
       <div class="ce-block">
         <h4>{{ t('crm.prospecting.examPapers') }}</h4>
-        <label>{{ t('crm.prospecting.examPaperName') }}<input v-model="newPaper.name" type="text"></label>
-        <label>{{ t('crm.prospecting.examQuestionIds') }}<input v-model="newPaper.questionIds" type="text"></label>
-        <label>{{ t('crm.prospecting.examSelectionRules') }}
-          <input v-model="newPaper.selectionRules" type="text" :placeholder="t('crm.prospecting.examSelectionRulesHint')">
-        </label>
-        <label class="ce-check">
-          <input v-model="newPaper.randomizeSelection" type="checkbox">
-          {{ t('crm.prospecting.examRandomize') }}
-        </label>
-        <label v-if="newPaper.randomizeSelection">{{ t('crm.prospecting.examSeed') }}<input v-model="newPaper.selectionSeed" type="number"></label>
-        <label>{{ t('crm.prospecting.examDuration') }}<input v-model.number="newPaper.durationMinutes" type="number" min="1" max="180"></label>
-        <label>{{ t('crm.prospecting.examPassScore') }}<input v-model.number="newPaper.passScore" type="number" min="1"></label>
-        <label>{{ t('crm.prospecting.examMaxAttempts') }}<input v-model.number="newPaper.maxAttempts" type="number" min="1" max="10"></label>
-        <button type="button" :disabled="!newPaper.name" @click="addPaper">
-          {{ t('crm.prospecting.examCreatePaper') }}
-        </button>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examPaperName') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newPaper.name" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examQuestionIds') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newPaper.questionIds" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examSelectionRules') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newPaper.selectionRules" :placeholder="t('crm.prospecting.examSelectionRulesHint')" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <div class="ce-check">
+          <XhCheckbox v-model:checked="newPaper.randomizeSelection" :aria-label="t('crm.prospecting.examRandomize')" />
+          <span>{{ t('crm.prospecting.examRandomize') }}</span>
+        </div>
+        <XhFieldRoot v-if="newPaper.randomizeSelection">
+          <XhFieldLabel>{{ t('crm.prospecting.examSeed') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newPaper.selectionSeed" inputmode="numeric" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examDuration') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newPaper.durationMinutes" inputmode="numeric" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examPassScore') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newPaper.passScore" inputmode="numeric" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.examMaxAttempts') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="newPaper.maxAttempts" inputmode="numeric" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhButton variant="outline" :disabled="!newPaper.name" @click="addPaper">
+          <XhButtonLabel>{{ t('crm.prospecting.examCreatePaper') }}</XhButtonLabel>
+        </XhButton>
         <ul>
           <li v-for="paper in papers" :key="paper.basicId">
             {{ paper.name }} · {{ paper.questionCount }} · {{ paper.totalScore }} · {{ statusLabel(paper.status) }}
             <small v-if="paper.selectionRules.length">{{ paper.selectionRules.map(rule => `${rule.category}:${rule.count}`).join(' ') }}{{ paper.randomizeSelection ? ` · ${t('crm.prospecting.examSeed')}:${paper.selectionSeed}` : '' }}</small>
-            <button v-if="paper.status === 0" type="button" @click="publish(paper.basicId)">
-              {{ t('crm.prospecting.examPublish') }}
-            </button>
-            <button v-if="paper.status === 1" type="button" @click="start(paper.basicId)">
-              {{ t('crm.prospecting.examStart') }}
-            </button>
+            <XhButton v-if="paper.status === 0" variant="outline" @click="publish(paper.basicId)">
+              <XhButtonLabel>{{ t('crm.prospecting.examPublish') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton v-if="paper.status === 1" variant="outline" @click="start(paper.basicId)">
+              <XhButtonLabel>{{ t('crm.prospecting.examStart') }}</XhButtonLabel>
+            </XhButton>
           </li>
         </ul>
       </div>
@@ -205,26 +282,32 @@ async function submit() {
       <div class="ce-block">
         <h4>{{ t('crm.prospecting.examTake') }}</h4>
         <template v-if="active">
-          <p v-for="question in active.questions" :key="question.basicId" class="ce-question">
+          <div v-for="question in active.questions" :key="question.basicId" class="ce-question">
             {{ question.prompt }}
             <template v-if="question.type === 2">
-              <label v-for="option in question.options" :key="option" class="ce-option">
-                <input type="checkbox" :checked="isMultiSelected(question.basicId, option)" @change="toggleMulti(question.basicId, option, $event)">
+              <XhCheckbox
+                v-for="option in question.options"
+                :key="option"
+                class="ce-option"
+                :checked="isMultiSelected(question.basicId, option)"
+                :aria-label="option"
+                @update:checked="(checked) => toggleMulti(question.basicId, option, checked)"
+              >
                 {{ option }}
-              </label>
+              </XhCheckbox>
             </template>
-            <select v-else v-model="answers[question.basicId]">
-              <option value="">
-                {{ t('crm.prospecting.examNoAnswer') }}
-              </option>
-              <option v-for="option in question.options" :key="option" :value="option">
-                {{ option }}
-              </option>
-            </select>
-          </p>
-          <button type="button" :disabled="active.status !== 0" @click="submit">
-            {{ t('crm.prospecting.examSubmit') }}
-          </button>
+            <XSelect
+              v-else
+              v-model:value="answers[question.basicId]"
+              :options="[
+                { label: t('crm.prospecting.examNoAnswer'), value: '' },
+                ...question.options.map(option => ({ label: option, value: option })),
+              ]"
+            />
+          </div>
+          <XhButton variant="outline" :disabled="active.status !== 0" @click="submit">
+            <XhButtonLabel>{{ t('crm.prospecting.examSubmit') }}</XhButtonLabel>
+          </XhButton>
           <p v-if="active.status !== 0" class="ce-result">
             {{ t('crm.prospecting.examResult') }}: {{ active.score }}/{{ active.totalScore }} · {{ statusLabel(active.status) }}
           </p>
@@ -258,18 +341,8 @@ async function submit() {
   align-content: start;
   gap: 0.4rem;
   padding: 0.6rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-}
-.ce-block label {
-  display: grid;
-  gap: 0.2rem;
-  font-size: 0.82rem;
-}
-.ce-block input,
-.ce-block select {
-  width: 100%;
-  font: inherit;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--xh-radius-md);
 }
 .ce-block ul {
   margin: 0;

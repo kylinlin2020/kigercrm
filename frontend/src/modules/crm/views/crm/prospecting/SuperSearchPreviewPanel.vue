@@ -7,6 +7,13 @@ import type {
   CrmProspectingSuperSearchPreviewDto,
   CrmProspectingSuperSearchPreviewInputDto,
 } from '@/api'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -14,6 +21,7 @@ import {
   CrmProspectingSuperSearchDepth,
   CrmProspectingSuperSearchMissionStatus,
 } from '@/api'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -49,6 +57,17 @@ const submitting = ref(false)
 const savingMission = ref(false)
 
 const maxRounds = computed(() => [4, 8, 16][Number(depth.value)] ?? 4)
+
+const campaignOptions = computed(() => [
+  { label: t('crm.prospecting.selectCampaign'), value: '' },
+  ...campaigns.value.map(campaign => ({ label: campaign.name, value: String(campaign.basicId) })),
+])
+
+const depthOptions = computed(() => [
+  { label: 'Balanced', value: CrmProspectingSuperSearchDepth.Balanced },
+  { label: 'Deep', value: CrmProspectingSuperSearchDepth.Deep },
+  { label: 'Extreme', value: CrmProspectingSuperSearchDepth.Extreme },
+])
 
 function splitList(value: string): string[] {
   return value.split(/[\n,，;；]+/).map(item => item.trim()).filter(Boolean)
@@ -199,34 +218,36 @@ function fingerprintShort(value: string) {
         <h2>{{ t('crm.prospecting.superSearchTitle') }}</h2>
         <p>{{ t('crm.prospecting.superSearchDescription') }}</p>
       </div>
-      <button
+      <XhButton
         v-if="canExecute"
-        class="primary-button"
-        type="button"
+        variant="outline"
         :disabled="submitting"
         @click="submitPreview"
       >
-        {{ submitting ? t('crm.prospecting.superSearchSubmitting') : t('crm.prospecting.superSearchPreviewButton') }}
-      </button>
+        <XhButtonLabel>{{ submitting ? t('crm.prospecting.superSearchSubmitting') : t('crm.prospecting.superSearchPreviewButton') }}</XhButtonLabel>
+      </XhButton>
     </header>
 
     <div class="objective-block">
-      <label>
-        {{ t('crm.prospecting.superSearchObjective') }}
-        <textarea
-          v-model="objective"
-          rows="3"
-          :placeholder="t('crm.prospecting.superSearchObjectivePlaceholder')"
-        />
-      </label>
-      <button
+      <XhFieldRoot class="objective-field">
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchObjective') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput
+            v-model:value="objective"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('crm.prospecting.superSearchObjectivePlaceholder')"
+          />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton
         v-if="canExecute"
-        type="button"
+        variant="subtle"
         :disabled="parsing"
         @click="parseObjective"
       >
-        {{ parsing ? t('crm.prospecting.superSearchSubmitting') : t('crm.prospecting.superSearchParse') }}
-      </button>
+        <XhButtonLabel>{{ parsing ? t('crm.prospecting.superSearchSubmitting') : t('crm.prospecting.superSearchParse') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-if="parseResult" class="parse-result">
@@ -242,60 +263,86 @@ function fingerprintShort(value: string) {
     </div>
 
     <div class="search-form">
-      <label>{{ t('crm.prospecting.campaign') }}
-        <select v-model="campaignId">
-          <option value="">{{ t('crm.prospecting.selectCampaign') }}</option>
-          <option v-for="campaign in campaigns" :key="campaign.basicId" :value="String(campaign.basicId)">
-            {{ campaign.name }}
-          </option>
-        </select>
-      </label>
-      <label>{{ t('crm.prospecting.superSearchMissionName') }}
-        <input v-model="missionName" type="text" maxlength="160">
-      </label>
-      <label>{{ t('crm.prospecting.superSearchMissionRequestKey') }}
-        <input v-model="requestKey" type="text" maxlength="100">
-      </label>
-      <label>{{ t('crm.prospecting.superSearchProducts') }}
-        <textarea v-model="products" rows="2" placeholder="industrial pump, valve" />
-      </label>
-      <label>{{ t('crm.prospecting.superSearchMarkets') }}
-        <textarea v-model="markets" rows="2" placeholder="DE, BR" />
-      </label>
-      <label>{{ t('crm.prospecting.superSearchCustomerTypes') }}
-        <textarea v-model="customerTypes" rows="2" placeholder="distributor, importer" />
-      </label>
-      <label>{{ t('crm.prospecting.superSearchIndustries') }}
-        <textarea v-model="industries" rows="2" />
-      </label>
-      <label>{{ t('crm.prospecting.superSearchProviders') }}
-        <textarea v-model="providerCodes" rows="2" />
-      </label>
-      <label>{{ t('crm.prospecting.superSearchExcludedTerms') }}
-        <textarea v-model="excludedTerms" rows="2" />
-      </label>
-      <label>{{ t('crm.prospecting.superSearchExcludedDomains') }}
-        <textarea v-model="excludedDomains" rows="2" />
-      </label>
-      <label>{{ t('crm.prospecting.superSearchDepth') }}
-        <select v-model.number="depth">
-          <option :value="CrmProspectingSuperSearchDepth.Balanced">Balanced</option>
-          <option :value="CrmProspectingSuperSearchDepth.Deep">Deep</option>
-          <option :value="CrmProspectingSuperSearchDepth.Extreme">Extreme</option>
-        </select>
-      </label>
-      <label>{{ t('crm.prospecting.superSearchRounds') }}
-        <input v-model="rounds" type="number" min="1" :max="maxRounds" :placeholder="`1–${maxRounds}`">
-      </label>
-      <button
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.campaign') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="campaignId" :options="campaignOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchMissionName') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="missionName" :max-length="160" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchMissionRequestKey') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="requestKey" :max-length="100" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchProducts') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="products" type="textarea" :rows="2" placeholder="industrial pump, valve" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchMarkets') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="markets" type="textarea" :rows="2" placeholder="DE, BR" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchCustomerTypes') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="customerTypes" type="textarea" :rows="2" placeholder="distributor, importer" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchIndustries') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="industries" type="textarea" :rows="2" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchProviders') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="providerCodes" type="textarea" :rows="2" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchExcludedTerms') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="excludedTerms" type="textarea" :rows="2" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchExcludedDomains') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="excludedDomains" type="textarea" :rows="2" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchDepth') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="depth" :options="depthOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.superSearchRounds') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="rounds" inputmode="numeric" :placeholder="`1–${maxRounds}`" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton
         v-if="canExecute"
-        class="primary-button"
-        type="button"
+        variant="outline"
         :disabled="savingMission || !campaignId"
         @click="saveMission"
       >
-        {{ t('crm.prospecting.superSearchSaveMission') }}
-      </button>
+        <XhButtonLabel>{{ t('crm.prospecting.superSearchSaveMission') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <p class="read-only-notice">
@@ -365,13 +412,13 @@ function fingerprintShort(value: string) {
             ? t('crm.prospecting.superSearchMissionExecuted')
             : t('crm.prospecting.superSearchMissionPlanned') }}
         </span>
-        <button
+        <XhButton
           v-if="canExecute && !mission.runId"
-          type="button"
+          variant="outline"
           @click="executeMission(mission)"
         >
-          {{ t('crm.prospecting.superSearchMissionExecute') }}
-        </button>
+          <XhButtonLabel>{{ t('crm.prospecting.superSearchMissionExecute') }}</XhButtonLabel>
+        </XhButton>
         <code v-if="mission.runId">#{{ mission.runId }}</code>
       </div>
     </div>
@@ -383,9 +430,9 @@ function fingerprintShort(value: string) {
   display: grid;
   gap: 0.75rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--xh-radius-md);
+  background: hsl(var(--muted));
 }
 .objective-block {
   display: flex;
@@ -393,15 +440,8 @@ function fingerprintShort(value: string) {
   align-items: end;
   gap: 0.6rem;
 }
-.objective-block label {
-  display: grid;
+.objective-field {
   flex: 1 1 24rem;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-.objective-block textarea {
-  width: 100%;
-  font: inherit;
 }
 .parse-result {
   font-size: 0.8rem;
@@ -418,20 +458,9 @@ function fingerprintShort(value: string) {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 0.5rem 0.75rem;
 }
-.search-form label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-.search-form textarea,
-.search-form input,
-.search-form select {
-  width: 100%;
-  font: inherit;
-}
 .read-only-notice {
   margin: 0;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
   font-size: 0.8rem;
 }
 .plan-summary {
@@ -443,7 +472,7 @@ function fingerprintShort(value: string) {
   font-weight: 600;
 }
 .plan-round {
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   padding: 0.5rem 0;
 }
 .plan-round summary {
@@ -456,7 +485,7 @@ function fingerprintShort(value: string) {
   flex-wrap: wrap;
   gap: 0.75rem;
   margin: 0.4rem 0;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
   font-size: 0.8rem;
 }
 .cell-table {
@@ -467,7 +496,7 @@ function fingerprintShort(value: string) {
 .cell-table th,
 .cell-table td {
   padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid var(--xh-border-subtle, #ddd);
+  border-bottom: 1px solid hsl(var(--border));
   text-align: left;
   vertical-align: top;
 }
@@ -478,7 +507,7 @@ function fingerprintShort(value: string) {
 .mission-list {
   display: grid;
   gap: 0.4rem;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   padding-top: 0.5rem;
 }
 .mission-list h3 {
@@ -491,7 +520,7 @@ function fingerprintShort(value: string) {
   align-items: center;
   gap: 0.6rem;
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--xh-border-subtle, #ddd);
+  border-bottom: 1px solid hsl(var(--border));
   font-size: 0.85rem;
 }
 .mission-main {
@@ -500,10 +529,10 @@ function fingerprintShort(value: string) {
   min-width: 0;
 }
 .mission-main small {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .empty-state {
   margin: 0;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>

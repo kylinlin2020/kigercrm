@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { ConfigCreateDto, ConfigListItemDto, ConfigUpdateDto } from '@/api'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { onMounted, ref } from 'vue'
-import { ConfigDataType, ConfigType, configApi, createPageRequest, EnableStatus } from '@/api'
+import { configApi, ConfigDataType, ConfigType, createPageRequest, EnableStatus } from '@/api'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmProspectingProviderCredentials' })
 
-type ProviderCredential = {
+interface ProviderCredential {
   code: string
   name: string
   description: string
@@ -49,10 +51,10 @@ async function load() {
       configGroup: 'CRM_PROSPECTING_PROVIDER',
       isEncrypted: true,
     })
-    const rows = (page as unknown as { items?: ConfigListItemDto[]; data?: ConfigListItemDto[] }).items
+    const rows = (page as unknown as { items?: ConfigListItemDto[], data?: ConfigListItemDto[] }).items
       ?? (page as unknown as { data?: ConfigListItemDto[] }).data
       ?? []
-    credentials.value = definitions.map(item => {
+    credentials.value = definitions.map((item) => {
       const configKey = `CRM.Prospecting.Provider.${item.code}.${'configKeySuffix' in item ? item.configKeySuffix : 'ApiKey'}`
       const record = rows.find(row => row.configKey === configKey)
       return {
@@ -122,7 +124,9 @@ async function save(item: ProviderCredential) {
 }
 
 async function clear(item: ProviderCredential) {
-  if (!item.record) return
+  if (!item.record) {
+    return
+  }
   saving.value = true
   try {
     // Encrypted ConfigUpdate treats an empty value as "keep the old secret".
@@ -164,7 +168,9 @@ onMounted(load)
         <h2>数据源 API 凭证</h2>
         <p>统一录入需要 Key / Token 的数据源凭证。密钥加密保存，读取时只返回配置状态。</p>
       </div>
-      <button type="button" :disabled="loading" @click="load">{{ loading ? '加载中…' : '刷新状态' }}</button>
+      <XhButton variant="subtle" :disabled="loading" @click="load">
+        <XhButtonLabel>{{ loading ? '加载中…' : '刷新状态' }}</XhButtonLabel>
+      </XhButton>
     </header>
     <div class="credential-security-note">
       <strong>安全提示：</strong>保存后不会再次显示完整 Key；留空不会覆盖已有值。保存凭证不会自动启用数据源，也不会自动发起付费调用。
@@ -179,16 +185,27 @@ onMounted(load)
           </span>
         </div>
         <div class="credential-actions">
-          <input
-            v-model="item.value"
-            type="password"
-            autocomplete="new-password"
-            spellcheck="false"
-            :placeholder="item.configured ? '已配置；输入新值可轮换' : (item.inputPlaceholder || '输入 API Key / Token')"
-            :aria-label="`${item.name} 凭证`"
-          >
-          <button type="button" :disabled="saving || !item.value.trim()" @click="save(item)">保存</button>
-          <button v-if="item.configured" type="button" class="danger-button" :disabled="saving" @click="clear(item)">清除</button>
+          <XhFieldRoot class="credential-input">
+            <XhFieldLabel class="sr-only">
+              {{ `${item.name} 凭证` }}
+            </XhFieldLabel>
+            <XhFieldControl>
+              <XInput
+                v-model:value="item.value"
+                type="password"
+                autocomplete="new-password"
+                :spellcheck="false"
+                :placeholder="item.configured ? '已配置；输入新值可轮换' : (item.inputPlaceholder || '输入 API Key / Token')"
+                :aria-label="`${item.name} 凭证`"
+              />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhButton variant="outline" :disabled="saving || !item.value.trim()" @click="save(item)">
+            <XhButtonLabel>保存</XhButtonLabel>
+          </XhButton>
+          <XhButton v-if="item.configured" variant="subtle" tone="danger" :disabled="saving" @click="clear(item)">
+            <XhButtonLabel>清除</XhButtonLabel>
+          </XhButton>
         </div>
       </article>
     </div>
@@ -196,16 +213,50 @@ onMounted(load)
 </template>
 
 <style scoped>
-.provider-credentials { margin-bottom: 1rem; }
-.credential-security-note { margin: .75rem 0 1rem; padding: .75rem 1rem; border-radius: .5rem; background: var(--xh-color-bg-subtle, #f5f5f5); font-size: .875rem; }
-.credential-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-.credential-row { min-width: 0; padding: .85rem; border: 1px solid var(--xh-color-border, #ddd); border-radius: .5rem; }
-.credential-info { display: grid; gap: .25rem; margin-bottom: .65rem; }
-.credential-info small { color: var(--xh-color-text-muted, #777); }
-.credential-state { font-size: .75rem; color: #a16207; }
-.credential-state.configured { color: #15803d; }
-.credential-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
-.credential-actions input { flex: 1 1 180px; min-width: 0; padding: .5rem .65rem; border: 1px solid var(--xh-color-border, #ccc); border-radius: .35rem; }
-.credential-actions button { padding: .45rem .7rem; border: 1px solid var(--xh-color-border, #ccc); border-radius: .35rem; }
-.credential-actions .danger-button { color: #b91c1c; }
+.provider-credentials {
+  margin-bottom: 1rem;
+}
+.credential-security-note {
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
+  font-size: 0.875rem;
+}
+.credential-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+.credential-row {
+  min-width: 0;
+  padding: 0.85rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+.credential-info {
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.65rem;
+}
+.credential-info small {
+  color: hsl(var(--muted-foreground));
+}
+.credential-state {
+  font-size: 0.75rem;
+  color: hsl(var(--warning));
+}
+.credential-state.configured {
+  color: hsl(var(--success));
+}
+.credential-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.credential-input {
+  flex: 1 1 180px;
+  min-width: 0;
+}
 </style>

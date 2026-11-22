@@ -3,6 +3,13 @@ import type {
   CrmProspectingCampaignDto,
   CrmProspectingScheduleDto,
 } from '@/api'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -10,6 +17,7 @@ import {
   CrmProspectingScheduleFrequency,
   CrmProspectingScheduleStatus,
 } from '@/api'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -30,12 +38,23 @@ const name = ref('')
 const requestKeyPrefix = ref('')
 const timeZoneId = ref('UTC')
 const frequency = ref(CrmProspectingScheduleFrequency.Daily)
-const interval = ref(1)
-const timeOfDayMinutes = ref(9 * 60)
+const interval = ref('1')
+const timeOfDayMinutes = ref(String(9 * 60))
 const dayOfWeek = ref('')
 const dayOfMonth = ref('')
 const startDate = ref('')
 const endDate = ref('')
+
+const campaignOptions = computed(() => [
+  { label: t('crm.prospecting.selectCampaign'), value: '' },
+  ...campaigns.value.map(campaign => ({ label: campaign.name, value: String(campaign.basicId) })),
+])
+
+const frequencyOptions = computed(() => [
+  { label: t('crm.prospecting.scheduleDaily'), value: CrmProspectingScheduleFrequency.Daily },
+  { label: t('crm.prospecting.scheduleWeekly'), value: CrmProspectingScheduleFrequency.Weekly },
+  { label: t('crm.prospecting.scheduleMonthly'), value: CrmProspectingScheduleFrequency.Monthly },
+])
 
 function statusLabel(value: CrmProspectingScheduleStatus) {
   return t(`crm.prospecting.scheduleStatus${value}`)
@@ -143,62 +162,83 @@ function cancel(scheduleId: string) {
         <h2>{{ t('crm.prospecting.scheduleTitle') }}</h2>
         <p>{{ t('crm.prospecting.scheduleDescription') }}</p>
       </div>
-      <label>{{ t('crm.prospecting.campaign') }}
-        <select v-model="campaignId">
-          <option value="">{{ t('crm.prospecting.selectCampaign') }}</option>
-          <option v-for="campaign in campaigns" :key="campaign.basicId" :value="String(campaign.basicId)">
-            {{ campaign.name }}
-          </option>
-        </select>
-      </label>
+      <XhFieldRoot class="campaign-field">
+        <XhFieldLabel>{{ t('crm.prospecting.campaign') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="campaignId" :options="campaignOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
     </header>
 
     <div class="schedule-form">
-      <label>{{ t('crm.prospecting.scheduleName') }}
-        <input v-model="name" type="text" maxlength="160">
-      </label>
-      <label>{{ t('crm.prospecting.scheduleRequestKey') }}
-        <input v-model="requestKeyPrefix" type="text" maxlength="80">
-      </label>
-      <label>{{ t('crm.prospecting.scheduleTimeZone') }}
-        <input v-model="timeZoneId" type="text" maxlength="100">
-      </label>
-      <label>{{ t('crm.prospecting.scheduleFrequency') }}
-        <select v-model.number="frequency">
-          <option :value="CrmProspectingScheduleFrequency.Daily">{{ t('crm.prospecting.scheduleDaily') }}</option>
-          <option :value="CrmProspectingScheduleFrequency.Weekly">{{ t('crm.prospecting.scheduleWeekly') }}</option>
-          <option :value="CrmProspectingScheduleFrequency.Monthly">{{ t('crm.prospecting.scheduleMonthly') }}</option>
-        </select>
-      </label>
-      <label>{{ t('crm.prospecting.scheduleInterval') }}
-        <input v-model.number="interval" type="number" min="1" max="365">
-      </label>
-      <label>{{ t('crm.prospecting.scheduleTimeOfDay') }}
-        <input v-model.number="timeOfDayMinutes" type="number" min="0" max="1439">
-      </label>
-      <label v-if="frequency === CrmProspectingScheduleFrequency.Weekly">
-        {{ t('crm.prospecting.scheduleDayOfWeek') }}
-        <input v-model="dayOfWeek" type="number" min="0" max="6">
-      </label>
-      <label v-if="frequency === CrmProspectingScheduleFrequency.Monthly">
-        {{ t('crm.prospecting.scheduleDayOfMonth') }}
-        <input v-model="dayOfMonth" type="number" min="-1" max="31">
-      </label>
-      <label>{{ t('crm.prospecting.scheduleStart') }}
-        <input v-model="startDate" type="datetime-local">
-      </label>
-      <label>{{ t('crm.prospecting.scheduleEnd') }}
-        <input v-model="endDate" type="datetime-local">
-      </label>
-      <button
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleName') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="name" :max-length="160" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleRequestKey') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="requestKeyPrefix" :max-length="80" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleTimeZone') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="timeZoneId" :max-length="100" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleFrequency') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="frequency" :options="frequencyOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleInterval') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="interval" inputmode="numeric" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleTimeOfDay') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="timeOfDayMinutes" inputmode="numeric" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot v-if="frequency === CrmProspectingScheduleFrequency.Weekly">
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleDayOfWeek') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="dayOfWeek" inputmode="numeric" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot v-if="frequency === CrmProspectingScheduleFrequency.Monthly">
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleDayOfMonth') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="dayOfMonth" inputmode="numeric" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleStart') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="startDate" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.scheduleEnd') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="endDate" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton
         v-if="canExecute"
-        class="primary-button"
-        type="button"
+        variant="outline"
         :disabled="!campaignId"
         @click="createSchedule"
       >
-        {{ t('crm.prospecting.scheduleCreate') }}
-      </button>
+        <XhButtonLabel>{{ t('crm.prospecting.scheduleCreate') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <p v-if="loading" class="schedule-empty">
@@ -216,48 +256,48 @@ function cancel(scheduleId: string) {
         </small>
       </div>
       <div class="schedule-actions">
-        <button
+        <XhButton
           v-if="canExecute && schedule.status === CrmProspectingScheduleStatus.Draft"
-          type="button"
+          variant="outline"
           @click="submit(schedule.basicId)"
         >
-          {{ t('crm.prospecting.scheduleSubmit') }}
-        </button>
-        <button
+          <XhButtonLabel>{{ t('crm.prospecting.scheduleSubmit') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton
           v-if="canExecute && schedule.status === CrmProspectingScheduleStatus.PendingApproval"
-          type="button"
+          variant="outline"
           @click="decide(schedule.basicId, true)"
         >
-          {{ t('crm.prospecting.approve') }}
-        </button>
-        <button
+          <XhButtonLabel>{{ t('crm.prospecting.approve') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton
           v-if="canExecute && schedule.status === CrmProspectingScheduleStatus.PendingApproval"
-          type="button"
+          variant="subtle"
           @click="decide(schedule.basicId, false)"
         >
-          {{ t('crm.prospecting.reject') }}
-        </button>
-        <button
+          <XhButtonLabel>{{ t('crm.prospecting.reject') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton
           v-if="canExecute && schedule.status === CrmProspectingScheduleStatus.Approved"
-          type="button"
+          variant="subtle"
           @click="pause(schedule.basicId)"
         >
-          {{ t('crm.prospecting.schedulePause') }}
-        </button>
-        <button
+          <XhButtonLabel>{{ t('crm.prospecting.schedulePause') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton
           v-if="canExecute && schedule.status === CrmProspectingScheduleStatus.Paused"
-          type="button"
+          variant="outline"
           @click="resume(schedule.basicId)"
         >
-          {{ t('crm.prospecting.scheduleResume') }}
-        </button>
-        <button
+          <XhButtonLabel>{{ t('crm.prospecting.scheduleResume') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton
           v-if="canExecute && schedule.status !== CrmProspectingScheduleStatus.Cancelled && schedule.status !== CrmProspectingScheduleStatus.Rejected"
-          type="button"
+          variant="subtle"
           @click="cancel(schedule.basicId)"
         >
-          {{ t('crm.prospecting.scheduleCancel') }}
-        </button>
+          <XhButtonLabel>{{ t('crm.prospecting.scheduleCancel') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </div>
   </section>
@@ -268,29 +308,21 @@ function cancel(scheduleId: string) {
   display: grid;
   gap: 0.75rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--xh-radius-md);
+  background: hsl(var(--muted));
 }
 .schedule-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.5rem 0.75rem;
 }
-.schedule-form label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-.schedule-form input,
-.schedule-form select,
-.section-header select {
-  width: 100%;
-  font: inherit;
+.campaign-field {
+  min-width: 12rem;
 }
 .schedule-empty {
   margin: 0;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
   font-size: 0.85rem;
 }
 .schedule-row {
@@ -300,7 +332,7 @@ function cancel(scheduleId: string) {
   justify-content: space-between;
   gap: 0.6rem;
   padding: 0.5rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   font-size: 0.85rem;
 }
 .schedule-main {
@@ -308,7 +340,7 @@ function cancel(scheduleId: string) {
   gap: 0.2rem;
 }
 .schedule-main small {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .schedule-actions {
   display: flex;

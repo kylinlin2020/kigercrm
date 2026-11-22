@@ -3,9 +3,11 @@ import type {
   CrmDashboardOverviewDto,
   CrmDashboardReportDto,
 } from '@/api/modules/crm/dashboard.types'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmDashboardApi } from '@/api/modules/crm/dashboard'
+import { XDatePicker } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmDashboardPanel' })
@@ -17,10 +19,10 @@ const sources = ref<CrmDashboardReportDto | null>(null)
 const stages = ref<CrmDashboardReportDto | null>(null)
 const team = ref<CrmDashboardReportDto | null>(null)
 const followUp = ref<CrmDashboardReportDto | null>(null)
-const rangeStart = ref('')
-const rangeEnd = ref('')
+const rangeStart = ref<number | null>(null)
+const rangeEnd = ref<number | null>(null)
 
-function toIso(value: string) {
+function toIso(value: number | null) {
   if (!value)
     return undefined
   const date = new Date(value)
@@ -73,11 +75,21 @@ function reportTitle(key: 'funnel' | 'sources' | 'stages') {
     </header>
 
     <div class="dash-range">
-      <label>{{ t('crm.prospecting.dashboardRangeFrom') }}<input v-model="rangeStart" type="date"></label>
-      <label>{{ t('crm.prospecting.dashboardRangeTo') }}<input v-model="rangeEnd" type="date"></label>
-      <button type="button" @click="load">
-        {{ t('crm.prospecting.dashboardRefresh') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.dashboardRangeFrom') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XDatePicker v-model:value="rangeStart" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.dashboardRangeTo') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XDatePicker v-model:value="rangeEnd" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="subtle" @click="load">
+        <XhButtonLabel>{{ t('crm.prospecting.dashboardRefresh') }}</XhButtonLabel>
+      </XhButton>
     </div>
     <div v-if="overview" class="dash-metrics">
       <span>{{ t('crm.prospecting.dashboardLeads', { count: overview.leadsTotal }) }}</span>
@@ -92,7 +104,7 @@ function reportTitle(key: 'funnel' | 'sources' | 'stages') {
         <div v-for="bucket in (key === 'funnel' ? funnel : key === 'sources' ? sources : stages)?.buckets ?? []" :key="bucket.key" class="dash-row">
           <span class="dash-label">{{ bucket.label }}</span>
           <svg class="dash-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" :aria-label="`${bucket.label}: ${bucket.count}`">
-            <rect x="0" y="1" :width="Math.max(1, bucket.sharePercent)" height="6" rx="2" fill="var(--xh-fg-brand, #2563eb)" />
+            <rect x="0" y="1" :width="Math.max(1, bucket.sharePercent)" height="6" rx="2" fill="hsl(var(--primary))" />
           </svg>
           <span class="dash-value">{{ bucket.count }} · {{ bucket.sharePercent }}%</span>
           <span v-if="bucket.amount" class="dash-value">{{ bucket.amount }}</span>
@@ -133,19 +145,13 @@ function reportTitle(key: 'funnel' | 'sources' | 'stages') {
   align-items: end;
   margin-bottom: 0.6rem;
 }
-.dash-range label {
-  display: grid;
-  gap: 0.2rem;
-  font-size: 0.82rem;
-}
-
 .dashboard-panel {
   display: grid;
   gap: 0.75rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
 }
 .dash-metrics {
   display: flex;
@@ -161,8 +167,8 @@ function reportTitle(key: 'funnel' | 'sources' | 'stages') {
 }
 .dash-card {
   padding: 0.5rem;
-  border: 1px solid var(--xh-border-subtle, #ddd);
-  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
 }
 .dash-card h3 {
   margin: 0 0 0.4rem;
@@ -187,6 +193,6 @@ function reportTitle(key: 'funnel' | 'sources' | 'stages') {
 }
 .dash-value,
 .dash-empty {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>

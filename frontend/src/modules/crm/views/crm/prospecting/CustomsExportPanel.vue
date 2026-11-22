@@ -3,9 +3,17 @@ import type {
   CrmCustomsFilterResultDto,
   CrmCustomsValidationDto,
 } from '@/api/modules/crm/customs-export.types'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmCustomsExportApi } from '@/api/modules/crm/customs-export'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmCustomsExportPanel' })
@@ -73,25 +81,42 @@ async function runExport() {
       <h3>{{ t('crm.prospecting.customsTitle') }}</h3>
       <p>{{ t('crm.prospecting.customsDescription') }}</p>
     </header>
-    <label class="ce-payload">
-      {{ t('crm.prospecting.customsPayload') }}
-      <textarea v-model="rowsJson" rows="4" :placeholder="example" />
-    </label>
+    <XhFieldRoot class="ce-payload">
+      <XhFieldLabel>{{ t('crm.prospecting.customsPayload') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="rowsJson" type="textarea" :rows="4" :placeholder="example" />
+      </XhFieldControl>
+    </XhFieldRoot>
     <div class="ce-filters">
-      <label>{{ t('crm.prospecting.customsIndustry') }}<input v-model="industry" type="text"></label>
-      <label>{{ t('crm.prospecting.customsHsPrefix') }}<input v-model="hsPrefix" type="text"></label>
-      <label>{{ t('crm.prospecting.customsCountry') }}<input v-model="countryCode" type="text"></label>
+      <XhFieldRoot class="ce-filter">
+        <XhFieldLabel>{{ t('crm.prospecting.customsIndustry') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="industry" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="ce-filter">
+        <XhFieldLabel>{{ t('crm.prospecting.customsHsPrefix') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="hsPrefix" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="ce-filter">
+        <XhFieldLabel>{{ t('crm.prospecting.customsCountry') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="countryCode" />
+        </XhFieldControl>
+      </XhFieldRoot>
     </div>
     <div class="ce-actions">
-      <button type="button" :disabled="!rowsJson" @click="runValidate">
-        {{ t('crm.prospecting.customsValidate') }}
-      </button>
-      <button type="button" :disabled="!rowsJson" @click="runFilter">
-        {{ t('crm.prospecting.customsFilter') }}
-      </button>
-      <button type="button" :disabled="!rowsJson" @click="runExport">
-        {{ t('crm.prospecting.customsExport') }}
-      </button>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runValidate">
+        <XhButtonLabel>{{ t('crm.prospecting.customsValidate') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runFilter">
+        <XhButtonLabel>{{ t('crm.prospecting.customsFilter') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runExport">
+        <XhButtonLabel>{{ t('crm.prospecting.customsExport') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-if="validation" class="ce-result">
@@ -125,23 +150,15 @@ async function runExport() {
   gap: 0.25rem;
   font-size: 0.82rem;
 }
-.ce-payload textarea {
-  width: 100%;
-  font: inherit;
-}
 .ce-filters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 0.5rem;
 }
-.ce-filters label {
+.ce-filters .ce-filter {
   display: grid;
   gap: 0.2rem;
   font-size: 0.82rem;
-}
-.ce-filters input {
-  width: 100%;
-  font: inherit;
 }
 .ce-actions {
   display: flex;
@@ -152,6 +169,6 @@ async function runExport() {
   font-size: 0.82rem;
 }
 .ce-bad {
-  color: var(--xh-danger, #c00);
+  color: hsl(var(--destructive));
 }
 </style>

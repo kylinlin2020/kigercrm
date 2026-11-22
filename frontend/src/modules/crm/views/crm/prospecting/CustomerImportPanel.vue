@@ -1,5 +1,15 @@
 <script setup lang="ts">
 import type { CrmCustomerImportPreviewDto, CrmCustomerImportResultDto } from '@/api/modules/crm/customer-import.types'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+  XhFileUploadHiddenInput,
+  XhFileUploadRoot,
+  XhFileUploadTrigger,
+} from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmCustomerImportApi } from '@/api/modules/crm/customer-import'
@@ -7,6 +17,7 @@ import {
   CRM_CUSTOMER_IMPORT_FIELDS,
 
 } from '@/api/modules/crm/customer-import.types'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { csvToRows, suggestCustomerMapping } from './csv-to-rows'
 
@@ -24,6 +35,9 @@ const preview = ref<CrmCustomerImportPreviewDto | null>(null)
 const result = ref<CrmCustomerImportResultDto | null>(null)
 const csvNotice = ref('')
 
+/** 文件选择器只当入口用：选完即交给 loadCsv 解析，组件内不留文件，便于重复选同一份 */
+const NO_FILES: File[] = []
+
 const example = '[{"company":"Acme GmbH","site":"www.acme.com","region":"DE","sector":"Pumps"}]'
 
 function payload() {
@@ -35,9 +49,8 @@ function payload() {
   return { rowsJson: rowsJson.value, mapping: map, fileName: fileName.value || null }
 }
 
-async function loadCsv(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+async function loadCsv(details: { files: File[] }) {
+  const file = details.files[0]
   if (!file)
     return
   try {
@@ -52,7 +65,6 @@ async function loadCsv(event: Event) {
     csvNotice.value = ''
     toast.danger(t('crm.prospecting.csvError'))
   }
-  input.value = ''
 }
 
 async function runPreview() {
@@ -91,46 +103,75 @@ function removeMapping(index: number) {
       <h3>{{ t('crm.prospecting.customerImportTitle') }}</h3>
       <p>{{ t('crm.prospecting.customerImportDescription') }}</p>
     </header>
-    <label class="ci-rows">
-      {{ t('crm.prospecting.customerImportRows') }}
-      <textarea v-model="rowsJson" rows="4" :placeholder="example" />
-    </label>
+    <XhFieldRoot class="ci-rows">
+      <XhFieldLabel>{{ t('crm.prospecting.customerImportRows') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="rowsJson" type="textarea" :rows="4" :placeholder="example" />
+      </XhFieldControl>
+    </XhFieldRoot>
     <div class="ci-mapping">
       <header>{{ t('crm.prospecting.customerImportMapping') }}</header>
       <div v-for="(item, index) in mapping" :key="index" class="ci-map-row">
-        <input v-model="item.source" type="text" :placeholder="t('crm.prospecting.customerImportSource')">
-        <select v-model="item.target">
-          <option v-for="field in CRM_CUSTOMER_IMPORT_FIELDS" :key="field.value" :value="field.value">
-            {{ t(`crm.prospecting.customerImportField_${field.value}`) }}
-          </option>
-        </select>
-        <button type="button" @click="removeMapping(index)">
-          ×
-        </button>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.customerImportSource') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="item.source" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.prospecting.customerImportMapping') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XSelect
+              v-model:value="item.target"
+              :options="CRM_CUSTOMER_IMPORT_FIELDS.map(field => ({
+                label: t(`crm.prospecting.customerImportField_${field.value}`),
+                value: field.value,
+              }))"
+            />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhButton variant="subtle" @click="removeMapping(index)">
+          <XhButtonLabel>×</XhButtonLabel>
+        </XhButton>
       </div>
-      <button type="button" @click="addMapping">
-        {{ t('crm.prospecting.customerImportAddField') }}
-      </button>
+      <XhButton variant="outline" @click="addMapping">
+        <XhButtonLabel>{{ t('crm.prospecting.customerImportAddField') }}</XhButtonLabel>
+      </XhButton>
     </div>
-    <label class="ci-file">
-      {{ t('crm.prospecting.customerImportFileName') }}
-      <input v-model="fileName" type="text">
-    </label>
-    <label class="ci-csv">
-      {{ t('crm.prospecting.csvLoad') }}
-      <input type="file" accept=".csv,text/csv" @change="loadCsv">
+    <XhFieldRoot class="ci-file">
+      <XhFieldLabel>{{ t('crm.prospecting.customerImportFileName') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="fileName" />
+      </XhFieldControl>
+    </XhFieldRoot>
+    <XhFieldRoot class="ci-csv">
+      <XhFieldLabel>{{ t('crm.prospecting.csvLoad') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XhFileUploadRoot
+          accept=".csv,text/csv"
+          :files="NO_FILES"
+          @file-accept="loadCsv"
+        >
+          <XhFileUploadHiddenInput />
+          <XhFileUploadTrigger as-child>
+            <XhButton variant="subtle">
+              <XhButtonLabel>{{ t('crm.prospecting.csvLoad') }}</XhButtonLabel>
+            </XhButton>
+          </XhFileUploadTrigger>
+        </XhFileUploadRoot>
+      </XhFieldControl>
       <small>{{ t('crm.prospecting.csvHint') }}</small>
-    </label>
+    </XhFieldRoot>
     <p v-if="csvNotice" class="ci-csv-notice">
       {{ csvNotice }}
     </p>
     <div class="ci-actions">
-      <button type="button" :disabled="!rowsJson" @click="runPreview">
-        {{ t('crm.prospecting.customerImportPreview') }}
-      </button>
-      <button type="button" :disabled="!rowsJson" @click="runImport">
-        {{ t('crm.prospecting.customerImportRun') }}
-      </button>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runPreview">
+        <XhButtonLabel>{{ t('crm.prospecting.customerImportPreview') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runImport">
+        <XhButtonLabel>{{ t('crm.prospecting.customerImportRun') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-if="preview" class="ci-result">
@@ -161,11 +202,6 @@ function removeMapping(index: number) {
   gap: 0.25rem;
   font-size: 0.82rem;
 }
-.ci-rows textarea,
-.ci-file input {
-  width: 100%;
-  font: inherit;
-}
 .ci-mapping {
   display: grid;
   gap: 0.3rem;
@@ -175,11 +211,7 @@ function removeMapping(index: number) {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   gap: 0.3rem;
-}
-.ci-map-row input,
-.ci-map-row select {
-  width: 100%;
-  font: inherit;
+  align-items: end;
 }
 .ci-csv {
   display: grid;
@@ -188,7 +220,7 @@ function removeMapping(index: number) {
 }
 .ci-csv-notice {
   font-size: 0.82rem;
-  color: var(--xh-success, #2a0);
+  color: hsl(var(--success));
 }
 .ci-actions {
   display: flex;
@@ -200,9 +232,9 @@ function removeMapping(index: number) {
   font-size: 0.82rem;
 }
 .ci-bad {
-  color: var(--xh-danger, #c00);
+  color: hsl(var(--destructive));
 }
 .ci-warn {
-  color: var(--xh-warning, #a60);
+  color: hsl(var(--warning));
 }
 </style>

@@ -4,9 +4,20 @@ import type {
   CrmTradeDocumentPreviewDto,
   CrmTradeDocumentRowDto,
 } from '@/api/modules/crm/trade-document-import.types'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+  XhFileUploadHiddenInput,
+  XhFileUploadRoot,
+  XhFileUploadTrigger,
+} from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmTradeDocumentImportApi } from '@/api/modules/crm/trade-document-import'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { csvToRows } from './csv-to-rows'
 
@@ -22,6 +33,9 @@ const rows = ref<CrmTradeDocumentRowDto[]>([])
 const orderLines = ref<Record<string, CrmTradeDocumentOrderLineDto[]>>({})
 const mapped = ref<Record<string, Array<{ orderLineId: string, quantity: number }>>>({})
 const rejectReason = ref('')
+
+/** 文件选择器只当入口用：选完即交给 loadCsv 解析，组件内不留文件，便于重复选同一份 */
+const NO_FILES: File[] = []
 
 const example = '[{"externalId":"1","documentNumber":"INV-1","orderReference":"PO-1","currency":"USD","totalAmount":200,"lines":[{"sku":"SKU-1","quantity":2}]}]'
 
@@ -51,9 +65,8 @@ async function reloadRows() {
   }
 }
 
-async function loadCsv(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+async function loadCsv(details: { files: File[] }) {
+  const file = details.files[0]
   if (!file)
     return
   try {
@@ -64,7 +77,6 @@ async function loadCsv(event: Event) {
   catch {
     toast.danger(t('crm.prospecting.csvError'))
   }
-  input.value = ''
 }
 
 async function reloadBatches() {
@@ -115,12 +127,16 @@ function mappedLine(rowId: string, index: number) {
   return entry
 }
 
-function setMapped(rowId: string, index: number, field: 'orderLineId' | 'quantity', event: Event) {
-  const raw = (event.target as HTMLInputElement | HTMLSelectElement).value
+function setMapped(
+  rowId: string,
+  index: number,
+  field: 'orderLineId' | 'quantity',
+  value: string | number | Array<string | number> | null,
+) {
   const target = mappedLine(rowId, index)
   if (field === 'quantity')
-    target.quantity = Number(raw)
-  else target.orderLineId = raw
+    target.quantity = Number(value)
+  else target.orderLineId = Array.isArray(value) ? String(value[0] ?? '') : String(value ?? '')
 }
 
 async function loadOrderLines(row: CrmTradeDocumentRowDto) {
@@ -177,29 +193,46 @@ async function reject(row: CrmTradeDocumentRowDto) {
       <h3>{{ t('crm.prospecting.tradeTitle') }}</h3>
       <p>{{ t('crm.prospecting.tradeDescription') }}</p>
     </header>
-    <label class="ti-payload">
-      {{ t('crm.prospecting.tradePayload') }}
-      <textarea v-model="rowsJson" rows="4" :placeholder="example" />
-    </label>
-    <label class="ti-order">
-      {{ t('crm.prospecting.tradeSalesOrderId') }}
-      <input v-model="salesOrderId" type="text">
-    </label>
-    <label class="csv-load">
-      {{ t('crm.prospecting.csvLoad') }}
-      <input type="file" accept=".csv,text/csv" @change="loadCsv">
+    <XhFieldRoot class="ti-payload">
+      <XhFieldLabel>{{ t('crm.prospecting.tradePayload') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="rowsJson" type="textarea" :rows="4" :placeholder="example" />
+      </XhFieldControl>
+    </XhFieldRoot>
+    <XhFieldRoot class="ti-order">
+      <XhFieldLabel>{{ t('crm.prospecting.tradeSalesOrderId') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="salesOrderId" />
+      </XhFieldControl>
+    </XhFieldRoot>
+    <XhFieldRoot class="csv-load">
+      <XhFieldLabel>{{ t('crm.prospecting.csvLoad') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XhFileUploadRoot
+          accept=".csv,text/csv"
+          :files="NO_FILES"
+          @file-accept="loadCsv"
+        >
+          <XhFileUploadHiddenInput />
+          <XhFileUploadTrigger as-child>
+            <XhButton variant="subtle">
+              <XhButtonLabel>{{ t('crm.prospecting.csvLoad') }}</XhButtonLabel>
+            </XhButton>
+          </XhFileUploadTrigger>
+        </XhFileUploadRoot>
+      </XhFieldControl>
       <small>{{ t('crm.prospecting.csvHint') }}</small>
-    </label>
+    </XhFieldRoot>
     <div class="ti-actions">
-      <button type="button" :disabled="!rowsJson" @click="runPreview">
-        {{ t('crm.prospecting.tradePreview') }}
-      </button>
-      <button type="button" :disabled="!rowsJson" @click="runImport">
-        {{ t('crm.prospecting.tradeImport') }}
-      </button>
-      <button type="button" @click="reloadBatches">
-        {{ t('crm.prospecting.tradeRefresh') }}
-      </button>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runPreview">
+        <XhButtonLabel>{{ t('crm.prospecting.tradePreview') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runImport">
+        <XhButtonLabel>{{ t('crm.prospecting.tradeImport') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" @click="reloadBatches">
+        <XhButtonLabel>{{ t('crm.prospecting.tradeRefresh') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-if="preview" class="ti-summary">
@@ -213,43 +246,60 @@ async function reject(row: CrmTradeDocumentRowDto) {
       </ul>
     </div>
 
-    <label class="ti-batch">
-      {{ t('crm.prospecting.tradeBatch') }}
-      <select v-model="batchId" @change="reloadRows">
-        <option value="">{{ t('crm.prospecting.tradeNoBatch') }}</option>
-        <option v-for="batch in batches" :key="batch" :value="batch">{{ batch }}</option>
-      </select>
-    </label>
-    <label class="ti-reason">
-      {{ t('crm.prospecting.tradeRejectReason') }}
-      <input v-model="rejectReason" type="text">
-    </label>
+    <XhFieldRoot class="ti-batch">
+      <XhFieldLabel>{{ t('crm.prospecting.tradeBatch') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XSelect
+          v-model:value="batchId"
+          :options="[
+            { label: t('crm.prospecting.tradeNoBatch'), value: '' },
+            ...batches.map(batch => ({ label: batch, value: batch })),
+          ]"
+          @update:value="reloadRows"
+        />
+      </XhFieldControl>
+    </XhFieldRoot>
+    <XhFieldRoot class="ti-reason">
+      <XhFieldLabel>{{ t('crm.prospecting.tradeRejectReason') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="rejectReason" />
+      </XhFieldControl>
+    </XhFieldRoot>
 
     <article v-for="row in rows" :key="row.basicId" class="ti-row">
       <header>{{ row.documentNumber }} · {{ row.orderReference }} · {{ statusLabel(row.status) }}</header>
       <div v-for="(line, index) in row.lines" :key="index" class="ti-line">
         {{ line.sku }} × {{ line.quantity }}
-        <select v-if="row.status === 0 && orderLines[row.basicId]" :value="mappedLine(row.basicId, index).orderLineId" @change="setMapped(row.basicId, index, 'orderLineId', $event)">
-          <option value="">
-            {{ t('crm.prospecting.tradeSelectLine') }}
-          </option>
-          <option v-for="option in orderLines[row.basicId]" :key="option.basicId" :value="option.basicId">
-            {{ option.productCode || option.description }} ({{ option.availableQuantity }})
-          </option>
-        </select>
-        <input v-if="row.status === 0" :value="mappedLine(row.basicId, index).quantity" type="number" min="0" step="0.0001" @change="setMapped(row.basicId, index, 'quantity', $event)">
+        <XSelect
+          v-if="row.status === 0 && orderLines[row.basicId]"
+          :value="mappedLine(row.basicId, index).orderLineId"
+          :options="[
+            { label: t('crm.prospecting.tradeSelectLine'), value: '' },
+            ...(orderLines[row.basicId] ?? []).map(option => ({
+              label: `${option.productCode || option.description} (${option.availableQuantity})`,
+              value: option.basicId,
+            })),
+          ]"
+          @update:value="(value: string | number | Array<string | number> | null) => setMapped(row.basicId, index, 'orderLineId', value)"
+        />
+        <XInput
+          v-if="row.status === 0"
+          :value="String(mappedLine(row.basicId, index).quantity)"
+          inputmode="decimal"
+          @update:value="value => setMapped(row.basicId, index, 'quantity', value)"
+        />
       </div>
       <span v-if="row.duplicateReason" class="ti-warn">{{ row.duplicateReason }}</span>
       <div v-if="row.status === 0" class="ti-actions">
-        <button type="button" :disabled="!salesOrderId" @click="loadOrderLines(row)">
-          {{ t('crm.prospecting.tradeLoadLines') }}
-        </button>
-        <button type="button" :disabled="!!row.duplicateReason" @click="confirm(row)">
-          {{ t('crm.prospecting.tradeConfirm') }}
-        </button>
-        <button type="button" @click="reject(row)">
-          {{ t('crm.prospecting.tradeReject') }}
-        </button>
+        <XhButton variant="subtle" :disabled="!salesOrderId" @click="loadOrderLines(row)">
+          <XhButtonLabel>{{ t('crm.prospecting.tradeLoadLines') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="outline" :disabled="!!row.duplicateReason" @click="confirm(row)">
+          <XhButtonLabel>{{ t('crm.prospecting.tradeConfirm') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" @click="reject(row)">
+          <XhButtonLabel>{{ t('crm.prospecting.tradeReject') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </article>
   </section>
@@ -275,15 +325,6 @@ async function reject(row: CrmTradeDocumentRowDto) {
   gap: 0.25rem;
   font-size: 0.82rem;
 }
-.ti-payload textarea,
-.ti-order input,
-.ti-batch select,
-.ti-reason input,
-.ti-line select,
-.ti-line input {
-  width: 100%;
-  font: inherit;
-}
 .ti-actions {
   display: flex;
   flex-wrap: wrap;
@@ -297,7 +338,7 @@ async function reject(row: CrmTradeDocumentRowDto) {
   display: grid;
   gap: 0.3rem;
   padding: 0.5rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
 }
 .ti-line {
   display: grid;
@@ -306,9 +347,9 @@ async function reject(row: CrmTradeDocumentRowDto) {
   align-items: center;
 }
 .ti-bad {
-  color: var(--xh-danger, #c00);
+  color: hsl(var(--destructive));
 }
 .ti-warn {
-  color: var(--xh-warning, #a60);
+  color: hsl(var(--warning));
 }
 </style>

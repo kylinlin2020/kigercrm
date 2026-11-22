@@ -3,9 +3,20 @@ import type {
   CrmBusinessCardPreviewDto,
   CrmBusinessCardRowDto,
 } from '@/api/modules/crm/business-card-import.types'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+  XhFileUploadHiddenInput,
+  XhFileUploadRoot,
+  XhFileUploadTrigger,
+} from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmBusinessCardImportApi } from '@/api/modules/crm/business-card-import'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { csvToRows } from './csv-to-rows'
 
@@ -19,6 +30,9 @@ const batchId = ref('')
 const rows = ref<CrmBusinessCardRowDto[]>([])
 const rejectReason = ref('')
 
+/** 文件选择器只当入口用：选完即交给 loadCsv 解析，组件内不留文件，便于重复选同一份 */
+const NO_FILES: File[] = []
+
 const example = '[{"externalId":"1","contactName":"Alice","companyName":"Acme","email":"alice@acme.com","phone":"13800138000"}]'
 
 function statusLabel(status: number) {
@@ -29,9 +43,8 @@ function statusLabel(status: number) {
   ][status] ?? String(status)
 }
 
-async function loadCsv(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+async function loadCsv(details: { files: File[] }) {
+  const file = details.files[0]
   if (!file)
     return
   try {
@@ -42,7 +55,6 @@ async function loadCsv(event: Event) {
   catch {
     toast.danger(t('crm.prospecting.csvError'))
   }
-  input.value = ''
 }
 
 async function reloadBatches() {
@@ -110,25 +122,40 @@ async function decide(rowId: string, approve: boolean) {
       <h3>{{ t('crm.prospecting.cardTitle') }}</h3>
       <p>{{ t('crm.prospecting.cardDescription') }}</p>
     </header>
-    <label class="ci-payload">
-      {{ t('crm.prospecting.cardPayload') }}
-      <textarea v-model="rowsJson" rows="4" :placeholder="example" />
-    </label>
-    <label class="csv-load">
-      {{ t('crm.prospecting.csvLoad') }}
-      <input type="file" accept=".csv,text/csv" @change="loadCsv">
+    <XhFieldRoot class="ci-payload">
+      <XhFieldLabel>{{ t('crm.prospecting.cardPayload') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="rowsJson" type="textarea" :rows="4" :placeholder="example" />
+      </XhFieldControl>
+    </XhFieldRoot>
+    <XhFieldRoot class="csv-load">
+      <XhFieldLabel>{{ t('crm.prospecting.csvLoad') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XhFileUploadRoot
+          accept=".csv,text/csv"
+          :files="NO_FILES"
+          @file-accept="loadCsv"
+        >
+          <XhFileUploadHiddenInput />
+          <XhFileUploadTrigger as-child>
+            <XhButton variant="subtle">
+              <XhButtonLabel>{{ t('crm.prospecting.csvLoad') }}</XhButtonLabel>
+            </XhButton>
+          </XhFileUploadTrigger>
+        </XhFileUploadRoot>
+      </XhFieldControl>
       <small>{{ t('crm.prospecting.csvHint') }}</small>
-    </label>
+    </XhFieldRoot>
     <div class="ci-actions">
-      <button type="button" :disabled="!rowsJson" @click="runPreview">
-        {{ t('crm.prospecting.cardPreview') }}
-      </button>
-      <button type="button" :disabled="!rowsJson" @click="runImport">
-        {{ t('crm.prospecting.cardImport') }}
-      </button>
-      <button type="button" @click="reloadBatches">
-        {{ t('crm.prospecting.cardRefresh') }}
-      </button>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runPreview">
+        <XhButtonLabel>{{ t('crm.prospecting.cardPreview') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="outline" :disabled="!rowsJson" @click="runImport">
+        <XhButtonLabel>{{ t('crm.prospecting.cardImport') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" @click="reloadBatches">
+        <XhButtonLabel>{{ t('crm.prospecting.cardRefresh') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-if="preview" class="ci-summary">
@@ -142,28 +169,36 @@ async function decide(rowId: string, approve: boolean) {
       </ul>
     </div>
 
-    <label class="ci-batch">
-      {{ t('crm.prospecting.cardBatch') }}
-      <select v-model="batchId" @change="reloadRows">
-        <option value="">{{ t('crm.prospecting.cardNoBatch') }}</option>
-        <option v-for="batch in batches" :key="batch" :value="batch">{{ batch }}</option>
-      </select>
-    </label>
-    <label class="ci-reason">
-      {{ t('crm.prospecting.cardRejectReason') }}
-      <input v-model="rejectReason" type="text">
-    </label>
+    <XhFieldRoot class="ci-batch">
+      <XhFieldLabel>{{ t('crm.prospecting.cardBatch') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XSelect
+          v-model:value="batchId"
+          :options="[
+            { label: t('crm.prospecting.cardNoBatch'), value: '' },
+            ...batches.map(batch => ({ label: batch, value: batch })),
+          ]"
+          @update:value="reloadRows"
+        />
+      </XhFieldControl>
+    </XhFieldRoot>
+    <XhFieldRoot class="ci-reason">
+      <XhFieldLabel>{{ t('crm.prospecting.cardRejectReason') }}</XhFieldLabel>
+      <XhFieldControl>
+        <XInput v-model:value="rejectReason" />
+      </XhFieldControl>
+    </XhFieldRoot>
     <ul class="ci-rows">
       <li v-for="row in rows" :key="row.basicId">
         {{ row.contactName || row.companyName || row.externalId }} · {{ statusLabel(row.status) }}
         <span v-if="row.duplicateReason" class="ci-warn">{{ row.duplicateReason }}</span>
         <template v-if="row.status === 0">
-          <button type="button" :disabled="!!row.duplicateReason" @click="decide(row.basicId, true)">
-            {{ t('crm.prospecting.cardConfirm') }}
-          </button>
-          <button type="button" @click="decide(row.basicId, false)">
-            {{ t('crm.prospecting.cardReject') }}
-          </button>
+          <XhButton variant="outline" :disabled="!!row.duplicateReason" @click="decide(row.basicId, true)">
+            <XhButtonLabel>{{ t('crm.prospecting.cardConfirm') }}</XhButtonLabel>
+          </XhButton>
+          <XhButton variant="subtle" @click="decide(row.basicId, false)">
+            <XhButtonLabel>{{ t('crm.prospecting.cardReject') }}</XhButtonLabel>
+          </XhButton>
         </template>
       </li>
     </ul>
@@ -189,12 +224,6 @@ async function decide(rowId: string, approve: boolean) {
   gap: 0.25rem;
   font-size: 0.82rem;
 }
-.ci-payload textarea,
-.ci-reason input,
-.ci-batch select {
-  width: 100%;
-  font: inherit;
-}
 .ci-actions {
   display: flex;
   flex-wrap: wrap;
@@ -205,9 +234,9 @@ async function decide(rowId: string, approve: boolean) {
   font-size: 0.82rem;
 }
 .ci-bad {
-  color: var(--xh-danger, #c00);
+  color: hsl(var(--destructive));
 }
 .ci-warn {
-  color: var(--xh-warning, #a60);
+  color: hsl(var(--warning));
 }
 </style>

@@ -5,6 +5,7 @@ import type {
   CrmOutreachSequenceDto,
   CrmOutreachTouchpointDto,
 } from '@/api'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -13,6 +14,7 @@ import {
   CrmOutreachTouchpointState,
   crmProspectingApi,
 } from '@/api'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -137,59 +139,74 @@ function stateLabel(value: CrmOutreachTouchpointState) {
         <h2>{{ t('crm.prospecting.outreachTitle') }}</h2>
         <p>{{ t('crm.prospecting.outreachDescription') }}</p>
       </div>
-      <label>{{ t('crm.prospecting.outreachSequence') }}
-        <select v-model="sequenceId" @change="loadWorkspace">
-          <option value="">{{ t('crm.prospecting.outreachSelectSequence') }}</option>
-          <option v-for="sequence in sequences" :key="sequence.basicId" :value="String(sequence.basicId)">
-            {{ sequence.name }}
-          </option>
-        </select>
-      </label>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.prospecting.outreachSequence') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect
+            v-model:value="sequenceId"
+            class="outreach-select"
+            :options="[
+              { label: t('crm.prospecting.outreachSelectSequence'), value: '' },
+              ...sequences.map(sequence => ({ label: sequence.name, value: String(sequence.basicId) })),
+            ]"
+            @update:value="loadWorkspace"
+          />
+        </XhFieldControl>
+      </XhFieldRoot>
     </header>
 
     <div class="outreach-form">
-      <label>{{ t('crm.prospecting.outreachName') }}
-        <input v-model="name" type="text" maxlength="160">
-      </label>
-      <label>{{ t('crm.prospecting.outreachSteps') }}
-        <textarea v-model="stepsJson" rows="3" />
-      </label>
-      <button v-if="canExecute" type="button" :disabled="busy" @click="createSequence">
-        {{ t('crm.prospecting.outreachCreateSequence') }}
-      </button>
+      <XhFieldRoot class="outreach-field">
+        <XhFieldLabel>{{ t('crm.prospecting.outreachName') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="name" type="text" :max-length="160" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="outreach-field">
+        <XhFieldLabel>{{ t('crm.prospecting.outreachSteps') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="stepsJson" type="textarea" :rows="3" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton v-if="canExecute" variant="outline" :disabled="busy" @click="createSequence">
+        <XhButtonLabel>{{ t('crm.prospecting.outreachCreateSequence') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-for="sequence in sequences" :key="sequence.basicId" class="outreach-row">
       <strong>{{ sequence.name }}</strong>
       <span>{{ t('crm.prospecting.outreachStepCount', { count: sequence.steps.length }) }}</span>
-      <button
+      <XhButton
         v-if="canExecute && sequence.status === CrmOutreachSequenceStatus.Draft"
-        type="button"
+        variant="outline"
         @click="act(() => crmProspectingApi.activateOutreachSequence(sequence.basicId))"
       >
-        {{ t('crm.prospecting.outreachActivate') }}
-      </button>
-      <button
+        <XhButtonLabel>{{ t('crm.prospecting.outreachActivate') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton
         v-if="canExecute && sequence.status === CrmOutreachSequenceStatus.Active"
-        type="button"
+        variant="subtle"
         @click="act(() => crmProspectingApi.pauseOutreachSequence(sequence.basicId))"
       >
-        {{ t('crm.prospecting.outreachPause') }}
-      </button>
+        <XhButtonLabel>{{ t('crm.prospecting.outreachPause') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div class="outreach-form">
-      <label>{{ t('crm.prospecting.outreachCandidateId') }}
-        <input v-model="candidateId" type="text">
-      </label>
-      <button
+      <XhFieldRoot class="outreach-field">
+        <XhFieldLabel>{{ t('crm.prospecting.outreachCandidateId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="candidateId" type="text" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton
         v-if="canExecute"
-        type="button"
+        variant="outline"
         :disabled="busy || !sequenceId || !candidateId"
         @click="act(() => crmProspectingApi.enrollForOutreach({ sequenceId, candidateId }))"
       >
-        {{ t('crm.prospecting.outreachEnroll') }}
-      </button>
+        <XhButtonLabel>{{ t('crm.prospecting.outreachEnroll') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-if="review" class="outreach-metrics">
@@ -207,16 +224,17 @@ function stateLabel(value: CrmOutreachTouchpointState) {
         <strong>#{{ enrollment.candidateId }}</strong>
         <small>{{ enrollmentLabel(enrollment.status) }} · {{ t('crm.prospecting.outreachStep', { step: enrollment.currentStep }) }}</small>
       </div>
-      <button type="button" @click="openEnrollment(enrollment.basicId)">
-        {{ t('crm.prospecting.outreachTouchpoints') }}
-      </button>
-      <button
+      <XhButton variant="subtle" @click="openEnrollment(enrollment.basicId)">
+        <XhButtonLabel>{{ t('crm.prospecting.outreachTouchpoints') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton
         v-if="canExecute && enrollment.status !== CrmOutreachEnrollmentStatus.Suppressed"
-        type="button"
+        variant="subtle"
+        tone="danger"
         @click="act(() => crmProspectingApi.suppressOutreachEnrollment(enrollment.basicId, 'operator opt-out'))"
       >
-        {{ t('crm.prospecting.outreachSuppress') }}
-      </button>
+        <XhButtonLabel>{{ t('crm.prospecting.outreachSuppress') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-for="touchpoint in touchpoints" :key="touchpoint.basicId" class="outreach-row">
@@ -224,21 +242,28 @@ function stateLabel(value: CrmOutreachTouchpointState) {
         <strong>{{ t('crm.prospecting.outreachStep', { step: touchpoint.step }) }}</strong>
         <small>{{ stateLabel(touchpoint.state) }} · {{ touchpoint.contentHash.slice(0, 12) }}</small>
       </div>
-      <button
+      <XhButton
         v-if="canExecute && touchpoint.state === CrmOutreachTouchpointState.Planned"
-        type="button"
+        variant="outline"
         @click="act(() => crmProspectingApi.approveOutreachTouchpoint(touchpoint.basicId))"
       >
-        {{ t('crm.prospecting.outreachApprove') }}
-      </button>
+        <XhButtonLabel>{{ t('crm.prospecting.outreachApprove') }}</XhButtonLabel>
+      </XhButton>
       <template v-if="canExecute && touchpoint.state === CrmOutreachTouchpointState.Approved">
-        <input v-model="replyText" type="text" :placeholder="t('crm.prospecting.outreachReplyPlaceholder')">
-        <button type="button" @click="act(() => crmProspectingApi.recordOutreachTouchpoint({ touchpointId: touchpoint.basicId, state: CrmOutreachTouchpointState.Sent }))">
-          {{ t('crm.prospecting.outreachMarkSent') }}
-        </button>
-        <button type="button" @click="act(() => crmProspectingApi.recordOutreachTouchpoint({ touchpointId: touchpoint.basicId, state: CrmOutreachTouchpointState.Replied, replyText }))">
-          {{ t('crm.prospecting.outreachMarkReplied') }}
-        </button>
+        <XhFieldRoot class="outreach-reply-field">
+          <XhFieldLabel class="sr-only">
+            {{ t('crm.prospecting.outreachReplyPlaceholder') }}
+          </XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="replyText" type="text" :placeholder="t('crm.prospecting.outreachReplyPlaceholder')" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhButton variant="outline" @click="act(() => crmProspectingApi.recordOutreachTouchpoint({ touchpointId: touchpoint.basicId, state: CrmOutreachTouchpointState.Sent }))">
+          <XhButtonLabel>{{ t('crm.prospecting.outreachMarkSent') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" @click="act(() => crmProspectingApi.recordOutreachTouchpoint({ touchpointId: touchpoint.basicId, state: CrmOutreachTouchpointState.Replied, replyText }))">
+          <XhButtonLabel>{{ t('crm.prospecting.outreachMarkReplied') }}</XhButtonLabel>
+        </XhButton>
       </template>
     </div>
   </section>
@@ -249,9 +274,9 @@ function stateLabel(value: CrmOutreachTouchpointState) {
   display: grid;
   gap: 0.6rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
 }
 .outreach-form {
   display: flex;
@@ -259,17 +284,11 @@ function stateLabel(value: CrmOutreachTouchpointState) {
   align-items: end;
   gap: 0.6rem;
 }
-.outreach-form label {
-  display: grid;
+.outreach-field {
   flex: 1 1 14rem;
-  gap: 0.25rem;
-  font-size: 0.85rem;
 }
-.outreach-form input,
-.outreach-form textarea,
-.section-header select {
+.outreach-select {
   width: 100%;
-  font: inherit;
 }
 .outreach-row {
   display: flex;
@@ -277,18 +296,22 @@ function stateLabel(value: CrmOutreachTouchpointState) {
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   font-size: 0.85rem;
+}
+.outreach-reply-field {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 .outreach-main {
   display: grid;
   gap: 0.2rem;
 }
 .outreach-main small {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .outreach-metrics {
   font-size: 0.8rem;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>

@@ -41,6 +41,6 @@ function notifyWorkspace() {
 }
 .page-header p {
   margin: 0.25rem 0 0;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>
