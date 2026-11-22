@@ -47,6 +47,9 @@ export default {
       },
     },
     backgroundResearch: {
+      exportMarkdown: 'Als Markdown exportieren',
+      exportJson: 'Als JSON exportieren',
+      exported: 'Bericht exportiert',
       title: 'Kundenhintergrundrecherche',
       description: 'Erstellen Sie ein nachvollziehbares Dossier aus lokalen CRM-Daten. Eine neue Recherche setzt den vorherigen Bericht außer Kraft.',
       generate: 'Recherche erstellen',

@@ -47,6 +47,9 @@ export default {
       },
     },
     backgroundResearch: {
+      exportMarkdown: 'Markdown 내보내기',
+      exportJson: 'JSON 내보내기',
+      exported: '보고서를 내보냈습니다',
       title: '고객 배경 조사',
       description: '로컬 CRM 기록으로 감사 가능한 조사 문서를 만듭니다. 다시 생성하면 이전 보고서는 대체됨으로 표시됩니다.',
       generate: '조사 생성',

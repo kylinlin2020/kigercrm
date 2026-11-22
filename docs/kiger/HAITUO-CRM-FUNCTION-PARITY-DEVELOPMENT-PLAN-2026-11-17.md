@@ -495,7 +495,8 @@
 - [x] 门禁：后端 build 0 错误 / **6110 总 / 0 失败**（Api.Tests 1229/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **195 文件 / 2678 用例全绿**、build 成功。
 - [x] 实机 HTTP：匿名 401；Generate 200（5 证据 / 1 机会）、Current 200、History 200（多次生成可追溯）、Review 确认 200、重复审核 422、非法状态 400；优先级 73 与确定性公式一致。
 - [x] 浏览器：新菜单可见，端到端生成成功；深色 muted 文本改用 `hsl(var(--muted-foreground))`（实测深色 `rgb(161,161,170)`、浅色 `rgb(113,113,122)`），390px 窄屏无横向溢出。截图 `.openchamber/screenshots/research-dark-mobile-*.jpg`、`research-light-desktop-*.jpg`。
-- [ ] 外部情报源接入（需授权）、报告导出与定时重索引：**待取证**。
+- [x] 报告导出：`CrmBackgroundResearchExporter` 确定性导出 Markdown/JSON（见下方证据）。
+- [ ] 外部情报源接入（需授权）与定时重索引：**待取证**。
 
 ### 批次 4 外呼邮件草稿审批证据（2026-11-22）
 
@@ -517,6 +518,15 @@
 - [x] 测试 2 例（静态回收幂等 / Worker 契约与注册）。
 - [x] 门禁：后端 build 0 错误 / **6116 总 / 0 失败**（Api.Tests 1235/0）。
 - [x] 实机：服务启动无 DI 错误；手动 `POST /CrmCustomerPool/RecoverIdle` 200（当前无超时条目返回 0）。真实超时回收路径由 SQLite 闭环测试覆盖（不手工修改数据库制造 7 天超时数据）。
+
+### 批次 4 调研报告导出证据（2026-11-22）
+
+- [x] `CrmBackgroundResearchExporter` 纯函数导出器，仅允许 markdown/json，未知格式显式报错（不静默回退）；Markdown 表格对 `|` 与换行转义，JSON 用 camelCase + 缩进。文件名含客户 ID 与 UTC 时间戳。
+- [x] `GetExportAsync`（Dynamic API 路由 `Export`，GET）导出当前报告，返回文件名/类型/内容；无当前报告时 422。前端背景调研页新增「导出 Markdown / 导出 JSON」按钮，以 Blob 触发下载；7 语言补齐按钮与成功提示。
+- [x] 测试 2 例（格式归一化/表格转义/JSON 结构/文件名扩展名 + SQLite 生成-导出闭环）。
+- [x] 门禁：后端 build 0 错误 / **6118 总 / 0 失败**（Api.Tests 1237/0）；前端 type-check 0、改动文件 lint 0（全量 699 持平）、`vitest run` **196 文件 / 2679 用例全绿**、build 成功。
+- [x] 实机 HTTP：Markdown 200（`.md` / `text/markdown`，含 `## Evidence`）、JSON 200（`.json` / `application/json`，含 `"report"`）、未知格式 400；浏览器导出按钮点击无 console 错误。截图 `.openchamber/screenshots/research-export-*.jpg`。
+- [ ] 定时重索引、外部情报源接入（需授权）：**待取证**。
 
 > 下一步：Windows 原生部署验收，或用户明确授权的 XLSX/真实外部接入。
 

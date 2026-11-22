@@ -26,6 +26,25 @@ function opportunityStatusLabel(status: CrmMarketOpportunityStatus) {
   return t(`crm.backgroundResearch.opportunityStatus.${CrmMarketOpportunityStatus[status]}`)
 }
 
+async function exportReport(format: string) {
+  if (!customerId.value)
+    return
+  try {
+    const file = await crmBackgroundResearchApi.export(customerId.value, format)
+    const blob = new Blob([file.content], { type: file.contentType })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = file.fileName
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success(t('crm.backgroundResearch.exported'))
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.backgroundResearch.error'))
+  }
+}
+
 async function loadHistory() {
   if (!customerId.value)
     return
@@ -112,6 +131,14 @@ async function review(opportunityId: string, status: CrmMarketOpportunityStatus)
           {{ t('crm.backgroundResearch.evidenceCount') }} {{ detail.report.evidenceCount }} ·
           {{ t('crm.backgroundResearch.opportunityCount') }} {{ detail.report.opportunityCount }}
         </p>
+        <div class="research-actions">
+          <button type="button" @click="exportReport('markdown')">
+            {{ t('crm.backgroundResearch.exportMarkdown') }}
+          </button>
+          <button type="button" @click="exportReport('json')">
+            {{ t('crm.backgroundResearch.exportJson') }}
+          </button>
+        </div>
       </section>
 
       <section class="research-section">
@@ -194,6 +221,11 @@ async function review(opportunityId: string, status: CrmMarketOpportunityStatus)
 }
 .research-section {
   display: grid;
+  gap: 0.4rem;
+}
+.research-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
 }
 .research-section h2 {

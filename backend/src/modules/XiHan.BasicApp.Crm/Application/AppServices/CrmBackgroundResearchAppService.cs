@@ -5,6 +5,7 @@ using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Permissions;
 using XiHan.BasicApp.Crm.Domain.Repositories;
 using XiHan.BasicApp.Crm.Domain.Research;
+using XiHan.BasicApp.Crm.Application.Services;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Security.Users;
@@ -141,6 +142,28 @@ public sealed class CrmBackgroundResearchAppService(
             FactValue = opportunity.FactValue,
             PriorityScore = opportunity.PriorityScore,
             Status = (int)opportunity.Status
+        };
+    }
+
+    [PermissionAuthorize(CrmPermissionCodes.Read)]
+    public async Task<CrmBackgroundResearchExportDto> GetExportAsync(
+        long customerId,
+        string format,
+        CancellationToken cancellationToken = default)
+    {
+        var normalized = CrmBackgroundResearchExporter.NormalizeFormat(format);
+        var detail = await GetCurrentAsync(customerId, cancellationToken)
+            ?? throw new InvalidOperationException("No current research report to export.");
+        var now = DateTimeOffset.UtcNow;
+        return new CrmBackgroundResearchExportDto
+        {
+            FileName = CrmBackgroundResearchExporter.BuildFileName(customerId, normalized, now),
+            ContentType = normalized == CrmBackgroundResearchExporter.Json
+                ? "application/json"
+                : "text/markdown",
+            Content = normalized == CrmBackgroundResearchExporter.Json
+                ? CrmBackgroundResearchExporter.RenderJson(detail)
+                : CrmBackgroundResearchExporter.RenderMarkdown(detail)
         };
     }
 

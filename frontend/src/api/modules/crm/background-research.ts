@@ -1,6 +1,7 @@
 import type { ApiId } from '../../types'
 import type {
   CrmBackgroundResearchDetailDto,
+  CrmBackgroundResearchExportDto,
   CrmBackgroundResearchReportDto,
   CrmMarketOpportunityDto,
   CrmMarketOpportunityReviewDto,
@@ -24,5 +25,8 @@ export const crmBackgroundResearchApi = {
   },
   review(input: CrmMarketOpportunityReviewDto) {
     return api.post<CrmMarketOpportunityDto, CrmMarketOpportunityReviewDto>('ReviewOpportunity', input)
+  },
+  export(customerId: ApiId, format: string) {
+    return api.get<CrmBackgroundResearchExportDto>('Export', { customerId, format })
   },
 }

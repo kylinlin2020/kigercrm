@@ -47,6 +47,9 @@ export default {
       },
     },
     backgroundResearch: {
+      exportMarkdown: 'Export Markdown',
+      exportJson: 'Export JSON',
+      exported: 'Report exported',
       title: 'Customer Background Research',
       description: 'Build an auditable dossier from local CRM records. Regenerating supersedes the previous report.',
       generate: 'Generate research',

@@ -17,7 +17,12 @@ describe('crmBackgroundResearchApi', () => {
     await crmBackgroundResearchApi.current('7')
     await crmBackgroundResearchApi.history('7')
     await crmBackgroundResearchApi.review({ opportunityId: '9', status: 1 })
+    await crmBackgroundResearchApi.export('7', 'markdown')
 
+    expect(requestMocks.get).toHaveBeenCalledWith(
+      '/CrmBackgroundResearch/Export',
+      { params: { customerId: '7', format: 'markdown' } },
+    )
     expect(requestMocks.post).toHaveBeenCalledWith(
       '/CrmBackgroundResearch/Generate',
       undefined,

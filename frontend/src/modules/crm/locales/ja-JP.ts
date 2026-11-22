@@ -47,6 +47,9 @@ export default {
       },
     },
     backgroundResearch: {
+      exportMarkdown: 'Markdown をエクスポート',
+      exportJson: 'JSON をエクスポート',
+      exported: 'レポートをエクスポートしました',
       title: '顧客背景調査',
       description: 'ローカル CRM の記録から監査可能な調査ファイルを生成します。再生成すると以前のレポートは置き換え済みになります。',
       generate: '調査を生成',

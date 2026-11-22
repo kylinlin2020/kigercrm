@@ -47,6 +47,9 @@ export default {
       },
     },
     backgroundResearch: {
+      exportMarkdown: '导出 Markdown',
+      exportJson: '导出 JSON',
+      exported: '报告已导出',
       title: '客户背景调研',
       description: '从本地 CRM 记录生成可追溯的调研档案；再次生成会将旧报告标记为已取代。',
       generate: '生成调研',

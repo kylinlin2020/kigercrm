@@ -59,3 +59,9 @@ export interface CrmMarketOpportunityReviewDto {
   opportunityId: ApiId
   status: CrmMarketOpportunityStatus
 }
+
+export interface CrmBackgroundResearchExportDto {
+  fileName: string
+  contentType: string
+  content: string
+}

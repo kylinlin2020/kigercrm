@@ -47,6 +47,9 @@ export default {
       },
     },
     backgroundResearch: {
+      exportMarkdown: 'Markdown निर्यात करें',
+      exportJson: 'JSON निर्यात करें',
+      exported: 'रिपोर्ट निर्यात की गई',
       title: 'ग्राहक पृष्ठभूमि अनुसंधान',
       description: 'स्थानीय CRM रिकॉर्ड से लेखांकन-योग्य अनुसंधान दस्तावेज़ बनाएँ। पुनः बनाने पर पिछली रिपोर्ट प्रतिस्थापित हो जाती है।',
       generate: 'अनुसंधान बनाएँ',

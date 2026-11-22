@@ -15,4 +15,9 @@ public interface ICrmBackgroundResearchAppService : IApplicationService
     Task<CrmMarketOpportunityDto> ReviewOpportunityAsync(
         CrmMarketOpportunityReviewDto input,
         CancellationToken cancellationToken = default);
+
+    Task<CrmBackgroundResearchExportDto> GetExportAsync(
+        long customerId,
+        string format,
+        CancellationToken cancellationToken = default);
 }

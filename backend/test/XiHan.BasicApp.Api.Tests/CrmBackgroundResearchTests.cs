@@ -7,6 +7,7 @@ using Moq;
 using SqlSugar;
 using XiHan.BasicApp.Crm.Application.AppServices;
 using XiHan.BasicApp.Crm.Application.Dtos;
+using XiHan.BasicApp.Crm.Application.Services;
 using XiHan.BasicApp.Crm.Domain.Entities;
 using XiHan.BasicApp.Crm.Domain.Entities.Enums;
 using XiHan.BasicApp.Crm.Domain.Research;
@@ -212,6 +213,67 @@ public sealed class CrmBackgroundResearchTests : IDisposable
         Assert.Contains("CREATE TABLE IF NOT EXISTS crm_background_research_report", migration, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE IF NOT EXISTS crm_research_evidence", migration, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE IF NOT EXISTS crm_market_opportunity", migration, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Exporter_ShouldRenderDeterministicFormats()
+    {
+        Assert.Equal(CrmBackgroundResearchExporter.Markdown,
+            CrmBackgroundResearchExporter.NormalizeFormat(" MARKDOWN "));
+        Assert.Equal(CrmBackgroundResearchExporter.Json,
+            CrmBackgroundResearchExporter.NormalizeFormat("json"));
+        Assert.Throws<ArgumentException>(() => CrmBackgroundResearchExporter.NormalizeFormat("xml"));
+
+        var detail = new CrmBackgroundResearchDetailDto
+        {
+            Report = new CrmBackgroundResearchReportDto
+            {
+                CustomerName = "Acme", GeneratedAtUtc = DateTimeOffset.UtcNow,
+                EvidenceCount = 1, OpportunityCount = 1
+            },
+            Evidence =
+            [
+                new CrmResearchEvidenceDto
+                {
+                    Source = (int)CrmResearchSource.OpenOpportunity,
+                    FactKey = "OpenOpportunity", FactValue = "Proposal | 25000 USD", Confidence = 85
+                }
+            ],
+            Opportunities =
+            [
+                new CrmMarketOpportunityDto
+                {
+                    Title = "Pilot", FactValue = "Proposal | 25000 USD", PriorityScore = 70
+                }
+            ]
+        };
+        var markdown = CrmBackgroundResearchExporter.RenderMarkdown(detail);
+        Assert.Contains("\\|", markdown, StringComparison.Ordinal);
+        Assert.Contains("## Evidence", markdown, StringComparison.Ordinal);
+        Assert.Contains("## Market opportunities", markdown, StringComparison.Ordinal);
+        Assert.Contains("\"evidence\"", CrmBackgroundResearchExporter.RenderJson(detail), StringComparison.Ordinal);
+        Assert.EndsWith(".md", CrmBackgroundResearchExporter.BuildFileName(7, "markdown", DateTimeOffset.UtcNow), StringComparison.Ordinal);
+        Assert.EndsWith(".json", CrmBackgroundResearchExporter.BuildFileName(7, "json", DateTimeOffset.UtcNow), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Flow_ShouldExportCurrentReport()
+    {
+        var customer = await _customers.AddAsync(new SysCrmCustomer
+        {
+            Name = "Export Customer", Industry = "Retail"
+        });
+        await _service.GenerateAsync(customer.BasicId);
+
+        var markdown = await _service.GetExportAsync(customer.BasicId, "markdown");
+        Assert.Equal("text/markdown", markdown.ContentType);
+        Assert.Contains("Export Customer", markdown.Content, StringComparison.Ordinal);
+        Assert.Contains("## Evidence", markdown.Content, StringComparison.Ordinal);
+
+        var json = await _service.GetExportAsync(customer.BasicId, "json");
+        Assert.Equal("application/json", json.ContentType);
+        Assert.Contains("\"report\"", json.Content, StringComparison.Ordinal);
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.GetExportAsync(customer.BasicId, "xml"));
     }
 
     public void Dispose()

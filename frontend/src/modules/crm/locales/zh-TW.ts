@@ -47,6 +47,9 @@ export default {
       },
     },
     backgroundResearch: {
+      exportMarkdown: '匯出 Markdown',
+      exportJson: '匯出 JSON',
+      exported: '報告已匯出',
       title: '客戶背景調研',
       description: '從本地 CRM 記錄產生可追溯的調研檔案；再次產生會將舊報告標記為已取代。',
       generate: '產生調研',
