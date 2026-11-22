@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import type { CrmOutreachDraftDto } from '@/api/modules/crm/outreach-draft.types'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmOutreachDraftApi } from '@/api/modules/crm/outreach-draft'
 import { CrmOutreachDraftStatus } from '@/api/modules/crm/outreach-draft.types'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmOutreachDraftPage' })
@@ -13,7 +21,7 @@ const candidateId = ref('')
 const template = ref('Hi {{FirstName}} at {{CompanyName}}')
 const preview = ref('')
 const enrollmentId = ref('')
-const step = ref(0)
+const step = ref('0')
 const drafts = ref<CrmOutreachDraftDto[]>([])
 const reason = ref('')
 const busy = ref(false)
@@ -60,7 +68,7 @@ async function createDraft() {
   if (!enrollmentId.value)
     return
   await act(async () => {
-    await crmOutreachDraftApi.create({ enrollmentId: enrollmentId.value, step: step.value })
+    await crmOutreachDraftApi.create({ enrollmentId: enrollmentId.value, step: Number(step.value) || 0 })
     toast.success(t('crm.outreachDraft.created'))
     await loadDrafts()
   })
@@ -100,15 +108,21 @@ async function reject(draftId: string) {
     <section class="draft-section">
       <h2>{{ t('crm.outreachDraft.previewTitle') }}</h2>
       <div class="draft-form">
-        <label>{{ t('crm.outreachDraft.candidateId') }}
-          <input v-model="candidateId" type="text">
-        </label>
-        <label class="draft-template">{{ t('crm.outreachDraft.template') }}
-          <textarea v-model="template" rows="2" />
-        </label>
-        <button type="button" :disabled="!candidateId || busy" @click="renderPreview">
-          {{ t('crm.outreachDraft.preview') }}
-        </button>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.outreachDraft.candidateId') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="candidateId" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot class="draft-template">
+          <XhFieldLabel>{{ t('crm.outreachDraft.template') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="template" type="textarea" :rows="2" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhButton variant="outline" :disabled="!candidateId || busy" @click="renderPreview">
+          <XhButtonLabel>{{ t('crm.outreachDraft.preview') }}</XhButtonLabel>
+        </XhButton>
       </div>
       <p v-if="preview" class="draft-preview">
         {{ preview }}
@@ -118,21 +132,30 @@ async function reject(draftId: string) {
     <section class="draft-section">
       <h2>{{ t('crm.outreachDraft.draftsTitle') }}</h2>
       <div class="draft-form">
-        <label>{{ t('crm.outreachDraft.enrollmentId') }}
-          <input v-model="enrollmentId" type="text">
-        </label>
-        <label>{{ t('crm.outreachDraft.step') }}
-          <input v-model.number="step" type="number" min="0">
-        </label>
-        <button type="button" :disabled="!enrollmentId || busy" @click="createDraft">
-          {{ t('crm.outreachDraft.create') }}
-        </button>
-        <button type="button" :disabled="!enrollmentId || busy" @click="loadDrafts">
-          {{ t('crm.outreachDraft.refresh') }}
-        </button>
-        <label>{{ t('crm.outreachDraft.reason') }}
-          <input v-model="reason" type="text">
-        </label>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.outreachDraft.enrollmentId') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="enrollmentId" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.outreachDraft.step') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="step" inputmode="numeric" />
+          </XhFieldControl>
+        </XhFieldRoot>
+        <XhButton variant="outline" :disabled="!enrollmentId || busy" @click="createDraft">
+          <XhButtonLabel>{{ t('crm.outreachDraft.create') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" :disabled="!enrollmentId || busy" @click="loadDrafts">
+          <XhButtonLabel>{{ t('crm.outreachDraft.refresh') }}</XhButtonLabel>
+        </XhButton>
+        <XhFieldRoot>
+          <XhFieldLabel>{{ t('crm.outreachDraft.reason') }}</XhFieldLabel>
+          <XhFieldControl>
+            <XInput v-model:value="reason" />
+          </XhFieldControl>
+        </XhFieldRoot>
       </div>
       <p v-if="drafts.length === 0">
         {{ t('crm.outreachDraft.noDrafts') }}
@@ -141,12 +164,12 @@ async function reject(draftId: string) {
         <span class="draft-text">{{ item.renderedText }}</span>
         <span>{{ statusLabel(item.status) }}</span>
         <template v-if="item.status === CrmOutreachDraftStatus.Planned">
-          <button type="button" :disabled="busy" @click="approve(item.basicId)">
-            {{ t('crm.outreachDraft.approve') }}
-          </button>
-          <button type="button" :disabled="!reason || busy" @click="reject(item.basicId)">
-            {{ t('crm.outreachDraft.reject') }}
-          </button>
+          <XhButton variant="outline" :disabled="busy" @click="approve(item.basicId)">
+            <XhButtonLabel>{{ t('crm.outreachDraft.approve') }}</XhButtonLabel>
+          </XhButton>
+          <XhButton variant="subtle" :disabled="!reason || busy" @click="reject(item.basicId)">
+            <XhButtonLabel>{{ t('crm.outreachDraft.reject') }}</XhButtonLabel>
+          </XhButton>
         </template>
       </div>
     </section>
@@ -181,21 +204,8 @@ async function reject(draftId: string) {
   align-items: end;
   gap: 0.6rem;
 }
-.draft-form label {
-  display: grid;
-  gap: 0.2rem;
-  font-size: 0.82rem;
-}
-.draft-form input,
-.draft-form textarea {
-  font: inherit;
-}
 .draft-template {
   flex: 1 1 320px;
-}
-.draft-template textarea {
-  width: 100%;
-  resize: vertical;
 }
 .draft-preview,
 .draft-text {

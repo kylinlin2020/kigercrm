@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import type { CrmCustomerPoolEntryDto } from '@/api/modules/crm/customer-pool.types'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmCustomerPoolApi } from '@/api/modules/crm/customer-pool'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmCustomerPoolPage' })
@@ -67,24 +75,30 @@ function statusLabel(status: number) {
         <h1>{{ t('crm.customerPool.title') }}</h1>
         <p>{{ t('crm.customerPool.description') }}</p>
       </div>
-      <button type="button" @click="reload">
-        {{ t('crm.customerPool.refresh') }}
-      </button>
+      <XhButton variant="subtle" @click="reload">
+        <XhButtonLabel>{{ t('crm.customerPool.refresh') }}</XhButtonLabel>
+      </XhButton>
     </header>
 
     <section class="pool-form">
-      <label>{{ t('crm.customerPool.customerId') }}
-        <input v-model="customerId" type="text">
-      </label>
-      <button type="button" :disabled="!customerId" @click="add">
-        {{ t('crm.customerPool.add') }}
-      </button>
-      <label>{{ t('crm.customerPool.assignUserId') }}
-        <input v-model="assignUserId" type="text">
-      </label>
-      <button type="button" @click="act(() => crmCustomerPoolApi.recoverIdle(), 'crm.customerPool.recovered')">
-        {{ t('crm.customerPool.recoverIdle') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.customerPool.customerId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="customerId" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" :disabled="!customerId" @click="add">
+        <XhButtonLabel>{{ t('crm.customerPool.add') }}</XhButtonLabel>
+      </XhButton>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.customerPool.assignUserId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="assignUserId" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" @click="act(() => crmCustomerPoolApi.recoverIdle(), 'crm.customerPool.recovered')">
+        <XhButtonLabel>{{ t('crm.customerPool.recoverIdle') }}</XhButtonLabel>
+      </XhButton>
     </section>
 
     <section class="pool-section">
@@ -94,12 +108,12 @@ function statusLabel(status: number) {
       </p>
       <div v-for="entry in available" :key="entry.basicId" class="pool-row">
         <span>{{ entry.customerName }} · {{ statusLabel(entry.status) }} · {{ entry.claimCount }}</span>
-        <button type="button" @click="act(() => crmCustomerPoolApi.claim({ entryId: entry.basicId }), 'crm.customerPool.claimed')">
-          {{ t('crm.customerPool.claim') }}
-        </button>
-        <button type="button" :disabled="!assignUserId" @click="act(() => crmCustomerPoolApi.assign(entry.basicId, assignUserId), 'crm.customerPool.assigned')">
-          {{ t('crm.customerPool.assign') }}
-        </button>
+        <XhButton variant="outline" @click="act(() => crmCustomerPoolApi.claim({ entryId: entry.basicId }), 'crm.customerPool.claimed')">
+          <XhButtonLabel>{{ t('crm.customerPool.claim') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" :disabled="!assignUserId" @click="act(() => crmCustomerPoolApi.assign(entry.basicId, assignUserId), 'crm.customerPool.assigned')">
+          <XhButtonLabel>{{ t('crm.customerPool.assign') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </section>
 
@@ -110,9 +124,9 @@ function statusLabel(status: number) {
       </p>
       <div v-for="entry in mine" :key="entry.basicId" class="pool-row">
         <span>{{ entry.customerName }} · {{ statusLabel(entry.status) }}</span>
-        <button type="button" @click="act(() => crmCustomerPoolApi.release({ entryId: entry.basicId }), 'crm.customerPool.released')">
-          {{ t('crm.customerPool.release') }}
-        </button>
+        <XhButton variant="subtle" @click="act(() => crmCustomerPoolApi.release({ entryId: entry.basicId }), 'crm.customerPool.released')">
+          <XhButtonLabel>{{ t('crm.customerPool.release') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </section>
   </main>
@@ -137,21 +151,13 @@ function statusLabel(status: number) {
 .page-header p,
 .pool-section p {
   margin: 0.25rem 0 0;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .pool-form {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 0.6rem;
-}
-.pool-form label {
-  display: grid;
-  gap: 0.2rem;
-  font-size: 0.82rem;
-}
-.pool-form input {
-  font: inherit;
 }
 .pool-section {
   display: grid;
@@ -167,7 +173,7 @@ function statusLabel(status: number) {
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   font-size: 0.85rem;
 }
 </style>

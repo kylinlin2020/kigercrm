@@ -1,9 +1,17 @@
 <script setup lang="ts">
 import type { CrmBackgroundResearchDetailDto, CrmBackgroundResearchReportDto } from '@/api/modules/crm/background-research.types'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmBackgroundResearchApi } from '@/api/modules/crm/background-research'
 import { CrmMarketOpportunityStatus, CrmResearchSource } from '@/api/modules/crm/background-research.types'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmBackgroundResearchPage' })
@@ -112,15 +120,18 @@ async function review(opportunityId: string, status: CrmMarketOpportunityStatus)
     </header>
 
     <section class="research-form">
-      <label>{{ t('crm.backgroundResearch.customerId') }}
-        <input v-model="customerId" type="text">
-      </label>
-      <button type="button" :disabled="!customerId || working" @click="generate">
-        {{ t('crm.backgroundResearch.generate') }}
-      </button>
-      <button type="button" :disabled="!customerId" @click="loadCurrent">
-        {{ t('crm.backgroundResearch.current') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.backgroundResearch.customerId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="customerId" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" :disabled="!customerId || working" @click="generate">
+        <XhButtonLabel>{{ t('crm.backgroundResearch.generate') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" :disabled="!customerId" @click="loadCurrent">
+        <XhButtonLabel>{{ t('crm.backgroundResearch.current') }}</XhButtonLabel>
+      </XhButton>
     </section>
 
     <template v-if="detail">
@@ -132,12 +143,12 @@ async function review(opportunityId: string, status: CrmMarketOpportunityStatus)
           {{ t('crm.backgroundResearch.opportunityCount') }} {{ detail.report.opportunityCount }}
         </p>
         <div class="research-actions">
-          <button type="button" @click="exportReport('markdown')">
-            {{ t('crm.backgroundResearch.exportMarkdown') }}
-          </button>
-          <button type="button" @click="exportReport('json')">
-            {{ t('crm.backgroundResearch.exportJson') }}
-          </button>
+          <XhButton variant="subtle" @click="exportReport('markdown')">
+            <XhButtonLabel>{{ t('crm.backgroundResearch.exportMarkdown') }}</XhButtonLabel>
+          </XhButton>
+          <XhButton variant="subtle" @click="exportReport('json')">
+            <XhButtonLabel>{{ t('crm.backgroundResearch.exportJson') }}</XhButtonLabel>
+          </XhButton>
         </div>
       </section>
 
@@ -163,12 +174,12 @@ async function review(opportunityId: string, status: CrmMarketOpportunityStatus)
           <span class="research-score">{{ item.priorityScore }}</span>
           <span>{{ opportunityStatusLabel(item.status) }}</span>
           <template v-if="item.status === CrmMarketOpportunityStatus.Proposed">
-            <button type="button" @click="review(item.basicId, CrmMarketOpportunityStatus.Confirmed)">
-              {{ t('crm.backgroundResearch.confirm') }}
-            </button>
-            <button type="button" @click="review(item.basicId, CrmMarketOpportunityStatus.Dismissed)">
-              {{ t('crm.backgroundResearch.dismiss') }}
-            </button>
+            <XhButton variant="outline" @click="review(item.basicId, CrmMarketOpportunityStatus.Confirmed)">
+              <XhButtonLabel>{{ t('crm.backgroundResearch.confirm') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton variant="subtle" @click="review(item.basicId, CrmMarketOpportunityStatus.Dismissed)">
+              <XhButtonLabel>{{ t('crm.backgroundResearch.dismiss') }}</XhButtonLabel>
+            </XhButton>
           </template>
         </div>
       </section>
@@ -210,14 +221,6 @@ async function review(opportunityId: string, status: CrmMarketOpportunityStatus)
   flex-wrap: wrap;
   align-items: end;
   gap: 0.6rem;
-}
-.research-form label {
-  display: grid;
-  gap: 0.2rem;
-  font-size: 0.82rem;
-}
-.research-form input {
-  font: inherit;
 }
 .research-section {
   display: grid;
