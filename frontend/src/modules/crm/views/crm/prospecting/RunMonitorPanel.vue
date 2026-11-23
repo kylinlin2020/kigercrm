@@ -152,16 +152,16 @@ function formatFailure(item: CrmProspectingRunMonitorDto['executions'][number]) 
   align-items: center;
   gap: 0.75rem;
   padding: 0.55rem 0.75rem;
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
   font-size: 0.85rem;
 }
 .live-badge {
   margin-left: auto;
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-full);
-  border: 1px solid var(--xh-border-default, #ddd);
-  color: var(--xh-fg-brand, #2563eb);
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--primary));
   font-size: 0.8rem;
   white-space: nowrap;
 }
@@ -172,13 +172,13 @@ function formatFailure(item: CrmProspectingRunMonitorDto['executions'][number]) 
 .progress-track {
   height: 0.5rem;
   border-radius: var(--radius-full);
-  background: var(--xh-border-subtle, #eee);
+  background: hsl(var(--border));
   overflow: hidden;
 }
 .progress-fill {
   height: 100%;
   border-radius: var(--radius-full);
-  background: var(--xh-fg-brand, #2563eb);
+  background: hsl(var(--primary));
   transition: width var(--xh-motion-duration-move, 200ms) var(--xh-motion-ease-exit, ease);
 }
 .progress-summary {
@@ -195,23 +195,23 @@ function formatFailure(item: CrmProspectingRunMonitorDto['executions'][number]) 
 .state-chip {
   padding: 0.2rem 0.6rem;
   border-radius: var(--radius-full);
-  background: var(--xh-bg-subtle, #eee);
+  background: hsl(var(--muted));
   font-size: 0.8rem;
   white-space: nowrap;
 }
 .chip-ok,
 .state-ok {
-  background: color-mix(in srgb, var(--xh-fg-success, #16a34a) 14%, transparent);
-  color: var(--xh-fg-success, #16a34a);
+  background: hsl(var(--success-surface));
+  color: hsl(var(--success));
 }
 .chip-warn {
-  background: color-mix(in srgb, var(--xh-fg-warning, #b45309) 14%, transparent);
-  color: var(--xh-fg-warning, #b45309);
+  background: hsl(var(--warning-surface));
+  color: hsl(var(--warning));
 }
 .chip-alert,
 .state-alert {
-  background: color-mix(in srgb, var(--xh-fg-danger, #dc2626) 14%, transparent);
-  color: var(--xh-fg-danger, #dc2626);
+  background: hsl(var(--destructive-surface));
+  color: hsl(var(--destructive));
 }
 .exec-title {
   margin: 0.25rem 0 0;
@@ -229,13 +229,13 @@ function formatFailure(item: CrmProspectingRunMonitorDto['executions'][number]) 
 .exec-table th,
 .exec-table td {
   padding: 0.55rem 0.5rem;
-  border-bottom: 1px solid var(--xh-border-subtle, #ddd);
+  border-bottom: 1px solid hsl(var(--border));
   text-align: left;
   vertical-align: top;
 }
 .exec-table td small {
   display: block;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .exec-table code {
   font-size: 0.8rem;
@@ -246,12 +246,12 @@ function formatFailure(item: CrmProspectingRunMonitorDto['executions'][number]) 
 .failure-cell {
   max-width: 18rem;
   overflow-wrap: anywhere;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .empty-state {
   padding: 1.25rem;
   text-align: center;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 @media (prefers-reduced-motion: reduce) {
   .progress-fill {

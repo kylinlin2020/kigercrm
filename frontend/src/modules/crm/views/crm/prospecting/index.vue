@@ -14,6 +14,14 @@ import type {
   CrmProspectingStrategyDto,
   ExportColumn,
 } from '@/api'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhCheckbox,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -27,6 +35,7 @@ import {
   ExportScope,
   exportTaskApi,
 } from '@/api'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import BulkActionBar from './BulkActionBar.vue'
@@ -100,6 +109,28 @@ function strategyStatus(value: number) {
 function runStatus(value: number) {
   return [t('crm.prospecting.queued'), t('crm.prospecting.running'), t('crm.prospecting.succeeded'), t('crm.prospecting.partiallySucceeded'), t('crm.prospecting.failed'), t('crm.prospecting.cancelRequested'), t('crm.prospecting.cancelled'), t('crm.prospecting.waitingForExtractions'), t('crm.prospecting.runPaused')][value] ?? String(value)
 }
+
+const campaignOptions = computed(() => [
+  { label: t('crm.prospecting.selectCampaign'), value: '' },
+  ...campaigns.value.map(campaign => ({ label: campaign.name, value: String(campaign.basicId) })),
+])
+const candidateStatusFilterOptions = computed(() => [
+  { label: t('crm.prospecting.allStatuses'), value: '' },
+  ...[0, 1, 2, 3, 4, 5].map(status => ({ label: candidateStatus(status), value: String(status) })),
+])
+// XSelect 收发字符串选项；这里把值还原成 number | ''，保持原 v-model.number 的数字枚举语义。
+const candidateStatusFilterValue = computed({
+  get: () => String(candidateStatusFilter.value),
+  set: (value: string | number | Array<string | number> | null) => {
+    const next = Array.isArray(value) ? value[0] : value
+    candidateStatusFilter.value = next == null || next === '' ? '' : Number(next)
+  },
+})
+const candidateShortlistFilterOptions = computed(() => [
+  { label: t('crm.prospecting.shortlistAll'), value: '' },
+  { label: t('crm.prospecting.shortlistOnly'), value: 'true' },
+  { label: t('crm.prospecting.shortlistExcluded'), value: 'false' },
+])
 
 /**
  * The backend catalog is the single source of truth. On failure we keep the static fallback
@@ -425,8 +456,7 @@ function isProviderSelected(code: string) {
   return providerSelection.value.includes(code)
 }
 
-function toggleProvider(code: string, event: Event) {
-  const checked = (event.target as HTMLInputElement).checked
+function toggleProvider(code: string, checked: boolean) {
   providerSelection.value = checked
     ? [...providerSelection.value, code]
     : providerSelection.value.filter(item => item !== code)
@@ -688,24 +718,24 @@ onMounted(() => {
         <h1>{{ t('crm.prospecting.title') }}</h1>
         <p>{{ t('crm.prospecting.description') }}</p>
       </div>
-      <button v-if="canCreate" class="primary-button" type="button" @click="openCampaignDialog()">
-        {{ t('crm.prospecting.createCampaign') }}
-      </button>
+      <XhButton v-if="canCreate" variant="outline" @click="openCampaignDialog()">
+        <XhButtonLabel>{{ t('crm.prospecting.createCampaign') }}</XhButtonLabel>
+      </XhButton>
     </header>
 
     <section class="toolbar">
-      <label>{{ t('crm.prospecting.campaign') }}
-        <select v-model="selectedCampaignId" :disabled="loading">
-          <option value="">{{ t('crm.prospecting.selectCampaign') }}</option>
-          <option v-for="campaign in campaigns" :key="campaign.basicId" :value="String(campaign.basicId)">{{ campaign.name }}</option>
-        </select>
-      </label>
-      <button type="button" :disabled="loading" @click="loadCampaigns">
-        {{ t('crm.prospecting.refresh') }}
-      </button>
-      <button v-if="canCreate && selectedCampaign" type="button" @click="editCurrentCampaign">
-        {{ t('crm.prospecting.editCampaign') }}
-      </button>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel>{{ t('crm.prospecting.campaign') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="selectedCampaignId" :options="campaignOptions" :disabled="loading" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="subtle" :disabled="loading" @click="loadCampaigns">
+        <XhButtonLabel>{{ t('crm.prospecting.refresh') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton v-if="canCreate && selectedCampaign" variant="subtle" @click="editCurrentCampaign">
+        <XhButtonLabel>{{ t('crm.prospecting.editCampaign') }}</XhButtonLabel>
+      </XhButton>
       <span v-if="selectedCampaign" class="status-pill">{{ campaignStatus(selectedCampaign.status) }}</span>
     </section>
 
@@ -713,9 +743,9 @@ onMounted(() => {
       <section class="panel">
         <header class="section-header">
           <div><h2>{{ t('crm.prospecting.strategies') }}</h2><p>{{ t('crm.prospecting.strategyDescription') }}</p></div>
-          <button v-if="canCreate" type="button" @click="openStrategyDialog">
-            {{ t('crm.prospecting.createStrategy') }}
-          </button>
+          <XhButton v-if="canCreate" variant="outline" @click="openStrategyDialog">
+            <XhButtonLabel>{{ t('crm.prospecting.createStrategy') }}</XhButtonLabel>
+          </XhButton>
         </header>
         <div v-if="strategies.length === 0" class="empty-state">
           {{ t('crm.prospecting.noStrategies') }}
@@ -728,18 +758,18 @@ onMounted(() => {
           </div>
           <span class="status-pill">{{ strategyStatus(strategy.approvalStatus) }}</span>
           <div class="actions">
-            <button v-if="canExecute && strategy.approvalStatus === CrmProspectingStrategyApprovalStatus.Draft" type="button" @click="submitStrategy(strategy)">
-              {{ t('crm.prospecting.submitApproval') }}
-            </button>
-            <button v-if="canExecute && strategy.approvalStatus === CrmProspectingStrategyApprovalStatus.PendingApproval" type="button" @click="decideStrategy(strategy, true)">
-              {{ t('crm.prospecting.approve') }}
-            </button>
-            <button v-if="canExecute && strategy.approvalStatus === CrmProspectingStrategyApprovalStatus.PendingApproval" type="button" @click="decideStrategy(strategy, false)">
-              {{ t('crm.prospecting.reject') }}
-            </button>
-            <button v-if="canExecute && strategy.approvalStatus === CrmProspectingStrategyApprovalStatus.Approved" type="button" @click="activateStrategy(strategy)">
-              {{ t('crm.prospecting.activate') }}
-            </button>
+            <XhButton v-if="canExecute && strategy.approvalStatus === CrmProspectingStrategyApprovalStatus.Draft" variant="outline" @click="submitStrategy(strategy)">
+              <XhButtonLabel>{{ t('crm.prospecting.submitApproval') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton v-if="canExecute && strategy.approvalStatus === CrmProspectingStrategyApprovalStatus.PendingApproval" variant="outline" @click="decideStrategy(strategy, true)">
+              <XhButtonLabel>{{ t('crm.prospecting.approve') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton v-if="canExecute && strategy.approvalStatus === CrmProspectingStrategyApprovalStatus.PendingApproval" variant="subtle" @click="decideStrategy(strategy, false)">
+              <XhButtonLabel>{{ t('crm.prospecting.reject') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton v-if="canExecute && strategy.approvalStatus === CrmProspectingStrategyApprovalStatus.Approved" variant="outline" @click="activateStrategy(strategy)">
+              <XhButtonLabel>{{ t('crm.prospecting.activate') }}</XhButtonLabel>
+            </XhButton>
           </div>
         </div>
       </section>
@@ -747,9 +777,9 @@ onMounted(() => {
       <section class="panel">
         <header class="section-header">
           <div><h2>{{ t('crm.prospecting.runs') }}</h2><p>{{ t('crm.prospecting.runDescription') }}</p></div>
-          <button v-if="canExecute" class="primary-button" type="button" :disabled="!selectedCampaign.activeStrategyVersion || submitting" @click="startRun">
-            {{ t('crm.prospecting.startRun') }}
-          </button>
+          <XhButton v-if="canExecute" variant="outline" :disabled="!selectedCampaign.activeStrategyVersion || submitting" @click="startRun">
+            <XhButtonLabel>{{ t('crm.prospecting.startRun') }}</XhButtonLabel>
+          </XhButton>
         </header>
         <div v-if="runs.length === 0" class="empty-state">
           {{ t('crm.prospecting.noRuns') }}
@@ -759,21 +789,21 @@ onMounted(() => {
           <tbody>
             <tr v-for="run in runs" :key="run.basicId" :class="{ selected: selectedRunId === String(run.basicId) }">
               <td>
-                <button class="text-button" type="button" @click="selectRun(run)">
-                  {{ run.basicId }}
-                </button>
+                <XhButton variant="subtle" @click="selectRun(run)">
+                  <XhButtonLabel>{{ run.basicId }}</XhButtonLabel>
+                </XhButton>
               </td>
               <td>v{{ run.strategyVersion }}</td><td>{{ runStatus(run.status) }}</td><td>{{ run.rawRecordCount }}</td><td>{{ run.candidateCount }}</td><td>{{ run.failureCount }}</td><td>{{ new Date(run.createdTime).toLocaleString() }}</td>
               <td>
-                <button v-if="canExecute && [CrmProspectingRunStatus.Queued, CrmProspectingRunStatus.Running, CrmProspectingRunStatus.WaitingForExtractions].includes(run.status)" type="button" @click="pauseRun(run)">
-                  {{ t('crm.prospecting.pauseRun') }}
-                </button>
-                <button v-if="canExecute && run.status === CrmProspectingRunStatus.Paused" type="button" @click="resumeRun(run)">
-                  {{ t('crm.prospecting.resumeRun') }}
-                </button>
-                <button v-if="canExecute && [CrmProspectingRunStatus.Queued, CrmProspectingRunStatus.Running, CrmProspectingRunStatus.WaitingForExtractions, CrmProspectingRunStatus.Paused].includes(run.status)" type="button" @click="cancelRun(run)">
-                  {{ t('crm.prospecting.cancel') }}
-                </button>
+                <XhButton v-if="canExecute && [CrmProspectingRunStatus.Queued, CrmProspectingRunStatus.Running, CrmProspectingRunStatus.WaitingForExtractions].includes(run.status)" variant="subtle" @click="pauseRun(run)">
+                  <XhButtonLabel>{{ t('crm.prospecting.pauseRun') }}</XhButtonLabel>
+                </XhButton>
+                <XhButton v-if="canExecute && run.status === CrmProspectingRunStatus.Paused" variant="outline" @click="resumeRun(run)">
+                  <XhButtonLabel>{{ t('crm.prospecting.resumeRun') }}</XhButtonLabel>
+                </XhButton>
+                <XhButton v-if="canExecute && [CrmProspectingRunStatus.Queued, CrmProspectingRunStatus.Running, CrmProspectingRunStatus.WaitingForExtractions, CrmProspectingRunStatus.Paused].includes(run.status)" variant="subtle" tone="danger" @click="cancelRun(run)">
+                  <XhButtonLabel>{{ t('crm.prospecting.cancel') }}</XhButtonLabel>
+                </XhButton>
               </td>
             </tr>
           </tbody>
@@ -783,28 +813,27 @@ onMounted(() => {
       <section v-if="selectedRunId" class="panel">
         <header class="section-header">
           <div><h2>{{ t('crm.prospecting.candidates') }}</h2><p>{{ t('crm.prospecting.candidateDescription', { runId: selectedRunId }) }}</p></div>
-          <label class="inline-filter">{{ t('crm.prospecting.candidateStatusFilter') }}
-            <select v-model.number="candidateStatusFilter">
-              <option value="">{{ t('crm.prospecting.allStatuses') }}</option>
-              <option v-for="status in [0, 1, 2, 3, 4, 5]" :key="status" :value="status">{{ candidateStatus(status) }}</option>
-            </select>
-          </label>
-          <label class="inline-filter">{{ t('crm.prospecting.shortlistFilter') }}
-            <select v-model="candidateShortlistFilter">
-              <option value="">{{ t('crm.prospecting.shortlistAll') }}</option>
-              <option value="true">{{ t('crm.prospecting.shortlistOnly') }}</option>
-              <option value="false">{{ t('crm.prospecting.shortlistExcluded') }}</option>
-            </select>
-          </label>
-          <button type="button" @click="loadCandidates">
-            {{ t('crm.prospecting.refresh') }}
-          </button>
-          <button type="button" @click="refreshRunDetail">
-            {{ t('crm.prospecting.refreshRun') }}
-          </button>
-          <button v-if="canExport" type="button" :disabled="exporting" @click="exportCandidates">
-            {{ t('crm.prospecting.exportCandidates') }}
-          </button>
+          <XhFieldRoot class="inline-filter">
+            <XhFieldLabel>{{ t('crm.prospecting.candidateStatusFilter') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect v-model:value="candidateStatusFilterValue" :options="candidateStatusFilterOptions" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot class="inline-filter">
+            <XhFieldLabel>{{ t('crm.prospecting.shortlistFilter') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect v-model:value="candidateShortlistFilter" :options="candidateShortlistFilterOptions" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhButton variant="subtle" @click="loadCandidates">
+            <XhButtonLabel>{{ t('crm.prospecting.refresh') }}</XhButtonLabel>
+          </XhButton>
+          <XhButton variant="subtle" @click="refreshRunDetail">
+            <XhButtonLabel>{{ t('crm.prospecting.refreshRun') }}</XhButtonLabel>
+          </XhButton>
+          <XhButton v-if="canExport" variant="subtle" :disabled="exporting" @click="exportCandidates">
+            <XhButtonLabel>{{ t('crm.prospecting.exportCandidates') }}</XhButtonLabel>
+          </XhButton>
         </header>
         <BulkActionBar
           :selected-count="selectedCandidateIds.length"
@@ -852,22 +881,49 @@ onMounted(() => {
     <div v-if="campaignDialog" class="modal-backdrop" @click.self="campaignDialog = false">
       <section class="editor" role="dialog" aria-modal="true">
         <header>
-          <h2>{{ editingCampaignId ? t('crm.prospecting.editCampaign') : t('crm.prospecting.createCampaign') }}</h2><button type="button" @click="campaignDialog = false">
-            ×
-          </button>
+          <h2>{{ editingCampaignId ? t('crm.prospecting.editCampaign') : t('crm.prospecting.createCampaign') }}</h2>
+          <XhButton variant="subtle" :aria-label="t('common.actions.close')" @click="campaignDialog = false">
+            <XhButtonLabel>×</XhButtonLabel>
+          </XhButton>
         </header>
         <form @submit.prevent="saveCampaign">
-          <label>{{ t('crm.prospecting.name') }} *<input v-model="campaignForm.name" maxlength="160" required></label>
-          <label>{{ t('crm.prospecting.objective') }}<textarea v-model="campaignForm.objective" rows="2" maxlength="1000" /></label>
-          <label>{{ t('crm.prospecting.productScope') }}<input v-model="campaignForm.productScope" maxlength="500"></label>
-          <label>{{ t('crm.prospecting.targetMarkets') }}<textarea v-model="campaignForm.targetMarkets" rows="2" /></label>
-          <label>{{ t('crm.prospecting.idealCustomerProfile') }}<textarea v-model="campaignForm.idealCustomerProfile" rows="3" /></label>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.name') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="campaignForm.name" :max-length="160" required />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.objective') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="campaignForm.objective" type="textarea" :rows="2" :max-length="1000" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.productScope') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="campaignForm.productScope" :max-length="500" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.targetMarkets') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="campaignForm.targetMarkets" type="textarea" :rows="2" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.idealCustomerProfile') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="campaignForm.idealCustomerProfile" type="textarea" :rows="3" />
+            </XhFieldControl>
+          </XhFieldRoot>
           <footer>
-            <button type="button" @click="campaignDialog = false">
-              {{ t('crm.prospecting.cancel') }}
-            </button><button class="primary-button" type="submit" :disabled="submitting">
-              {{ t('crm.prospecting.save') }}
-            </button>
+            <XhButton variant="subtle" @click="campaignDialog = false">
+              <XhButtonLabel>{{ t('crm.prospecting.cancel') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton variant="outline" type="submit" :disabled="submitting">
+              <XhButtonLabel>{{ t('crm.prospecting.save') }}</XhButtonLabel>
+            </XhButton>
           </footer>
         </form>
       </section>
@@ -876,13 +932,24 @@ onMounted(() => {
     <div v-if="strategyDialog" class="modal-backdrop" @click.self="strategyDialog = false">
       <section class="editor" role="dialog" aria-modal="true">
         <header>
-          <h2>{{ t('crm.prospecting.createStrategy') }}</h2><button type="button" @click="strategyDialog = false">
-            ×
-          </button>
+          <h2>{{ t('crm.prospecting.createStrategy') }}</h2>
+          <XhButton variant="subtle" :aria-label="t('common.actions.close')" @click="strategyDialog = false">
+            <XhButtonLabel>×</XhButtonLabel>
+          </XhButton>
         </header>
         <form @submit.prevent="saveStrategy">
-          <label>{{ t('crm.prospecting.name') }} *<input v-model="strategyForm.name" maxlength="160" required></label>
-          <label>{{ t('crm.prospecting.searchObjective') }} *<textarea v-model="strategyForm.searchObjective" rows="4" required /></label>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.name') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="strategyForm.name" :max-length="160" required />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.searchObjective') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="strategyForm.searchObjective" type="textarea" :rows="4" required />
+            </XhFieldControl>
+          </XhFieldRoot>
           <div class="provider-catalog">
             <strong>{{ t('crm.prospecting.providerCatalog') }}</strong>
             <p class="hint">
@@ -904,23 +971,38 @@ onMounted(() => {
                   :class="{ selected: isProviderSelected(item.code), unavailable: !catalogIsFallback && !item.isExecutable }"
                   :title="item.configKey || undefined"
                 >
-                  <input type="checkbox" :checked="isProviderSelected(item.code)" @change="toggleProvider(item.code, $event)">
+                  <XhCheckbox
+                    :checked="isProviderSelected(item.code)"
+                    :aria-label="`${item.code} · ${item.label}`"
+                    @update:checked="(checked: boolean) => toggleProvider(item.code, checked)"
+                  />
                   <span><code>{{ item.code }}</code> · {{ item.label }}<small>{{ providerStatusLabel(item) }} · {{ providerCredentialLabel(item) }} · {{ item.note }}</small></span>
                 </label>
               </div>
             </div>
           </div>
-          <label>{{ t('crm.prospecting.providerPlanJson') }}<textarea v-model="strategyForm.providerPlanJson" rows="2" required @input="onProviderPlanInput" /></label>
-          <label>{{ t('crm.prospecting.excludedDomainsJson') }}<textarea v-model="strategyForm.excludedDomainsJson" rows="2" /></label>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.providerPlanJson') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="strategyForm.providerPlanJson" type="textarea" :rows="2" required @input="onProviderPlanInput" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.prospecting.excludedDomainsJson') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="strategyForm.excludedDomainsJson" type="textarea" :rows="2" />
+            </XhFieldControl>
+          </XhFieldRoot>
           <p class="hint">
             {{ t('crm.prospecting.providerOptInNotice') }}
           </p>
           <footer>
-            <button type="button" @click="strategyDialog = false">
-              {{ t('crm.prospecting.cancel') }}
-            </button><button class="primary-button" type="submit" :disabled="submitting">
-              {{ t('crm.prospecting.save') }}
-            </button>
+            <XhButton variant="subtle" @click="strategyDialog = false">
+              <XhButtonLabel>{{ t('crm.prospecting.cancel') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton variant="outline" type="submit" :disabled="submitting">
+              <XhButtonLabel>{{ t('crm.prospecting.save') }}</XhButtonLabel>
+            </XhButton>
           </footer>
         </form>
       </section>
@@ -954,17 +1036,17 @@ onMounted(() => {
 .section-header p,
 .record-main small,
 .hint {
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
   margin: 0.25rem 0 0;
 }
 .panel {
-  border: 1px solid var(--xh-border, #ddd);
-  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
   padding: 1rem;
   overflow-x: auto;
 }
 .record-row {
-  border-top: 1px solid var(--xh-border, #ddd);
+  border-top: 1px solid hsl(var(--border));
   padding: 0.75rem 0;
   flex-wrap: wrap;
 }
@@ -974,44 +1056,13 @@ onMounted(() => {
   min-width: 14rem;
   flex: 1;
 }
-.toolbar label,
-.editor label {
-  display: grid;
-  gap: 0.35rem;
-}
-.toolbar select,
-.editor input,
-.editor textarea {
+.toolbar-field {
   min-width: 12rem;
-  border: 1px solid var(--xh-border, #ccc);
-  border-radius: 0.4rem;
-  padding: 0.55rem;
-  background: var(--xh-surface, white);
-  color: inherit;
-}
-button {
-  border: 1px solid var(--xh-border, #ccc);
-  border-radius: 0.4rem;
-  padding: 0.45rem 0.7rem;
-}
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.primary-button {
-  background: var(--xh-primary, #2563eb);
-  color: white;
-  border-color: transparent;
-}
-.text-button {
-  border: 0;
-  color: var(--xh-primary, #2563eb);
-  background: transparent;
 }
 .status-pill {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   padding: 0.2rem 0.6rem;
-  background: var(--xh-muted-surface, #eee);
+  background: hsl(var(--muted));
   white-space: nowrap;
 }
 .actions {
@@ -1028,21 +1079,21 @@ table {
 th,
 td {
   padding: 0.65rem 0.5rem;
-  border-bottom: 1px solid var(--xh-border, #ddd);
+  border-bottom: 1px solid hsl(var(--border));
   text-align: left;
   vertical-align: top;
 }
 td small {
   display: block;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 tr.selected {
-  background: var(--xh-muted-surface, #f5f5f5);
+  background: hsl(var(--muted));
 }
 .empty-state {
   padding: 1.5rem;
   text-align: center;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .modal-backdrop {
   position: fixed;
@@ -1051,7 +1102,7 @@ tr.selected {
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: #0008;
+  background: hsl(var(--overlay));
 }
 .editor {
   width: min(42rem, 100%);
@@ -1060,9 +1111,9 @@ tr.selected {
   display: grid;
   gap: 1rem;
   padding: 1.25rem;
-  border-radius: 0.75rem;
-  background: var(--xh-surface, white);
-  color: inherit;
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
 }
 .editor form {
   display: grid;
@@ -1089,8 +1140,8 @@ tr.selected {
   max-height: 18rem;
   overflow-y: auto;
   padding: 0.75rem;
-  border: 1px solid var(--xh-border, #ddd);
-  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
 }
 .provider-group h4 {
   margin: 0.5rem 0 0.25rem;
@@ -1106,17 +1157,13 @@ tr.selected {
   align-items: flex-start;
   gap: 0.4rem;
   padding: 0.45rem 0.5rem;
-  border: 1px solid var(--xh-border, #ddd);
-  border-radius: 0.4rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
   cursor: pointer;
 }
 .provider-option.selected {
-  border-color: var(--xh-primary, #2563eb);
-  background: var(--xh-muted-surface, #f5f5f5);
-}
-.provider-option input {
-  margin-top: 0.15rem;
-  flex: none;
+  border-color: hsl(var(--primary));
+  background: hsl(var(--muted));
 }
 .provider-option code {
   font-size: 0.8rem;
@@ -1124,7 +1171,7 @@ tr.selected {
 .provider-option small {
   display: block;
   margin-top: 0.15rem;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
   line-height: 1.4;
 }
 .provider-option.unavailable {
@@ -1132,18 +1179,12 @@ tr.selected {
   opacity: 0.72;
 }
 .catalog-warning {
-  color: var(--xh-warning, #b45309);
+  color: hsl(var(--warning));
 }
 .inline-filter {
   display: grid;
   gap: 0.25rem;
+  min-width: 12rem;
   font-size: 0.85rem;
-}
-.inline-filter select {
-  border: 1px solid var(--xh-border, #ccc);
-  border-radius: 0.4rem;
-  padding: 0.4rem;
-  background: var(--xh-surface, white);
-  color: inherit;
 }
 </style>

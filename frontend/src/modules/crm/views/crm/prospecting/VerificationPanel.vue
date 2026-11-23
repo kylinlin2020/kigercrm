@@ -9,6 +9,7 @@ import type {
   CrmProspectingVerificationState,
   CrmProspectingWebsiteAssessmentDto,
 } from '@/api'
+import { XhButton, XhButtonLabel } from '@xihan-ui/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { crmProspectingApi, CrmProspectingIdentityBootstrapStage } from '@/api'
@@ -187,21 +188,21 @@ async function buildReport() {
         <p>{{ t('crm.prospecting.verifyDescription') }}</p>
       </div>
       <div class="verify-actions">
-        <button v-if="canExecute" type="button" :disabled="busy" @click="bootstrapIdentity">
-          {{ t('crm.prospecting.verifyBootstrap') }}
-        </button>
-        <button v-if="canExecute" type="button" :disabled="busy" @click="resolveIdentity">
-          {{ t('crm.prospecting.verifyResolveIdentity') }}
-        </button>
-        <button v-if="canExecute" type="button" :disabled="busy || !website" @click="assessWebsite">
-          {{ t('crm.prospecting.verifyAssessWebsite') }}
-        </button>
-        <button v-if="canExecute" type="button" :disabled="busy || !website" @click="probeWebsite">
-          {{ t('crm.prospecting.verifyProbeWebsite') }}
-        </button>
-        <button v-if="canExecute" class="primary-button" type="button" :disabled="busy" @click="buildReport">
-          {{ t('crm.prospecting.verifyBuildReport') }}
-        </button>
+        <XhButton v-if="canExecute" variant="outline" :disabled="busy" @click="bootstrapIdentity">
+          <XhButtonLabel>{{ t('crm.prospecting.verifyBootstrap') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton v-if="canExecute" variant="outline" :disabled="busy" @click="resolveIdentity">
+          <XhButtonLabel>{{ t('crm.prospecting.verifyResolveIdentity') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton v-if="canExecute" variant="outline" :disabled="busy || !website" @click="assessWebsite">
+          <XhButtonLabel>{{ t('crm.prospecting.verifyAssessWebsite') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton v-if="canExecute" variant="outline" :disabled="busy || !website" @click="probeWebsite">
+          <XhButtonLabel>{{ t('crm.prospecting.verifyProbeWebsite') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton v-if="canExecute" variant="outline" :disabled="busy" @click="buildReport">
+          <XhButtonLabel>{{ t('crm.prospecting.verifyBuildReport') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </header>
 
@@ -262,7 +263,7 @@ async function buildReport() {
 .verification-panel {
   display: grid;
   gap: 0.5rem;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   padding-top: 0.6rem;
 }
 .verify-actions {
@@ -272,7 +273,7 @@ async function buildReport() {
 }
 .verify-note {
   margin: 0;
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
   font-size: 0.8rem;
 }
 .verify-summary {
@@ -295,6 +296,6 @@ async function buildReport() {
   gap: 0.5rem;
 }
 .verify-fields small {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>

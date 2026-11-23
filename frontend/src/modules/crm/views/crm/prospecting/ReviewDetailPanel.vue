@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CrmProspectingCandidateReviewDetailDto } from '@/api'
+import { XhButton, XhButtonLabel } from '@xihan-ui/vue'
 import { useI18n } from 'vue-i18n'
 import VerificationPanel from './VerificationPanel.vue'
 
@@ -48,9 +49,9 @@ function scoreGates(value: string) {
   <section v-if="loading || detail" class="panel review-detail">
     <header class="section-header">
       <div><h2>{{ t('crm.prospecting.reviewDetail') }}</h2><p>{{ detail?.candidate.companyName || '' }}</p></div>
-      <button type="button" @click="emit('close')">
-        {{ t('crm.prospecting.closeDetail') }}
-      </button>
+      <XhButton variant="subtle" @click="emit('close')">
+        <XhButtonLabel>{{ t('crm.prospecting.closeDetail') }}</XhButtonLabel>
+      </XhButton>
     </header>
     <div v-if="loading" class="empty-state">
       {{ t('crm.prospecting.loadingDetails') }}
@@ -105,19 +106,14 @@ function scoreGates(value: string) {
   margin: 0;
 }
 .section-header p {
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
   margin: 0.25rem 0 0;
 }
 .panel {
-  border: 1px solid var(--xh-border, #ddd);
-  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-lg);
   padding: 1rem;
   overflow-x: auto;
-}
-button {
-  border: 1px solid var(--xh-border, #ccc);
-  border-radius: 0.4rem;
-  padding: 0.45rem 0.7rem;
 }
 .review-detail {
   display: grid;
@@ -130,7 +126,7 @@ button {
   display: block;
   max-width: 22rem;
   overflow-wrap: anywhere;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 table {
   width: 100%;
@@ -141,18 +137,18 @@ table {
 th,
 td {
   padding: 0.65rem 0.5rem;
-  border-bottom: 1px solid var(--xh-border, #ddd);
+  border-bottom: 1px solid hsl(var(--border));
   text-align: left;
   vertical-align: top;
 }
 td small {
   display: block;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .empty-state {
   padding: 1.5rem;
   text-align: center;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 @media (max-width: 760px) {
   .section-header {

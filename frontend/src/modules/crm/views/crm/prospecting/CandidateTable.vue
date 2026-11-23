@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CrmProspectingCandidateDto } from '@/api'
+import { XhButton, XhButtonLabel, XhCheckbox } from '@xihan-ui/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CrmProspectingCandidateStatus } from '@/api'
@@ -32,12 +33,12 @@ const { candidateStatus } = useProspectingLabels()
 const allOnPageSelected = computed(() => props.candidates.length > 0
   && props.candidates.every(item => props.selectedIds.includes(String(item.basicId))))
 
-function onToggle(id: string, event: Event) {
-  emit('toggle', id, (event.target as HTMLInputElement).checked)
+function onToggle(id: string, checked: boolean) {
+  emit('toggle', id, checked)
 }
 
-function onToggleAll(event: Event) {
-  emit('toggleAll', (event.target as HTMLInputElement).checked)
+function onToggleAll(checked: boolean) {
+  emit('toggleAll', checked)
 }
 </script>
 
@@ -46,56 +47,47 @@ function onToggleAll(event: Event) {
     {{ t('crm.prospecting.noCandidates') }}
   </div>
   <table v-else>
-    <thead><tr><th><input type="checkbox" :checked="allOnPageSelected" :aria-label="t('crm.prospecting.selectAll')" @change="onToggleAll"></th><th>{{ t('crm.prospecting.company') }}</th><th>{{ t('crm.prospecting.contact') }}</th><th>{{ t('crm.prospecting.email') }}</th><th>{{ t('crm.prospecting.website') }}</th><th>{{ t('crm.prospecting.source') }}</th><th>{{ t('crm.prospecting.status') }}</th><th>{{ t('crm.prospecting.duplicateReason') }}</th><th>{{ t('crm.prospecting.shortlistFilter') }}</th><th>{{ t('crm.prospecting.actions') }}</th></tr></thead>
+    <thead><tr><th><XhCheckbox :checked="allOnPageSelected" :aria-label="t('crm.prospecting.selectAll')" @update:checked="onToggleAll" /></th><th>{{ t('crm.prospecting.company') }}</th><th>{{ t('crm.prospecting.contact') }}</th><th>{{ t('crm.prospecting.email') }}</th><th>{{ t('crm.prospecting.website') }}</th><th>{{ t('crm.prospecting.source') }}</th><th>{{ t('crm.prospecting.status') }}</th><th>{{ t('crm.prospecting.duplicateReason') }}</th><th>{{ t('crm.prospecting.shortlistFilter') }}</th><th>{{ t('crm.prospecting.actions') }}</th></tr></thead>
     <tbody>
       <tr v-for="candidate in candidates" :key="candidate.basicId">
-        <td><input type="checkbox" :checked="selectedIds.includes(String(candidate.basicId))" :aria-label="String(candidate.basicId)" @change="onToggle(String(candidate.basicId), $event)"></td>
+        <td><XhCheckbox :checked="selectedIds.includes(String(candidate.basicId))" :aria-label="String(candidate.basicId)" @update:checked="onToggle(String(candidate.basicId), $event)" /></td>
         <td><strong>{{ candidate.companyName }}</strong><small>{{ candidate.title || '' }}</small></td>
         <td>{{ candidate.contactName || '—' }}</td><td>{{ candidate.businessEmail || '—' }}</td>
         <td><a v-if="candidate.website" :href="candidate.website" target="_blank" rel="noopener noreferrer">{{ candidate.website }}</a><span v-else>—</span></td>
         <td>{{ candidate.source || candidate.providerCode }}</td><td>{{ candidateStatus(candidate.status) }}</td><td>{{ candidate.duplicateReason || '—' }}</td><td>{{ candidate.shortlistedAt ? t('crm.prospecting.shortlisted') : '—' }}</td>
         <td class="actions">
-          <button type="button" @click="emit('view', candidate)">
-            {{ t('crm.prospecting.viewEvidence') }}
-          </button>
+          <XhButton variant="outline" @click="emit('view', candidate)">
+            <XhButtonLabel>{{ t('crm.prospecting.viewEvidence') }}</XhButtonLabel>
+          </XhButton>
           <template v-if="canExecute && [CrmProspectingCandidateStatus.PendingReview, CrmProspectingCandidateStatus.Duplicate].includes(candidate.status)">
-            <button type="button" @click="emit('review', candidate, true)">
-              {{ t('crm.prospecting.approve') }}
-            </button>
-            <button type="button" @click="emit('review', candidate, false)">
-              {{ t('crm.prospecting.reject') }}
-            </button>
+            <XhButton variant="outline" @click="emit('review', candidate, true)">
+              <XhButtonLabel>{{ t('crm.prospecting.approve') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton variant="outline" tone="danger" @click="emit('review', candidate, false)">
+              <XhButtonLabel>{{ t('crm.prospecting.reject') }}</XhButtonLabel>
+            </XhButton>
           </template>
-          <button v-if="canCreateLead && candidate.status === CrmProspectingCandidateStatus.Approved" type="button" @click="emit('convert', candidate)">
-            {{ t('crm.prospecting.convertToLead') }}
-          </button>
+          <XhButton v-if="canCreateLead && candidate.status === CrmProspectingCandidateStatus.Approved" variant="outline" @click="emit('convert', candidate)">
+            <XhButtonLabel>{{ t('crm.prospecting.convertToLead') }}</XhButtonLabel>
+          </XhButton>
         </td>
       </tr>
     </tbody>
   </table>
   <nav v-if="total > 0" class="pagination-bar" :aria-label="t('crm.prospecting.candidatePagination')">
-    <button type="button" :disabled="pageIndex <= 1" @click="emit('page', pageIndex - 1)">
-      {{ t('crm.prospecting.prevPage') }}
-    </button>
+    <XhButton variant="subtle" :disabled="pageIndex <= 1" @click="emit('page', pageIndex - 1)">
+      <XhButtonLabel>{{ t('crm.prospecting.prevPage') }}</XhButtonLabel>
+    </XhButton>
     <span class="page-info">
       {{ t('crm.prospecting.pageInfo', { page: pageIndex, pages: totalPages, total }) }}
     </span>
-    <button type="button" :disabled="pageIndex >= totalPages" @click="emit('page', pageIndex + 1)">
-      {{ t('crm.prospecting.nextPage') }}
-    </button>
+    <XhButton variant="subtle" :disabled="pageIndex >= totalPages" @click="emit('page', pageIndex + 1)">
+      <XhButtonLabel>{{ t('crm.prospecting.nextPage') }}</XhButtonLabel>
+    </XhButton>
   </nav>
 </template>
 
 <style scoped>
-button {
-  border: 1px solid var(--xh-border, #ccc);
-  border-radius: 0.4rem;
-  padding: 0.45rem 0.7rem;
-}
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -110,18 +102,18 @@ table {
 th,
 td {
   padding: 0.65rem 0.5rem;
-  border-bottom: 1px solid var(--xh-border, #ddd);
+  border-bottom: 1px solid hsl(var(--border));
   text-align: left;
   vertical-align: top;
 }
 td small {
   display: block;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .empty-state {
   padding: 1.5rem;
   text-align: center;
-  color: var(--xh-text-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .pagination-bar {
   display: flex;
@@ -132,7 +124,7 @@ td small {
   margin-top: 0.75rem;
 }
 .pagination-bar .page-info {
-  color: var(--xh-fg-muted);
+  color: hsl(var(--muted-foreground));
   font-size: 0.9rem;
 }
 </style>
