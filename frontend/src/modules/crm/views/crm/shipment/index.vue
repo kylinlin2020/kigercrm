@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { CrmSalesOrderLineDto, CrmSalesOrderListItemDto, CrmShipmentDetailDto, CrmShipmentLineDto, CrmShipmentListItemDto } from '@/api'
+import { XhButton, XhButtonLabel, XhCheckbox, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createPageRequest, CrmSalesOrderStatus, CrmShipmentStatus, crmSalesOrderApi, crmShipmentApi } from '@/api'
+import { createPageRequest, crmSalesOrderApi, CrmSalesOrderStatus, crmShipmentApi, CrmShipmentStatus } from '@/api'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -27,16 +29,36 @@ const detailLoading = ref(false)
 const createOpen = ref(false)
 const saving = ref(false)
 const createIdempotencyKey = ref('')
-function newIdempotencyKey() { return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}` }
+function newIdempotencyKey() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
 const loadingOrders = ref(false)
 const loadingLines = ref(false)
 const form = ref({ shipmentNumber: '', salesOrderId: '', carrier: '', trackingNumber: '' })
 const eligibleOrders = ref<CrmSalesOrderListItemDto[]>([])
 const orderLines = ref<CrmSalesOrderLineDto[]>([])
 const selectedLineIds = ref<string[]>([])
-const quantities = reactive<Record<string, number>>({})
+/** XInput 收发字符串，数量在提交时再 Number() 转回数字 */
+const quantities = reactive<Record<string, string>>({})
 const selectedOrder = computed(() => eligibleOrders.value.find(order => String(order.basicId) === form.value.salesOrderId) || null)
 const selectedLines = computed(() => orderLines.value.filter(line => selectedLineIds.value.includes(String(line.basicId))))
+
+/** XSelect 以字符串传值，这里把数字枚举还原，保持与接口 DTO 一致 */
+const statusModel = computed({
+  get: () => status.value as string | number,
+  set: (value: string | number | null) => {
+    status.value = value === '' || value == null ? '' : Number(value) as CrmShipmentStatus
+  },
+})
+const statusOptions = computed(() => [
+  { label: t('crm.shipment.allStatuses'), value: '' },
+  ...[0, 1, 2, 3].map(s => ({ label: label(s), value: s })),
+])
+const orderOptions = computed(() => eligibleOrders.value.map(order => ({
+  label: `${order.orderNumber} · ${order.customerNameSnapshot} · ${order.grandTotal} ${order.currency}`,
+  value: String(order.basicId),
+})))
+
 function availableQuantity(line: CrmSalesOrderLineDto) {
   return Math.max(0, line.quantity - line.reservedQuantity - line.shippedQuantity)
 }
@@ -70,7 +92,7 @@ async function openCreate() {
   loadingOrders.value = true
   try {
     const statuses = [CrmSalesOrderStatus.Confirmed, CrmSalesOrderStatus.Processing, CrmSalesOrderStatus.PartiallyShipped]
-    const results = await Promise.all(statuses.map(async orderStatus => {
+    const results = await Promise.all(statuses.map(async (orderStatus) => {
       const p = createPageRequest({ page: { pageIndex: 1, pageSize: 100 } })
       return crmSalesOrderApi.page({ ...p, status: orderStatus })
     }))
@@ -88,7 +110,8 @@ async function onOrderSelected() {
   orderLines.value = []
   selectedLineIds.value = []
   for (const key of Object.keys(quantities)) delete quantities[key]
-  if (!form.value.salesOrderId) return
+  if (!form.value.salesOrderId)
+    return
   loadingLines.value = true
   try {
     const p = createPageRequest({ page: { pageIndex: 1, pageSize: 500 } })
@@ -111,7 +134,7 @@ function toggleLine(line: CrmSalesOrderLineDto) {
   }
   else {
     selectedLineIds.value = [...selectedLineIds.value, id]
-    quantities[id] = Math.min(1, availableQuantity(line))
+    quantities[id] = formatQuantity(Math.min(1, availableQuantity(line)))
   }
 }
 
@@ -120,7 +143,7 @@ async function createShipment() {
     toast.warning(t('crm.shipment.required'))
     return
   }
-  const invalidLine = selectedLines.value.find(line => {
+  const invalidLine = selectedLines.value.find((line) => {
     const quantity = Number(quantities[String(line.basicId)])
     return !Number.isFinite(quantity) || quantity <= 0 || quantity > availableQuantity(line)
       || Math.abs(quantity * 10000 - Math.round(quantity * 10000)) > 1e-8
@@ -168,7 +191,8 @@ async function openDetails(row: CrmShipmentListItemDto) {
   try {
     const p = createPageRequest({ page: { pageIndex: 1, pageSize: 500 } })
     const [detail, lines] = await Promise.all([crmShipmentApi.detail(row.basicId), crmShipmentApi.lines({ ...p, shipmentId: row.basicId })])
-    if (!detail) throw new Error(t('crm.shipment.detailError'))
+    if (!detail)
+      throw new Error(t('crm.shipment.detailError'))
     detailShipment.value = detail
     detailLines.value = lines.items
   }
@@ -200,20 +224,41 @@ onMounted(loadPage)
   <main class="crm-workflow-page">
     <header class="page-header">
       <div><h1>{{ t('crm.shipment.title') }}</h1><p>{{ t('crm.shipment.description') }}</p></div>
-      <button v-if="canCreate" class="primary-button" @click="openCreate">{{ t('crm.shipment.create') }}</button>
+      <XhButton v-if="canCreate" variant="outline" @click="openCreate">
+        <XhButtonLabel>{{ t('crm.shipment.create') }}</XhButtonLabel>
+      </XhButton>
     </header>
     <section class="toolbar">
-      <input v-model="keyword" :placeholder="t('crm.shipment.search')" @keydown.enter="pageIndex = 1; loadPage()">
-      <select v-model="status">
-        <option value="">{{ t('crm.shipment.allStatuses') }}</option>
-        <option v-for="s in [0, 1, 2, 3]" :key="s" :value="s">{{ label(s) }}</option>
-      </select>
-      <button @click="pageIndex = 1; loadPage()">{{ t('crm.shipment.query') }}</button>
-      <button :disabled="loading" @click="loadPage">{{ t('crm.shipment.refresh') }}</button>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.shipment.search') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="keyword" :placeholder="t('crm.shipment.search')" @enter="pageIndex = 1; loadPage()" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.shipment.status') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="statusModel" :options="statusOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" @click="pageIndex = 1; loadPage()">
+        <XhButtonLabel>{{ t('crm.shipment.query') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" :disabled="loading" @click="loadPage">
+        <XhButtonLabel>{{ t('crm.shipment.refresh') }}</XhButtonLabel>
+      </XhButton>
     </section>
     <section class="table-wrap">
-      <div v-if="loading && !rows.length" class="empty">{{ t('crm.shipment.loading') }}</div>
-      <div v-else-if="!rows.length" class="empty">{{ t('crm.shipment.empty') }}</div>
+      <div v-if="loading && !rows.length" class="empty">
+        {{ t('crm.shipment.loading') }}
+      </div>
+      <div v-else-if="!rows.length" class="empty">
+        {{ t('crm.shipment.empty') }}
+      </div>
       <table v-else>
         <thead><tr><th>{{ t('crm.shipment.number') }}</th><th>{{ t('crm.shipment.orderId') }}</th><th>{{ t('crm.shipment.status') }}</th><th>{{ t('crm.shipment.carrier') }}</th><th>{{ t('crm.shipment.tracking') }}</th><th>{{ t('crm.shipment.shippedAt') }}</th><th>{{ t('crm.shipment.deliveredAt') }}</th><th>{{ t('crm.shipment.actions') }}</th></tr></thead>
         <tbody>
@@ -223,10 +268,18 @@ onMounted(loadPage)
             <td>{{ row.shipmentDate ? new Date(row.shipmentDate).toLocaleString() : '—' }}</td>
             <td>{{ row.deliveredDate ? new Date(row.deliveredDate).toLocaleString() : '—' }}</td>
             <td class="actions">
-              <button @click="openDetails(row)">{{ t('crm.shipment.viewDetails') }}</button>
-              <button v-if="canExecute && row.status === CrmShipmentStatus.Draft" @click="changeStatus(row, CrmShipmentStatus.Dispatched)">{{ t('crm.shipment.dispatch') }}</button>
-              <button v-if="canExecute && row.status === CrmShipmentStatus.Draft" @click="changeStatus(row, CrmShipmentStatus.Cancelled)">{{ t('crm.shipment.cancelDraft') }}</button>
-              <button v-if="canExecute && row.status === CrmShipmentStatus.Dispatched" @click="changeStatus(row, CrmShipmentStatus.Delivered)">{{ t('crm.shipment.deliver') }}</button>
+              <XhButton variant="subtle" size="sm" @click="openDetails(row)">
+                <XhButtonLabel>{{ t('crm.shipment.viewDetails') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton v-if="canExecute && row.status === CrmShipmentStatus.Draft" variant="subtle" size="sm" @click="changeStatus(row, CrmShipmentStatus.Dispatched)">
+                <XhButtonLabel>{{ t('crm.shipment.dispatch') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton v-if="canExecute && row.status === CrmShipmentStatus.Draft" variant="subtle" tone="danger" size="sm" @click="changeStatus(row, CrmShipmentStatus.Cancelled)">
+                <XhButtonLabel>{{ t('crm.shipment.cancelDraft') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton v-if="canExecute && row.status === CrmShipmentStatus.Dispatched" variant="subtle" size="sm" @click="changeStatus(row, CrmShipmentStatus.Delivered)">
+                <XhButtonLabel>{{ t('crm.shipment.deliver') }}</XhButtonLabel>
+              </XhButton>
             </td>
           </tr>
         </tbody>
@@ -234,49 +287,130 @@ onMounted(loadPage)
     </section>
     <footer class="pagination">
       <span>{{ t('crm.shipment.totalCount', { count: totalCount }) }} · {{ t('crm.shipment.page', { current: pageIndex, total: totalPages }) }}</span>
-      <div><button :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.shipment.previous') }}</button><button :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.shipment.next') }}</button></div>
+      <div>
+        <XhButton variant="subtle" size="sm" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">
+          <XhButtonLabel>{{ t('crm.shipment.previous') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" size="sm" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">
+          <XhButtonLabel>{{ t('crm.shipment.next') }}</XhButtonLabel>
+        </XhButton>
+      </div>
     </footer>
 
     <div v-if="detailOpen" class="modal-backdrop" @click.self="closeDetails">
       <section class="editor detail-editor">
-        <header><h2>{{ detailShipment?.shipmentNumber || t('crm.shipment.detailTitle') }}</h2><button type="button" @click="detailShipment = null">×</button></header>
-        <div v-if="detailLoading" class="empty">{{ t('crm.shipment.loadingDetails') }}</div>
+        <header>
+          <h2>{{ detailShipment?.shipmentNumber || t('crm.shipment.detailTitle') }}</h2>
+          <XhButton icon-only variant="ghost" :aria-label="t('common.actions.close')" @click="detailShipment = null">
+            ×
+          </XhButton>
+        </header>
+        <div v-if="detailLoading" class="empty">
+          {{ t('crm.shipment.loadingDetails') }}
+        </div>
         <template v-else-if="detailShipment">
-          <p class="order-context">{{ t('crm.shipment.orderId') }}: {{ detailShipment.salesOrderId }} · {{ label(detailShipment.status) }}</p>
-          <p class="order-context">{{ t('crm.shipment.carrier') }}: {{ detailShipment.carrier || '—' }} · {{ t('crm.shipment.tracking') }}: {{ detailShipment.trackingNumber || '—' }}</p>
-          <div class="table-wrap"><table><thead><tr><th>{{ t('crm.shipment.orderLineId') }}</th><th>{{ t('crm.shipment.quantity') }}</th></tr></thead><tbody><tr v-for="line in detailLines" :key="line.basicId"><td>{{ line.salesOrderLineId }}</td><td>{{ line.quantity }}</td></tr><tr v-if="!detailLines.length"><td colspan="2" class="empty">{{ t('crm.shipment.noLines') }}</td></tr></tbody></table></div>
+          <p class="order-context">
+            {{ t('crm.shipment.orderId') }}: {{ detailShipment.salesOrderId }} · {{ label(detailShipment.status) }}
+          </p>
+          <p class="order-context">
+            {{ t('crm.shipment.carrier') }}: {{ detailShipment.carrier || '—' }} · {{ t('crm.shipment.tracking') }}: {{ detailShipment.trackingNumber || '—' }}
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>{{ t('crm.shipment.orderLineId') }}</th><th>{{ t('crm.shipment.quantity') }}</th></tr></thead><tbody>
+                <tr v-for="line in detailLines" :key="line.basicId">
+                  <td>{{ line.salesOrderLineId }}</td><td>{{ line.quantity }}</td>
+                </tr><tr v-if="!detailLines.length">
+                  <td colspan="2" class="empty">
+                    {{ t('crm.shipment.noLines') }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </template>
       </section>
     </div>
 
     <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
       <section class="editor">
-        <header><h2>{{ t('crm.shipment.newTitle') }}</h2><button type="button" @click="createOpen = false">×</button></header>
+        <header>
+          <h2>{{ t('crm.shipment.newTitle') }}</h2>
+          <XhButton icon-only variant="ghost" :aria-label="t('common.actions.close')" @click="createOpen = false">
+            ×
+          </XhButton>
+        </header>
         <form @submit.prevent="createShipment">
-          
-          <label>{{ t('crm.shipment.orderSelect') }} *
-            <select v-model="form.salesOrderId" required :disabled="loadingOrders" @change="onOrderSelected">
-              <option value="">{{ loadingOrders ? t('crm.shipment.loadingOrders') : t('crm.shipment.selectOrder') }}</option>
-              <option v-for="order in eligibleOrders" :key="order.basicId" :value="String(order.basicId)">{{ order.orderNumber }} · {{ order.customerNameSnapshot }} · {{ order.grandTotal }} {{ order.currency }}</option>
-            </select>
-          </label>
-          <p v-if="selectedOrder" class="order-context">{{ selectedOrder.customerNameSnapshot }} · {{ selectedOrder.orderNumber }} · {{ label(selectedOrder.status) }}</p>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.shipment.orderSelect') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect
+                v-model:value="form.salesOrderId"
+                :options="orderOptions"
+                :disabled="loadingOrders"
+                :placeholder="loadingOrders ? t('crm.shipment.loadingOrders') : t('crm.shipment.selectOrder')"
+                @update:value="onOrderSelected"
+              />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <p v-if="selectedOrder" class="order-context">
+            {{ selectedOrder.customerNameSnapshot }} · {{ selectedOrder.orderNumber }} · {{ label(selectedOrder.status) }}
+          </p>
           <div class="line-picker">
-            <div class="line-heading"><strong>{{ t('crm.shipment.selectLines') }}</strong><span v-if="selectedLines.length">{{ t('crm.shipment.selectedLines', { count: selectedLines.length }) }}</span></div>
-            <div v-if="loadingLines" class="empty">{{ t('crm.shipment.loadingLines') }}</div>
-            <div v-else-if="form.salesOrderId && !orderLines.length" class="empty">{{ t('crm.shipment.noAvailableLines') }}</div>
-            <div v-else-if="!form.salesOrderId" class="empty">{{ t('crm.shipment.chooseOrderFirst') }}</div>
+            <div class="line-heading">
+              <strong>{{ t('crm.shipment.selectLines') }}</strong><span v-if="selectedLines.length">{{ t('crm.shipment.selectedLines', { count: selectedLines.length }) }}</span>
+            </div>
+            <div v-if="loadingLines" class="empty">
+              {{ t('crm.shipment.loadingLines') }}
+            </div>
+            <div v-else-if="form.salesOrderId && !orderLines.length" class="empty">
+              {{ t('crm.shipment.noAvailableLines') }}
+            </div>
+            <div v-else-if="!form.salesOrderId" class="empty">
+              {{ t('crm.shipment.chooseOrderFirst') }}
+            </div>
             <div v-else class="line-list">
               <div v-for="line in orderLines" :key="line.basicId" class="line-row">
-                <label class="line-check"><input type="checkbox" :checked="selectedLineIds.includes(String(line.basicId))" @change="toggleLine(line)"><span>{{ line.productCode || line.description }}</span></label>
+                <label class="line-check">
+                  <XhCheckbox
+                    :checked="selectedLineIds.includes(String(line.basicId))"
+                    :aria-label="line.productCode || line.description"
+                    @checked-change="toggleLine(line)"
+                  />
+                  <span>{{ line.productCode || line.description }}</span>
+                </label>
                 <span>{{ t('crm.shipment.available') }}: {{ formatQuantity(availableQuantity(line)) }}</span>
-                <input v-if="selectedLineIds.includes(String(line.basicId))" v-model.number="quantities[String(line.basicId)]" type="number" min="0.0001" :max="availableQuantity(line)" step="0.0001" :aria-label="t('crm.shipment.quantity')">
+                <XhFieldRoot v-if="selectedLineIds.includes(String(line.basicId))" class="line-quantity">
+                  <XhFieldLabel class="sr-only">
+                    {{ t('crm.shipment.quantity') }}
+                  </XhFieldLabel>
+                  <XhFieldControl>
+                    <XInput v-model:value="quantities[String(line.basicId)]" inputmode="numeric" :aria-label="t('crm.shipment.quantity')" />
+                  </XhFieldControl>
+                </XhFieldRoot>
               </div>
             </div>
           </div>
-          <label>{{ t('crm.shipment.carrier') }}<input v-model="form.carrier" maxlength="100"></label>
-          <label>{{ t('crm.shipment.tracking') }}<input v-model="form.trackingNumber" maxlength="120"></label>
-          <footer><button type="button" @click="createOpen = false">{{ t('crm.shipment.cancel') }}</button><button class="primary-button" type="submit" :disabled="saving || loadingOrders || loadingLines">{{ saving ? t('crm.shipment.saving') : t('crm.shipment.save') }}</button></footer>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.shipment.carrier') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.carrier" :max-length="100" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.shipment.tracking') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.trackingNumber" :max-length="120" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <footer>
+            <XhButton variant="subtle" @click="createOpen = false">
+              <XhButtonLabel>{{ t('crm.shipment.cancel') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton type="submit" variant="outline" :disabled="saving || loadingOrders || loadingLines">
+              <XhButtonLabel>{{ saving ? t('crm.shipment.saving') : t('crm.shipment.save') }}</XhButtonLabel>
+            </XhButton>
+          </footer>
         </form>
       </section>
     </div>
@@ -284,22 +418,182 @@ onMounted(loadPage)
 </template>
 
 <style scoped>
-.crm-workflow-page{display:flex;flex-direction:column;gap:16px;min-height:100%;padding:20px;color:hsl(var(--foreground))}
-.page-header,.toolbar,.pagination,.editor header,.editor footer,.line-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.page-header h1,.editor h2{margin:0;font-size:20px}.page-header p{margin:5px 0 0;color:hsl(var(--muted-foreground));font-size:12px}
-button,input,select{font:inherit}button{border:1px solid hsl(var(--border));border-radius:7px;padding:7px 11px;background:hsl(var(--card));cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}
-.primary-button{background:hsl(var(--primary));color:hsl(var(--primary-foreground))}.toolbar{justify-content:flex-start;flex-wrap:wrap}
-.toolbar input,.toolbar select,.editor input,.editor select{border:1px solid hsl(var(--border));border-radius:7px;padding:8px 10px;background:hsl(var(--card));color:inherit}
-.table-wrap{overflow:auto;border:1px solid hsl(var(--border));border-radius:10px;background:hsl(var(--card))}table{width:100%;border-collapse:collapse;min-width:950px;text-align:left;font-size:13px}
-th,td{padding:11px 12px;border-bottom:1px solid hsl(var(--border))}th{color:hsl(var(--muted-foreground));font-size:11px}.actions{white-space:nowrap}.actions button{margin-right:4px;font-size:11px}
-.empty{padding:24px;text-align:center;color:hsl(var(--muted-foreground));font-size:12px}.pagination{font-size:12px;color:hsl(var(--muted-foreground))}.pagination div{display:flex;gap:6px}
-.modal-backdrop{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:20px;background:rgb(0 0 0 / 42%)}
-.editor{width:min(820px,100%);max-height:90vh;overflow:auto;border:1px solid hsl(var(--border));border-radius:12px;padding:20px;background:hsl(var(--card))}
-.editor form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:18px}.editor form>label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:hsl(var(--muted-foreground))}
-.editor form>label input,.editor form>label select{box-sizing:border-box;width:100%;color:hsl(var(--foreground))}.detail-editor{width:min(720px,100%)}.detail-editor .table-wrap{margin-top:14px}.order-context,.line-picker{grid-column:1/-1}.order-context{margin:0;color:hsl(var(--muted-foreground));font-size:12px}
-.line-picker{border:1px solid hsl(var(--border));border-radius:8px;padding:12px}.line-heading{font-size:12px;margin-bottom:8px}.line-heading span{color:hsl(var(--muted-foreground))}
-.line-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(110px,auto) minmax(110px,140px);align-items:center;gap:12px;padding:9px 0;border-top:1px solid hsl(var(--border));font-size:12px}
-.line-check{display:flex;align-items:center;gap:8px;min-width:0}.line-check input{width:auto}.line-check span{overflow-wrap:anywhere}.line-row>span{color:hsl(var(--muted-foreground))}.line-row>input{width:100%;box-sizing:border-box}
-.editor form footer{grid-column:1/-1;justify-content:flex-end}
-@media(max-width:680px){.crm-workflow-page{padding:12px}.editor form{grid-template-columns:1fr}.editor form footer{grid-column:auto}.line-row{grid-template-columns:minmax(120px,1fr) minmax(90px,auto)}.line-row>input{grid-column:2}.line-check{grid-column:1}.line-picker,.order-context{grid-column:auto}}
+.crm-workflow-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 20px;
+  color: hsl(var(--foreground));
+}
+.page-header,
+.toolbar,
+.pagination,
+.editor header,
+.editor footer,
+.line-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.page-header h1,
+.editor h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.page-header p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.toolbar {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.table-wrap {
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 950px;
+  text-align: left;
+  font-size: 13px;
+}
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+th {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+}
+.actions {
+  white-space: nowrap;
+}
+.actions > * + * {
+  margin-left: 4px;
+}
+.empty {
+  padding: 24px;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.pagination {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+.pagination div {
+  display: flex;
+  gap: 6px;
+}
+.modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: hsl(var(--overlay));
+}
+.editor {
+  width: min(820px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 20px;
+  background: hsl(var(--card));
+}
+.editor form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 18px;
+}
+.detail-editor {
+  width: min(720px, 100%);
+}
+.detail-editor .table-wrap {
+  margin-top: 14px;
+}
+.order-context,
+.line-picker {
+  grid-column: 1/-1;
+}
+.order-context {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.line-picker {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.line-heading {
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.line-heading span {
+  color: hsl(var(--muted-foreground));
+}
+.line-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(110px, auto) minmax(110px, 140px);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 12px;
+}
+.line-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.line-check span {
+  overflow-wrap: anywhere;
+}
+.line-row > span {
+  color: hsl(var(--muted-foreground));
+}
+.line-quantity {
+  width: 100%;
+}
+.editor form footer {
+  grid-column: 1/-1;
+  justify-content: flex-end;
+}
+@media (max-width: 680px) {
+  .crm-workflow-page {
+    padding: 12px;
+  }
+  .editor form {
+    grid-template-columns: 1fr;
+  }
+  .editor form footer {
+    grid-column: auto;
+  }
+  .line-row {
+    grid-template-columns: minmax(120px, 1fr) minmax(90px, auto);
+  }
+  .line-quantity {
+    grid-column: 2;
+  }
+  .line-check {
+    grid-column: 1;
+  }
+  .line-picker,
+  .order-context {
+    grid-column: auto;
+  }
+}
 </style>

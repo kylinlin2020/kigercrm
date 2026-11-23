@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { CrmTaskCreateDto, CrmTaskListItemDto, CrmTaskUpdateDto } from '@/api'
+import { XhButton, XhButtonLabel, XhCheckbox, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createPageRequest, CrmTaskStatus, crmTaskApi } from '@/api'
+import { createPageRequest, crmTaskApi, CrmTaskStatus } from '@/api'
+import { XDatePicker, XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -37,6 +39,68 @@ const canCreate = computed(() => hasPermission('crm_tasks.create'))
 const canUpdate = computed(() => hasPermission('crm_tasks.update'))
 const canDelete = computed(() => hasPermission('crm_tasks.delete'))
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize)))
+
+const statusFilterOptions = computed(() => [
+  { label: t('crm.task.allStatuses'), value: '' },
+  { label: t('crm.task.open'), value: String(CrmTaskStatus.Open) },
+  { label: t('crm.task.inProgress'), value: String(CrmTaskStatus.InProgress) },
+  { label: t('crm.task.completed'), value: String(CrmTaskStatus.Completed) },
+  { label: t('crm.task.cancelled'), value: String(CrmTaskStatus.Cancelled) },
+])
+// XSelect 收发字符串选项；这里把值还原成 number | ''，保持原 v-model.number 的数字枚举语义。
+const statusFilterValue = computed({
+  get: () => String(statusFilter.value),
+  set: (value: string | number | Array<string | number> | null) => {
+    const next = Array.isArray(value) ? value[0] : value
+    statusFilter.value = next == null || next === '' ? '' : Number(next) as CrmTaskStatus
+  },
+})
+const relatedTypeOptions = computed(() => [
+  { label: t('crm.task.none'), value: '' },
+  { label: t('crm.task.customer'), value: 'customer' },
+  { label: t('crm.task.contact'), value: 'contact' },
+  { label: t('crm.task.lead'), value: 'lead' },
+  { label: t('crm.task.opportunity'), value: 'opportunity' },
+])
+const priorityOptions = computed(() => [
+  { label: t('crm.task.priority1'), value: '1' },
+  { label: t('crm.task.priority2'), value: '2' },
+  { label: t('crm.task.priority3'), value: '3' },
+  { label: t('crm.task.priority4'), value: '4' },
+  { label: t('crm.task.priority5'), value: '5' },
+])
+const formPriorityValue = computed({
+  get: () => String(form.priority),
+  set: (value: string | number | Array<string | number> | null) => {
+    const next = Array.isArray(value) ? value[0] : value
+    form.priority = next == null ? 3 : Number(next)
+  },
+})
+const taskStatusOptions = computed(() => [
+  { label: t('crm.task.open'), value: String(CrmTaskStatus.Open) },
+  { label: t('crm.task.inProgress'), value: String(CrmTaskStatus.InProgress) },
+  { label: t('crm.task.completed'), value: String(CrmTaskStatus.Completed) },
+  { label: t('crm.task.cancelled'), value: String(CrmTaskStatus.Cancelled) },
+])
+const formStatusValue = computed({
+  get: () => String(form.status),
+  set: (value: string | number | Array<string | number> | null) => {
+    const next = Array.isArray(value) ? value[0] : value
+    form.status = next == null ? CrmTaskStatus.Open : Number(next) as CrmTaskStatus
+  },
+})
+function toLocalDateTimeKey(value: number): string {
+  const date = new Date(value)
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+// XDatePicker 用时间戳收发；form.dueAt 仍是提交逻辑使用的 'YYYY-MM-DDTHH:mm'。
+const dueAtValue = computed({
+  get: () => form.dueAt ? new Date(form.dueAt).getTime() : null,
+  set: (value: number | null) => {
+    form.dueAt = value == null ? '' : toLocalDateTimeKey(value)
+  },
+})
 
 function statusLabel(status: CrmTaskStatus | number) {
   switch (status) {
@@ -101,14 +165,16 @@ function search() {
 }
 
 function openCreate() {
-  if (!canCreate.value) return
+  if (!canCreate.value)
+    return
   resetForm()
   editingId.value = null
   editorOpen.value = true
 }
 
 async function openEdit(row: CrmTaskListItemDto) {
-  if (!canUpdate.value) return
+  if (!canUpdate.value)
+    return
   loading.value = true
   try {
     const detail = await crmTaskApi.detail(row.basicId)
@@ -184,7 +250,8 @@ async function save() {
 }
 
 async function changeStatus(row: CrmTaskListItemDto, status: CrmTaskStatus) {
-  if (!canUpdate.value || row.status === status) return
+  if (!canUpdate.value || row.status === status)
+    return
   try {
     await crmTaskApi.changeStatus({ id: row.basicId, status })
     toast.success(t('crm.task.statusSuccess'))
@@ -196,8 +263,10 @@ async function changeStatus(row: CrmTaskListItemDto, status: CrmTaskStatus) {
 }
 
 async function remove(row: CrmTaskListItemDto) {
-  if (!canDelete.value) return
-  if (!window.confirm(t('crm.task.confirmDelete', { name: row.title }))) return
+  if (!canDelete.value)
+    return
+  if (!window.confirm(t('crm.task.confirmDelete', { name: row.title })))
+    return
   try {
     await crmTaskApi.delete(row.basicId)
     toast.success(t('crm.task.deleteSuccess'))
@@ -218,33 +287,55 @@ onMounted(loadPage)
         <h1>{{ t('crm.task.title') }}</h1>
         <p>{{ t('crm.task.description') }}</p>
       </div>
-      <button v-if="canCreate" class="primary-button" type="button" @click="openCreate">
-        {{ t('crm.task.create') }}
-      </button>
+      <XhButton v-if="canCreate" variant="outline" @click="openCreate">
+        <XhButtonLabel>{{ t('crm.task.create') }}</XhButtonLabel>
+      </XhButton>
     </header>
 
     <section class="toolbar" :aria-label="t('crm.task.title')">
-      <input
-        v-model="keyword"
-        :aria-label="t('crm.task.search')"
-        :placeholder="t('crm.task.search')"
-        @keydown.enter="search"
-      >
-      <select v-model="statusFilter" :aria-label="t('crm.task.status')">
-        <option value="">{{ t('crm.task.allStatuses') }}</option>
-        <option :value="CrmTaskStatus.Open">{{ t('crm.task.open') }}</option>
-        <option :value="CrmTaskStatus.InProgress">{{ t('crm.task.inProgress') }}</option>
-        <option :value="CrmTaskStatus.Completed">{{ t('crm.task.completed') }}</option>
-        <option :value="CrmTaskStatus.Cancelled">{{ t('crm.task.cancelled') }}</option>
-      </select>
-      <label class="overdue-filter"><input v-model="overdueOnly" type="checkbox"> {{ t('crm.task.overdueOnly') }}</label>
-      <button type="button" @click="search">{{ t('crm.task.query') }}</button>
-      <button type="button" :disabled="loading" @click="loadPage">{{ t('crm.task.refresh') }}</button>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.task.search') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XInput
+            v-model:value="keyword"
+            :placeholder="t('crm.task.search')"
+            @enter="search"
+          />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.task.status') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XSelect
+            v-model:value="statusFilterValue"
+            :options="statusFilterOptions"
+            :aria-label="t('crm.task.status')"
+          />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <span class="overdue-filter">
+        <XhCheckbox v-model:checked="overdueOnly" :aria-label="t('crm.task.overdueOnly')" />
+        <span>{{ t('crm.task.overdueOnly') }}</span>
+      </span>
+      <XhButton variant="outline" @click="search">
+        <XhButtonLabel>{{ t('crm.task.query') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" :disabled="loading" @click="loadPage">
+        <XhButtonLabel>{{ t('crm.task.refresh') }}</XhButtonLabel>
+      </XhButton>
     </section>
 
     <section class="table-wrap" aria-live="polite">
-      <div v-if="loading && rows.length === 0" class="empty-state">{{ t('crm.task.loading') }}</div>
-      <div v-else-if="rows.length === 0" class="empty-state">{{ t('crm.task.empty') }}</div>
+      <div v-if="loading && rows.length === 0" class="empty-state">
+        {{ t('crm.task.loading') }}
+      </div>
+      <div v-else-if="rows.length === 0" class="empty-state">
+        {{ t('crm.task.empty') }}
+      </div>
       <table v-else>
         <thead>
           <tr>
@@ -266,18 +357,26 @@ onMounted(loadPage)
             <td><span class="status-pill" :data-status="row.status">{{ statusLabel(row.status) }}</span></td>
             <td>{{ priorityLabel(row.priority) }}</td>
             <td class="actions">
-              <button v-if="canUpdate" type="button" @click="openEdit(row)">{{ t('crm.task.edit') }}</button>
-              <button
+              <XhButton v-if="canUpdate" variant="outline" @click="openEdit(row)">
+                <XhButtonLabel>{{ t('crm.task.edit') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton
                 v-if="canUpdate && row.status === CrmTaskStatus.Open"
-                type="button"
+                variant="outline"
                 @click="changeStatus(row, CrmTaskStatus.InProgress)"
-              >{{ t('crm.task.inProgress') }}</button>
-              <button
+              >
+                <XhButtonLabel>{{ t('crm.task.inProgress') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton
                 v-if="canUpdate && row.status !== CrmTaskStatus.Completed && row.status !== CrmTaskStatus.Cancelled"
-                type="button"
+                variant="outline"
                 @click="changeStatus(row, CrmTaskStatus.Completed)"
-              >{{ t('crm.task.completed') }}</button>
-              <button v-if="canDelete" class="danger-action" type="button" @click="remove(row)">{{ t('crm.task.delete') }}</button>
+              >
+                <XhButtonLabel>{{ t('crm.task.completed') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton v-if="canDelete" variant="outline" tone="danger" @click="remove(row)">
+                <XhButtonLabel>{{ t('crm.task.delete') }}</XhButtonLabel>
+              </XhButton>
             </td>
           </tr>
         </tbody>
@@ -287,8 +386,12 @@ onMounted(loadPage)
     <footer class="pagination">
       <span>{{ t('crm.task.total', { count: totalCount }) }} · {{ t('crm.task.page', { current: pageIndex, total: totalPages }) }}</span>
       <div>
-        <button type="button" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.task.previous') }}</button>
-        <button type="button" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.task.next') }}</button>
+        <XhButton variant="subtle" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">
+          <XhButtonLabel>{{ t('crm.task.previous') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">
+          <XhButtonLabel>{{ t('crm.task.next') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </footer>
 
@@ -296,45 +399,66 @@ onMounted(loadPage)
       <section class="editor" role="dialog" aria-modal="true" :aria-label="editingId ? t('crm.task.editTitle') : t('crm.task.newTitle')">
         <header>
           <h2>{{ editingId ? t('crm.task.editTitle') : t('crm.task.newTitle') }}</h2>
-          <button type="button" :aria-label="t('common.actions.close')" @click="editorOpen = false">×</button>
+          <XhButton variant="subtle" size="sm" :aria-label="t('common.actions.close')" @click="editorOpen = false">
+            <XhButtonLabel>×</XhButtonLabel>
+          </XhButton>
         </header>
         <form @submit.prevent="save">
-          <label>{{ t('crm.task.titleField') }} *<input v-model="form.title" required maxlength="200"></label>
-          <label>{{ t('crm.task.relatedType') }}
-            <select v-model="form.relatedEntityType">
-              <option value="">{{ t('crm.task.none') }}</option>
-              <option value="customer">{{ t('crm.task.customer') }}</option>
-              <option value="contact">{{ t('crm.task.contact') }}</option>
-              <option value="lead">{{ t('crm.task.lead') }}</option>
-              <option value="opportunity">{{ t('crm.task.opportunity') }}</option>
-            </select>
-          </label>
-          <label>{{ t('crm.task.relatedId') }}<input v-model="form.relatedEntityId" inputmode="numeric"></label>
-          <label>{{ t('crm.task.dueAt') }}<input v-model="form.dueAt" type="datetime-local"></label>
-          <label>{{ t('crm.task.priority') }}
-            <select v-model.number="form.priority">
-              <option :value="1">{{ t('crm.task.priority1') }}</option>
-              <option :value="2">{{ t('crm.task.priority2') }}</option>
-              <option :value="3">{{ t('crm.task.priority3') }}</option>
-              <option :value="4">{{ t('crm.task.priority4') }}</option>
-              <option :value="5">{{ t('crm.task.priority5') }}</option>
-            </select>
-          </label>
-          <label>{{ t('crm.task.assignee') }}<input v-model="form.assigneeUserId" inputmode="numeric"></label>
-          <label v-if="editingId">{{ t('crm.task.status') }}
-            <select v-model.number="form.status">
-              <option :value="CrmTaskStatus.Open">{{ t('crm.task.open') }}</option>
-              <option :value="CrmTaskStatus.InProgress">{{ t('crm.task.inProgress') }}</option>
-              <option :value="CrmTaskStatus.Completed">{{ t('crm.task.completed') }}</option>
-              <option :value="CrmTaskStatus.Cancelled">{{ t('crm.task.cancelled') }}</option>
-            </select>
-          </label>
-          <label class="wide">{{ t('crm.task.descriptionField') }}<textarea v-model="form.description" rows="3" /></label>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.task.titleField') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.title" required :max-length="200" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.task.relatedType') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect v-model:value="form.relatedEntityType" :options="relatedTypeOptions" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.task.relatedId') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.relatedEntityId" inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.task.dueAt') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XDatePicker v-model:value="dueAtValue" show-time />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.task.priority') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect v-model:value="formPriorityValue" :options="priorityOptions" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.task.assignee') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.assigneeUserId" inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot v-if="editingId">
+            <XhFieldLabel>{{ t('crm.task.status') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect v-model:value="formStatusValue" :options="taskStatusOptions" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot class="wide">
+            <XhFieldLabel>{{ t('crm.task.descriptionField') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.description" type="textarea" :rows="3" />
+            </XhFieldControl>
+          </XhFieldRoot>
           <footer>
-            <button type="button" @click="editorOpen = false">{{ t('crm.task.cancel') }}</button>
-            <button class="primary-button" type="submit" :disabled="submitting">
-              {{ submitting ? t('crm.task.saving') : t('crm.task.save') }}
-            </button>
+            <XhButton variant="subtle" @click="editorOpen = false">
+              <XhButtonLabel>{{ t('crm.task.cancel') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton type="submit" variant="outline" :disabled="submitting">
+              <XhButtonLabel>{{ submitting ? t('crm.task.saving') : t('crm.task.save') }}</XhButtonLabel>
+            </XhButton>
           </footer>
         </form>
       </section>
@@ -343,42 +467,146 @@ onMounted(loadPage)
 </template>
 
 <style scoped>
-.crm-task-page { display: flex; flex-direction: column; gap: 16px; min-height: 100%; padding: 20px; color: hsl(var(--foreground)); }
-.page-header, .toolbar, .pagination, .editor header, .editor footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.page-header h1, .editor h2 { margin: 0; font-size: 20px; font-weight: 650; }
-.page-header p { margin: 5px 0 0; color: hsl(var(--muted-foreground)); font-size: 12px; }
-button, input, select, textarea { font: inherit; }
-button { border: 1px solid hsl(var(--border)); border-radius: 7px; padding: 7px 11px; background: hsl(var(--card)); cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .55; }
-.primary-button { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-.toolbar { justify-content: flex-start; flex-wrap: wrap; }
-.toolbar > input { min-width: 240px; }
-.toolbar input, .toolbar select, .editor input, .editor select, .editor textarea { border: 1px solid hsl(var(--border)); border-radius: 7px; padding: 8px 10px; background: hsl(var(--card)); color: inherit; }
-.overdue-filter { display: flex; align-items: center; gap: 6px; font-size: 12px; }
-.overdue-filter input { width: auto; }
-.table-wrap { overflow: auto; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); }
-table { width: 100%; border-collapse: collapse; min-width: 900px; text-align: left; font-size: 13px; }
-th, td { padding: 11px 12px; border-bottom: 1px solid hsl(var(--border)); vertical-align: middle; }
-th { color: hsl(var(--muted-foreground)); font-size: 11px; font-weight: 600; white-space: nowrap; }
-.actions { white-space: nowrap; }
-.actions button { margin-right: 5px; padding: 5px 8px; font-size: 11px; }
-.danger-action { color: var(--xh-color-danger-600); }
-.status-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: hsl(var(--muted)); font-size: 11px; white-space: nowrap; }
-.status-pill[data-status="2"] { color: var(--xh-color-success-600); }
-.status-pill[data-status="3"] { color: var(--xh-color-danger-600); }
-.empty-state { padding: 44px 16px; text-align: center; color: hsl(var(--muted-foreground)); }
-.pagination { color: hsl(var(--muted-foreground)); font-size: 12px; }
-.pagination div { display: flex; gap: 6px; }
-.modal-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 42%); }
-.editor { width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto; border: 1px solid hsl(var(--border)); border-radius: 12px; padding: 20px; background: hsl(var(--card)); box-shadow: 0 20px 70px rgb(0 0 0 / 20%); }
-.editor form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 18px; }
-.editor label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: hsl(var(--muted-foreground)); }
-.editor label input, .editor label select, .editor label textarea { width: 100%; box-sizing: border-box; color: hsl(var(--foreground)); }
-.editor .wide, .editor form footer { grid-column: 1 / -1; }
-.editor form footer { justify-content: flex-end; }
+.crm-task-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 20px;
+  color: hsl(var(--foreground));
+}
+.page-header,
+.toolbar,
+.pagination,
+.editor header,
+.editor footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.page-header h1,
+.editor h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+}
+.page-header p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.toolbar {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.toolbar-field {
+  min-width: 240px;
+}
+.overdue-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.table-wrap {
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+  text-align: left;
+  font-size: 13px;
+}
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  vertical-align: middle;
+}
+th {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.status-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: hsl(var(--muted));
+  font-size: 11px;
+  white-space: nowrap;
+}
+.status-pill[data-status='2'] {
+  color: hsl(var(--success));
+}
+.status-pill[data-status='3'] {
+  color: hsl(var(--destructive));
+}
+.empty-state {
+  padding: 44px 16px;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}
+.pagination {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.pagination div {
+  display: flex;
+  gap: 6px;
+}
+.modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: hsl(var(--overlay));
+}
+.editor {
+  width: min(760px, 100%);
+  max-height: min(90vh, 900px);
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 20px;
+  background: hsl(var(--card));
+}
+.editor form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 18px;
+}
+.editor .wide,
+.editor form footer {
+  grid-column: 1 / -1;
+}
+.editor form footer {
+  justify-content: flex-end;
+}
 @media (max-width: 680px) {
-  .crm-task-page { padding: 12px; }
-  .editor form { grid-template-columns: 1fr; }
-  .editor .wide, .editor form footer { grid-column: auto; }
+  .crm-task-page {
+    padding: 12px;
+  }
+  .editor form {
+    grid-template-columns: 1fr;
+  }
+  .editor .wide,
+  .editor form footer {
+    grid-column: auto;
+  }
 }
 </style>

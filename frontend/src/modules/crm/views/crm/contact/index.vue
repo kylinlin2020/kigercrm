@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { CrmContactCreateDto, CrmContactListItemDto, CrmContactUpdateDto } from '@/api'
+import { XhButton, XhButtonLabel, XhCheckbox, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPageRequest, crmContactApi } from '@/api'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -80,14 +82,16 @@ function search() {
 }
 
 function openCreate() {
-  if (!canCreate.value) return
+  if (!canCreate.value)
+    return
   resetForm()
   editingId.value = null
   editorOpen.value = true
 }
 
 async function openEdit(row: CrmContactListItemDto) {
-  if (!canUpdate.value) return
+  if (!canUpdate.value)
+    return
   loading.value = true
   try {
     const detail = await crmContactApi.detail(row.basicId)
@@ -160,8 +164,10 @@ async function save() {
 }
 
 async function remove(row: CrmContactListItemDto) {
-  if (!canDelete.value) return
-  if (!window.confirm(t('crm.contact.confirmDelete', { name: row.fullName }))) return
+  if (!canDelete.value)
+    return
+  if (!window.confirm(t('crm.contact.confirmDelete', { name: row.fullName })))
+    return
   try {
     await crmContactApi.delete(row.basicId)
     toast.success(t('crm.contact.deleteSuccess'))
@@ -182,21 +188,43 @@ onMounted(loadPage)
         <h1>{{ t('crm.contact.title') }}</h1>
         <p>{{ t('crm.contact.description') }}</p>
       </div>
-      <button v-if="canCreate" class="primary-button" type="button" @click="openCreate">
-        {{ t('crm.contact.create') }}
-      </button>
+      <XhButton v-if="canCreate" variant="outline" @click="openCreate">
+        <XhButtonLabel>{{ t('crm.contact.create') }}</XhButtonLabel>
+      </XhButton>
     </header>
 
     <section class="toolbar" :aria-label="t('crm.contact.title')">
-      <input v-model="keyword" :aria-label="t('crm.contact.search')" :placeholder="t('crm.contact.search')" @keydown.enter="search">
-      <input v-model="customerIdFilter" :aria-label="t('crm.contact.customerId')" :placeholder="t('crm.contact.customerId')" inputmode="numeric" @keydown.enter="search">
-      <button type="button" @click="search">{{ t('crm.contact.query') }}</button>
-      <button type="button" :disabled="loading" @click="loadPage">{{ t('crm.contact.refresh') }}</button>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.contact.search') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="keyword" :placeholder="t('crm.contact.search')" @enter="search" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.contact.customerId') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="customerIdFilter" inputmode="numeric" :placeholder="t('crm.contact.customerId')" @enter="search" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" @click="search">
+        <XhButtonLabel>{{ t('crm.contact.query') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" :disabled="loading" @click="loadPage">
+        <XhButtonLabel>{{ t('crm.contact.refresh') }}</XhButtonLabel>
+      </XhButton>
     </section>
 
     <section class="table-wrap" aria-live="polite">
-      <div v-if="loading && rows.length === 0" class="empty-state">{{ t('crm.contact.loading') }}</div>
-      <div v-else-if="rows.length === 0" class="empty-state">{{ t('crm.contact.empty') }}</div>
+      <div v-if="loading && rows.length === 0" class="empty-state">
+        {{ t('crm.contact.loading') }}
+      </div>
+      <div v-else-if="rows.length === 0" class="empty-state">
+        {{ t('crm.contact.empty') }}
+      </div>
       <table v-else>
         <thead>
           <tr>
@@ -218,8 +246,12 @@ onMounted(loadPage)
             <td>{{ row.phone || '—' }}</td>
             <td>{{ row.isPrimary ? t('crm.contact.yes') : '—' }}</td>
             <td class="actions">
-              <button v-if="canUpdate" type="button" @click="openEdit(row)">{{ t('crm.contact.edit') }}</button>
-              <button v-if="canDelete" class="danger-action" type="button" @click="remove(row)">{{ t('crm.contact.delete') }}</button>
+              <XhButton v-if="canUpdate" variant="subtle" size="sm" @click="openEdit(row)">
+                <XhButtonLabel>{{ t('crm.contact.edit') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton v-if="canDelete" variant="subtle" tone="danger" size="sm" @click="remove(row)">
+                <XhButtonLabel>{{ t('crm.contact.delete') }}</XhButtonLabel>
+              </XhButton>
             </td>
           </tr>
         </tbody>
@@ -229,8 +261,12 @@ onMounted(loadPage)
     <footer class="pagination">
       <span>{{ t('crm.contact.total', { count: totalCount }) }} · {{ t('crm.contact.page', { current: pageIndex, total: totalPages }) }}</span>
       <div>
-        <button type="button" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.contact.previous') }}</button>
-        <button type="button" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.contact.next') }}</button>
+        <XhButton variant="subtle" size="sm" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">
+          <XhButtonLabel>{{ t('crm.contact.previous') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" size="sm" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">
+          <XhButtonLabel>{{ t('crm.contact.next') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </footer>
 
@@ -238,22 +274,77 @@ onMounted(loadPage)
       <section class="editor" role="dialog" aria-modal="true" :aria-label="editingId ? t('crm.contact.editTitle') : t('crm.contact.newTitle')">
         <header>
           <h2>{{ editingId ? t('crm.contact.editTitle') : t('crm.contact.newTitle') }}</h2>
-          <button type="button" :aria-label="t('common.actions.close')" @click="editorOpen = false">×</button>
+          <XhButton icon-only variant="ghost" :aria-label="t('common.actions.close')" @click="editorOpen = false">
+            ×
+          </XhButton>
         </header>
         <form @submit.prevent="save">
-          <label>{{ t('crm.contact.customerId') }} *<input v-model="form.customerId" required inputmode="numeric"></label>
-          <label>{{ t('crm.contact.firstName') }} *<input v-model="form.firstName" required maxlength="100"></label>
-          <label>{{ t('crm.contact.lastName') }} *<input v-model="form.lastName" required maxlength="100"></label>
-          <label>{{ t('crm.contact.jobTitle') }}<input v-model="form.jobTitle" maxlength="160"></label>
-          <label>{{ t('crm.contact.email') }}<input v-model="form.email" type="email" maxlength="254"></label>
-          <label>{{ t('crm.contact.phone') }}<input v-model="form.phone" maxlength="40"></label>
-          <label>{{ t('crm.contact.whatsApp') }}<input v-model="form.whatsApp" maxlength="40"></label>
-          <label>{{ t('crm.contact.ownerId') }}<input v-model="form.ownerUserId" inputmode="numeric"></label>
-          <label class="checkbox-label"><input v-model="form.isPrimary" type="checkbox"> {{ t('crm.contact.primary') }}</label>
-          <label class="wide">{{ t('crm.contact.notes') }}<textarea v-model="form.notes" rows="3" /></label>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.contact.customerId') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.customerId" inputmode="numeric" required />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.contact.firstName') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.firstName" :max-length="100" required />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.contact.lastName') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.lastName" :max-length="100" required />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.contact.jobTitle') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.jobTitle" :max-length="160" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.contact.email') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.email" type="email" :max-length="254" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.contact.phone') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.phone" :max-length="40" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.contact.whatsApp') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.whatsApp" :max-length="40" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.contact.ownerId') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.ownerUserId" inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot class="checkbox-field">
+            <XhCheckbox v-model:checked="form.isPrimary">
+              {{ t('crm.contact.primary') }}
+            </XhCheckbox>
+          </XhFieldRoot>
+          <XhFieldRoot class="wide">
+            <XhFieldLabel>{{ t('crm.contact.notes') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.notes" type="textarea" :rows="3" />
+            </XhFieldControl>
+          </XhFieldRoot>
           <footer>
-            <button type="button" @click="editorOpen = false">{{ t('crm.contact.cancel') }}</button>
-            <button class="primary-button" type="submit" :disabled="submitting">{{ submitting ? t('crm.contact.saving') : t('crm.contact.save') }}</button>
+            <XhButton variant="subtle" @click="editorOpen = false">
+              <XhButtonLabel>{{ t('crm.contact.cancel') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton type="submit" variant="outline" :disabled="submitting">
+              <XhButtonLabel>{{ submitting ? t('crm.contact.saving') : t('crm.contact.save') }}</XhButtonLabel>
+            </XhButton>
           </footer>
         </form>
       </section>
@@ -262,38 +353,131 @@ onMounted(loadPage)
 </template>
 
 <style scoped>
-.crm-contact-page { display: flex; flex-direction: column; gap: 16px; min-height: 100%; padding: 20px; color: hsl(var(--foreground)); }
-.page-header, .toolbar, .pagination, .editor header, .editor footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.page-header h1, .editor h2 { margin: 0; font-size: 20px; font-weight: 650; }
-.page-header p { margin: 5px 0 0; color: hsl(var(--muted-foreground)); font-size: 12px; }
-button, input, textarea { font: inherit; }
-button { border: 1px solid hsl(var(--border)); border-radius: 7px; padding: 7px 11px; background: hsl(var(--card)); cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .55; }
-.primary-button { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-.toolbar { justify-content: flex-start; flex-wrap: wrap; }
-.toolbar input, .editor input, .editor textarea { border: 1px solid hsl(var(--border)); border-radius: 7px; padding: 8px 10px; background: hsl(var(--card)); color: inherit; }
-.table-wrap { overflow: auto; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); }
-table { width: 100%; border-collapse: collapse; min-width: 880px; text-align: left; font-size: 13px; }
-th, td { padding: 11px 12px; border-bottom: 1px solid hsl(var(--border)); vertical-align: middle; }
-th { color: hsl(var(--muted-foreground)); font-size: 11px; font-weight: 600; white-space: nowrap; }
-.actions { white-space: nowrap; }
-.actions button { margin-right: 5px; padding: 5px 8px; font-size: 11px; }
-.danger-action { color: var(--xh-color-danger-600); }
-.empty-state { padding: 44px 16px; text-align: center; color: hsl(var(--muted-foreground)); }
-.pagination { color: hsl(var(--muted-foreground)); font-size: 12px; }
-.pagination div { display: flex; gap: 6px; }
-.modal-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 42%); }
-.editor { width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto; border: 1px solid hsl(var(--border)); border-radius: 12px; padding: 20px; background: hsl(var(--card)); box-shadow: 0 20px 70px rgb(0 0 0 / 20%); }
-.editor form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 18px; }
-.editor label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: hsl(var(--muted-foreground)); }
-.editor label input, .editor label textarea { width: 100%; box-sizing: border-box; color: hsl(var(--foreground)); }
-.editor .wide, .editor form footer { grid-column: 1 / -1; }
-.editor .checkbox-label { flex-direction: row; align-items: center; }
-.editor .checkbox-label input { width: auto; }
-.editor form footer { justify-content: flex-end; }
+.crm-contact-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 20px;
+  color: hsl(var(--foreground));
+}
+.page-header,
+.toolbar,
+.pagination,
+.editor header,
+.editor footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.page-header h1,
+.editor h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+}
+.page-header p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.toolbar {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.toolbar input {
+  min-width: 190px;
+}
+.table-wrap {
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 880px;
+  text-align: left;
+  font-size: 13px;
+}
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  vertical-align: middle;
+}
+th {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.actions {
+  white-space: nowrap;
+}
+.actions > * + * {
+  margin-left: 6px;
+}
+.empty-state {
+  padding: 44px 16px;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}
+.pagination {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.pagination div {
+  display: flex;
+  gap: 6px;
+}
+.modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: hsl(var(--overlay));
+}
+.editor {
+  width: min(760px, 100%);
+  max-height: min(90vh, 900px);
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 20px;
+  background: hsl(var(--card));
+  box-shadow: 0 20px 70px hsl(var(--overlay));
+}
+.editor form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 18px;
+}
+.checkbox-field {
+  align-self: center;
+}
+.editor .wide,
+.editor form footer {
+  grid-column: 1 / -1;
+}
+.editor form footer {
+  justify-content: flex-end;
+}
 @media (max-width: 680px) {
-  .crm-contact-page { padding: 12px; }
-  .editor form { grid-template-columns: 1fr; }
-  .editor .wide, .editor form footer { grid-column: auto; }
+  .crm-contact-page {
+    padding: 12px;
+  }
+  .editor form {
+    grid-template-columns: 1fr;
+  }
+  .editor .wide,
+  .editor form footer {
+    grid-column: auto;
+  }
 }
 </style>

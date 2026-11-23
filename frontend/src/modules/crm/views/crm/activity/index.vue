@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { CrmActivityCreateDto, CrmActivityListItemDto, CrmActivityUpdateDto } from '@/api'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createPageRequest, CrmActivityType, crmActivityApi } from '@/api'
+import { createPageRequest, crmActivityApi, CrmActivityType } from '@/api'
+import { XDatePicker, XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -28,7 +30,7 @@ const form = reactive({
   activityType: CrmActivityType.Call,
   subject: '',
   content: '',
-  occurredAt: new Date().toISOString().slice(0, 16),
+  occurredAt: Date.now(),
   ownerUserId: '',
   externalSystem: '',
   externalId: '',
@@ -38,6 +40,51 @@ const canCreate = computed(() => hasPermission('crm_activities.create'))
 const canUpdate = computed(() => hasPermission('crm_activities.update'))
 const canDelete = computed(() => hasPermission('crm_activities.delete'))
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize)))
+
+/** XSelect 以字符串传值，这里把数字枚举还原，保持与接口 DTO 一致 */
+const activityTypeFilterModel = computed({
+  get: () => activityTypeFilter.value as string | number,
+  set: (value: string | number | null) => {
+    activityTypeFilter.value = value === '' || value == null ? '' : Number(value) as CrmActivityType
+  },
+})
+const activityTypeModel = computed({
+  get: () => form.activityType as string | number,
+  set: (value: string | number | null) => {
+    form.activityType = Number(value) as CrmActivityType
+  },
+})
+
+const relationFilterOptions = computed(() => [
+  { label: t('crm.activity.allRelations'), value: '' },
+  { label: t('crm.activity.customer'), value: 'customer' },
+  { label: t('crm.activity.contact'), value: 'contact' },
+  { label: t('crm.activity.lead'), value: 'lead' },
+  { label: t('crm.activity.opportunity'), value: 'opportunity' },
+])
+const relationOptions = computed(() => [
+  { label: t('crm.activity.customer'), value: 'customer' },
+  { label: t('crm.activity.contact'), value: 'contact' },
+  { label: t('crm.activity.lead'), value: 'lead' },
+  { label: t('crm.activity.opportunity'), value: 'opportunity' },
+])
+const activityTypeFilterOptions = computed(() => [
+  { label: t('crm.activity.allTypes'), value: '' },
+  { label: t('crm.activity.call'), value: CrmActivityType.Call },
+  { label: t('crm.activity.email'), value: CrmActivityType.Email },
+  { label: t('crm.activity.meeting'), value: CrmActivityType.Meeting },
+  { label: t('crm.activity.note'), value: CrmActivityType.Note },
+  { label: t('crm.activity.whatsApp'), value: CrmActivityType.WhatsApp },
+  { label: t('crm.activity.other'), value: CrmActivityType.Other },
+])
+const activityTypeOptions = computed(() => [
+  { label: t('crm.activity.call'), value: CrmActivityType.Call },
+  { label: t('crm.activity.email'), value: CrmActivityType.Email },
+  { label: t('crm.activity.meeting'), value: CrmActivityType.Meeting },
+  { label: t('crm.activity.note'), value: CrmActivityType.Note },
+  { label: t('crm.activity.whatsApp'), value: CrmActivityType.WhatsApp },
+  { label: t('crm.activity.other'), value: CrmActivityType.Other },
+])
 
 function typeLabel(type: CrmActivityType | number) {
   switch (type) {
@@ -67,7 +114,7 @@ function resetForm() {
     activityType: CrmActivityType.Call,
     subject: '',
     content: '',
-    occurredAt: new Date().toISOString().slice(0, 16),
+    occurredAt: Date.now(),
     ownerUserId: '',
     externalSystem: '',
     externalId: '',
@@ -101,14 +148,16 @@ function search() {
 }
 
 function openCreate() {
-  if (!canCreate.value) return
+  if (!canCreate.value)
+    return
   resetForm()
   editingId.value = null
   editorOpen.value = true
 }
 
 async function openEdit(row: CrmActivityListItemDto) {
-  if (!canUpdate.value) return
+  if (!canUpdate.value)
+    return
   loading.value = true
   try {
     const detail = await crmActivityApi.detail(row.basicId)
@@ -123,7 +172,7 @@ async function openEdit(row: CrmActivityListItemDto) {
       activityType: detail.activityType,
       subject: detail.subject,
       content: detail.content ?? '',
-      occurredAt: new Date(detail.occurredAt).toISOString().slice(0, 16),
+      occurredAt: new Date(detail.occurredAt).getTime(),
       ownerUserId: detail.ownerUserId ?? '',
       externalSystem: detail.externalSystem ?? '',
       externalId: detail.externalId ?? '',
@@ -151,7 +200,7 @@ async function save() {
       activityType: form.activityType,
       subject: form.subject.trim(),
       content: form.content || null,
-      occurredAt: new Date(form.occurredAt).toISOString(),
+      occurredAt: new Date(form.occurredAt ?? Date.now()).toISOString(),
       ownerUserId: form.ownerUserId.trim() || null,
       externalSystem: form.externalSystem.trim() || null,
       externalId: form.externalId.trim() || null,
@@ -178,8 +227,10 @@ async function save() {
 }
 
 async function remove(row: CrmActivityListItemDto) {
-  if (!canDelete.value) return
-  if (!window.confirm(t('crm.activity.confirmDelete', { name: row.subject }))) return
+  if (!canDelete.value)
+    return
+  if (!window.confirm(t('crm.activity.confirmDelete', { name: row.subject })))
+    return
   try {
     await crmActivityApi.delete(row.basicId)
     toast.success(t('crm.activity.deleteSuccess'))
@@ -200,32 +251,49 @@ onMounted(loadPage)
         <h1>{{ t('crm.activity.title') }}</h1>
         <p>{{ t('crm.activity.description') }}</p>
       </div>
-      <button v-if="canCreate" class="primary-button" type="button" @click="openCreate">{{ t('crm.activity.create') }}</button>
+      <XhButton v-if="canCreate" variant="outline" @click="openCreate">
+        <XhButtonLabel>{{ t('crm.activity.create') }}</XhButtonLabel>
+      </XhButton>
     </header>
     <section class="toolbar" :aria-label="t('crm.activity.title')">
-      <input v-model="keyword" :placeholder="t('crm.activity.search')" :aria-label="t('crm.activity.search')" @keydown.enter="search">
-      <select v-model="relatedEntityType" :aria-label="t('crm.activity.relatedType')">
-        <option value="">{{ t('crm.activity.allRelations') }}</option>
-        <option value="customer">{{ t('crm.activity.customer') }}</option>
-        <option value="contact">{{ t('crm.activity.contact') }}</option>
-        <option value="lead">{{ t('crm.activity.lead') }}</option>
-        <option value="opportunity">{{ t('crm.activity.opportunity') }}</option>
-      </select>
-      <select v-model="activityTypeFilter" :aria-label="t('crm.activity.type')">
-        <option value="">{{ t('crm.activity.allTypes') }}</option>
-        <option :value="CrmActivityType.Call">{{ t('crm.activity.call') }}</option>
-        <option :value="CrmActivityType.Email">{{ t('crm.activity.email') }}</option>
-        <option :value="CrmActivityType.Meeting">{{ t('crm.activity.meeting') }}</option>
-        <option :value="CrmActivityType.Note">{{ t('crm.activity.note') }}</option>
-        <option :value="CrmActivityType.WhatsApp">{{ t('crm.activity.whatsApp') }}</option>
-        <option :value="CrmActivityType.Other">{{ t('crm.activity.other') }}</option>
-      </select>
-      <button type="button" @click="search">{{ t('crm.activity.query') }}</button>
-      <button type="button" :disabled="loading" @click="loadPage">{{ t('crm.activity.refresh') }}</button>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.activity.search') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="keyword" :placeholder="t('crm.activity.search')" @enter="search" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.activity.relatedType') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="relatedEntityType" :options="relationFilterOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.activity.type') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="activityTypeFilterModel" :options="activityTypeFilterOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" @click="search">
+        <XhButtonLabel>{{ t('crm.activity.query') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" :disabled="loading" @click="loadPage">
+        <XhButtonLabel>{{ t('crm.activity.refresh') }}</XhButtonLabel>
+      </XhButton>
     </section>
     <section class="table-wrap" aria-live="polite">
-      <div v-if="loading && rows.length === 0" class="empty-state">{{ t('crm.activity.loading') }}</div>
-      <div v-else-if="rows.length === 0" class="empty-state">{{ t('crm.activity.empty') }}</div>
+      <div v-if="loading && rows.length === 0" class="empty-state">
+        {{ t('crm.activity.loading') }}
+      </div>
+      <div v-else-if="rows.length === 0" class="empty-state">
+        {{ t('crm.activity.empty') }}
+      </div>
       <table v-else>
         <thead><tr><th>{{ t('crm.activity.subject') }}</th><th>{{ t('crm.activity.type') }}</th><th>{{ t('crm.activity.relatedType') }}</th><th>{{ t('crm.activity.relatedId') }}</th><th>{{ t('crm.activity.occurredAt') }}</th><th>{{ t('crm.activity.actions') }}</th></tr></thead>
         <tbody>
@@ -236,8 +304,12 @@ onMounted(loadPage)
             <td>{{ row.relatedEntityId }}</td>
             <td>{{ new Date(row.occurredAt).toLocaleString() }}</td>
             <td class="actions">
-              <button v-if="canUpdate" type="button" @click="openEdit(row)">{{ t('crm.activity.edit') }}</button>
-              <button v-if="canDelete" class="danger-action" type="button" @click="remove(row)">{{ t('crm.activity.delete') }}</button>
+              <XhButton v-if="canUpdate" variant="subtle" size="sm" @click="openEdit(row)">
+                <XhButtonLabel>{{ t('crm.activity.edit') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton v-if="canDelete" variant="subtle" tone="danger" size="sm" @click="remove(row)">
+                <XhButtonLabel>{{ t('crm.activity.delete') }}</XhButtonLabel>
+              </XhButton>
             </td>
           </tr>
         </tbody>
@@ -246,28 +318,85 @@ onMounted(loadPage)
     <footer class="pagination">
       <span>{{ t('crm.activity.total', { count: totalCount }) }} · {{ t('crm.activity.page', { current: pageIndex, total: totalPages }) }}</span>
       <div>
-        <button type="button" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.activity.previous') }}</button>
-        <button type="button" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.activity.next') }}</button>
+        <XhButton variant="subtle" size="sm" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">
+          <XhButtonLabel>{{ t('crm.activity.previous') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" size="sm" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">
+          <XhButtonLabel>{{ t('crm.activity.next') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </footer>
     <div v-if="editorOpen" class="modal-backdrop" @click.self="editorOpen = false">
       <section class="editor" role="dialog" aria-modal="true" :aria-label="editingId ? t('crm.activity.editTitle') : t('crm.activity.newTitle')">
-        <header><h2>{{ editingId ? t('crm.activity.editTitle') : t('crm.activity.newTitle') }}</h2><button type="button" @click="editorOpen = false">×</button></header>
+        <header>
+          <h2>{{ editingId ? t('crm.activity.editTitle') : t('crm.activity.newTitle') }}</h2>
+          <XhButton icon-only variant="ghost" :aria-label="t('common.actions.close')" @click="editorOpen = false">
+            ×
+          </XhButton>
+        </header>
         <form @submit.prevent="save">
-          <label>{{ t('crm.activity.relatedType') }} *
-            <select v-model="form.relatedEntityType"><option value="customer">{{ t('crm.activity.customer') }}</option><option value="contact">{{ t('crm.activity.contact') }}</option><option value="lead">{{ t('crm.activity.lead') }}</option><option value="opportunity">{{ t('crm.activity.opportunity') }}</option></select>
-          </label>
-          <label>{{ t('crm.activity.relatedId') }} *<input v-model="form.relatedEntityId" required inputmode="numeric"></label>
-          <label>{{ t('crm.activity.type') }}
-            <select v-model.number="form.activityType"><option :value="CrmActivityType.Call">{{ t('crm.activity.call') }}</option><option :value="CrmActivityType.Email">{{ t('crm.activity.email') }}</option><option :value="CrmActivityType.Meeting">{{ t('crm.activity.meeting') }}</option><option :value="CrmActivityType.Note">{{ t('crm.activity.note') }}</option><option :value="CrmActivityType.WhatsApp">{{ t('crm.activity.whatsApp') }}</option><option :value="CrmActivityType.Other">{{ t('crm.activity.other') }}</option></select>
-          </label>
-          <label>{{ t('crm.activity.subject') }} *<input v-model="form.subject" required maxlength="200"></label>
-          <label>{{ t('crm.activity.occurredAt') }} *<input v-model="form.occurredAt" type="datetime-local" required></label>
-          <label>{{ t('crm.activity.ownerId') }}<input v-model="form.ownerUserId" inputmode="numeric"></label>
-          <label>{{ t('crm.activity.externalSystem') }}<input v-model="form.externalSystem" maxlength="80"></label>
-          <label>{{ t('crm.activity.externalId') }}<input v-model="form.externalId" maxlength="160"></label>
-          <label class="wide">{{ t('crm.activity.content') }}<textarea v-model="form.content" rows="4" /></label>
-          <footer><button type="button" @click="editorOpen = false">{{ t('crm.activity.cancel') }}</button><button class="primary-button" type="submit" :disabled="submitting">{{ submitting ? t('crm.activity.saving') : t('crm.activity.save') }}</button></footer>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.activity.relatedType') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect v-model:value="form.relatedEntityType" :options="relationOptions" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.activity.relatedId') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.relatedEntityId" inputmode="numeric" required />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.activity.type') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect v-model:value="activityTypeModel" :options="activityTypeOptions" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.activity.subject') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.subject" :max-length="200" required />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.activity.occurredAt') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XDatePicker v-model:value="form.occurredAt" show-time />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.activity.ownerId') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.ownerUserId" inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.activity.externalSystem') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.externalSystem" :max-length="80" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.activity.externalId') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.externalId" :max-length="160" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot class="wide">
+            <XhFieldLabel>{{ t('crm.activity.content') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.content" type="textarea" :rows="4" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <footer>
+            <XhButton variant="subtle" @click="editorOpen = false">
+              <XhButtonLabel>{{ t('crm.activity.cancel') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton type="submit" variant="outline" :disabled="submitting">
+              <XhButtonLabel>{{ submitting ? t('crm.activity.saving') : t('crm.activity.save') }}</XhButtonLabel>
+            </XhButton>
+          </footer>
         </form>
       </section>
     </div>
@@ -275,32 +404,125 @@ onMounted(loadPage)
 </template>
 
 <style scoped>
-.crm-activity-page { display:flex; flex-direction:column; gap:16px; min-height:100%; padding:20px; color:hsl(var(--foreground)); }
-.page-header,.toolbar,.pagination,.editor header,.editor footer { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.page-header h1,.editor h2 { margin:0; font-size:20px; font-weight:650; }
-.page-header p { margin:5px 0 0; color:hsl(var(--muted-foreground)); font-size:12px; }
-button,input,select,textarea { font:inherit; }
-button { border:1px solid hsl(var(--border)); border-radius:7px; padding:7px 11px; background:hsl(var(--card)); cursor:pointer; }
-button:disabled { cursor:not-allowed; opacity:.55; }
-.primary-button { border-color:hsl(var(--primary)); background:hsl(var(--primary)); color:hsl(var(--primary-foreground)); }
-.toolbar { justify-content:flex-start; flex-wrap:wrap; }
-.toolbar input,.toolbar select,.editor input,.editor select,.editor textarea { border:1px solid hsl(var(--border)); border-radius:7px; padding:8px 10px; background:hsl(var(--card)); color:inherit; }
-.table-wrap { overflow:auto; border:1px solid hsl(var(--border)); border-radius:10px; background:hsl(var(--card)); }
-table { width:100%; border-collapse:collapse; min-width:900px; text-align:left; font-size:13px; }
-th,td { padding:11px 12px; border-bottom:1px solid hsl(var(--border)); vertical-align:middle; }
-th { color:hsl(var(--muted-foreground)); font-size:11px; font-weight:600; white-space:nowrap; }
-.actions { white-space:nowrap; }
-.actions button { margin-right:5px; padding:5px 8px; font-size:11px; }
-.danger-action { color:var(--xh-color-danger-600); }
-.empty-state { padding:44px 16px; text-align:center; color:hsl(var(--muted-foreground)); }
-.pagination { color:hsl(var(--muted-foreground)); font-size:12px; }
-.pagination div { display:flex; gap:6px; }
-.modal-backdrop { position:fixed; z-index:1000; inset:0; display:grid; place-items:center; padding:20px; background:rgb(0 0 0 / 42%); }
-.editor { width:min(760px,100%); max-height:min(90vh,900px); overflow:auto; border:1px solid hsl(var(--border)); border-radius:12px; padding:20px; background:hsl(var(--card)); box-shadow:0 20px 70px rgb(0 0 0 / 20%); }
-.editor form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:13px; margin-top:18px; }
-.editor label { display:flex; flex-direction:column; gap:6px; font-size:12px; color:hsl(var(--muted-foreground)); }
-.editor label input,.editor label select,.editor label textarea { width:100%; box-sizing:border-box; color:hsl(var(--foreground)); }
-.editor .wide,.editor form footer { grid-column:1/-1; }
-.editor form footer { justify-content:flex-end; }
-@media(max-width:680px) { .crm-activity-page { padding:12px; } .editor form { grid-template-columns:1fr; } .editor .wide,.editor form footer { grid-column:auto; } }
+.crm-activity-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 20px;
+  color: hsl(var(--foreground));
+}
+.page-header,
+.toolbar,
+.pagination,
+.editor header,
+.editor footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.page-header h1,
+.editor h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+}
+.page-header p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.toolbar {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.table-wrap {
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+  text-align: left;
+  font-size: 13px;
+}
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  vertical-align: middle;
+}
+th {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.actions {
+  white-space: nowrap;
+}
+.actions > * + * {
+  margin-left: 6px;
+}
+.empty-state {
+  padding: 44px 16px;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}
+.pagination {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.pagination div {
+  display: flex;
+  gap: 6px;
+}
+.modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: hsl(var(--overlay));
+}
+.editor {
+  width: min(760px, 100%);
+  max-height: min(90vh, 900px);
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 20px;
+  background: hsl(var(--card));
+  box-shadow: 0 20px 70px hsl(var(--overlay));
+}
+.editor form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 18px;
+}
+.editor .wide,
+.editor form footer {
+  grid-column: 1 / -1;
+}
+.editor form footer {
+  justify-content: flex-end;
+}
+@media (max-width: 680px) {
+  .crm-activity-page {
+    padding: 12px;
+  }
+  .editor form {
+    grid-template-columns: 1fr;
+  }
+  .editor .wide,
+  .editor form footer {
+    grid-column: auto;
+  }
+}
 </style>

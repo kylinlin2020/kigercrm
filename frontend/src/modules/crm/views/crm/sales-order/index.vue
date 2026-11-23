@@ -10,6 +10,13 @@ import type {
   CrmSalesOrderLineUpdateDto,
   CrmSalesOrderListItemDto,
 } from '@/api'
+import {
+  XhButton,
+  XhButtonLabel,
+  XhFieldControl,
+  XhFieldLabel,
+  XhFieldRoot,
+} from '@xihan-ui/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
@@ -20,12 +27,38 @@ import {
   crmSalesOrderApi,
   CrmSalesOrderStatus,
 } from '@/api'
+import { XDatePicker, XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
 defineOptions({ name: 'CrmSalesOrderPage' })
 const { t } = useI18n()
 const { hasPermission } = usePermission()
+
+type NumericLineField = 'quantity' | 'unitPrice' | 'discountRate' | 'taxRate'
+type SalesOrderLineForm = Omit<CrmSalesOrderLineCreateDto, NumericLineField> & Record<NumericLineField, string>
+type EditLineForm = Omit<CrmSalesOrderLineUpdateDto, NumericLineField> & Record<NumericLineField, string>
+
+/** XDatePicker 收发本地毫秒时间戳，提交时还原成后端要的 YYYY-MM-DD。 */
+function toDateString(value: number | null): string {
+  if (value == null)
+    return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime()))
+    return ''
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+function fromDateString(value: string): number | null {
+  if (!value)
+    return null
+  const [year, month, day] = value.split('-').map(Number)
+  if (!year || !month || !day)
+    return null
+  const timestamp = new Date(year, month - 1, day).getTime()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
 const rows = ref<CrmSalesOrderListItemDto[]>([])
 const lines = ref<CrmSalesOrderLineDto[]>([])
 const loading = ref(false)
@@ -55,7 +88,7 @@ const editForm = ref({
   customerId: '',
   contactId: '',
   opportunityId: '',
-  orderDate: '',
+  orderDate: null as number | null,
   currency: 'USD',
   customerPurchaseOrderNumber: '',
   paymentTerms: '',
@@ -63,7 +96,7 @@ const editForm = ref({
   termsAndConditions: '',
   notes: '',
 })
-const editLines = ref<CrmSalesOrderLineUpdateDto[]>([])
+const editLines = ref<EditLineForm[]>([])
 const editQuoteLinked = ref(false)
 let customerSearchRequest = 0
 let relationRequest = 0
@@ -72,7 +105,7 @@ const form = ref({
   customerId: '',
   contactId: '',
   opportunityId: '',
-  orderDate: new Date().toISOString().slice(0, 10),
+  orderDate: fromDateString(new Date().toISOString().slice(0, 10)),
   currency: 'USD',
   customerPurchaseOrderNumber: '',
   paymentTerms: '',
@@ -80,24 +113,71 @@ const form = ref({
   termsAndConditions: '',
   notes: '',
 })
-function newLine(): CrmSalesOrderLineCreateDto {
+
+function label(s: number) {
+  return t(`crm.salesOrder.status${s}`)
+}
+
+// XSelect 用字符串选项；这里把值还原成 number | ''，保持原数字枚举语义。
+const statusOptions = computed(() => [
+  { label: t('crm.salesOrder.allStatuses'), value: '' },
+  ...[0, 1, 2, 3, 4, 5].map(s => ({ label: label(s), value: String(s) })),
+])
+const statusValue = computed({
+  get: () => String(status.value),
+  set: (value: string | number | Array<string | number> | null) => {
+    const next = Array.isArray(value) ? value[0] : value
+    status.value = next == null || next === '' ? '' : Number(next) as CrmSalesOrderStatus
+  },
+})
+const customerSelectOptions = computed(() => [
+  { label: t('crm.salesOrder.selectCustomer'), value: '' },
+  ...customerOptions.value.map(customer => ({
+    label: `${customer.name} (#${customer.basicId})`,
+    value: String(customer.basicId),
+  })),
+])
+const customerIdValue = computed({
+  get: () => form.value.customerId,
+  set: (value: string | number | Array<string | number> | null) => {
+    const next = Array.isArray(value) ? value[0] : value
+    form.value.customerId = next == null ? '' : String(next)
+    void loadCustomerRelations(form.value.customerId)
+  },
+})
+const contactSelectOptions = computed(() => [
+  { label: t('crm.salesOrder.noContact'), value: '' },
+  ...contactOptions.value.map(contact => ({
+    label: `${contact.fullName} (#${contact.basicId})`,
+    value: String(contact.basicId),
+  })),
+])
+const opportunitySelectOptions = computed(() => [
+  { label: t('crm.salesOrder.noOpportunity'), value: '' },
+  ...opportunityOptions.value.map(opportunity => ({
+    label: `${opportunity.name} (#${opportunity.basicId})`,
+    value: String(opportunity.basicId),
+  })),
+])
+
+function newLine(): SalesOrderLineForm {
   return {
     productCode: '',
     description: '',
-    quantity: 1,
+    quantity: '1',
     unit: '',
-    unitPrice: 0,
-    discountRate: 0,
-    taxRate: 0,
+    unitPrice: '0',
+    discountRate: '0',
+    taxRate: '0',
     sortOrder: 0,
   }
 }
-const draftLines = ref<CrmSalesOrderLineCreateDto[]>([newLine()])
+const draftLines = ref<SalesOrderLineForm[]>([newLine()])
 const previewTotal = computed(() =>
   draftLines.value.reduce((sum, line) => {
-    const subtotal = Math.round(line.quantity * line.unitPrice * 100) / 100
-    const discount = Math.round(subtotal * line.discountRate) / 100
-    const tax = Math.round((subtotal - discount) * line.taxRate) / 100
+    const subtotal = Math.round(Number(line.quantity) * Number(line.unitPrice) * 100) / 100
+    const discount = Math.round(subtotal * Number(line.discountRate)) / 100
+    const tax = Math.round((subtotal - discount) * Number(line.taxRate)) / 100
     return sum + subtotal - discount + tax
   }, 0),
 )
@@ -163,7 +243,7 @@ async function openCreate() {
     customerId: '',
     contactId: '',
     opportunityId: '',
-    orderDate: new Date().toISOString().slice(0, 10),
+    orderDate: fromDateString(new Date().toISOString().slice(0, 10)),
     currency: 'USD',
     customerPurchaseOrderNumber: '',
     paymentTerms: '',
@@ -179,19 +259,19 @@ async function openCreate() {
   await searchCustomers()
 }
 async function createOrder() {
-  const validLine = (line: CrmSalesOrderLineCreateDto) =>
+  const validLine = (line: SalesOrderLineForm) =>
     line.description.trim()
-    && Number.isFinite(line.quantity)
-    && line.quantity > 0
-    && Math.abs(line.quantity * 10000 - Math.round(line.quantity * 10000)) < 1e-8
-    && Number.isFinite(line.unitPrice)
-    && line.unitPrice >= 0
-    && Number.isFinite(line.discountRate)
-    && line.discountRate >= 0
-    && line.discountRate <= 100
-    && Number.isFinite(line.taxRate)
-    && line.taxRate >= 0
-    && line.taxRate <= 100
+    && Number.isFinite(Number(line.quantity))
+    && Number(line.quantity) > 0
+    && Math.abs(Number(line.quantity) * 10000 - Math.round(Number(line.quantity) * 10000)) < 1e-8
+    && Number.isFinite(Number(line.unitPrice))
+    && Number(line.unitPrice) >= 0
+    && Number.isFinite(Number(line.discountRate))
+    && Number(line.discountRate) >= 0
+    && Number(line.discountRate) <= 100
+    && Number.isFinite(Number(line.taxRate))
+    && Number(line.taxRate) >= 0
+    && Number(line.taxRate) <= 100
   if (
     !form.value.customerId.trim()
     || !form.value.orderDate
@@ -210,7 +290,7 @@ async function createOrder() {
       customerId: form.value.customerId.trim(),
       contactId: form.value.contactId.trim() || null,
       opportunityId: form.value.opportunityId.trim() || null,
-      orderDate: `${form.value.orderDate}T00:00:00`,
+      orderDate: `${toDateString(form.value.orderDate)}T00:00:00`,
       currency: form.value.currency.trim().toUpperCase(),
       customerPurchaseOrderNumber: form.value.customerPurchaseOrderNumber.trim() || null,
       paymentTerms: form.value.paymentTerms.trim() || null,
@@ -219,6 +299,10 @@ async function createOrder() {
       notes: form.value.notes.trim() || null,
       lines: draftLines.value.map((line, index) => ({
         ...line,
+        quantity: Number(line.quantity),
+        unitPrice: Number(line.unitPrice),
+        discountRate: Number(line.discountRate),
+        taxRate: Number(line.taxRate),
         productCode: line.productCode?.trim() || null,
         description: line.description.trim(),
         unit: line.unit?.trim() || null,
@@ -239,16 +323,16 @@ async function createOrder() {
   }
 }
 
-function newEditLine(): CrmSalesOrderLineUpdateDto {
+function newEditLine(): EditLineForm {
   return {
     id: '0',
     productCode: '',
     description: '',
-    quantity: 1,
+    quantity: '1',
     unit: '',
-    unitPrice: 0,
-    discountRate: 0,
-    taxRate: 0,
+    unitPrice: '0',
+    discountRate: '0',
+    taxRate: '0',
     sortOrder: editLines.value.length,
   }
 }
@@ -283,7 +367,7 @@ async function openEdit(row: CrmSalesOrderListItemDto) {
       customerId: String(detail.customerId),
       contactId: detail.contactId ? String(detail.contactId) : '',
       opportunityId: detail.opportunityId ? String(detail.opportunityId) : '',
-      orderDate: new Date(detail.orderDate).toISOString().slice(0, 10),
+      orderDate: fromDateString(new Date(detail.orderDate).toISOString().slice(0, 10)),
       currency: detail.currency,
       customerPurchaseOrderNumber: detail.customerPurchaseOrderNumber || '',
       paymentTerms: detail.paymentTerms || '',
@@ -296,11 +380,11 @@ async function openEdit(row: CrmSalesOrderListItemDto) {
       sourceQuoteLineId: line.sourceQuoteLineId || null,
       productCode: line.productCode || '',
       description: line.description,
-      quantity: line.quantity,
+      quantity: String(line.quantity),
       unit: line.unit || '',
-      unitPrice: line.unitPrice,
-      discountRate: line.discountRate,
-      taxRate: line.taxRate,
+      unitPrice: String(line.unitPrice),
+      discountRate: String(line.discountRate),
+      taxRate: String(line.taxRate),
       sortOrder: line.sortOrder,
     }))
     editOpen.value = true
@@ -315,14 +399,14 @@ async function saveEdit() {
       && editLines.value.every(
         line =>
           line.description.trim()
-          && Number.isFinite(line.quantity)
-          && line.quantity > 0
-          && Number.isFinite(line.unitPrice)
-          && line.unitPrice >= 0
-          && line.discountRate >= 0
-          && line.discountRate <= 100
-          && line.taxRate >= 0
-          && line.taxRate <= 100,
+          && Number.isFinite(Number(line.quantity))
+          && Number(line.quantity) > 0
+          && Number.isFinite(Number(line.unitPrice))
+          && Number(line.unitPrice) >= 0
+          && Number(line.discountRate) >= 0
+          && Number(line.discountRate) <= 100
+          && Number(line.taxRate) >= 0
+          && Number(line.taxRate) <= 100,
       )
   if (!valid || !/^[A-Z]{3}$/i.test(editForm.value.currency.trim())) {
     toast.warning(t('crm.salesOrder.createRequired'))
@@ -335,7 +419,7 @@ async function saveEdit() {
       customerId: editForm.value.customerId,
       contactId: editForm.value.contactId || null,
       opportunityId: editForm.value.opportunityId || null,
-      orderDate: `${editForm.value.orderDate}T00:00:00`,
+      orderDate: `${toDateString(editForm.value.orderDate)}T00:00:00`,
       currency: editForm.value.currency.trim().toUpperCase(),
       customerPurchaseOrderNumber: editForm.value.customerPurchaseOrderNumber.trim() || null,
       paymentTerms: editForm.value.paymentTerms.trim() || null,
@@ -344,6 +428,10 @@ async function saveEdit() {
       notes: editForm.value.notes.trim() || null,
       lines: editLines.value.map((line, index) => ({
         ...line,
+        quantity: Number(line.quantity),
+        unitPrice: Number(line.unitPrice),
+        discountRate: Number(line.discountRate),
+        taxRate: Number(line.taxRate),
         description: line.description.trim(),
         productCode: line.productCode?.trim() || null,
         unit: line.unit?.trim() || null,
@@ -408,9 +496,6 @@ async function changeStatus(row: CrmSalesOrderListItemDto, next: CrmSalesOrderSt
     toast.danger((e as Error)?.message || t('crm.salesOrder.statusError'))
   }
 }
-function label(s: number) {
-  return t(`crm.salesOrder.status${s}`)
-}
 function resetAndLoad() {
   pageIndex.value = 1
   loadPage()
@@ -433,30 +518,29 @@ onMounted(loadPage)
         <h1>{{ t('crm.salesOrder.title') }}</h1>
         <p>{{ t('crm.salesOrder.description') }}</p>
       </div>
-      <button v-if="canCreate" class="primary-button" @click="openCreate">
-        {{ t('crm.salesOrder.create') }}
-      </button>
+      <XhButton v-if="canCreate" variant="outline" @click="openCreate">
+        <XhButtonLabel>{{ t('crm.salesOrder.create') }}</XhButtonLabel>
+      </XhButton>
     </header>
     <section class="toolbar">
-      <input
-        v-model="keyword"
-        :placeholder="t('crm.salesOrder.search')"
-        @keydown.enter="resetAndLoad"
-      >
-      <select v-model="status">
-        <option value="">
-          {{ t('crm.salesOrder.allStatuses') }}
-        </option>
-        <option v-for="s in [0, 1, 2, 3, 4, 5]" :key="s" :value="s">
-          {{ label(s) }}
-        </option>
-      </select>
-      <button @click="resetAndLoad">
-        {{ t('crm.salesOrder.query') }}
-      </button>
-      <button :disabled="loading" @click="loadPage">
-        {{ t('crm.salesOrder.refresh') }}
-      </button>
+      <XhFieldRoot class="form-field">
+        <XhFieldLabel>{{ t('crm.salesOrder.search') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="keyword" :placeholder="t('crm.salesOrder.search')" @enter="resetAndLoad" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="form-field">
+        <XhFieldLabel>{{ t('crm.salesOrder.status') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="statusValue" :options="statusOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" @click="resetAndLoad">
+        <XhButtonLabel>{{ t('crm.salesOrder.query') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" :disabled="loading" @click="loadPage">
+        <XhButtonLabel>{{ t('crm.salesOrder.refresh') }}</XhButtonLabel>
+      </XhButton>
     </section>
     <section class="table-wrap">
       <div v-if="loading && !rows.length" class="empty">
@@ -484,33 +568,37 @@ onMounted(loadPage)
             <td>{{ label(row.status) }}</td>
             <td>{{ row.grandTotal.toLocaleString() }} {{ row.currency }}</td>
             <td class="actions">
-              <button @click="openLines(row)">
-                {{ t('crm.salesOrder.viewLines') }}
-              </button>
-              <button v-if="canUpdate && row.status === CrmSalesOrderStatus.Draft" @click="openEdit(row)">
-                {{ t('crm.salesOrder.edit') }}
-              </button>
-              <button
+              <XhButton variant="subtle" @click="openLines(row)">
+                <XhButtonLabel>{{ t('crm.salesOrder.viewLines') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton v-if="canUpdate && row.status === CrmSalesOrderStatus.Draft" variant="outline" @click="openEdit(row)">
+                <XhButtonLabel>{{ t('crm.salesOrder.edit') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton
                 v-if="canExecute && row.status === CrmSalesOrderStatus.Draft"
+                variant="outline"
                 @click="changeStatus(row, CrmSalesOrderStatus.Confirmed)"
               >
-                {{ t('crm.salesOrder.confirm') }}
-              </button>
-              <button
+                <XhButtonLabel>{{ t('crm.salesOrder.confirm') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton
                 v-if="canExecute && row.status === CrmSalesOrderStatus.Confirmed"
+                variant="outline"
                 @click="changeStatus(row, CrmSalesOrderStatus.Processing)"
               >
-                {{ t('crm.salesOrder.start') }}
-              </button>
-              <button
+                <XhButtonLabel>{{ t('crm.salesOrder.start') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton
                 v-if="
                   canExecute
                     && (row.status === CrmSalesOrderStatus.Draft || row.status === CrmSalesOrderStatus.Confirmed)
                 "
+                variant="outline"
+                tone="danger"
                 @click="changeStatus(row, CrmSalesOrderStatus.Cancelled)"
               >
-                {{ t('crm.salesOrder.cancelOrder') }}
-              </button>
+                <XhButtonLabel>{{ t('crm.salesOrder.cancelOrder') }}</XhButtonLabel>
+              </XhButton>
             </td>
           </tr>
         </tbody>
@@ -522,136 +610,174 @@ onMounted(loadPage)
         {{ t('crm.salesOrder.page', { current: pageIndex, total: totalPages }) }}
       </span>
       <div>
-        <button
+        <XhButton
+          variant="subtle"
           :disabled="pageIndex <= 1 || loading"
           @click="previousPage"
         >
-          {{ t('crm.salesOrder.previous') }}
-        </button>
-        <button
+          <XhButtonLabel>{{ t('crm.salesOrder.previous') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton
+          variant="subtle"
           :disabled="pageIndex >= totalPages || loading"
           @click="nextPage"
         >
-          {{ t('crm.salesOrder.next') }}
-        </button>
+          <XhButtonLabel>{{ t('crm.salesOrder.next') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </footer>
     <div v-if="createOpen" class="modal-backdrop" @click.self="createOpen = false">
       <section class="editor create-editor">
         <header>
           <h2>{{ t('crm.salesOrder.createTitle') }}</h2>
-          <button type="button" :disabled="saving" @click="createOpen = false">
-            ×
-          </button>
+          <XhButton variant="subtle" :aria-label="t('crm.salesOrder.cancelForm')" :disabled="saving" @click="createOpen = false">
+            <XhButtonLabel>×</XhButtonLabel>
+          </XhButton>
         </header>
         <form @submit.prevent="createOrder">
           <div class="form-grid">
-            <label class="customer-picker">
-              {{ t('crm.salesOrder.customer') }} *
-              <div class="picker-search">
-                <input
-                  v-model="customerSearch"
-                  :placeholder="t('crm.salesOrder.customerSearch')"
-                  @keydown.enter.prevent="searchCustomers"
-                >
-                <button type="button" @click="searchCustomers">{{ t('crm.salesOrder.searchCustomers') }}</button>
-              </div>
-              <select v-model="form.customerId" required @change="loadCustomerRelations(form.customerId)">
-                <option value="">{{ t('crm.salesOrder.selectCustomer') }}</option>
-                <option v-for="customer in customerOptions" :key="customer.basicId" :value="String(customer.basicId)">
-                  {{ customer.name }} (#{{ customer.basicId }})
-                </option>
-              </select>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.contactId') }}
-              <select v-model="form.contactId" :disabled="!form.customerId || loadingRelations">
-                <option value="">{{ t('crm.salesOrder.noContact') }}</option>
-                <option v-for="contact in contactOptions" :key="contact.basicId" :value="String(contact.basicId)">
-                  {{ contact.fullName }} (#{{ contact.basicId }})
-                </option>
-              </select>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.opportunityId') }}
-              <select v-model="form.opportunityId" :disabled="!form.customerId || loadingRelations">
-                <option value="">{{ t('crm.salesOrder.noOpportunity') }}</option>
-                <option
-                  v-for="opportunity in opportunityOptions"
-                  :key="opportunity.basicId"
-                  :value="String(opportunity.basicId)"
-                >
-                  {{ opportunity.name }} (#{{ opportunity.basicId }})
-                </option>
-              </select>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.date') }} *
-              <input v-model="form.orderDate" type="date" required>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.currency') }} *
-              <input v-model="form.currency" maxlength="3" required>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.customerPo') }}
-              <input v-model="form.customerPurchaseOrderNumber" maxlength="100">
-            </label>
-            <label>
-              {{ t('crm.salesOrder.paymentTerms') }}
-              <input v-model="form.paymentTerms" maxlength="500">
-            </label>
-            <label>
-              {{ t('crm.salesOrder.deliveryTerms') }}
-              <input v-model="form.deliveryTerms" maxlength="500">
-            </label>
-            <label class="wide">
-              Terms &amp; Conditions
-              <textarea v-model="form.termsAndConditions" rows="4" maxlength="20000" />
-            </label>
-            <label class="wide">
-              {{ t('crm.salesOrder.notes') }}
-              <textarea v-model="form.notes" rows="2" />
-            </label>
+            <div class="customer-picker">
+              <XhFieldRoot class="form-field">
+                <XhFieldLabel>{{ t('crm.salesOrder.customerSearch') }}</XhFieldLabel>
+                <XhFieldControl>
+                  <XInput
+                    v-model:value="customerSearch"
+                    :placeholder="t('crm.salesOrder.customerSearch')"
+                    @keydown.enter.prevent="searchCustomers"
+                  />
+                </XhFieldControl>
+              </XhFieldRoot>
+              <XhButton variant="subtle" @click="searchCustomers">
+                <XhButtonLabel>{{ t('crm.salesOrder.searchCustomers') }}</XhButtonLabel>
+              </XhButton>
+              <XhFieldRoot class="form-field">
+                <XhFieldLabel>{{ t('crm.salesOrder.customer') }} *</XhFieldLabel>
+                <XhFieldControl>
+                  <XSelect v-model:value="customerIdValue" :options="customerSelectOptions" required />
+                </XhFieldControl>
+              </XhFieldRoot>
+            </div>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.contactId') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XSelect
+                  v-model:value="form.contactId"
+                  :options="contactSelectOptions"
+                  :disabled="!form.customerId || loadingRelations"
+                />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.opportunityId') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XSelect
+                  v-model:value="form.opportunityId"
+                  :options="opportunitySelectOptions"
+                  :disabled="!form.customerId || loadingRelations"
+                />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.date') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XDatePicker v-model:value="form.orderDate" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.currency') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="form.currency" :max-length="3" required />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.customerPo') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="form.customerPurchaseOrderNumber" :max-length="100" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.paymentTerms') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="form.paymentTerms" :max-length="500" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.deliveryTerms') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="form.deliveryTerms" :max-length="500" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field wide">
+              <XhFieldLabel>Terms &amp; Conditions</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="form.termsAndConditions" type="textarea" :rows="4" :max-length="20000" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field wide">
+              <XhFieldLabel>{{ t('crm.salesOrder.notes') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="form.notes" type="textarea" :rows="2" />
+              </XhFieldControl>
+            </XhFieldRoot>
           </div>
           <div class="line-heading">
             <h3>{{ t('crm.salesOrder.lines') }}</h3>
-            <button type="button" :disabled="draftLines.length >= 500" @click="addLine">
-              {{ t('crm.salesOrder.addLine') }}
-            </button>
+            <XhButton variant="outline" :disabled="draftLines.length >= 500" @click="addLine">
+              <XhButtonLabel>{{ t('crm.salesOrder.addLine') }}</XhButtonLabel>
+            </XhButton>
           </div>
           <div v-for="(line, index) in draftLines" :key="index" class="line-editor">
-            <label>
-              {{ t('crm.salesOrder.productCode') }}
-              <input v-model="line.productCode">
-            </label>
-            <label class="description-field">
-              {{ t('crm.salesOrder.descriptionLine') }} *
-              <input v-model="line.description" maxlength="500" required>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.quantity') }} *
-              <input v-model.number="line.quantity" type="number" min="0.0001" step="0.0001" required>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.unit') }}
-              <input v-model="line.unit" maxlength="30">
-            </label>
-            <label>
-              {{ t('crm.salesOrder.unitPrice') }} *
-              <input v-model.number="line.unitPrice" type="number" min="0" step="0.0001" required>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.discountRate') }}
-              <input v-model.number="line.discountRate" type="number" min="0" max="100" step="0.0001">
-            </label>
-            <label>
-              {{ t('crm.salesOrder.taxRate') }}
-              <input v-model.number="line.taxRate" type="number" min="0" max="100" step="0.0001">
-            </label>
-            <button type="button" class="remove-line" :disabled="draftLines.length === 1" @click="removeLine(index)">
-              {{ t('crm.salesOrder.removeLine') }}
-            </button>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.productCode') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.productCode" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field description-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.descriptionLine') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.description" :max-length="500" required />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.quantity') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.quantity" inputmode="numeric" required />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.unit') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.unit" :max-length="30" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.unitPrice') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.unitPrice" inputmode="numeric" required />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.discountRate') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.discountRate" inputmode="numeric" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.taxRate') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.taxRate" inputmode="numeric" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhButton
+              class="remove-line"
+              variant="subtle"
+              tone="danger"
+              :disabled="draftLines.length === 1"
+              @click="removeLine(index)"
+            >
+              <XhButtonLabel>{{ t('crm.salesOrder.removeLine') }}</XhButtonLabel>
+            </XhButton>
           </div>
           <div class="total-preview">
             {{ t('crm.salesOrder.estimatedTotal') }}:
@@ -662,12 +788,12 @@ onMounted(loadPage)
             <small>{{ t('crm.salesOrder.serverTotalNotice') }}</small>
           </div>
           <footer class="form-actions">
-            <button type="button" :disabled="saving" @click="createOpen = false">
-              {{ t('crm.salesOrder.cancelForm') }}
-            </button>
-            <button type="submit" class="primary-button" :disabled="saving">
-              {{ saving ? t('crm.salesOrder.saving') : t('crm.salesOrder.save') }}
-            </button>
+            <XhButton variant="subtle" :disabled="saving" @click="createOpen = false">
+              <XhButtonLabel>{{ t('crm.salesOrder.cancelForm') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton type="submit" variant="outline" :disabled="saving">
+              <XhButtonLabel>{{ saving ? t('crm.salesOrder.saving') : t('crm.salesOrder.save') }}</XhButtonLabel>
+            </XhButton>
           </footer>
         </form>
       </section>
@@ -676,40 +802,54 @@ onMounted(loadPage)
       <section class="editor create-editor">
         <header>
           <h2>{{ t('crm.salesOrder.editTitle') }}</h2>
-          <button type="button" :disabled="editSaving" @click="editOpen = false">
-            ×
-          </button>
+          <XhButton variant="subtle" :aria-label="t('crm.salesOrder.cancelForm')" :disabled="editSaving" @click="editOpen = false">
+            <XhButtonLabel>×</XhButtonLabel>
+          </XhButton>
         </header>
         <form @submit.prevent="saveEdit">
           <div class="form-grid">
-            <label>
-              {{ t('crm.salesOrder.date') }} *
-              <input v-model="editForm.orderDate" type="date" required>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.currency') }} *
-              <input v-model="editForm.currency" maxlength="3" required>
-            </label>
-            <label>
-              {{ t('crm.salesOrder.customerPo') }}
-              <input v-model="editForm.customerPurchaseOrderNumber" maxlength="100">
-            </label>
-            <label>
-              {{ t('crm.salesOrder.paymentTerms') }}
-              <input v-model="editForm.paymentTerms" maxlength="500">
-            </label>
-            <label>
-              {{ t('crm.salesOrder.deliveryTerms') }}
-              <input v-model="editForm.deliveryTerms" maxlength="500">
-            </label>
-            <label class="wide">
-              Terms &amp; Conditions
-              <textarea v-model="editForm.termsAndConditions" rows="4" maxlength="20000" />
-            </label>
-            <label class="wide">
-              {{ t('crm.salesOrder.notes') }}
-              <textarea v-model="editForm.notes" rows="2" />
-            </label>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.date') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XDatePicker v-model:value="editForm.orderDate" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.currency') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="editForm.currency" :max-length="3" required />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.customerPo') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="editForm.customerPurchaseOrderNumber" :max-length="100" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.paymentTerms') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="editForm.paymentTerms" :max-length="500" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.deliveryTerms') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="editForm.deliveryTerms" :max-length="500" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field wide">
+              <XhFieldLabel>Terms &amp; Conditions</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="editForm.termsAndConditions" type="textarea" :rows="4" :max-length="20000" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field wide">
+              <XhFieldLabel>{{ t('crm.salesOrder.notes') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="editForm.notes" type="textarea" :rows="2" />
+              </XhFieldControl>
+            </XhFieldRoot>
           </div>
           <div class="line-heading">
             <h3>{{ t('crm.salesOrder.lines') }}</h3>
@@ -718,88 +858,98 @@ onMounted(loadPage)
                 editQuoteLinked ? t('crm.salesOrder.quoteOrderLinesLocked') : t('crm.salesOrder.editLineCountNotice')
               }}
             </small>
-            <button
+            <XhButton
               v-if="!editQuoteLinked"
-              type="button"
+              variant="outline"
               :disabled="editSaving || editLines.length >= 500"
               @click="addEditLine"
             >
-              {{ t('crm.salesOrder.addLine') }}
-            </button>
+              <XhButtonLabel>{{ t('crm.salesOrder.addLine') }}</XhButtonLabel>
+            </XhButton>
           </div>
           <div v-for="(line, index) in editLines" :key="`${String(line.id)}-${index}`" class="line-editor">
-            <label>
-              {{ t('crm.salesOrder.productCode') }}
-              <input v-model="line.productCode" :disabled="!!line.sourceQuoteLineId">
-            </label>
-            <label class="description-field">
-              {{ t('crm.salesOrder.descriptionLine') }} *
-              <input v-model="line.description" :disabled="!!line.sourceQuoteLineId" required maxlength="500">
-            </label>
-            <label>
-              {{ t('crm.salesOrder.quantity') }} *
-              <input
-                v-model.number="line.quantity"
-                :disabled="!!line.sourceQuoteLineId"
-                type="number"
-                min="0.0001"
-                step="0.0001"
-                required
-              >
-            </label>
-            <label>
-              {{ t('crm.salesOrder.unit') }}
-              <input v-model="line.unit" :disabled="!!line.sourceQuoteLineId">
-            </label>
-            <label>
-              {{ t('crm.salesOrder.unitPrice') }} *
-              <input
-                v-model.number="line.unitPrice"
-                :disabled="!!line.sourceQuoteLineId"
-                type="number"
-                min="0"
-                step="0.0001"
-                required
-              >
-            </label>
-            <label>
-              {{ t('crm.salesOrder.discountRate') }}
-              <input
-                v-model.number="line.discountRate"
-                :disabled="!!line.sourceQuoteLineId"
-                type="number"
-                min="0"
-                max="100"
-                step="0.0001"
-              >
-            </label>
-            <label>
-              {{ t('crm.salesOrder.taxRate') }}
-              <input
-                v-model.number="line.taxRate"
-                :disabled="!!line.sourceQuoteLineId"
-                type="number"
-                min="0"
-                max="100"
-                step="0.0001"
-              >
-            </label>
-            <button
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.productCode') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.productCode" :disabled="!!line.sourceQuoteLineId" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field description-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.descriptionLine') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XInput
+                  v-model:value="line.description"
+                  :disabled="!!line.sourceQuoteLineId"
+                  required
+                  :max-length="500"
+                />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.quantity') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XInput
+                  v-model:value="line.quantity"
+                  :disabled="!!line.sourceQuoteLineId"
+                  inputmode="numeric"
+                  required
+                />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.unit') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput v-model:value="line.unit" :disabled="!!line.sourceQuoteLineId" />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.unitPrice') }} *</XhFieldLabel>
+              <XhFieldControl>
+                <XInput
+                  v-model:value="line.unitPrice"
+                  :disabled="!!line.sourceQuoteLineId"
+                  inputmode="numeric"
+                  required
+                />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.discountRate') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput
+                  v-model:value="line.discountRate"
+                  :disabled="!!line.sourceQuoteLineId"
+                  inputmode="numeric"
+                />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhFieldRoot class="form-field">
+              <XhFieldLabel>{{ t('crm.salesOrder.taxRate') }}</XhFieldLabel>
+              <XhFieldControl>
+                <XInput
+                  v-model:value="line.taxRate"
+                  :disabled="!!line.sourceQuoteLineId"
+                  inputmode="numeric"
+                />
+              </XhFieldControl>
+            </XhFieldRoot>
+            <XhButton
               class="remove-line"
-              type="button"
+              variant="subtle"
+              tone="danger"
               :disabled="editSaving || !!line.sourceQuoteLineId || editLines.length <= 1"
               @click="removeEditLine(index)"
             >
-              {{ line.sourceQuoteLineId ? t('crm.salesOrder.quoteLineLocked') : t('crm.salesOrder.removeLine') }}
-            </button>
+              <XhButtonLabel>{{ line.sourceQuoteLineId ? t('crm.salesOrder.quoteLineLocked') : t('crm.salesOrder.removeLine') }}</XhButtonLabel>
+            </XhButton>
           </div>
           <footer class="form-actions">
-            <button type="button" :disabled="editSaving" @click="editOpen = false">
-              {{ t('crm.salesOrder.cancelForm') }}
-            </button>
-            <button type="submit" class="primary-button" :disabled="editSaving">
-              {{ editSaving ? t('crm.salesOrder.saving') : t('crm.salesOrder.save') }}
-            </button>
+            <XhButton variant="subtle" :disabled="editSaving" @click="editOpen = false">
+              <XhButtonLabel>{{ t('crm.salesOrder.cancelForm') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton type="submit" variant="outline" :disabled="editSaving">
+              <XhButtonLabel>{{ editSaving ? t('crm.salesOrder.saving') : t('crm.salesOrder.save') }}</XhButtonLabel>
+            </XhButton>
           </footer>
         </form>
       </section>
@@ -808,9 +958,9 @@ onMounted(loadPage)
       <section class="editor">
         <header>
           <h2>{{ selected.orderNumber }} · {{ t('crm.salesOrder.lines') }}</h2>
-          <button @click="selected = null">
-            ×
-          </button>
+          <XhButton variant="subtle" :aria-label="t('crm.salesOrder.cancelForm')" @click="selected = null">
+            <XhButtonLabel>×</XhButtonLabel>
+          </XhButton>
         </header>
         <p>{{ selected.customerNameSnapshot }} · {{ label(selected.status) }}</p>
         <div v-if="'subtotal' in selected" class="order-detail-grid">
@@ -892,34 +1042,14 @@ onMounted(loadPage)
   color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
-button,
-input,
-select {
-  font: inherit;
-}
-button {
-  border: 1px solid hsl(var(--border));
-  border-radius: 7px;
-  padding: 7px 11px;
-  background: hsl(var(--card));
-  cursor: pointer;
-}
 .toolbar {
   justify-content: flex-start;
   flex-wrap: wrap;
 }
-.toolbar input,
-.toolbar select {
-  border: 1px solid hsl(var(--border));
-  border-radius: 7px;
-  padding: 8px 10px;
-  background: hsl(var(--card));
-  color: inherit;
-}
 .table-wrap {
   overflow: auto;
   border: 1px solid hsl(var(--border));
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: hsl(var(--card));
 }
 table {
@@ -943,12 +1073,6 @@ th {
 }
 .actions button {
   margin-right: 4px;
-  font-size: 11px;
-}
-.primary-button {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  border-color: hsl(var(--primary));
 }
 .create-editor {
   width: min(1050px, 100%);
@@ -964,39 +1088,22 @@ th {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
-.form-grid label,
-.line-editor label {
+.form-grid .form-field,
+.line-editor .form-field,
+.customer-picker {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
-}
-.form-grid input,
-.form-grid textarea,
-.line-editor input {
-  min-width: 0;
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid hsl(var(--border));
-  border-radius: 6px;
-  padding: 8px;
-  background: hsl(var(--background));
-  color: inherit;
 }
 .form-grid .wide {
   grid-column: 1/-1;
 }
-.picker-search {
-  display: flex;
-  gap: 5px;
-}
-.picker-search input {
+.customer-picker .x-input {
   flex: 1;
   min-width: 0;
-}
-.picker-search button {
-  white-space: nowrap;
 }
 .line-heading {
   display: flex;
@@ -1014,17 +1121,13 @@ th {
   align-items: end;
   padding: 12px;
   border: 1px solid hsl(var(--border));
-  border-radius: 8px;
+  border-radius: var(--radius);
 }
-.line-editor label {
+.line-editor .form-field {
   min-width: 0;
-}
-.line-editor input {
-  padding: 7px 6px;
 }
 .remove-line {
   white-space: nowrap;
-  color: hsl(var(--destructive));
 }
 .total-preview {
   display: flex;
@@ -1093,14 +1196,14 @@ th {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgb(0 0 0 / 42%);
+  background: hsl(var(--overlay));
 }
 .editor {
   width: min(900px, 100%);
   max-height: 90vh;
   overflow: auto;
   border: 1px solid hsl(var(--border));
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 20px;
   background: hsl(var(--card));
 }

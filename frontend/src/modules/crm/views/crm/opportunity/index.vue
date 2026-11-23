@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { CrmOpportunityCreateDto, CrmOpportunityListItemDto, CrmOpportunityUpdateDto } from '@/api'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createPageRequest, CrmOpportunityStage, crmOpportunityApi } from '@/api'
+import { createPageRequest, crmOpportunityApi, CrmOpportunityStage } from '@/api'
+import { XDatePicker, XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 
@@ -38,6 +40,51 @@ const canCreate = computed(() => hasPermission('crm_opportunities.create'))
 const canUpdate = computed(() => hasPermission('crm_opportunities.update'))
 const canDelete = computed(() => hasPermission('crm_opportunities.delete'))
 const totalPages = computed(() => Math.max(1, Math.ceil(totalCount.value / pageSize)))
+
+const stageFilterOptions = computed(() => [
+  { label: t('crm.opportunity.allStages'), value: '' },
+  { label: t('crm.opportunity.qualification'), value: String(CrmOpportunityStage.Qualification) },
+  { label: t('crm.opportunity.needsAnalysis'), value: String(CrmOpportunityStage.NeedsAnalysis) },
+  { label: t('crm.opportunity.proposal'), value: String(CrmOpportunityStage.Proposal) },
+  { label: t('crm.opportunity.negotiation'), value: String(CrmOpportunityStage.Negotiation) },
+  { label: t('crm.opportunity.won'), value: String(CrmOpportunityStage.Won) },
+  { label: t('crm.opportunity.lost'), value: String(CrmOpportunityStage.Lost) },
+])
+// XSelect 收发字符串选项；这里把值还原成 number | ''，保持原 v-model.number 的数字枚举语义。
+const stageFilterValue = computed({
+  get: () => String(stageFilter.value),
+  set: (value: string | number | Array<string | number> | null) => {
+    const next = Array.isArray(value) ? value[0] : value
+    stageFilter.value = next == null || next === '' ? '' : Number(next) as CrmOpportunityStage
+  },
+})
+const opportunityStageOptions = computed(() => [
+  { label: t('crm.opportunity.qualification'), value: String(CrmOpportunityStage.Qualification) },
+  { label: t('crm.opportunity.needsAnalysis'), value: String(CrmOpportunityStage.NeedsAnalysis) },
+  { label: t('crm.opportunity.proposal'), value: String(CrmOpportunityStage.Proposal) },
+  { label: t('crm.opportunity.negotiation'), value: String(CrmOpportunityStage.Negotiation) },
+  { label: t('crm.opportunity.won'), value: String(CrmOpportunityStage.Won) },
+  { label: t('crm.opportunity.lost'), value: String(CrmOpportunityStage.Lost) },
+])
+const formStageValue = computed({
+  get: () => String(form.stage),
+  set: (value: string | number | Array<string | number> | null) => {
+    const next = Array.isArray(value) ? value[0] : value
+    form.stage = next == null ? CrmOpportunityStage.Qualification : Number(next) as CrmOpportunityStage
+  },
+})
+function toLocalDateKey(value: number): string {
+  const date = new Date(value)
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+// XDatePicker 用时间戳收发；form.expectedCloseDate 仍是提交逻辑使用的 'YYYY-MM-DD'。
+const expectedCloseDateValue = computed({
+  get: () => form.expectedCloseDate ? new Date(`${form.expectedCloseDate}T00:00:00`).getTime() : null,
+  set: (value: number | null) => {
+    form.expectedCloseDate = value == null ? '' : toLocalDateKey(value)
+  },
+})
 
 function stageLabel(stage: CrmOpportunityStage | number) {
   switch (stage) {
@@ -91,14 +138,16 @@ function search() {
 }
 
 function openCreate() {
-  if (!canCreate.value) return
+  if (!canCreate.value)
+    return
   resetForm()
   editingId.value = null
   editorOpen.value = true
 }
 
 async function openEdit(row: CrmOpportunityListItemDto) {
-  if (!canUpdate.value) return
+  if (!canUpdate.value)
+    return
   loading.value = true
   try {
     const detail = await crmOpportunityApi.detail(row.basicId)
@@ -190,8 +239,10 @@ async function save() {
 }
 
 async function remove(row: CrmOpportunityListItemDto) {
-  if (!canDelete.value) return
-  if (!window.confirm(t('crm.opportunity.confirmDelete', { name: row.name }))) return
+  if (!canDelete.value)
+    return
+  if (!window.confirm(t('crm.opportunity.confirmDelete', { name: row.name })))
+    return
   try {
     await crmOpportunityApi.delete(row.basicId)
     toast.success(t('crm.opportunity.deleteSuccess'))
@@ -212,34 +263,51 @@ onMounted(loadPage)
         <h1>{{ t('crm.opportunity.title') }}</h1>
         <p>{{ t('crm.opportunity.description') }}</p>
       </div>
-      <button v-if="canCreate" class="primary-button" type="button" @click="openCreate">
-        {{ t('crm.opportunity.create') }}
-      </button>
+      <XhButton v-if="canCreate" variant="outline" @click="openCreate">
+        <XhButtonLabel>{{ t('crm.opportunity.create') }}</XhButtonLabel>
+      </XhButton>
     </header>
 
     <section class="toolbar" :aria-label="t('crm.opportunity.title')">
-      <input
-        v-model="keyword"
-        :aria-label="t('crm.opportunity.search')"
-        :placeholder="t('crm.opportunity.search')"
-        @keydown.enter="search"
-      >
-      <select v-model="stageFilter" :aria-label="t('crm.opportunity.stage')">
-        <option value="">{{ t('crm.opportunity.allStages') }}</option>
-        <option :value="CrmOpportunityStage.Qualification">{{ t('crm.opportunity.qualification') }}</option>
-        <option :value="CrmOpportunityStage.NeedsAnalysis">{{ t('crm.opportunity.needsAnalysis') }}</option>
-        <option :value="CrmOpportunityStage.Proposal">{{ t('crm.opportunity.proposal') }}</option>
-        <option :value="CrmOpportunityStage.Negotiation">{{ t('crm.opportunity.negotiation') }}</option>
-        <option :value="CrmOpportunityStage.Won">{{ t('crm.opportunity.won') }}</option>
-        <option :value="CrmOpportunityStage.Lost">{{ t('crm.opportunity.lost') }}</option>
-      </select>
-      <button type="button" @click="search">{{ t('crm.opportunity.query') }}</button>
-      <button type="button" :disabled="loading" @click="loadPage">{{ t('crm.opportunity.refresh') }}</button>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.opportunity.search') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XInput
+            v-model:value="keyword"
+            :placeholder="t('crm.opportunity.search')"
+            @enter="search"
+          />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="toolbar-field">
+        <XhFieldLabel class="sr-only">
+          {{ t('crm.opportunity.stage') }}
+        </XhFieldLabel>
+        <XhFieldControl>
+          <XSelect
+            v-model:value="stageFilterValue"
+            :options="stageFilterOptions"
+            :aria-label="t('crm.opportunity.stage')"
+          />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" @click="search">
+        <XhButtonLabel>{{ t('crm.opportunity.query') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" :disabled="loading" @click="loadPage">
+        <XhButtonLabel>{{ t('crm.opportunity.refresh') }}</XhButtonLabel>
+      </XhButton>
     </section>
 
     <section class="table-wrap" aria-live="polite">
-      <div v-if="loading && rows.length === 0" class="empty-state">{{ t('crm.opportunity.loading') }}</div>
-      <div v-else-if="rows.length === 0" class="empty-state">{{ t('crm.opportunity.empty') }}</div>
+      <div v-if="loading && rows.length === 0" class="empty-state">
+        {{ t('crm.opportunity.loading') }}
+      </div>
+      <div v-else-if="rows.length === 0" class="empty-state">
+        {{ t('crm.opportunity.empty') }}
+      </div>
       <table v-else>
         <thead>
           <tr>
@@ -261,8 +329,12 @@ onMounted(loadPage)
             <td>{{ row.probability == null ? '—' : `${row.probability}%` }}</td>
             <td>{{ row.expectedCloseDate ? new Date(row.expectedCloseDate).toLocaleDateString() : '—' }}</td>
             <td class="actions">
-              <button v-if="canUpdate" type="button" @click="openEdit(row)">{{ t('crm.opportunity.edit') }}</button>
-              <button v-if="canDelete" class="danger-action" type="button" @click="remove(row)">{{ t('crm.opportunity.delete') }}</button>
+              <XhButton v-if="canUpdate" variant="outline" @click="openEdit(row)">
+                <XhButtonLabel>{{ t('crm.opportunity.edit') }}</XhButtonLabel>
+              </XhButton>
+              <XhButton v-if="canDelete" variant="outline" tone="danger" @click="remove(row)">
+                <XhButtonLabel>{{ t('crm.opportunity.delete') }}</XhButtonLabel>
+              </XhButton>
             </td>
           </tr>
         </tbody>
@@ -272,8 +344,12 @@ onMounted(loadPage)
     <footer class="pagination">
       <span>{{ t('crm.opportunity.total', { count: totalCount }) }} · {{ t('crm.opportunity.page', { current: pageIndex, total: totalPages }) }}</span>
       <div>
-        <button type="button" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">{{ t('crm.opportunity.previous') }}</button>
-        <button type="button" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">{{ t('crm.opportunity.next') }}</button>
+        <XhButton variant="subtle" :disabled="pageIndex <= 1 || loading" @click="pageIndex--; loadPage()">
+          <XhButtonLabel>{{ t('crm.opportunity.previous') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" :disabled="pageIndex >= totalPages || loading" @click="pageIndex++; loadPage()">
+          <XhButtonLabel>{{ t('crm.opportunity.next') }}</XhButtonLabel>
+        </XhButton>
       </div>
     </footer>
 
@@ -281,33 +357,78 @@ onMounted(loadPage)
       <section class="editor" role="dialog" aria-modal="true" :aria-label="editingId ? t('crm.opportunity.editTitle') : t('crm.opportunity.newTitle')">
         <header>
           <h2>{{ editingId ? t('crm.opportunity.editTitle') : t('crm.opportunity.newTitle') }}</h2>
-          <button type="button" :aria-label="t('common.actions.close')" @click="editorOpen = false">×</button>
+          <XhButton variant="subtle" size="sm" :aria-label="t('common.actions.close')" @click="editorOpen = false">
+            <XhButtonLabel>×</XhButtonLabel>
+          </XhButton>
         </header>
         <form @submit.prevent="save">
-          <label>{{ t('crm.opportunity.name') }} *<input v-model="form.name" required maxlength="200"></label>
-          <label>{{ t('crm.opportunity.customerId') }} *<input v-model="form.customerId" required inputmode="numeric"></label>
-          <label>{{ t('crm.opportunity.contactId') }}<input v-model="form.primaryContactId" inputmode="numeric"></label>
-          <label>{{ t('crm.opportunity.stage') }}
-            <select v-model.number="form.stage">
-              <option :value="CrmOpportunityStage.Qualification">{{ t('crm.opportunity.qualification') }}</option>
-              <option :value="CrmOpportunityStage.NeedsAnalysis">{{ t('crm.opportunity.needsAnalysis') }}</option>
-              <option :value="CrmOpportunityStage.Proposal">{{ t('crm.opportunity.proposal') }}</option>
-              <option :value="CrmOpportunityStage.Negotiation">{{ t('crm.opportunity.negotiation') }}</option>
-              <option :value="CrmOpportunityStage.Won">{{ t('crm.opportunity.won') }}</option>
-              <option :value="CrmOpportunityStage.Lost">{{ t('crm.opportunity.lost') }}</option>
-            </select>
-          </label>
-          <label>{{ t('crm.opportunity.amount') }} *<input v-model="form.amount" type="number" min="0" step="0.01" required></label>
-          <label>{{ t('crm.opportunity.currency') }} *<input v-model="form.currency" minlength="3" maxlength="3" required></label>
-          <label>{{ t('crm.opportunity.expectedCloseDate') }}<input v-model="form.expectedCloseDate" type="date"></label>
-          <label>{{ t('crm.opportunity.probability') }}<input v-model="form.probability" type="number" min="0" max="100" step="1"></label>
-          <label>{{ t('crm.opportunity.ownerId') }}<input v-model="form.ownerUserId" inputmode="numeric"></label>
-          <label v-if="form.stage === CrmOpportunityStage.Lost" class="wide">{{ t('crm.opportunity.lostReason') }} *<textarea v-model="form.lostReason" rows="2" maxlength="500" required /></label>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.name') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.name" required :max-length="200" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.customerId') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.customerId" required inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.contactId') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.primaryContactId" inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.stage') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XSelect v-model:value="formStageValue" :options="opportunityStageOptions" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.amount') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.amount" required inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.currency') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.currency" required minlength="3" :max-length="3" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.expectedCloseDate') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XDatePicker v-model:value="expectedCloseDateValue" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.probability') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.probability" inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot>
+            <XhFieldLabel>{{ t('crm.opportunity.ownerId') }}</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.ownerUserId" inputmode="numeric" />
+            </XhFieldControl>
+          </XhFieldRoot>
+          <XhFieldRoot v-if="form.stage === CrmOpportunityStage.Lost" class="wide">
+            <XhFieldLabel>{{ t('crm.opportunity.lostReason') }} *</XhFieldLabel>
+            <XhFieldControl>
+              <XInput v-model:value="form.lostReason" type="textarea" :rows="2" :max-length="500" required />
+            </XhFieldControl>
+          </XhFieldRoot>
           <footer>
-            <button type="button" @click="editorOpen = false">{{ t('crm.opportunity.cancel') }}</button>
-            <button class="primary-button" type="submit" :disabled="submitting">
-              {{ submitting ? t('crm.opportunity.saving') : t('crm.opportunity.save') }}
-            </button>
+            <XhButton variant="subtle" @click="editorOpen = false">
+              <XhButtonLabel>{{ t('crm.opportunity.cancel') }}</XhButtonLabel>
+            </XhButton>
+            <XhButton type="submit" variant="outline" :disabled="submitting">
+              <XhButtonLabel>{{ submitting ? t('crm.opportunity.saving') : t('crm.opportunity.save') }}</XhButtonLabel>
+            </XhButton>
           </footer>
         </form>
       </section>
@@ -316,40 +437,140 @@ onMounted(loadPage)
 </template>
 
 <style scoped>
-.crm-opportunity-page { display: flex; flex-direction: column; gap: 16px; min-height: 100%; padding: 20px; color: hsl(var(--foreground)); }
-.page-header, .toolbar, .pagination, .editor header, .editor footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.page-header h1, .editor h2 { margin: 0; font-size: 20px; font-weight: 650; }
-.page-header p { margin: 5px 0 0; color: hsl(var(--muted-foreground)); font-size: 12px; }
-button, input, select, textarea { font: inherit; }
-button { border: 1px solid hsl(var(--border)); border-radius: 7px; padding: 7px 11px; background: hsl(var(--card)); cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .55; }
-.primary-button { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
-.toolbar { justify-content: flex-start; flex-wrap: wrap; }
-.toolbar input { min-width: 240px; }
-.toolbar input, .toolbar select, .editor input, .editor select, .editor textarea { border: 1px solid hsl(var(--border)); border-radius: 7px; padding: 8px 10px; background: hsl(var(--card)); color: inherit; }
-.table-wrap { overflow: auto; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--card)); }
-table { width: 100%; border-collapse: collapse; min-width: 900px; text-align: left; font-size: 13px; }
-th, td { padding: 11px 12px; border-bottom: 1px solid hsl(var(--border)); vertical-align: middle; }
-th { color: hsl(var(--muted-foreground)); font-size: 11px; font-weight: 600; white-space: nowrap; }
-.actions { white-space: nowrap; }
-.actions button { margin-right: 5px; padding: 5px 8px; font-size: 11px; }
-.danger-action { color: var(--xh-color-danger-600); }
-.stage-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: hsl(var(--muted)); font-size: 11px; white-space: nowrap; }
-.stage-pill[data-stage="4"] { color: var(--xh-color-success-600); }
-.stage-pill[data-stage="5"] { color: var(--xh-color-danger-600); }
-.empty-state { padding: 44px 16px; text-align: center; color: hsl(var(--muted-foreground)); }
-.pagination { color: hsl(var(--muted-foreground)); font-size: 12px; }
-.pagination div { display: flex; gap: 6px; }
-.modal-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 42%); }
-.editor { width: min(760px, 100%); max-height: min(90vh, 900px); overflow: auto; border: 1px solid hsl(var(--border)); border-radius: 12px; padding: 20px; background: hsl(var(--card)); box-shadow: 0 20px 70px rgb(0 0 0 / 20%); }
-.editor form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 18px; }
-.editor label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: hsl(var(--muted-foreground)); }
-.editor label input, .editor label select, .editor label textarea { width: 100%; box-sizing: border-box; color: hsl(var(--foreground)); }
-.editor .wide, .editor form footer { grid-column: 1 / -1; }
-.editor form footer { justify-content: flex-end; }
+.crm-opportunity-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 20px;
+  color: hsl(var(--foreground));
+}
+.page-header,
+.toolbar,
+.pagination,
+.editor header,
+.editor footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.page-header h1,
+.editor h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+}
+.page-header p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.toolbar {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.toolbar-field {
+  min-width: 240px;
+}
+.table-wrap {
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--card));
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 900px;
+  text-align: left;
+  font-size: 13px;
+}
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  vertical-align: middle;
+}
+th {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.stage-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: hsl(var(--muted));
+  font-size: 11px;
+  white-space: nowrap;
+}
+.stage-pill[data-stage='4'] {
+  color: hsl(var(--success));
+}
+.stage-pill[data-stage='5'] {
+  color: hsl(var(--destructive));
+}
+.empty-state {
+  padding: 44px 16px;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+}
+.pagination {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+.pagination div {
+  display: flex;
+  gap: 6px;
+}
+.modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: hsl(var(--overlay));
+}
+.editor {
+  width: min(760px, 100%);
+  max-height: min(90vh, 900px);
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 20px;
+  background: hsl(var(--card));
+}
+.editor form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 18px;
+}
+.editor .wide,
+.editor form footer {
+  grid-column: 1 / -1;
+}
+.editor form footer {
+  justify-content: flex-end;
+}
 @media (max-width: 680px) {
-  .crm-opportunity-page { padding: 12px; }
-  .editor form { grid-template-columns: 1fr; }
-  .editor .wide, .editor form footer { grid-column: auto; }
+  .crm-opportunity-page {
+    padding: 12px;
+  }
+  .editor form {
+    grid-template-columns: 1fr;
+  }
+  .editor .wide,
+  .editor form footer {
+    grid-column: auto;
+  }
 }
 </style>
