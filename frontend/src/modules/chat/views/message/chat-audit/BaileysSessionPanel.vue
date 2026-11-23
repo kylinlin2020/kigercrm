@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { BaileysSessionDto } from '../../../api/baileys-session.types'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import { baileysSessionApi } from '../../../api/baileys-session'
@@ -73,42 +75,49 @@ function statusLabel(status: number) {
       </div>
     </header>
     <div class="bl-form">
-      <label>{{ t('chat.baileys.displayName') }}
-        <input v-model="displayName" type="text" maxlength="160">
-      </label>
-      <label>{{ t('chat.baileys.authStateRef') }}
-        <input v-model="authStateRef" type="text" maxlength="300">
-      </label>
-      <button v-if="canManage" type="button" :disabled="!displayName" @click="create">
-        {{ t('chat.baileys.create') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.baileys.displayName') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="displayName" :max-length="160" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.baileys.authStateRef') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="authStateRef" :max-length="300" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton v-if="canManage" variant="outline" :disabled="!displayName" @click="create">
+        <XhButtonLabel>{{ t('chat.baileys.create') }}</XhButtonLabel>
+      </XhButton>
     </div>
     <div v-for="session in sessions" :key="session.basicId" class="bl-row">
       <div class="bl-main">
         <strong>{{ session.displayName }}</strong>
         <small>{{ statusLabel(session.status) }} · {{ session.note || '—' }}</small>
       </div>
-      <button
+      <XhButton
         v-if="canManage && session.status === 0"
-        type="button"
+        variant="outline"
         @click="transition(session.basicId, 1)"
       >
-        {{ t('chat.baileys.issueQr') }}
-      </button>
-      <button
+        <XhButtonLabel>{{ t('chat.baileys.issueQr') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton
         v-if="canManage && session.status === 1"
-        type="button"
+        variant="outline"
         @click="transition(session.basicId, 2)"
       >
-        {{ t('chat.baileys.confirmConnected') }}
-      </button>
-      <button
+        <XhButtonLabel>{{ t('chat.baileys.confirmConnected') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton
         v-if="canManage && session.status !== 3"
-        type="button"
+        variant="subtle"
+        tone="danger"
         @click="transition(session.basicId, 3)"
       >
-        {{ t('chat.baileys.revoke') }}
-      </button>
+        <XhButtonLabel>{{ t('chat.baileys.revoke') }}</XhButtonLabel>
+      </XhButton>
     </div>
   </section>
 </template>
@@ -118,9 +127,9 @@ function statusLabel(status: number) {
   display: grid;
   gap: 0.6rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
 }
 .bl-form {
   display: flex;
@@ -128,15 +137,9 @@ function statusLabel(status: number) {
   align-items: end;
   gap: 0.6rem;
 }
-.bl-form label {
-  display: grid;
+.bl-form > :not(button) {
   flex: 1 1 12rem;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-.bl-form input {
-  width: 100%;
-  font: inherit;
+  min-width: 0;
 }
 .bl-row {
   display: flex;
@@ -144,7 +147,7 @@ function statusLabel(status: number) {
   align-items: center;
   gap: 0.6rem;
   padding: 0.4rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   font-size: 0.85rem;
 }
 .bl-main {
@@ -152,6 +155,6 @@ function statusLabel(status: number) {
   gap: 0.2rem;
 }
 .bl-main small {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>

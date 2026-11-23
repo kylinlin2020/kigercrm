@@ -3,8 +3,10 @@ import type {
   WhatsAppChannelAccountDto,
   WhatsAppWebhookInboxDto,
 } from '../../../api/whatsapp-channel.types'
+import { XhButton, XhButtonLabel, XhCheckbox, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import { whatsappChannelApi } from '../../../api/whatsapp-channel'
@@ -76,25 +78,38 @@ async function saveBinding() {
     </header>
 
     <div class="wa-form">
-      <label>{{ t('chat.whatsapp.displayName') }}
-        <input v-model="displayName" type="text" maxlength="160">
-      </label>
-      <label>{{ t('chat.whatsapp.wabaId') }}
-        <input v-model="wabaId" type="text" maxlength="100">
-      </label>
-      <label>{{ t('chat.whatsapp.phoneId') }}
-        <input v-model="phoneId" type="text" maxlength="100">
-      </label>
-      <label>{{ t('chat.whatsapp.credentialRef') }}
-        <input v-model="credentialRef" type="text" maxlength="300">
-      </label>
-      <label class="wa-check">
-        <input v-model="active" type="checkbox">
-        {{ t('chat.whatsapp.active') }}
-      </label>
-      <button v-if="canManage" type="button" :disabled="loading || !wabaId || !phoneId" @click="saveBinding">
-        {{ t('chat.whatsapp.saveBinding') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.whatsapp.displayName') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="displayName" :max-length="160" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.whatsapp.wabaId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="wabaId" :max-length="100" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.whatsapp.phoneId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="phoneId" :max-length="100" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.whatsapp.credentialRef') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="credentialRef" :max-length="300" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="wa-check">
+        <XhCheckbox v-model:checked="active">
+          {{ t('chat.whatsapp.active') }}
+        </XhCheckbox>
+      </XhFieldRoot>
+      <XhButton v-if="canManage" variant="outline" :disabled="loading || !wabaId || !phoneId" @click="saveBinding">
+        <XhButtonLabel>{{ t('chat.whatsapp.saveBinding') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-for="binding in bindings" :key="binding.basicId" class="wa-row">
@@ -135,40 +150,31 @@ async function saveBinding() {
   display: grid;
   gap: 0.6rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
 }
 .wa-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   gap: 0.5rem 0.75rem;
-}
-.wa-form label {
-  display: grid;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-.wa-form input[type='text'] {
-  width: 100%;
-  font: inherit;
+  align-items: end;
 }
 .wa-check {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
 }
 .wa-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
   padding: 0.4rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   font-size: 0.85rem;
 }
 .wa-row small,
 .wa-empty {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 .wa-state {
   margin-left: auto;
@@ -181,7 +187,7 @@ async function saveBinding() {
 .wa-table th,
 .wa-table td {
   padding: 0.35rem 0.4rem;
-  border-bottom: 1px solid var(--xh-border-subtle, #ddd);
+  border-bottom: 1px solid hsl(var(--border));
   text-align: left;
 }
 </style>

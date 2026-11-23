@@ -3,8 +3,10 @@ import type {
   WecomBindingDto,
   WecomCommandAuditDto,
 } from '../../../api/wecom-gateway.types'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import { wecomGatewayApi } from '../../../api/wecom-gateway'
@@ -65,21 +67,33 @@ async function saveBinding() {
       </div>
     </header>
     <div class="wc-form">
-      <label>{{ t('chat.wecom.displayName') }}
-        <input v-model="displayName" type="text" maxlength="160">
-      </label>
-      <label>{{ t('chat.wecom.corpId') }}
-        <input v-model="corpId" type="text" maxlength="120">
-      </label>
-      <label>{{ t('chat.wecom.agentId') }}
-        <input v-model="agentId" type="text" maxlength="120">
-      </label>
-      <label>{{ t('chat.wecom.credentialRef') }}
-        <input v-model="credentialRef" type="text" maxlength="300">
-      </label>
-      <button v-if="canManage" type="button" :disabled="!corpId || !agentId" @click="saveBinding">
-        {{ t('chat.wecom.save') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.wecom.displayName') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="displayName" :max-length="160" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.wecom.corpId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="corpId" :max-length="120" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.wecom.agentId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="agentId" :max-length="120" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.wecom.credentialRef') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="credentialRef" :max-length="300" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton v-if="canManage" variant="outline" :disabled="!corpId || !agentId" @click="saveBinding">
+        <XhButtonLabel>{{ t('chat.wecom.save') }}</XhButtonLabel>
+      </XhButton>
     </div>
     <div v-for="binding in bindings" :key="binding.basicId" class="wc-row">
       <strong>{{ binding.displayName }}</strong>
@@ -101,9 +115,9 @@ async function saveBinding() {
   display: grid;
   gap: 0.6rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
 }
 .wc-form {
   display: flex;
@@ -111,26 +125,20 @@ async function saveBinding() {
   align-items: end;
   gap: 0.6rem;
 }
-.wc-form label {
-  display: grid;
+.wc-form > :not(button) {
   flex: 1 1 12rem;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-.wc-form input {
-  width: 100%;
-  font: inherit;
+  min-width: 0;
 }
 .wc-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
   padding: 0.35rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   font-size: 0.8rem;
 }
 .wc-note,
 .wc-row small {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>

@@ -4,8 +4,10 @@ import type {
   ChatHistoryImportInput,
   ChatHistoryImportResult,
 } from '../../../api/chat-history-import.types'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 import { usePermission } from '~/hooks'
 import { chatHistoryImportApi } from '../../../api/chat-history-import'
@@ -93,21 +95,30 @@ function verdictLabel(status: number) {
     </header>
 
     <div class="hi-form">
-      <label>{{ t('chat.history.fileName') }}
-        <input v-model="fileName" type="text" maxlength="260">
-      </label>
-      <label>{{ t('chat.history.sourceChannel') }}
-        <input v-model="sourceChannel" type="text" maxlength="40">
-      </label>
-      <label>{{ t('chat.history.rowsJson') }}
-        <textarea v-model="rowsJson" rows="4" />
-      </label>
-      <button type="button" :disabled="busy" @click="run(false)">
-        {{ t('chat.history.preview') }}
-      </button>
-      <button v-if="canManage" type="button" :disabled="busy" class="primary-button" @click="run(true)">
-        {{ t('chat.history.import') }}
-      </button>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.history.fileName') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="fileName" :max-length="260" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('chat.history.sourceChannel') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="sourceChannel" :max-length="40" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="hi-json-field">
+        <XhFieldLabel>{{ t('chat.history.rowsJson') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="rowsJson" type="textarea" :rows="4" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="subtle" :disabled="busy" @click="run(false)">
+        <XhButtonLabel>{{ t('chat.history.preview') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton v-if="canManage" variant="outline" :disabled="busy" @click="run(true)">
+        <XhButtonLabel>{{ t('chat.history.import') }}</XhButtonLabel>
+      </XhButton>
     </div>
 
     <div v-if="result" class="hi-summary">
@@ -145,9 +156,9 @@ function verdictLabel(status: number) {
   display: grid;
   gap: 0.6rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
 }
 .hi-form {
   display: flex;
@@ -155,16 +166,12 @@ function verdictLabel(status: number) {
   align-items: end;
   gap: 0.6rem;
 }
-.hi-form label {
-  display: grid;
+.hi-form > :not(button) {
   flex: 1 1 14rem;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+  min-width: 0;
 }
-.hi-form input[type='text'],
-.hi-form textarea {
-  width: 100%;
-  font: inherit;
+.hi-json-field {
+  flex-basis: 100%;
 }
 .hi-summary {
   font-size: 0.85rem;
@@ -175,11 +182,11 @@ function verdictLabel(status: number) {
   flex-wrap: wrap;
   gap: 0.6rem;
   padding: 0.35rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   font-size: 0.8rem;
 }
 .hi-row small,
 .hi-note {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>
