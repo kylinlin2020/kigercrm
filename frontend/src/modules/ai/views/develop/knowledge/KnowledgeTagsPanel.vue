@@ -3,8 +3,10 @@ import type {
   KnowledgeDuplicateReportDto,
   KnowledgeTagItemDto,
 } from '../../../api/knowledge-tags.types'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 import { knowledgeTagsApi } from '../../../api/knowledge-tags'
 
@@ -53,14 +55,24 @@ async function saveTags() {
       <p>{{ t('develop.knowledge.tagDescription') }}</p>
     </header>
     <div class="kt-form">
-      <label>{{ t('develop.knowledge.tagDocumentId') }}<input v-model="documentId" type="text"></label>
-      <label>{{ t('develop.knowledge.tagValues') }}<input v-model="tagsInput" type="text"></label>
-      <button type="button" :disabled="!documentId" @click="saveTags">
-        {{ t('develop.knowledge.tagSave') }}
-      </button>
-      <button type="button" @click="reload">
-        {{ t('develop.knowledge.tagRefresh') }}
-      </button>
+      <XhFieldRoot class="kt-field">
+        <XhFieldLabel>{{ t('develop.knowledge.tagDocumentId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="documentId" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="kt-field">
+        <XhFieldLabel>{{ t('develop.knowledge.tagValues') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="tagsInput" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" :disabled="!documentId" @click="saveTags">
+        <XhButtonLabel>{{ t('develop.knowledge.tagSave') }}</XhButtonLabel>
+      </XhButton>
+      <XhButton variant="subtle" @click="reload">
+        <XhButtonLabel>{{ t('develop.knowledge.tagRefresh') }}</XhButtonLabel>
+      </XhButton>
     </div>
     <div class="kt-tags">
       <span v-for="item in tags" :key="item.tag">{{ item.tag }} ({{ item.documentCount }})</span>
@@ -83,8 +95,8 @@ async function saveTags() {
   display: grid;
   gap: 0.6rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
 }
 .kt-form {
   display: flex;
@@ -92,15 +104,8 @@ async function saveTags() {
   align-items: end;
   gap: 0.5rem;
 }
-.kt-form label {
-  display: grid;
+.kt-field {
   flex: 1 1 12rem;
-  gap: 0.2rem;
-  font-size: 0.82rem;
-}
-.kt-form input {
-  width: 100%;
-  font: inherit;
 }
 .kt-tags,
 .kt-dups {

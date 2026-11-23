@@ -162,8 +162,9 @@ function clear() {
 
 <template>
   <div class="x-file-ref-upload">
-    <button
+    <XhButton
       v-if="isImage"
+      icon-only
       type="button"
       class="x-file-ref-upload__preview"
       :disabled="!previewUrl"
@@ -172,7 +173,7 @@ function clear() {
     >
       <img v-if="previewUrl" class="x-file-ref-upload__img" :src="previewUrl" alt="">
       <Icon v-else icon="lucide:image" />
-    </button>
+    </XhButton>
     <div class="x-file-ref-upload__body">
       <div v-if="!isImage && reference" class="x-file-ref-upload__file">
         <Icon icon="lucide:paperclip" />

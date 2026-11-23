@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { KnowledgeAccessDto } from '../../../api/knowledge-access.types'
-import { ref } from 'vue'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 import { knowledgeAccessApi } from '../../../api/knowledge-access'
 
@@ -12,6 +14,11 @@ const documentId = ref('')
 const visibility = ref(0)
 const roles = ref('')
 const access = ref<KnowledgeAccessDto | null>(null)
+
+const visibilityOptions = computed(() => [
+  { label: t('develop.knowledge.accessPublic'), value: 0 },
+  { label: t('develop.knowledge.accessRestricted'), value: 1 },
+])
 
 async function load() {
   if (!documentId.value)
@@ -52,21 +59,27 @@ async function save() {
       <p>{{ t('develop.knowledge.accessDescription') }}</p>
     </header>
     <div class="ka-form">
-      <label>{{ t('develop.knowledge.accessDocId') }}
-        <input v-model="documentId" type="text" @change="load">
-      </label>
-      <label>{{ t('develop.knowledge.accessVisibility') }}
-        <select v-model.number="visibility">
-          <option :value="0">{{ t('develop.knowledge.accessPublic') }}</option>
-          <option :value="1">{{ t('develop.knowledge.accessRestricted') }}</option>
-        </select>
-      </label>
-      <label v-if="visibility === 1">{{ t('develop.knowledge.accessRoles') }}
-        <input v-model="roles" type="text" :placeholder="t('develop.knowledge.accessRolesHint')">
-      </label>
-      <button type="button" :disabled="!documentId" @click="save">
-        {{ t('develop.knowledge.accessSave') }}
-      </button>
+      <XhFieldRoot class="ka-field">
+        <XhFieldLabel>{{ t('develop.knowledge.accessDocId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="documentId" @change="load" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="ka-field">
+        <XhFieldLabel>{{ t('develop.knowledge.accessVisibility') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect v-model:value="visibility" :options="visibilityOptions" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot v-if="visibility === 1" class="ka-field">
+        <XhFieldLabel>{{ t('develop.knowledge.accessRoles') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="roles" :placeholder="t('develop.knowledge.accessRolesHint')" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" :disabled="!documentId" @click="save">
+        <XhButtonLabel>{{ t('develop.knowledge.accessSave') }}</XhButtonLabel>
+      </XhButton>
     </div>
     <p v-if="access" class="ka-state">
       {{ t('develop.knowledge.accessState', { visibility: String(access.visibility), roles: access.allowedRoles.join(', ') || '—' }) }}
@@ -79,8 +92,8 @@ async function save() {
   display: grid;
   gap: 0.6rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
 }
 .ka-form {
   display: flex;
@@ -88,16 +101,8 @@ async function save() {
   align-items: end;
   gap: 0.6rem;
 }
-.ka-form label {
-  display: grid;
+.ka-field {
   flex: 1 1 12rem;
-  gap: 0.2rem;
-  font-size: 0.82rem;
-}
-.ka-form input,
-.ka-form select {
-  width: 100%;
-  font: inherit;
 }
 .ka-state {
   font-size: 0.82rem;

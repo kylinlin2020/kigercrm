@@ -1482,9 +1482,9 @@ const storageColumns = computed<XDataTableColumn<FileStorageListItemDto>[]>(() =
             class="file-preview-md"
           />
           <div v-else-if="previewKind === 'text'" class="file-preview-code-wrap">
-            <button type="button" class="file-preview-copy" @click="copyPreviewText">
-              {{ t('file.library.preview.copy_code') }}
-            </button>
+            <XhButton class="file-preview-copy" variant="subtle" size="sm" @click="copyPreviewText">
+              <XhButtonLabel>{{ t('file.library.preview.copy_code') }}</XhButtonLabel>
+            </XhButton>
             <div class="file-preview-code-scroll">
               <!-- 预览文本已整段到手，complete 让它一次着色 -->
               <XhCodeViewRoot
@@ -1613,13 +1613,6 @@ const storageColumns = computed<XDataTableColumn<FileStorageListItemDto>[]>(() =
   top: 8px;
   right: 8px;
   z-index: 1;
-  padding: 2px 10px;
-  font-size: 12px;
-  color: var(--xh-fg-default);
-  cursor: pointer;
-  background: var(--xh-bg-surface);
-  border: 1px solid var(--xh-border-default);
-  border-radius: 4px;
 }
 
 .file-preview-copy:hover {
@@ -1632,6 +1625,6 @@ const storageColumns = computed<XDataTableColumn<FileStorageListItemDto>[]>(() =
   overflow: auto;
   font-size: 13px;
   border: 1px solid var(--xh-border-default);
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 </style>

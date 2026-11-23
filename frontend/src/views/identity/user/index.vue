@@ -1579,17 +1579,17 @@ async function confirmDelete() {
               {{ t('identity.user.pick_selected_unit') }}
             </p>
             <div class="pick-grid">
-              <button
+              <XhButton
                 v-for="r in roleOptions"
                 :key="r.basicId"
-                type="button"
+                variant="subtle"
                 class="pick-chip" :class="[selRoleIds.includes(r.basicId) ? 'on' : '']"
                 :disabled="!canTogglePick(r.basicId, selRoleIds, effectiveRoleIds, formAccess.role)"
                 @click="togglePick(selRoleIds, r.basicId)"
               >
                 <Icon icon="tabler:user-check" width="13" height="13" />
-                {{ r.roleName }}
-              </button>
+                <XhButtonLabel>{{ r.roleName }}</XhButtonLabel>
+              </XhButton>
             </div>
           </div>
         </XhTabsContent>
@@ -1604,17 +1604,17 @@ async function confirmDelete() {
               {{ t('identity.user.pick_selected_unit') }}
             </p>
             <div class="pick-grid">
-              <button
+              <XhButton
                 v-for="d in deptFlatOptions"
                 :key="d.value"
-                type="button"
+                variant="subtle"
                 class="pick-chip" :class="[selDeptIds.includes(d.value) ? 'on' : '']"
                 :disabled="!canTogglePick(d.value, selDeptIds, effectiveDeptIds, formAccess.department)"
                 @click="togglePick(selDeptIds, d.value)"
               >
                 <Icon icon="tabler:building" width="13" height="13" />
-                {{ d.label.trim() }}
-              </button>
+                <XhButtonLabel>{{ d.label.trim() }}</XhButtonLabel>
+              </XhButton>
             </div>
           </div>
         </XhTabsContent>
@@ -2082,21 +2082,6 @@ async function confirmDelete() {
   border: 1px solid hsl(var(--border));
   border-radius: var(--xh-shape-control);
   min-height: 48px;
-}
-
-.pick-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: var(--xh-shape-control);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--card));
-  color: hsl(var(--muted-foreground));
-  font-family: inherit;
 }
 
 .pick-chip.on {

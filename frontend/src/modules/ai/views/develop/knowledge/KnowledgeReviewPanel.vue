@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { KnowledgeReviewDto } from '../../../api/knowledge-review.types'
+import { XhButton, XhButtonLabel, XhFieldControl, XhFieldLabel, XhFieldRoot } from '@xihan-ui/vue'
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { XInput } from '~/components'
 import { toast } from '~/composables'
 import { knowledgeReviewApi } from '../../../api/knowledge-review'
 
@@ -67,26 +69,32 @@ async function decide(approve: boolean, reviewId: string) {
       </div>
     </header>
     <div class="kr-form">
-      <label>{{ t('develop.knowledge.reviewDocumentId') }}
-        <input v-model="documentId" type="text" @change="reload">
-      </label>
-      <label>{{ t('develop.knowledge.reviewComment') }}
-        <input v-model="comment" type="text" maxlength="1000">
-      </label>
-      <button type="button" :disabled="!documentId" @click="submit">
-        {{ t('develop.knowledge.reviewSubmit') }}
-      </button>
+      <XhFieldRoot class="kr-field">
+        <XhFieldLabel>{{ t('develop.knowledge.reviewDocumentId') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="documentId" @change="reload" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhFieldRoot class="kr-field">
+        <XhFieldLabel>{{ t('develop.knowledge.reviewComment') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XInput v-model:value="comment" :max-length="1000" />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="outline" :disabled="!documentId" @click="submit">
+        <XhButtonLabel>{{ t('develop.knowledge.reviewSubmit') }}</XhButtonLabel>
+      </XhButton>
     </div>
     <div v-for="review in reviews" :key="review.basicId" class="kr-row">
       <strong>{{ statusLabel(review.status) }}</strong>
       <small>{{ review.versionHash.slice(0, 12) }} · {{ review.comment || '—' }}</small>
       <template v-if="review.status === 0">
-        <button type="button" @click="decide(true, review.basicId)">
-          {{ t('develop.knowledge.reviewApproveAction') }}
-        </button>
-        <button type="button" @click="decide(false, review.basicId)">
-          {{ t('develop.knowledge.reviewRejectAction') }}
-        </button>
+        <XhButton variant="outline" @click="decide(true, review.basicId)">
+          <XhButtonLabel>{{ t('develop.knowledge.reviewApproveAction') }}</XhButtonLabel>
+        </XhButton>
+        <XhButton variant="subtle" tone="danger" @click="decide(false, review.basicId)">
+          <XhButtonLabel>{{ t('develop.knowledge.reviewRejectAction') }}</XhButtonLabel>
+        </XhButton>
       </template>
     </div>
   </section>
@@ -97,9 +105,9 @@ async function decide(approve: boolean, reviewId: string) {
   display: grid;
   gap: 0.6rem;
   padding: 0.85rem;
-  border: 1px solid var(--xh-border-default, #ddd);
-  border-radius: 0.5rem;
-  background: var(--xh-bg-subtle, #f5f5f5);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--muted));
 }
 .kr-form {
   display: flex;
@@ -107,25 +115,18 @@ async function decide(approve: boolean, reviewId: string) {
   align-items: end;
   gap: 0.6rem;
 }
-.kr-form label {
-  display: grid;
+.kr-field {
   flex: 1 1 12rem;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-.kr-form input {
-  width: 100%;
-  font: inherit;
 }
 .kr-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
   padding: 0.4rem 0;
-  border-top: 1px solid var(--xh-border-subtle, #ddd);
+  border-top: 1px solid hsl(var(--border));
   font-size: 0.85rem;
 }
 .kr-row small {
-  color: var(--xh-fg-muted, #777);
+  color: hsl(var(--muted-foreground));
 }
 </style>

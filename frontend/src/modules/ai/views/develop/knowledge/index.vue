@@ -386,7 +386,7 @@ function onQueryKeydown(event: KeyboardEvent) {
                   <div class="knowledge__text">
                     <XhFlex class="knowledge__text-bar" justify="between">
                       <XhButton variant="subtle" size="sm" @click="triggerFilePicker">
-                        {{ t('develop.knowledge.form_pick_file') }}
+                        <XhButtonLabel>{{ t('develop.knowledge.form_pick_file') }}</XhButtonLabel>
                       </XhButton>
                       <span v-if="form.source" class="knowledge__source">{{ form.source }}</span>
                     </XhFlex>

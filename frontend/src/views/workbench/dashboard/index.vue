@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { BoardItem } from './components'
-import { XhButton, XhDrawerCloseTrigger, XhDrawerContent, XhDrawerRoot, XhDrawerTitle, XhEmptyStateAction, XhEmptyStateDescription, XhEmptyStateIndicator, XhEmptyStateRoot, XhEmptyStateTitle, XhPopoverContent, XhPopoverPositioner, XhPopoverRoot, XhPopoverTrigger, XhSortableItem, XhSortableItemDragTrigger, XhSortableLiveRegion, XhSortableRoot } from '@xihan-ui/vue'
+import { XhButton, XhButtonLabel, XhDrawerCloseTrigger, XhDrawerContent, XhDrawerRoot, XhDrawerTitle, XhEmptyStateAction, XhEmptyStateDescription, XhEmptyStateIndicator, XhEmptyStateRoot, XhEmptyStateTitle, XhPopoverContent, XhPopoverPositioner, XhPopoverRoot, XhPopoverTrigger, XhSortableItem, XhSortableItemDragTrigger, XhSortableLiveRegion, XhSortableRoot } from '@xihan-ui/vue'
 import { computed, onUnmounted, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SyncStatusBadge from '~/components/common/SyncStatusBadge.vue'
@@ -244,16 +244,17 @@ onUnmounted(() => window.removeEventListener('pointermove', onResizeMove))
           leave-active-class="transition-opacity duration-[var(--xh-motion-duration-exit)]"
           leave-to-class="opacity-0"
         >
-          <button
+          <XhButton
             v-if="!panelOpen"
             type="button"
+            variant="subtle"
             :title="t('workbench.widgets.customize')"
             class="board-fab group pointer-events-auto mt-2 flex h-9 translate-x-[40%] items-center gap-1.5 rounded-l-xl border border-r-0 border-border/60 bg-background/55 pl-3 pr-2 text-muted-foreground shadow-sm backdrop-blur-md hover:translate-x-0 hover:bg-background/90 hover:text-foreground"
             @click="panelOpen = true"
           >
             <Icon icon="lucide:settings-2" width="16" />
             <Icon icon="lucide:chevron-left" width="14" class="opacity-50 transition-opacity group-hover:opacity-90" />
-          </button>
+          </XhButton>
         </Transition>
         <!-- 展开态：半透明毛玻璃悬浮操作栏。进出场的位移量取幅度令牌：减弱动效下归零，只剩淡变 -->
         <Transition
@@ -301,14 +302,17 @@ onUnmounted(() => window.removeEventListener('pointermove', onResizeMove))
                 <Icon icon="lucide:layout-grid" />
                 {{ t('workbench.widgets.customize') }}
               </XhButton>
-              <button
+              <XhButton
+                icon-only
                 type="button"
+                variant="subtle"
                 :title="t('workbench.widgets.collapse')"
+                :aria-label="t('workbench.widgets.collapse')"
                 class="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 @click="panelOpen = false"
               >
                 <Icon icon="lucide:chevron-right" width="16" />
-              </button>
+              </XhButton>
             </template>
           </div>
         </Transition>
@@ -385,28 +389,31 @@ onUnmounted(() => window.removeEventListener('pointermove', onResizeMove))
               <XhPopoverPositioner>
                 <XhPopoverContent :aria-label="t('workbench.widgets.span')">
                   <div class="grid grid-cols-6 gap-1">
-                    <button
+                    <XhButton
                       v-for="s in SIZE_OPTIONS"
                       :key="s"
                       type="button"
+                      variant="subtle"
                       class="flex h-7 min-w-[2.75rem] items-center justify-center rounded px-1 text-xs transition-colors"
                       :class="s === item.span ? 'bg-[hsl(var(--primary))] text-primary-foreground' : 'text-muted-foreground hover:bg-muted'"
                       @click="setSpan(item, s)"
                     >
-                      {{ spanLabel(s) }}
-                    </button>
+                      <XhButtonLabel>{{ spanLabel(s) }}</XhButtonLabel>
+                    </XhButton>
                   </div>
                 </XhPopoverContent>
               </XhPopoverPositioner>
             </XhPopoverRoot>
-            <button
+            <XhButton
+              icon-only
               type="button"
+              variant="subtle"
               class="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-[hsl(var(--destructive))]"
               :aria-label="t('workbench.widgets.remove')"
               @click="removeWidget(item.key)"
             >
               <Icon icon="lucide:x" width="15" />
-            </button>
+            </XhButton>
           </div>
         </div>
       </XhSortableItem>

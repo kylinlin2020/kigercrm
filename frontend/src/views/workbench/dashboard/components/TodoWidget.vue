@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { XhButton, XhCheckbox } from '@xihan-ui/vue'
+import { XhButton, XhButtonLabel, XhCheckbox } from '@xihan-ui/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { XInput } from '~/components'
@@ -52,7 +52,7 @@ function clearDone() {
   <WidgetCard icon="lucide:check-square" :title="t('workbench.widgets.todo.title')">
     <template #extra>
       <XhButton v-if="hasDone" size="sm" variant="ghost" @click="clearDone">
-        {{ t('workbench.widgets.todo_clear_done') }}
+        <XhButtonLabel>{{ t('workbench.widgets.todo_clear_done') }}</XhButtonLabel>
       </XhButton>
     </template>
     <div class="flex h-full flex-col gap-2">
@@ -69,14 +69,16 @@ function clearDone() {
           <!-- 文字要截断与划线，不放进复选框的标签插槽，读屏名直接给 -->
           <XhCheckbox v-model:checked="item.done" :aria-label="item.text" />
           <span class="min-w-0 flex-1 truncate text-sm" :class="item.done ? 'text-muted-foreground line-through' : 'text-foreground'">{{ item.text }}</span>
-          <button
-            type="button"
+          <XhButton
+            icon-only
             class="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
             :aria-label="t('common.actions.delete')"
             @click="remove(item.id)"
           >
-            <Icon icon="lucide:x" width="14" class="text-muted-foreground hover:text-[hsl(var(--destructive))]" />
-          </button>
+            <XhButtonLabel>
+              <Icon icon="lucide:x" width="14" class="text-muted-foreground hover:text-[hsl(var(--destructive))]" />
+            </XhButtonLabel>
+          </XhButton>
         </div>
       </div>
     </div>

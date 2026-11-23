@@ -593,16 +593,18 @@ async function savePermChanges() {
               >
                 <!-- 随机生成触发器仅新增态出现；type="button" 防止把整表提交掉 -->
                 <template #suffix>
-                  <button
+                  <XhButton
                     v-if="!editionForm.basicId"
-                    type="button"
+                    icon-only
+                    variant="subtle"
+                    size="sm"
                     class="edition-code-random"
                     :aria-label="t('tenant.edition.edition_code_random')"
                     :title="t('tenant.edition.edition_code_random')"
                     @click="generateEditionCode"
                   >
-                    <Icon width="14" height="14" icon="lucide:dices" />
-                  </button>
+                    <XhButtonLabel><Icon width="14" height="14" icon="lucide:dices" /></XhButtonLabel>
+                  </XhButton>
                 </template>
               </XInput>
             </XhFieldControl>
@@ -794,17 +796,10 @@ async function savePermChanges() {
   font-size: var(--xh-text-caption-size);
 }
 
-/* 版本编码随机生成触发器：排在输入框盒内，与清除钮同段；焦点环交给浏览器默认样式 */
+/* 版本编码随机生成触发器：排在输入框盒内，与清除钮同段；外观由 XhButton 提供 */
 .edition-code-random {
-  display: inline-flex;
   flex: none;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  background: transparent;
   color: var(--xh-fg-muted);
-  cursor: pointer;
 }
 
 .edition-code-random:hover {

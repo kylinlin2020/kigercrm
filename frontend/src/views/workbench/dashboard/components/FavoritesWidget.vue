@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { XhEmptyStateDescription, XhEmptyStateIndicator, XhEmptyStateRoot, XhEmptyStateTitle } from '@xihan-ui/vue'
+import { XhButton, XhButtonLabel, XhEmptyStateDescription, XhEmptyStateIndicator, XhEmptyStateRoot, XhEmptyStateTitle } from '@xihan-ui/vue'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -62,21 +62,23 @@ onMounted(() => {
   <WidgetCard icon="lucide:star" :title="t('workbench.widgets.favorites.title')">
     <!-- 开着收藏夹同步时等后端那份回来再摆：本地那份可能是别的设备改动之前的旧值 -->
     <div v-if="favoritesStore.ready && links.length" class="grid grid-cols-3 gap-1 sm:grid-cols-4">
-      <button
+      <XhButton
         v-for="link in links"
         :key="link.key"
-        type="button"
+        variant="outline"
         class="flex flex-col items-center gap-2 rounded-lg px-2 py-3 text-center transition-all hover:-translate-y-px hover:bg-accent"
         @click="go(link.to)"
       >
-        <div
-          class="flex h-11 w-11 items-center justify-center rounded-xl"
-          :style="{ backgroundColor: `color-mix(in oklab, ${link.color} 9%, transparent)` }"
-        >
-          <Icon :icon="link.icon" width="22" height="22" :style="{ color: link.color }" />
-        </div>
-        <span class="truncate text-xs font-medium text-foreground">{{ link.label }}</span>
-      </button>
+        <XhButtonLabel>
+          <span
+            class="flex h-11 w-11 items-center justify-center rounded-xl"
+            :style="{ backgroundColor: `color-mix(in oklab, ${link.color} 9%, transparent)` }"
+          >
+            <Icon :icon="link.icon" width="22" height="22" :style="{ color: link.color }" />
+          </span>
+          <span class="truncate text-xs font-medium text-foreground">{{ link.label }}</span>
+        </XhButtonLabel>
+      </XhButton>
     </div>
     <div v-else-if="favoritesStore.ready" class="flex h-full items-center justify-center py-6">
       <XhEmptyStateRoot size="sm">

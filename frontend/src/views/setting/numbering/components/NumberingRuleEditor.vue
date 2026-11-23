@@ -299,13 +299,15 @@ async function submit(): Promise<void> {
           <span class="inline-flex items-center gap-1">
             <span>{{ t('setting.numbering.allow_tenant_use') }}</span>
             <XTooltip :content="t('setting.numbering.allow_tenant_use_tip')">
-              <button
-                type="button"
-                class="inline-flex size-4 cursor-help items-center justify-center rounded-full border border-current text-[11px] leading-none text-gray-400"
+              <XhButton
+                icon-only
+                variant="subtle"
+                size="sm"
+                class="cursor-help"
                 :aria-label="t('setting.numbering.allow_tenant_use_tip')"
               >
-                ?
-              </button>
+                <XhButtonLabel>?</XhButtonLabel>
+              </XhButton>
             </XTooltip>
           </span>
         </XhFieldLabel>

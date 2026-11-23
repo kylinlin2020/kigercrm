@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { GrantConditionTarget } from './permission-condition'
 import {
+  XhButton,
+  XhButtonLabel,
   XhDrawerBody,
   XhDrawerCloseTrigger,
   XhDrawerContent,
@@ -76,23 +78,25 @@ watch(open, (value) => {
           </div>
           <ul v-else-if="filtered.length" class="grant-conditions__items">
             <li v-for="grant in filtered" :key="grant.key">
-              <button
-                type="button"
+              <XhButton
+                variant="subtle"
                 class="grant-conditions__item"
                 :aria-current="grant.key === selectedKey ? 'true' : undefined"
                 @click="selectedKey = grant.key"
               >
-                <span class="grant-conditions__name">{{ grant.permissionName }}</span>
-                <code class="grant-conditions__code">{{ grant.permissionCode }}</code>
-                <span class="grant-conditions__tags">
-                  <XhTagRoot v-if="grant.action === PermissionAction.Deny" variant="subtle" size="sm" tone="danger">
-                    <XhTagLabel>{{ t('identity.condition.action_deny') }}</XhTagLabel>
-                  </XhTagRoot>
-                  <XhTagRoot v-if="grant.conditionCount > 0" variant="subtle" size="sm" tone="info">
-                    <XhTagLabel>{{ t('identity.condition.count_tag', { count: grant.conditionCount }) }}</XhTagLabel>
-                  </XhTagRoot>
-                </span>
-              </button>
+                <XhButtonLabel class="grant-conditions__item-label">
+                  <span class="grant-conditions__name">{{ grant.permissionName }}</span>
+                  <code class="grant-conditions__code">{{ grant.permissionCode }}</code>
+                  <span class="grant-conditions__tags">
+                    <XhTagRoot v-if="grant.action === PermissionAction.Deny" variant="subtle" size="sm" tone="danger">
+                      <XhTagLabel>{{ t('identity.condition.action_deny') }}</XhTagLabel>
+                    </XhTagRoot>
+                    <XhTagRoot v-if="grant.conditionCount > 0" variant="subtle" size="sm" tone="info">
+                      <XhTagLabel>{{ t('identity.condition.count_tag', { count: grant.conditionCount }) }}</XhTagLabel>
+                    </XhTagRoot>
+                  </span>
+                </XhButtonLabel>
+              </XhButton>
             </li>
           </ul>
           <p v-else class="grant-conditions__hint">
@@ -157,13 +161,15 @@ watch(open, (value) => {
   align-items: flex-start;
   gap: var(--xh-space-1);
   inline-size: 100%;
-  padding: var(--xh-space-2) var(--xh-space-3);
-  border: 1px solid var(--xh-border-default);
-  border-radius: var(--xh-radius-sm);
-  background: transparent;
-  color: inherit;
   text-align: start;
-  cursor: pointer;
+}
+
+.grant-conditions__item-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--xh-space-1);
+  inline-size: 100%;
 }
 
 .grant-conditions__item:hover {
