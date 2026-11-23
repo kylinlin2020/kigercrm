@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BoardItem } from './components'
 import { XhButton, XhDrawerCloseTrigger, XhDrawerContent, XhDrawerRoot, XhDrawerTitle, XhEmptyStateAction, XhEmptyStateDescription, XhEmptyStateIndicator, XhEmptyStateRoot, XhEmptyStateTitle, XhPopoverContent, XhPopoverPositioner, XhPopoverRoot, XhPopoverTrigger, XhSortableItem, XhSortableItemDragTrigger, XhSortableLiveRegion, XhSortableRoot } from '@xihan-ui/vue'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SyncStatusBadge from '~/components/common/SyncStatusBadge.vue'
 import { useUserSettingSync } from '~/components/schema'
@@ -9,6 +9,7 @@ import { usePermission } from '~/hooks'
 import { Icon } from '~/iconify'
 import { useAppStore } from '~/stores'
 import { DEFAULT_BOARD, WIDGET_MAP, WIDGETS } from './components'
+import { createCrmDashboardData, CRM_DASHBOARD_DATA } from './components/charts/use-crm-dashboard-data'
 
 defineOptions({ name: 'WorkbenchDashboardPage' })
 
@@ -29,6 +30,11 @@ function spanLabel(span: number): string {
 const { t } = useI18n()
 const { hasPermission } = usePermission()
 const appStore = useAppStore()
+
+// CRM 业务 widget 共享一次取数：仅在用户具备 crm:read 时创建提供器，
+// 无权限用户看不到对应 widget，也不会触发任何 CRM 请求。
+if (hasPermission('crm_prospecting.dashboard_widgets'))
+  provide(CRM_DASHBOARD_DATA, createCrmDashboardData())
 // 看板布局随用户设置同步（本地即时 + 后端跨端同步，复用 SchemaPage 同一套机制）
 // 同步开关在「偏好设置 → 同步 → 仪表盘看板」，本页只读 appStore.widgetsSyncEnabled 显示状态徽标
 // 场景键保持 'workbench:widgets'（历史键），避免更名导致用户已保存布局丢失

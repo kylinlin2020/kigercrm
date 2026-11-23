@@ -70,5 +70,7 @@ public static class PageRegistry
         new("crm_prospecting.execute", "执行", "crm_prospecting", CrmPermissionCodes.Execute, 2),
         new("crm_prospecting.export", "导出", "crm_prospecting", CrmPermissionCodes.Execute, 3),
         new("crm_prospecting.convert_lead", "转线索", "crm_prospecting", CrmPermissionCodes.Create, 4),
+        // 仪表盘 CRM 数据 widget 的门控按钮：有自动获客读权限的用户在仪表盘看到真实业务数据
+        new("crm_prospecting.dashboard_widgets", "仪表盘 CRM 数据", "crm_prospecting", CrmPermissionCodes.Read, 5),
     ];
 }

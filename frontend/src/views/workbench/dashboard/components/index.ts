@@ -1,23 +1,14 @@
 import type { Component } from 'vue'
 import { markRaw } from 'vue'
 import AnnouncementWidget from './AnnouncementWidget.vue'
-import CategoryMixWidget from './charts/CategoryMixWidget.vue'
-import ChannelShareWidget from './charts/ChannelShareWidget.vue'
-import ConversionFunnelWidget from './charts/ConversionFunnelWidget.vue'
-import CustomerMixWidget from './charts/CustomerMixWidget.vue'
-import MaterialPriceWidget from './charts/MaterialPriceWidget.vue'
-import OrderFlowWidget from './charts/OrderFlowWidget.vue'
-import OrderHeatmapWidget from './charts/OrderHeatmapWidget.vue'
-import ProductPerformanceWidget from './charts/ProductPerformanceWidget.vue'
-import ProfitWaterfallWidget from './charts/ProfitWaterfallWidget.vue'
-import SalesKpiWidget from './charts/SalesKpiWidget.vue'
-import SalesTrendWidget from './charts/SalesTrendWidget.vue'
-import StoreRadarWidget from './charts/StoreRadarWidget.vue'
-import SupplyNetworkWidget from './charts/SupplyNetworkWidget.vue'
-import TargetProgressWidget from './charts/TargetProgressWidget.vue'
+import CrmFollowUpWidget from './charts/CrmFollowUpWidget.vue'
+import CrmFunnelWidget from './charts/CrmFunnelWidget.vue'
+import CrmOverviewWidget from './charts/CrmOverviewWidget.vue'
+import CrmSourcesWidget from './charts/CrmSourcesWidget.vue'
+import CrmStagesWidget from './charts/CrmStagesWidget.vue'
+import CrmTeamWidget from './charts/CrmTeamWidget.vue'
 import ClockWidget from './ClockWidget.vue'
 import FavoritesWidget from './FavoritesWidget.vue'
-import StatsWidget from './StatsWidget.vue'
 import TodoWidget from './TodoWidget.vue'
 import WelcomeWidget from './WelcomeWidget.vue'
 
@@ -33,7 +24,14 @@ export interface WidgetDef {
   permission?: string
 }
 
-function widget(key: string, i18nKey: string, icon: string, defaultSpan: number, component: Component): WidgetDef {
+function widget(
+  key: string,
+  i18nKey: string,
+  icon: string,
+  defaultSpan: number,
+  component: Component,
+  permission?: string,
+): WidgetDef {
   return {
     key,
     titleKey: `workbench.widgets.${i18nKey}.title`,
@@ -41,13 +39,15 @@ function widget(key: string, i18nKey: string, icon: string, defaultSpan: number,
     icon,
     defaultSpan,
     component: markRaw(component),
+    permission,
   }
 }
 
 /**
- * 小组件登记表：新增小组件只需在此追加一项。
- * 今日统计与各图表用的是前端生成的示例数据（charts/demo-data.ts），标题旁标有「示例数据」；
- * 接入真实业务时在后端 WorkbenchQueryService 加接口，再把对应小组件换成接口取数。
+ * 小组件登记表。
+ * 仪表盘上的业务指标小组件（crm-*）走 CrmDashboardQueryService 的真实数据，
+ * 由页面按钮码 crm_prospecting.dashboard_widgets 门控——无 CRM 权限的用户看不到也不会请求这些数据。
+ * 欢迎/时钟/收藏/待办/公告是通用能力，不依赖 CRM，所有用户可见。
  */
 export const WIDGETS: WidgetDef[] = [
   widget('welcome', 'welcome', 'lucide:sparkles', 4, WelcomeWidget),
@@ -55,21 +55,12 @@ export const WIDGETS: WidgetDef[] = [
   widget('favorites', 'favorites', 'lucide:star', 4, FavoritesWidget),
   widget('todo', 'todo', 'lucide:check-square', 3, TodoWidget),
   widget('announcement', 'announcement', 'lucide:megaphone', 9, AnnouncementWidget),
-  widget('stats', 'stats', 'lucide:gauge', 2, StatsWidget),
-  widget('sales-kpi', 'sales_kpi', 'lucide:activity', 4, SalesKpiWidget),
-  widget('channel-share', 'channel_share', 'lucide:pie-chart', 3, ChannelShareWidget),
-  widget('conversion-funnel', 'conversion_funnel', 'lucide:filter', 3, ConversionFunnelWidget),
-  widget('sales-trend', 'sales_trend', 'lucide:trending-up', 8, SalesTrendWidget),
-  widget('order-flow', 'order_flow', 'lucide:waypoints', 4, OrderFlowWidget),
-  widget('product-performance', 'product_performance', 'lucide:package', 8, ProductPerformanceWidget),
-  widget('customer-mix', 'customer_mix', 'lucide:users', 4, CustomerMixWidget),
-  widget('order-heatmap', 'order_heatmap', 'lucide:calendar-clock', 4, OrderHeatmapWidget),
-  widget('store-radar', 'store_radar', 'lucide:radar', 4, StoreRadarWidget),
-  widget('profit-waterfall', 'profit_waterfall', 'lucide:chart-column-decreasing', 4, ProfitWaterfallWidget),
-  widget('category-mix', 'category_mix', 'lucide:layout-grid', 4, CategoryMixWidget),
-  widget('supply-network', 'supply_network', 'lucide:share-2', 4, SupplyNetworkWidget),
-  widget('material-price', 'material_price', 'lucide:chart-candlestick', 4, MaterialPriceWidget),
-  widget('target-progress', 'target_progress', 'lucide:target', 12, TargetProgressWidget),
+  widget('crm-overview', 'crm_overview', 'lucide:gauge', 4, CrmOverviewWidget, 'crm_prospecting.dashboard_widgets'),
+  widget('crm-funnel', 'crm_funnel', 'lucide:filter', 4, CrmFunnelWidget, 'crm_prospecting.dashboard_widgets'),
+  widget('crm-sources', 'crm_sources', 'lucide:pie-chart', 4, CrmSourcesWidget, 'crm_prospecting.dashboard_widgets'),
+  widget('crm-stages', 'crm_stages', 'lucide:chart-pie', 4, CrmStagesWidget, 'crm_prospecting.dashboard_widgets'),
+  widget('crm-team', 'crm_team', 'lucide:users', 6, CrmTeamWidget, 'crm_prospecting.dashboard_widgets'),
+  widget('crm-follow-up', 'crm_follow_up', 'lucide:heart-pulse', 6, CrmFollowUpWidget, 'crm_prospecting.dashboard_widgets'),
 ]
 
 export const WIDGET_MAP: Record<string, WidgetDef> = Object.fromEntries(WIDGETS.map(widget => [widget.key, widget]))
@@ -83,7 +74,6 @@ export interface BoardItem {
 /**
  * 默认看板，每行凑满 12 栅格：
  * 欢迎(4) 时间(4) 收藏入口(4) / 便签待办(3) 公告轮播(9) /
- * 今日统计(2) 经营指标(4) 销售构成(3) 转化漏斗(3) / 销售趋势(8) 订单流向(4) / 商品表现(8) 会员构成(4) /
- * 下单时段(4) 门店对比(4) 利润构成(4) / 品类构成(4) 供应网络(4) 原料行情(4) / 目标达成(12)
+ * CRM 概览(4) 线索漏斗(4) 候选来源(4) / 商机阶段(4) 团队排行(6) 跟进健康度(6)
  */
 export const DEFAULT_BOARD: BoardItem[] = WIDGETS.map(widget => ({ key: widget.key, span: widget.defaultSpan }))
