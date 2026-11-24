@@ -22,7 +22,7 @@ public sealed class KnowledgeTagAppService(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [UnitOfWork(true)]
-    [PermissionAuthorize(AiPermissionCodes.Update)]
+    [PermissionAuthorize(KnowledgePermissionCodes.Update)]
     public async Task<KnowledgeTagItemDto[]> SetTagsAsync(
         KnowledgeTagsUpdateDto input,
         CancellationToken cancellationToken = default)
@@ -36,7 +36,7 @@ public sealed class KnowledgeTagAppService(
         return await GetTagsAsync(cancellationToken);
     }
 
-    [PermissionAuthorize(AiPermissionCodes.Read)]
+    [PermissionAuthorize(KnowledgePermissionCodes.Read)]
     public async Task<KnowledgeTagItemDto[]> GetTagsAsync(CancellationToken cancellationToken = default)
     {
         var rows = await documents.GetAllAsync(cancellationToken);
@@ -51,7 +51,7 @@ public sealed class KnowledgeTagAppService(
             .ToArray();
     }
 
-    [PermissionAuthorize(AiPermissionCodes.Read)]
+    [PermissionAuthorize(KnowledgePermissionCodes.Read)]
     public async Task<KnowledgeDuplicateReportDto> GetDuplicatesAsync(CancellationToken cancellationToken = default)
     {
         var rows = await documents.GetAllAsync(cancellationToken);

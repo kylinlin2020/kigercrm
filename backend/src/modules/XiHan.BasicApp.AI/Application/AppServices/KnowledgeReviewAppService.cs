@@ -25,7 +25,7 @@ public sealed class KnowledgeReviewAppService(
     : AiApplicationService, IKnowledgeReviewAppService
 {
     [UnitOfWork(true)]
-    [PermissionAuthorize(AiPermissionCodes.Execute)]
+    [PermissionAuthorize(KnowledgePermissionCodes.Execute)]
     public async Task<KnowledgeReviewDto> SubmitAsync(long documentId, CancellationToken cancellationToken = default)
     {
         if (documentId <= 0) throw new ArgumentOutOfRangeException(nameof(documentId));
@@ -48,7 +48,7 @@ public sealed class KnowledgeReviewAppService(
     }
 
     [UnitOfWork(true)]
-    [PermissionAuthorize(AiPermissionCodes.Execute)]
+    [PermissionAuthorize(KnowledgePermissionCodes.Execute)]
     public async Task<KnowledgeReviewDto> DecideAsync(
         KnowledgeReviewDecisionDto input,
         CancellationToken cancellationToken = default)
@@ -66,7 +66,7 @@ public sealed class KnowledgeReviewAppService(
         return ToDto(await reviews.UpdateAsync(review, cancellationToken));
     }
 
-    [PermissionAuthorize(AiPermissionCodes.Read)]
+    [PermissionAuthorize(KnowledgePermissionCodes.Read)]
     public async Task<IReadOnlyList<KnowledgeReviewDto>> GetReviewsAsync(long documentId, CancellationToken cancellationToken = default)
         => (await reviews.GetByDocumentAsync(documentId, cancellationToken)).Select(ToDto).ToArray();
 

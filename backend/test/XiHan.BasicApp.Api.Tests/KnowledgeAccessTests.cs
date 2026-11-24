@@ -129,7 +129,7 @@ public sealed class KnowledgeAccessTests : IDisposable
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost",
             "UpdateScripts", "5.9.60", "5.9.60.sql");
         Assert.Contains("Tag = \"KnowledgeAccess\"", service, StringComparison.Ordinal);
-        Assert.Contains("[PermissionAuthorize(AiPermissionCodes.Update)]", service, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(KnowledgePermissionCodes.Update)]", service, StringComparison.Ordinal);
         Assert.DoesNotContain("HttpClient", service, StringComparison.Ordinal);
         Assert.Contains("ADD COLUMN IF NOT EXISTS visibility", migration, StringComparison.Ordinal);
         Assert.Contains("ADD COLUMN IF NOT EXISTS allowed_roles", migration, StringComparison.Ordinal);

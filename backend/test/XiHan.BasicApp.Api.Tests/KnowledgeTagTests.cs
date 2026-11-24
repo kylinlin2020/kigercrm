@@ -135,7 +135,7 @@ public sealed class KnowledgeTagTests : IDisposable
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost",
             "UpdateScripts", "5.9.57", "5.9.57.sql");
         Assert.Contains("Tag = \"KnowledgeTags\"", service, StringComparison.Ordinal);
-        Assert.Contains("[PermissionAuthorize(AiPermissionCodes.Read)]", service, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(KnowledgePermissionCodes.Read)]", service, StringComparison.Ordinal);
         Assert.DoesNotContain("HttpClient", service, StringComparison.Ordinal);
         Assert.Contains("ALTER TABLE sys_knowledge_document ADD COLUMN IF NOT EXISTS content_hash", migration, StringComparison.Ordinal);
     }

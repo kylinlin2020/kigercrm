@@ -116,8 +116,8 @@ public sealed class KnowledgeReviewTests : IDisposable
             "Application", "AppServices", "KnowledgeReviewAppService.cs");
         var migration = Read("backend", "src", "main", "XiHan.BasicApp.WebHost",
             "UpdateScripts", "5.9.51", "5.9.51.sql");
-        Assert.Contains("[PermissionAuthorize(AiPermissionCodes.Execute)]", app, StringComparison.Ordinal);
-        Assert.Contains("[PermissionAuthorize(AiPermissionCodes.Read)]", app, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(KnowledgePermissionCodes.Execute)]", app, StringComparison.Ordinal);
+        Assert.Contains("[PermissionAuthorize(KnowledgePermissionCodes.Read)]", app, StringComparison.Ordinal);
         Assert.DoesNotContain("ReindexAsync", app, StringComparison.Ordinal);
         Assert.Contains("CREATE TABLE IF NOT EXISTS sys_knowledge_document_review", migration, StringComparison.Ordinal);
     }

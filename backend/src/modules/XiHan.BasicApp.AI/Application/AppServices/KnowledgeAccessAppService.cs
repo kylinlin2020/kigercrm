@@ -20,7 +20,7 @@ public sealed class KnowledgeAccessAppService(
     : AiApplicationService, IKnowledgeAccessAppService
 {
     [UnitOfWork(true)]
-    [PermissionAuthorize(AiPermissionCodes.Update)]
+    [PermissionAuthorize(KnowledgePermissionCodes.Update)]
     public async Task<KnowledgeAccessDto> UpdateAsync(
         KnowledgeAccessUpdateDto input,
         CancellationToken cancellationToken = default)
@@ -38,7 +38,7 @@ public sealed class KnowledgeAccessAppService(
         return ToDto(document);
     }
 
-    [PermissionAuthorize(AiPermissionCodes.Read)]
+    [PermissionAuthorize(KnowledgePermissionCodes.Read)]
     public async Task<KnowledgeAccessDto> GetAsync(long documentId, CancellationToken cancellationToken = default)
     {
         var document = await documents.GetByIdAsync(documentId, cancellationToken)
