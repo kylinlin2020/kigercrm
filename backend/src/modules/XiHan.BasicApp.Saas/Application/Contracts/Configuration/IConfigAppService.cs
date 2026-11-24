@@ -20,4 +20,10 @@ public interface IConfigAppService : IApplicationService
     Task<ConfigDetailDto> UpdateConfigStatusAsync(ConfigStatusUpdateDto input, CancellationToken cancellationToken = default);
 
     Task DeleteConfigAsync(long id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically clear a tenant config value and leave an enabled null-value tombstone so a
+    /// platform fallback cannot silently become effective again. Used for secret credentials.
+    /// </summary>
+    Task ClearTenantConfigAsync(long existingId, ConfigCreateDto tombstone, CancellationToken cancellationToken = default);
 }

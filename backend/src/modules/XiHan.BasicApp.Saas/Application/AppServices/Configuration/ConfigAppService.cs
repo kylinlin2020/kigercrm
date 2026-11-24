@@ -76,6 +76,25 @@ public sealed class ConfigAppService
     }
 
     /// <summary>
+    /// 原子清除租户配置值并写入启用的空值墓碑，避免平台兜底凭证静默复活。
+    /// 删除与创建包裹在同一事务：任一步失败整笔回滚，不会出现"删了但没写墓碑"的中间态。
+    /// </summary>
+    [UnitOfWork(true)]
+    [PermissionAuthorize(SaasPermissionCodes.Config.Delete)]
+    public async Task ClearTenantConfigAsync(
+        long existingId,
+        ConfigCreateDto tombstone,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tombstone);
+        cancellationToken.ThrowIfCancellationRequested();
+        await _fieldSecurity.EnsureCreatableAsync(typeof(SysConfig), tombstone, cancellationToken);
+        await _configDomainService.DeleteConfigAsync(existingId, cancellationToken);
+        await _configDomainService.CreateConfigAsync(ConfigApplicationMapper.ToCreateCommand(tombstone), cancellationToken);
+        await _cacheInvalidator.InvalidateConfigurationAsync(cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
     /// 更新系统配置
     /// </summary>
     [UnitOfWork(true)]

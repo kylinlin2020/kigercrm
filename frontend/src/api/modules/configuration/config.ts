@@ -23,6 +23,11 @@ export const configApi = {
   delete(id: ApiId) {
     return configCommandApi.delete('Config', { id })
   },
+  clearTenant(existingId: ApiId, tombstone: ConfigCreateDto) {
+    return configCommandApi.post<undefined, ConfigCreateDto>('ClearTenantConfig', tombstone, {
+      params: { existingId },
+    })
+  },
   detail(id: ApiId) {
     return configReadApi.detail(id)
   },

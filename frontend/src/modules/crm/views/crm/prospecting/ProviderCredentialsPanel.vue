@@ -129,10 +129,7 @@ async function clear(item: ProviderCredential) {
   }
   saving.value = true
   try {
-    // Encrypted ConfigUpdate treats an empty value as "keep the old secret".
-    // Replace the tenant row with an enabled, encrypted null-value tombstone so it shadows
-    // any platform fallback without retaining the old credential.
-    await configApi.delete(item.record.basicId)
+    // 服务端单事务完成"删除 + 写空值墓碑"，避免两步之间失败导致平台兜底凭证复活。
     const tombstone: ConfigCreateDto = {
       configKey: item.configKey,
       configName: item.name,
@@ -145,13 +142,14 @@ async function clear(item: ProviderCredential) {
       status: EnableStatus.Enabled,
       remark: 'Tenant explicitly cleared this provider credential',
     }
-    await configApi.create(tombstone)
+    await configApi.clearTenant(item.record.basicId, tombstone)
     item.value = ''
     toast.success(`${item.name} 凭证已清除`)
     await load()
   }
   catch (error) {
     toast.danger((error as Error)?.message || '清除凭证失败')
+    await load()
   }
   finally {
     saving.value = false
