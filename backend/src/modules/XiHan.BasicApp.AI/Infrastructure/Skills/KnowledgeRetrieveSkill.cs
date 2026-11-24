@@ -3,7 +3,10 @@
 
 using System.ComponentModel;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using XiHan.BasicApp.AI.Application.Services;
 using XiHan.Framework.AI.Abstractions.Rag;
+using XiHan.Framework.AI.Abstractions.Rag.Models;
 using XiHan.Framework.AI.Abstractions.Skills;
 using XiHan.Framework.MultiTenancy.Abstractions;
 
@@ -25,13 +28,19 @@ public sealed class KnowledgeRetrieveSkill : IAiSkill
 
     private readonly ICurrentTenant _currentTenant;
 
+    private readonly IServiceScopeFactory _scopeFactory;
+
     /// <summary>
     /// 构造函数
     /// </summary>
-    public KnowledgeRetrieveSkill(IKnowledgeRetriever retriever, ICurrentTenant currentTenant)
+    public KnowledgeRetrieveSkill(
+        IKnowledgeRetriever retriever,
+        ICurrentTenant currentTenant,
+        IServiceScopeFactory scopeFactory)
     {
         _retriever = retriever;
         _currentTenant = currentTenant;
+        _scopeFactory = scopeFactory;
     }
 
     /// <summary>
@@ -64,7 +73,16 @@ public sealed class KnowledgeRetrieveSkill : IAiSkill
         // 只检索当前作用域的知识（平台就是 0 号租户）
         var filter = new RetrievalFilter { TenantId = _currentTenant.Id ?? 0 };
         var chunks = await _retriever.RetrieveAsync(query, effectiveTopK, filter, provider: null, cancellationToken);
-        return chunks
+
+        // ACL: 按当前用户角色过滤受限文档（含 MCP/工具调用路径）。Skill 为单例，
+        // 在子 scope 内解析 scoped 的当前用户与文档仓储，避免 captive dependency。
+        IReadOnlyList<RetrievedChunk> visible;
+        using (var scope = _scopeFactory.CreateScope())
+        {
+            var accessFilter = scope.ServiceProvider.GetRequiredService<KnowledgeRetrievalAccessFilter>();
+            visible = await accessFilter.FilterAsync(chunks, cancellationToken);
+        }
+        return visible
             .Select(c => new KnowledgeChunkResult(c.DocumentId, c.Title, c.Source, c.Text, c.Score))
             .ToList();
     }

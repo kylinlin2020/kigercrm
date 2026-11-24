@@ -5,8 +5,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createPageRequest, crmCustomerApi } from '@/api'
 import { XInput } from '~/components'
-import { toast } from '~/composables'
+import { confirmDanger, toast } from '~/composables'
 import { usePermission } from '~/hooks'
+import { safeExternalUrl } from '../utils/safe-external-url'
 
 defineOptions({ name: 'CrmCustomerPage' })
 
@@ -160,7 +161,11 @@ async function save() {
 async function remove(row: CrmCustomerListItemDto) {
   if (!canDelete.value)
     return
-  if (!window.confirm(t('crm.customer.confirmDelete', { name: row.name })))
+  const confirmed = await confirmDanger({
+    title: t('crm.customer.confirmDelete', { name: row.name }),
+    content: t('crm.customer.confirmDelete', { name: row.name }),
+  })
+  if (!confirmed)
     return
   try {
     await crmCustomerApi.delete(row.basicId)
@@ -244,7 +249,7 @@ onMounted(loadPage)
               <strong>{{ row.name }}</strong>
             </td>
             <td>
-              <a v-if="row.website" :href="row.website" target="_blank" rel="noopener noreferrer">{{ row.website }}</a>
+              <a v-if="safeExternalUrl(row.website)" :href="safeExternalUrl(row.website) ?? undefined" target="_blank" rel="noopener noreferrer">{{ row.website }}</a>
               <span v-else>—</span>
             </td>
             <td>{{ row.countryRegion || '—' }}</td>

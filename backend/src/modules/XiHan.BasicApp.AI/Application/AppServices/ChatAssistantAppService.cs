@@ -10,6 +10,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using XiHan.BasicApp.AI.Application.Contracts;
 using XiHan.BasicApp.AI.Application.Dtos;
+using XiHan.BasicApp.AI.Application.Services;
 using XiHan.BasicApp.AI.Application.Tools;
 using XiHan.BasicApp.AI.Domain.Entities;
 using XiHan.BasicApp.AI.Domain.Repositories;
@@ -55,6 +56,7 @@ public sealed class ChatAssistantAppService : AiApplicationService, IChatAssista
     private readonly IChatRealtimePushService _pushService;
     private readonly IChatSensitiveWordGuard _sensitiveWordGuard;
     private readonly IKnowledgeRetriever _retriever;
+    private readonly KnowledgeRetrievalAccessFilter _retrievalAccessFilter;
     private readonly IRagPromptAugmenter _augmenter;
     private readonly IAiPromptStore _promptStore;
     private readonly IXiHanAiService _aiService;
@@ -75,6 +77,7 @@ public sealed class ChatAssistantAppService : AiApplicationService, IChatAssista
         IChatRealtimePushService pushService,
         IChatSensitiveWordGuard sensitiveWordGuard,
         IKnowledgeRetriever retriever,
+        KnowledgeRetrievalAccessFilter retrievalAccessFilter,
         IRagPromptAugmenter augmenter,
         IAiPromptStore promptStore,
         IXiHanAiService aiService,
@@ -91,6 +94,7 @@ public sealed class ChatAssistantAppService : AiApplicationService, IChatAssista
         _pushService = pushService;
         _sensitiveWordGuard = sensitiveWordGuard;
         _retriever = retriever;
+        _retrievalAccessFilter = retrievalAccessFilter;
         _augmenter = augmenter;
         _promptStore = promptStore;
         _aiService = aiService;
@@ -290,7 +294,9 @@ public sealed class ChatAssistantAppService : AiApplicationService, IChatAssista
         {
             var filter = new RetrievalFilter { TenantId = _currentTenant.Id ?? 0 };
             var retrieved = await _retriever.RetrieveAsync(question, assistant.KnowledgeTopK, filter, assistant.KnowledgeProviderCode, cancellationToken);
-            return retrieved.Count == 0 ? question : _augmenter.Augment(question, retrieved);
+            // ACL: drop chunks whose document the caller may not view before prompt injection.
+            var visible = await _retrievalAccessFilter.FilterAsync(retrieved, cancellationToken);
+            return visible.Count == 0 ? question : _augmenter.Augment(question, visible);
         }
         catch (OperationCanceledException)
         {

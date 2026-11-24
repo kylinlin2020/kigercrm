@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CrmExamAttemptDto, CrmExamPaperDto, CrmExamQuestionDto } from '@/api/modules/crm/exam.types'
+import type { CrmExamAttemptDto, CrmExamCandidateQuestionDto, CrmExamPaperDto } from '@/api/modules/crm/exam.types'
 import {
   XhButton,
   XhButtonLabel,
@@ -22,7 +22,7 @@ defineOptions({ name: 'CrmExamPanel' })
 
 const { t } = useI18n()
 
-const questions = ref<CrmExamQuestionDto[]>([])
+const questions = ref<CrmExamCandidateQuestionDto[]>([])
 const papers = ref<CrmExamPaperDto[]>([])
 const attempts = ref<CrmExamAttemptDto[]>([])
 const active = ref<CrmExamAttemptDto | null>(null)

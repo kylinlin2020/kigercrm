@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Moq;
 using XiHan.BasicApp.AI.Application.AppServices;
+using XiHan.BasicApp.AI.Application.Services;
 using XiHan.BasicApp.AI.Domain.Entities;
 using XiHan.BasicApp.AI.Domain.Enums;
 using XiHan.BasicApp.AI.Domain.Repositories;
@@ -288,7 +290,7 @@ public sealed class AiKnowledgeQueryTests
     [Fact]
     public void KnowledgeRetrieveSkill_NameAndDescriptionShouldBeStable()
     {
-        var skill = new KnowledgeRetrieveSkill(new Mock<IKnowledgeRetriever>(MockBehavior.Strict).Object, CreateCurrentTenant(null));
+        var skill = CreateSkill(new Mock<IKnowledgeRetriever>(MockBehavior.Strict).Object, null);
 
         Assert.Equal("knowledge_retrieve", skill.Name, StringComparer.Ordinal);
         Assert.Contains("知识库", skill.Description, StringComparison.Ordinal);
@@ -300,7 +302,7 @@ public sealed class AiKnowledgeQueryTests
     [Fact]
     public void KnowledgeRetrieveSkill_AsFunctionShouldCarrySkillNameAndDescription()
     {
-        var skill = new KnowledgeRetrieveSkill(new Mock<IKnowledgeRetriever>(MockBehavior.Strict).Object, CreateCurrentTenant(null));
+        var skill = CreateSkill(new Mock<IKnowledgeRetriever>(MockBehavior.Strict).Object, null);
 
         var function = skill.AsFunction();
 
@@ -339,7 +341,7 @@ public sealed class AiKnowledgeQueryTests
             .Setup(item => item.RetrieveAsync(
                 It.IsAny<string>(), It.IsAny<int>(), It.IsAny<RetrievalFilter?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([CreateChunk()]);
-        var function = new KnowledgeRetrieveSkill(retriever.Object, CreateCurrentTenant(null)).AsFunction();
+        var function = CreateSkill(retriever.Object, null).AsFunction();
 
         _ = await function.InvokeAsync(new AIFunctionArguments
         {
@@ -371,7 +373,7 @@ public sealed class AiKnowledgeQueryTests
                 It.IsAny<string>(), It.IsAny<int>(), It.IsAny<RetrievalFilter?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .Callback((string _, int _, RetrievalFilter? filter, string? _, CancellationToken _) => captured = filter)
             .ReturnsAsync([]);
-        var function = new KnowledgeRetrieveSkill(retriever.Object, CreateCurrentTenant(currentTenantId)).AsFunction();
+        var function = CreateSkill(retriever.Object, currentTenantId).AsFunction();
 
         _ = await function.InvokeAsync(new AIFunctionArguments { ["query"] = "部署流程" });
 
@@ -390,6 +392,20 @@ public sealed class AiKnowledgeQueryTests
         var currentTenant = new Mock<ICurrentTenant>();
         _ = currentTenant.SetupGet(item => item.Id).Returns(tenantId);
         return currentTenant.Object;
+    }
+
+    /// <summary>
+    /// Skill 为单例，通过 IServiceScopeFactory 在子 scope 解析 scoped 的 ACL 过滤器。
+    /// 测试用最小 DI 容器提供过滤器（仓储/当前用户用宽松 mock；本文件用例只验证工具名、topK 与租户过滤）。
+    /// </summary>
+    private static KnowledgeRetrieveSkill CreateSkill(IKnowledgeRetriever retriever, long? tenantId)
+    {
+        var services = new ServiceCollection();
+        services.AddScoped(_ => new KnowledgeRetrievalAccessFilter(
+            new Mock<IKnowledgeDocumentRepository>().Object,
+            new Mock<ICurrentUser>().Object));
+        var provider = services.BuildServiceProvider();
+        return new KnowledgeRetrieveSkill(retriever, CreateCurrentTenant(tenantId), provider.GetRequiredService<IServiceScopeFactory>());
     }
 
     /// <summary>

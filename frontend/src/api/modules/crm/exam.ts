@@ -1,6 +1,7 @@
 import type { ApiId } from '../../types'
 import type {
   CrmExamAttemptDto,
+  CrmExamCandidateQuestionDto,
   CrmExamPaperCreateDto,
   CrmExamPaperDto,
   CrmExamQuestionCreateDto,
@@ -18,10 +19,10 @@ export const crmExamApi = {
     return api.post<CrmExamQuestionDto, CrmExamQuestionCreateDto>('Question', input)
   },
   questions() {
-    return api.get<CrmExamQuestionDto[]>('Questions')
+    return api.get<CrmExamCandidateQuestionDto[]>('Questions')
   },
   questionsByCategory(category: string) {
-    return api.get<CrmExamQuestionDto[]>('QuestionsByCategory', { category })
+    return api.get<CrmExamCandidateQuestionDto[]>('QuestionsByCategory', { category })
   },
   categories() {
     return api.get<string[]>('Categories')

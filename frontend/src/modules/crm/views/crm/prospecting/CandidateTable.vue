@@ -4,6 +4,7 @@ import { XhButton, XhButtonLabel, XhCheckbox } from '@xihan-ui/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CrmProspectingCandidateStatus } from '@/api'
+import { safeExternalUrl } from '../utils/safe-external-url'
 import { useProspectingLabels } from './prospecting-labels'
 
 defineOptions({ name: 'CrmProspectingCandidateTable' })
@@ -53,7 +54,7 @@ function onToggleAll(checked: boolean) {
         <td><XhCheckbox :checked="selectedIds.includes(String(candidate.basicId))" :aria-label="String(candidate.basicId)" @update:checked="onToggle(String(candidate.basicId), $event)" /></td>
         <td><strong>{{ candidate.companyName }}</strong><small>{{ candidate.title || '' }}</small></td>
         <td>{{ candidate.contactName || '—' }}</td><td>{{ candidate.businessEmail || '—' }}</td>
-        <td><a v-if="candidate.website" :href="candidate.website" target="_blank" rel="noopener noreferrer">{{ candidate.website }}</a><span v-else>—</span></td>
+        <td><a v-if="safeExternalUrl(candidate.website)" :href="safeExternalUrl(candidate.website) ?? undefined" target="_blank" rel="noopener noreferrer">{{ candidate.website }}</a><span v-else>—</span></td>
         <td>{{ candidate.source || candidate.providerCode }}</td><td>{{ candidateStatus(candidate.status) }}</td><td>{{ candidate.duplicateReason || '—' }}</td><td>{{ candidate.shortlistedAt ? t('crm.prospecting.shortlisted') : '—' }}</td>
         <td class="actions">
           <XhButton variant="outline" @click="emit('view', candidate)">

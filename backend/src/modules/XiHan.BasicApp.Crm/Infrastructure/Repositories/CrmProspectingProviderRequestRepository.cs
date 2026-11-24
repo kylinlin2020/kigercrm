@@ -356,12 +356,9 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
         var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for provider request recovery.");
         var ageMilliseconds = checked((long)Math.Ceiling(minimumAge.TotalMilliseconds));
-        // Platform-scope recovery passes a null tenant id. Binding a null SugarParameter makes
-        // PostgreSQL infer the parameter as text and fail with "bigint = text". Render the null
-        // branch as a literal IS NULL instead; only the tenant branch binds a typed bigint.
-        var tenantFilter = currentTenant.TenantId is null
-            ? "request.tenant_id IS NULL"
-            : "request.tenant_id = @tenantId";
+        // 平台作用域用 TenantId=0（NOT NULL 列不能用 IS NULL）；始终绑定 typed bigint。
+        var tenantId = currentTenant.TenantId ?? 0;
+        var tenantFilter = "request.tenant_id = @tenantId";
         var sql = $$"""
             WITH recovery_clock AS MATERIALIZED (
                 SELECT clock_timestamp() AS now
@@ -422,8 +419,7 @@ public sealed class CrmProspectingProviderRequestRepository(ISqlSugarClientResol
             new("@pausedStatus", (int)CrmProspectingRunStatus.Paused),
             new("@cancelRequestedStatus", (int)CrmProspectingRunStatus.CancelRequested)
         };
-        if (currentTenant.TenantId is not null)
-            parameters.Add(new SugarParameter("@tenantId", currentTenant.TenantId));
+        parameters.Add(new SugarParameter("@tenantId", tenantId));
         var recovered = await client.Ado.SqlQueryAsync<long>(sql, parameters.ToArray());
         return recovered.Count;
     }

@@ -4,6 +4,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using XiHan.BasicApp.AI.Application.Services;
 using XiHan.BasicApp.AI.Domain.DomainServices;
 using XiHan.BasicApp.AI.Domain.DomainServices.Implementations;
 using XiHan.BasicApp.AI.Infrastructure.Configuration;
@@ -128,6 +129,9 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddAISkills(this IServiceCollection services)
     {
         services.AddSingleton<IAiSkill, KnowledgeRetrieveSkill>();
+        // 检索 ACL 过滤器请求级注册：skill 单例通过 IServiceScopeFactory 在子 scope 解析，
+        // 助手增强路径直接注入，二者共用同一套文档可见性规则。
+        services.AddScoped<KnowledgeRetrievalAccessFilter>();
         // CRM chat functions capture request-scoped query/security services; never register as singleton Skills.
         services.AddScoped<CrmChatToolFactory>();
         return services;

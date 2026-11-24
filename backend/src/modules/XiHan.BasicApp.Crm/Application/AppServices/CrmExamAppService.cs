@@ -60,18 +60,18 @@ public sealed class CrmExamAppService(
     }
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]
-    public async Task<IReadOnlyList<CrmExamQuestionDto>> GetQuestionsAsync(CancellationToken cancellationToken = default)
-        => (await questions.GetAllAsync(cancellationToken)).Select(ToQuestionDto).ToArray();
+    public async Task<IReadOnlyList<CrmExamCandidateQuestionDto>> GetQuestionsAsync(CancellationToken cancellationToken = default)
+        => (await questions.GetAllAsync(cancellationToken)).Select(ToCandidateQuestionDto).ToArray();
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]
-    public async Task<IReadOnlyList<CrmExamQuestionDto>> GetQuestionsByCategoryAsync(
+    public async Task<IReadOnlyList<CrmExamCandidateQuestionDto>> GetQuestionsByCategoryAsync(
         string? category,
         CancellationToken cancellationToken = default)
     {
         var rows = await questions.GetAllAsync(cancellationToken);
-        if (string.IsNullOrWhiteSpace(category)) return rows.Select(ToQuestionDto).ToArray();
+        if (string.IsNullOrWhiteSpace(category)) return rows.Select(ToCandidateQuestionDto).ToArray();
         return rows.Where(item => string.Equals(item.Category, category.Trim(), StringComparison.OrdinalIgnoreCase))
-            .Select(ToQuestionDto).ToArray();
+            .Select(ToCandidateQuestionDto).ToArray();
     }
 
     [PermissionAuthorize(CrmPermissionCodes.Read)]

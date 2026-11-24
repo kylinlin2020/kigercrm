@@ -219,7 +219,16 @@ public sealed class CrmExamTests : IDisposable
             CorrectAnswer = "B",
             Points = 40
         });
-        Assert.Equal(2, (await _service.GetQuestionsAsync()).Count);
+        var listed = await _service.GetQuestionsAsync();
+        Assert.Equal(2, listed.Count);
+        // H1 security: list endpoints must never ship the answer key to the browser.
+        var listedPayload = System.Text.Json.JsonSerializer.Serialize(listed);
+        Assert.DoesNotContain("CorrectAnswer", listedPayload, StringComparison.Ordinal);
+        Assert.DoesNotContain("CorrectAnswers", listedPayload, StringComparison.Ordinal);
+        Assert.DoesNotContain("Explanation", listedPayload, StringComparison.Ordinal);
+        var byCategory = await _service.GetQuestionsByCategoryAsync("product");
+        var byCategoryPayload = System.Text.Json.JsonSerializer.Serialize(byCategory);
+        Assert.DoesNotContain("CorrectAnswer", byCategoryPayload, StringComparison.Ordinal);
 
         var paper = await _service.CreatePaperAsync(new CrmExamPaperCreateDto
         {

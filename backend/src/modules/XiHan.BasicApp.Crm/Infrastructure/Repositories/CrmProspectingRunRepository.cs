@@ -796,12 +796,10 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             throw new NotSupportedException("Prospecting lease recovery requires PostgreSQL.");
         var currentTenant = AsyncLocalCurrentTenantAccessor.Instance.Current
             ?? throw new InvalidOperationException("A current tenant context is required for prospecting lease operations.");
-        // Platform-scope recovery passes a null tenant id. Binding a null SugarParameter makes
-        // PostgreSQL infer the parameter as text and fail with "bigint = text". Render the null
-        // branch as a literal IS NULL instead; only the tenant branch binds a typed bigint.
-        var tenantFilter = currentTenant.TenantId is null
-            ? "run.tenant_id IS NULL"
-            : "run.tenant_id = @tenantId";
+        // 平台作用域用 TenantId=0（与 BasicAppEntity 约定一致）；NOT NULL 列不能用 IS NULL 匹配。
+        // 始终绑定 typed bigint，避免 null SugarParameter 被 PostgreSQL 推断为 text。
+        var tenantId = currentTenant.TenantId ?? 0;
+        var tenantFilter = "run.tenant_id = @tenantId";
         var sql = $$"""
             WITH lease_clock AS MATERIALIZED (SELECT clock_timestamp() AS now)
             UPDATE crm_prospecting_run AS run
@@ -837,8 +835,7 @@ public sealed class CrmProspectingRunRepository(ISqlSugarClientResolver clientRe
             new("@cancelledStatus", (int)CrmProspectingRunStatus.Cancelled),
             new("@waitingStatus", (int)CrmProspectingRunStatus.WaitingForExtractions)
         };
-        if (currentTenant.TenantId is not null)
-            parameters.Add(new SugarParameter("@tenantId", currentTenant.TenantId));
+        parameters.Add(new SugarParameter("@tenantId", tenantId));
         var rows = await client.Ado.SqlQueryAsync<long>(sql, parameters.ToArray());
         return rows.Count;
     }
