@@ -6,6 +6,7 @@ import { setupI18n } from '~/locales'
 import { bindLockHook, bindLogoutHook, bindRouter } from '~/request'
 import { setupRouterGuard } from '~/router/guard'
 import { invalidateCacheIfBuildTimeChanged, useAccessStore, useUserStore } from '~/stores'
+import { migrateBrandStorage } from '~/stores/app/brand-migration'
 import { resetSetupStorePlugin } from '~/stores/plugins'
 import App from './App.vue'
 import { registerApplicationContext } from './app/context'
@@ -15,6 +16,8 @@ import { router } from './router'
 import './styles/index.css'
 
 (async () => {
+  // 一次性的品牌存储迁移：必须在任何 store 初始化前把旧 brand 值改写掉
+  migrateBrandStorage()
   await setupIconifyOffline()
   invalidateCacheIfBuildTimeChanged()
 

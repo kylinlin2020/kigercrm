@@ -101,7 +101,7 @@ const {
 const externalLinkOf = useMenuExternalLinks()
 
 const appTitle = computed(
-  () => appStore.brandTitle || import.meta.env.VITE_APP_TITLE || 'XiHan Admin',
+  () => appStore.brandTitle || import.meta.env.VITE_APP_TITLE || 'KIGER CRM',
 )
 const appLogo = computed(
   () => appStore.brandLogo || import.meta.env.VITE_APP_LOGO || '/favicon.png',

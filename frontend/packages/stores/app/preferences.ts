@@ -49,6 +49,7 @@ import {
 import { i18n } from '~/locales'
 import { LocalStorage, resolveBrowserLocale, resolveInitialLocale } from '~/utils'
 import { bindPersist, save } from '../helpers'
+import { migrateBrandValue } from './brand-migration'
 
 const WIDGET_PLACEMENTS: readonly WidgetPlacement[] = ['auto', 'header', 'floating', 'hidden']
 
@@ -114,9 +115,15 @@ export function createPreferencesSlice() {
     LocalStorage.get<boolean>(FOOTER_SHOW_DEV_INFO_KEY) ?? true,
   )
   const copyrightEnable = ref<boolean>(LocalStorage.get<boolean>(COPYRIGHT_ENABLE_KEY) ?? true)
-  const copyrightName = ref<string>(LocalStorage.get<string>(COPYRIGHT_NAME_KEY) ?? 'KIGER')
+  const copyrightName = ref<string>(
+    migrateBrandValue(LocalStorage.get<string>(COPYRIGHT_NAME_KEY), 'KIGER', COPYRIGHT_NAME_KEY),
+  )
   const copyrightSite = ref<string>(
-    LocalStorage.get<string>(COPYRIGHT_SITE_KEY) ?? 'https://github.com/kylinlin2020/kigercrm',
+    migrateBrandValue(
+      LocalStorage.get<string>(COPYRIGHT_SITE_KEY),
+      'https://github.com/kylinlin2020/kigercrm',
+      COPYRIGHT_SITE_KEY,
+    ),
   )
   const copyrightDate = ref<string>(LocalStorage.get<string>(COPYRIGHT_DATE_KEY) ?? '2016')
   const copyrightIcp = ref<string>(LocalStorage.get<string>(COPYRIGHT_ICP_KEY) ?? '')

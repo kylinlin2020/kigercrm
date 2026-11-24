@@ -32,6 +32,7 @@ import {
 } from '~/constants'
 import { LocalStorage } from '~/utils'
 import { bindPersist, save } from '../helpers'
+import { migrateBrandValue } from './brand-migration'
 
 /** 主题、外观、动画、无障碍相关状态 */
 export function createThemeSlice() {
@@ -73,7 +74,7 @@ export function createThemeSlice() {
   )
   const watermarkEnabled = ref<boolean>(LocalStorage.get<boolean>(WATERMARK_ENABLED_KEY) ?? false)
   const watermarkText = ref<string>(
-    LocalStorage.get<string>(WATERMARK_TEXT_KEY) ?? 'KIGER CRM',
+    migrateBrandValue(LocalStorage.get<string>(WATERMARK_TEXT_KEY), 'KIGER CRM', WATERMARK_TEXT_KEY),
   )
 
   const isDark = computed(() => themeMode.value === 'dark')

@@ -46,6 +46,7 @@ import {
 } from '~/constants'
 import { LocalStorage } from '~/utils'
 import { bindPersist, save } from '../helpers'
+import { migrateBrandValue } from './brand-migration'
 
 /** 布局、侧边栏、顶栏、导航、标签栏、面包屑相关状态 */
 export function createLayoutSlice() {
@@ -54,13 +55,13 @@ export function createLayoutSlice() {
 
   // ---- 品牌 ----
   const brandTitle = ref<string>(
-    LocalStorage.get<string>(BRAND_TITLE_KEY) ?? import.meta.env.VITE_APP_TITLE,
+    migrateBrandValue(LocalStorage.get<string>(BRAND_TITLE_KEY), import.meta.env.VITE_APP_TITLE, BRAND_TITLE_KEY),
   )
   const brandSubtitle = ref<string>(
-    LocalStorage.get<string>(BRAND_SUBTITLE_KEY) ?? import.meta.env.VITE_APP_SUBTITLE,
+    migrateBrandValue(LocalStorage.get<string>(BRAND_SUBTITLE_KEY), import.meta.env.VITE_APP_SUBTITLE, BRAND_SUBTITLE_KEY),
   )
   const brandDescription = ref<string>(
-    LocalStorage.get<string>(BRAND_DESCRIPTION_KEY) ?? import.meta.env.VITE_APP_DESCRIPTION,
+    migrateBrandValue(LocalStorage.get<string>(BRAND_DESCRIPTION_KEY), import.meta.env.VITE_APP_DESCRIPTION, BRAND_DESCRIPTION_KEY),
   )
   const brandLogo = ref<string>(
     LocalStorage.get<string>(BRAND_LOGO_KEY) ?? import.meta.env.VITE_APP_LOGO,
