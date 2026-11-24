@@ -1,19 +1,19 @@
 <div align="center">
 
-<img src="./assets/banner.png" alt="XiHan.BasicApp" />
+<img src="./assets/banner.png" alt="KIGER CRM" />
 
-<h1>XiHan.BasicApp</h1>
+<h1>KIGER CRM</h1>
 
-<p><b>A beautifully crafted general-purpose admin kernel built on XiHan.Framework and XiHan.UI</b></p>
+<p><b>A CRM-focused business system built on XiHan.BasicApp</b></p>
 
 <p>A .NET backend on <a href="https://github.com/XiHanFun/XiHan.Framework">XiHan.Framework</a>, a Vue frontend on <a href="https://github.com/XiHanFun/XiHan.UI">XiHan.UI</a><br/>Multi-tenancy · RBAC with data scopes and field masking · Code generation · Realtime</p>
 
 <p><b>English</b> | <a href="./README_cn.md">简体中文</a></p>
 
 <p>
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/XiHanFun/XiHan.BasicApp?style=flat-square&logo=github&label=Stars&color=1f6feb" /></a>
-  <a href="https://gitee.com/XiHanFun/XiHan.BasicApp"><img alt="Gitee Stars" src="https://gitee.com/XiHanFun/XiHan.BasicApp/badge/star.svg" /></a>
-  <a href="https://gitcode.com/XiHanFun/XiHan.BasicApp"><img alt="GitCode Stars" src="https://gitcode.com/XiHanFun/XiHan.BasicApp/star/badge.svg" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/kylinlin2020/kigercrm?style=flat-square&logo=github&label=Stars&color=1f6feb" /></a>
+  <a href="https://gitee.com/kylinlin2020/kigercrm"><img alt="Gitee Stars" src="https://gitee.com/kylinlin2020/kigercrm/badge/star.svg" /></a>
+  <a href="https://gitcode.com/kylinlin2020/kigercrm"><img alt="GitCode Stars" src="https://gitcode.com/kylinlin2020/kigercrm/star/badge.svg" /></a>
 </p>
 
 
@@ -24,22 +24,22 @@
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <img alt="Vite" src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
   <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/releases"><img alt="Release" src="https://img.shields.io/github/v/release/XiHanFun/XiHan.BasicApp?style=flat-square&logo=github&label=Release&color=1f6feb" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm/releases"><img alt="Release" src="https://img.shields.io/github/v/release/kylinlin2020/kigercrm?style=flat-square&logo=github&label=Release&color=1f6feb" /></a>
 </p>
 
 <p>
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/XiHanFun/XiHan.BasicApp?style=flat-square&color=green" /></a>
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/commits"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/XiHanFun/XiHan.BasicApp?style=flat-square&color=blueviolet" /></a>
-  <img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/XiHanFun/XiHan.BasicApp?style=flat-square" />
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/issues"><img alt="Issues" src="https://img.shields.io/github/issues/XiHanFun/XiHan.BasicApp?style=flat-square" /></a>
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/XiHanFun/XiHan.BasicApp?style=flat-square" /></a>
-  <img alt="Repo Size" src="https://img.shields.io/github/repo-size/XiHanFun/XiHan.BasicApp?style=flat-square" />
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/kylinlin2020/kigercrm?style=flat-square&color=green" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm/commits"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/kylinlin2020/kigercrm?style=flat-square&color=blueviolet" /></a>
+  <img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/kylinlin2020/kigercrm?style=flat-square" />
+  <a href="https://github.com/kylinlin2020/kigercrm/issues"><img alt="Issues" src="https://img.shields.io/github/issues/kylinlin2020/kigercrm?style=flat-square" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/kylinlin2020/kigercrm?style=flat-square" /></a>
+  <img alt="Repo Size" src="https://img.shields.io/github/repo-size/kylinlin2020/kigercrm?style=flat-square" />
 </p>
 
 <p>
-  <a href="https://zread.ai/XiHanFun/XiHan.BasicApp" target="_blank"><img src="https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff" alt="zread"/></a>
-  <a href="https://deepwiki.com/XiHanFun/XiHan.BasicApp"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
-  <a href="https://basicapp.docs.xihanfun.com"><img alt="Docs" src="https://img.shields.io/badge/Docs-basicapp.docs.xihanfun.com-2496ED?style=flat-square&logo=readthedocs&logoColor=white" /></a>
+  <a href="https://zread.ai/kylinlin2020/kigercrm" target="_blank"><img src="https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff" alt="zread"/></a>
+  <a href="https://deepwiki.com/kylinlin2020/kigercrm"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm"><img alt="Docs" src="https://img.shields.io/badge/Docs-github.com/kylinlin2020/kigercrm-2496ED?style=flat-square&logo=readthedocs&logoColor=white" /></a>
   <a href="https://qm.qq.com/q/qYp1Urv3z2"><img alt="QQ Group" src="https://img.shields.io/badge/QQ_Group-462371834-EB1923?style=flat-square&logo=tencentqq&logoColor=white" /></a>
 </p>
 <p>
@@ -53,19 +53,49 @@
 
 ## Introduction
 
-XiHan.BasicApp is a decoupled frontend/backend system. The backend follows DDD layering — writes go through application services, reads through query services — and application services are exposed directly as REST endpoints by the dynamic API convention. The frontend is Vue + TypeScript + XiHan.UI, and the backend .NET + XiHan.Framework. Identity, permissions, tenancy and auditing are built in, so it works both as the starting point for an admin project and as a reference for full-stack .NET + Vue practice. XiHan.BasicApp is the basic application of the XiHanFun open-source ecosystem.
+KIGER CRM is a customer-relationship-management system forked from and built upon [XiHan.BasicApp](https://github.com/XiHanFun/XiHan.BasicApp). It keeps the upstream decoupled frontend/backend architecture — DDD layering on the backend (application services for writes, query services for reads, exposed as REST via the Dynamic API convention), Vue 3 + TypeScript + XiHan.UI on the frontend, .NET 10 + XiHan.Framework on the backend — and adds a complete CRM business domain on top of the built-in identity, permissions, multi-tenancy and auditing foundation. The codebase and UI are fully branded as KIGER CRM.
+
+## KIGER CRM Extensions
+
+This fork adds a full CRM product on top of the generic admin kernel. All features are tenant-scoped, permission-gated and covered by automated tests; the Dynamic API follows the same `/{Service}/{Method}` convention as upstream.
+
+### CRM business domain
+
+- **Customers & contacts** — customer master data, contacts, customer pool (exclusive claim / release / assign / claim-limit / idle-timeout recovery via a scheduled worker).
+- **Leads & opportunities** — lead lifecycle, duplicate detection, conversion to customer, opportunity stages, quotes, sales orders, shipments and trade documents.
+- **Activities & tasks** — activities, tasks, reminders and follow-up tracking.
+- **Customer background research** — deterministic multi-source dossier (customer profile + open opportunities + source lead), auditable regeneration, market-opportunity review and Markdown/JSON export. Pick a customer by searching the list — no manual ID entry.
+- **Outreach drafts** — whitelist `{{Variable}}` template rendering with explicit human approval, no automatic sending.
+
+### Automated prospecting
+
+- **Campaigns & strategies** — prospecting campaigns, versioned strategies with approval and activation, bounded run execution.
+- **Super search & scheduling** — read-only planning preview, saved missions, timezone-safe daily/weekly/monthly schedules with approval and a scheduler worker.
+- **Provider registry** — pluggable public data-source providers with lease/fencing, request ledger, evidence and scoring; no live external calls without explicit opt-in.
+- **Candidate review & conversion** — four-step qualification, evidence and score review, shortlisting, bulk actions and lead conversion.
+- **Effect dashboard** — the workbench dashboard shows **real CRM data** (lead funnel, prospect sources, opportunity stages, team ranking, follow-up health), replacing the upstream sample-data widgets.
+
+### Tools & operations
+
+- **OCR & import** — business-card and trade-document OCR field staging with duplicate detection, customer import, customs-data export (preview → confirm → audit, no auto-write).
+- **Exams & certificates** — question bank, seeded random paper generation, timed exams, grading and verifiable certificates.
+- **Knowledge base** — document review, version history, tags, application-layer ACL and incremental re-indexing.
+- **Chat audit** — WhatsApp / WeCom / Baileys channel configuration, history import and command audit trails (contracts only; no real external messaging).
+- **7-language UI** — English, 简体中文, 繁體中文, Deutsch, 日本語, 한국어, हिन्दी.
+
+> **Boundary**: no real SMTP / outbound messaging / external Provider calls are performed without explicit authorization; those paths use stubs or are disabled by configuration. See [docs/kiger/](./docs/kiger/) for designs, migration matrices and evidence records.
 
 ## Documentation
 
 | Destination | Contents |
 | --- | --- |
-| [Documentation site](https://basicapp.docs.xihanfun.com) | Full guides and topic-by-topic documentation |
+| [Documentation site](https://github.com/kylinlin2020/kigercrm) | Full guides and topic-by-topic documentation |
 | [Backend engineering notes](./backend/README.md) | Structure, project catalog, endpoint exposure, dependencies, local development |
 | [Frontend engineering notes](./frontend/README.md) | Stack, monorepo structure, architectural constraints, local development |
 
 ## Preview
 
-The shots illustrate the [highlights](#highlights); to try it hands-on, open the [live demo](https://basicapp.xihanfun.com).
+The shots illustrate the [highlights](#highlights); to try it hands-on, open the [repository](https://github.com/kylinlin2020/kigercrm).
 
 <table>
   <tr>
@@ -94,7 +124,7 @@ The shots illustrate the [highlights](#highlights); to try it hands-on, open the
 
 ## Highlights
 
-Close to 90 tables, more than 50 pages and over 300 permission codes come built in. This section covers only what sets the project apart; the page-by-page capability list lives in the [feature list](https://basicapp.docs.xihanfun.com/features) on the docs site (Chinese). AI, chat, code generation, workflow and printing are optional modules.
+Close to 90 tables, more than 50 pages and over 300 permission codes come built in. This section covers only what sets the project apart; the page-by-page capability list lives in the [feature list](https://github.com/kylinlin2020/kigercrm/features) on the docs site (Chinese). AI, chat, code generation, workflow and printing are optional modules.
 
 ### Experience
 
@@ -162,7 +192,7 @@ Item-by-item lists live in the [backend](./backend/README.md#dependency-footprin
 
 Frontend and backend each split into three aligned layers: the app layer holds pages and entry points, the kernel layer holds platform capabilities, and the base layer is the in-house XiHan.UI and XiHan.Framework. Each backend module follows DDD layering internally (Domain / Application / Infrastructure), and the two sides cooperate through Dynamic API, SignalR, and the menus and permission codes the backend publishes.
 
-<p align="center"><a href="./assets/architecture.png"><img src="./assets/architecture.png" alt="XiHan.BasicApp architecture" /></a></p>
+<p align="center"><a href="./assets/architecture.png"><img src="./assets/architecture.png" alt="KIGER CRM architecture" /></a></p>
 
 Backend projects:
 
@@ -229,7 +259,7 @@ The frontend defaults to `http://localhost:8080` and the backend to `http://loca
 ### Backend
 
 ```bash
-git clone https://github.com/XiHanFun/XiHan.BasicApp.git
+git clone https://github.com/kylinlin2020/kigercrm.git
 cd XiHan.BasicApp/backend
 
 dotnet run --project src/main/XiHan.BasicApp.WebHost --launch-profile Development
@@ -261,7 +291,7 @@ The development configuration turns on demo data (`Saas:Seed:EnableDemoData`): d
 
 - [XiHan.Framework](https://github.com/XiHanFun/XiHan.Framework) - A fast, lightweight, efficient and thoughtfully built modern modular framework for .NET
 - [XiHan.UI](https://github.com/XiHanFun/XiHan.UI) - A fast, lightweight, efficient and thoughtfully built framework-agnostic component library
-- [XiHan.BasicApp](https://github.com/XiHanFun/XiHan.BasicApp) - A beautifully crafted admin kernel built on .NET and Vue
+- [XiHan.BasicApp](https://github.com/kylinlin2020/kigercrm) - A beautifully crafted admin kernel built on .NET and Vue
 
 ## Acknowledgements
 
@@ -290,10 +320,10 @@ Official sponsorship page: https://docs.xihanfun.com/cosmos/sponsor
 
 ## License
 
-Copyright (c) 2021-Present XiHanFun and contributors.
+Copyright (c) 2021-Present XiHanFun and contributors (upstream). KIGER CRM is a downstream fork — see [LICENSE](./LICENSE).
 
 Released under the MIT License — see [License](./LICENSE).
 
-The XiHan.BasicApp logo, name, interface visual design and original visual expression belong to the author; third-party dependencies and services are governed by their own licenses and terms.
+The KIGER CRM name and branding belong to this fork's maintainers; the upstream XiHan.BasicApp logo, name, interface visual design and original visual expression belong to the upstream author. Third-party dependencies and services are governed by their own licenses and terms.
 
 This project is provided for study and reference; the author assumes no liability for any use of the software.

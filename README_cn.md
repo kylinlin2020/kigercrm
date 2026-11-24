@@ -1,19 +1,19 @@
 <div align="center">
 
-<img src="./assets/banner_cn.png" alt="XiHan.BasicApp" />
+<img src="./assets/banner_cn.png" alt="KIGER CRM" />
 
-<h1>XiHan.BasicApp</h1>
+<h1>KIGER CRM</h1>
 
-<p><b>基于 XiHan.Framework 和 XiHan.UI 的超高颜值通用中后台内核</b></p>
+<p><b>基于 XiHan.BasicApp 二开的企业级客户关系管理系统</b></p>
 
-<p>后端基于 .NET 与 <a href="https://github.com/XiHanFun/XiHan.Framework">XiHan.Framework</a>，前端基于 Vue 与 <a href="https://github.com/XiHanFun/XiHan.UI">XiHan.UI</a><br/>多租户 · RBAC + 数据范围 + 字段脱敏 · 代码生成 · 实时通信</p>
+<p>后端 .NET 10 + XiHan.Framework，前端 Vue 3 + TypeScript + XiHan.UI，在 <a href="https://github.com/kylinlin2020/kigercrm">XiHan.BasicApp</a> 中后台内核之上扩展完整的 CRM 业务域：客户公海、自动获客、OCR 录入、考试系统、知识库与报表看板。<br/>多租户 · RBAC + 数据范围 · 动态 API · 7 语言界面</p>
 
 <p><a href="./README.md">English</a> | <b>简体中文</b></p>
 
 <p>
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/XiHanFun/XiHan.BasicApp?style=flat-square&logo=github&label=Stars&color=1f6feb" /></a>
-  <a href="https://gitee.com/XiHanFun/XiHan.BasicApp"><img alt="Gitee Stars" src="https://gitee.com/XiHanFun/XiHan.BasicApp/badge/star.svg" /></a>
-  <a href="https://gitcode.com/XiHanFun/XiHan.BasicApp"><img alt="GitCode Stars" src="https://gitcode.com/XiHanFun/XiHan.BasicApp/star/badge.svg" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm/stargazers"><img alt="GitHub Stars" src="https://img.shields.io/github/stars/kylinlin2020/kigercrm?style=flat-square&logo=github&label=Stars&color=1f6feb" /></a>
+  <a href="https://gitee.com/kylinlin2020/kigercrm"><img alt="Gitee Stars" src="https://gitee.com/kylinlin2020/kigercrm/badge/star.svg" /></a>
+  <a href="https://gitcode.com/kylinlin2020/kigercrm"><img alt="GitCode Stars" src="https://gitcode.com/kylinlin2020/kigercrm/star/badge.svg" /></a>
 </p>
 
 
@@ -24,25 +24,25 @@
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white" />
   <img alt="Vite" src="https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white" />
   <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" />
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/releases"><img alt="Release" src="https://img.shields.io/github/v/release/XiHanFun/XiHan.BasicApp?style=flat-square&logo=github&label=Release&color=1f6feb" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm/releases"><img alt="Release" src="https://img.shields.io/github/v/release/kylinlin2020/kigercrm?style=flat-square&logo=github&label=Release&color=1f6feb" /></a>
 </p>
 
 <p>
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/XiHanFun/XiHan.BasicApp?style=flat-square&color=green" /></a>
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/commits"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/XiHanFun/XiHan.BasicApp?style=flat-square&color=blueviolet" /></a>
-  <img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/XiHanFun/XiHan.BasicApp?style=flat-square" />
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/issues"><img alt="Issues" src="https://img.shields.io/github/issues/XiHanFun/XiHan.BasicApp?style=flat-square" /></a>
-  <a href="https://github.com/XiHanFun/XiHan.BasicApp/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/XiHanFun/XiHan.BasicApp?style=flat-square" /></a>
-  <img alt="Repo Size" src="https://img.shields.io/github/repo-size/XiHanFun/XiHan.BasicApp?style=flat-square" />
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/kylinlin2020/kigercrm?style=flat-square&color=green" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm/commits"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/kylinlin2020/kigercrm?style=flat-square&color=blueviolet" /></a>
+  <img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/kylinlin2020/kigercrm?style=flat-square" />
+  <a href="https://github.com/kylinlin2020/kigercrm/issues"><img alt="Issues" src="https://img.shields.io/github/issues/kylinlin2020/kigercrm?style=flat-square" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm/graphs/contributors"><img alt="Contributors" src="https://img.shields.io/github/contributors/kylinlin2020/kigercrm?style=flat-square" /></a>
+  <img alt="Repo Size" src="https://img.shields.io/github/repo-size/kylinlin2020/kigercrm?style=flat-square" />
 </p>
 <p>
-  <a href="https://zread.ai/XiHanFun/XiHan.BasicApp" target="_blank"><img src="https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff" alt="zread"/></a>
-  <a href="https://deepwiki.com/XiHanFun/XiHan.BasicApp"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
-  <a href="https://basicapp.docs.xihanfun.com"><img alt="Docs" src="https://img.shields.io/badge/Docs-basicapp.docs.xihanfun.com-2496ED?style=flat-square&logo=readthedocs&logoColor=white" /></a>
+  <a href="https://zread.ai/kylinlin2020/kigercrm" target="_blank"><img src="https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff" alt="zread"/></a>
+  <a href="https://deepwiki.com/kylinlin2020/kigercrm"><img alt="Ask DeepWiki" src="https://deepwiki.com/badge.svg" /></a>
+  <a href="https://github.com/kylinlin2020/kigercrm"><img alt="Docs" src="https://img.shields.io/badge/Docs-github.com/kylinlin2020/kigercrm-2496ED?style=flat-square&logo=readthedocs&logoColor=white" /></a>
   <a href="https://qm.qq.com/q/qYp1Urv3z2"><img alt="QQ Group" src="https://img.shields.io/badge/QQ_Group-462371834-EB1923?style=flat-square&logo=tencentqq&logoColor=white" /></a>
 </p>
 <p>
-  <a href="https://trendshift.io/repositories/83127?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-83127" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/83127/daily?language=C%23" alt="XiHanFun%2FXiHan.BasicApp | Trendshift" width="250" height="55"/></a>
+  <a href="https://trendshift.io/repositories/83127?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-83127" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/83127/daily?language=C%23" alt="kylinlin2020%2Fkigercrm | Trendshift" width="250" height="55"/></a>
 </p>
 
 
@@ -52,13 +52,43 @@
 
 ## 简介
 
-XiHan.BasicApp 采用前后端分离架构。后端遵循 DDD 分层，写路径走应用服务、读路径走查询服务，应用服务经动态 API 直接暴露为 REST 接口；前端使用 Vue + TypeScript + XiHan.UI，后端使用 .NET + XiHan.Framework。系统内置完整的身份、权限、租户与审计能力，既可作为中后台项目的起点，也可作为 .NET + Vue 全栈实践的参考。属于曦寒懿（XiHanFun）开源生态的基础应用。
+KIGER CRM 是基于 [XiHan.BasicApp](https://github.com/XiHanFun/XiHan.BasicApp) 二开的企业级客户关系管理系统。沿用上游前后端分离架构：后端 DDD 分层（写走应用服务、读走查询服务，经动态 API 暴露 REST），前端 Vue 3 + TypeScript + XiHan.UI，后端 .NET 10 + XiHan.Framework；在内置身份、权限、租户与审计能力之上增加了完整 CRM 业务域。代码与界面已全面替换为 KIGER CRM 品牌。
+
+## KIGER CRM 二开内容
+
+在通用中后台内核之上，本分支新增了完整的 CRM 产品能力。所有功能均按租户隔离、权限码门控、自动化测试覆盖，并遵循与上游一致的 Dynamic API `/{服务}/{方法}` 约定。
+
+### CRM 业务域
+
+- **客户与联系人** — 客户主数据、联系人、客户公海（独占领取 / 退回 / 分配 / 限领 / 超时回收 Worker）。
+- **线索与商机** — 线索生命周期、重复识别、转化客户、商机阶段、报价、销售订单、发货与外贸单据。
+- **活动与任务** — 活动记录、任务、提醒与跟进跟踪。
+- **客户背景调研** — 本地多源确定性聚合（客户档案 + 在途商机 + 来源线索）、可审计的重新生成、市场机会审核、Markdown/JSON 导出；通过搜索客户列表选择，无需手输 ID。
+- **外呼邮件草稿** — 白名单 `{{变量}}` 插值、人工明确审批，系统不自动发送。
+
+### 自动获客
+
+- **活动与策略** — 获客活动、带审批与激活的版本化策略、有界 Run 执行。
+- **超级搜索与计划** — 只读规划预览、已保存 Mission、时区安全的日/周/月计划（含审批与 Scheduler Worker）。
+- **Provider 注册中心** — 可插拔公开数据源 Provider，租约/fencing、请求台账、证据与评分；未经显式授权不发起真实外部调用。
+- **候选审核与转化** — 四步资格认定、证据/评分复核、短名单、批量操作与转线索。
+- **效果看板** — 工作台仪表盘展示**真实 CRM 数据**（线索漏斗、候选来源、商机阶段、团队排行、跟进健康度），替换上游示例数据 widget。
+
+### 工具与运营
+
+- **OCR 与导入** — 名片与外贸单据 OCR 字段暂存、重复检测、客户导入、海关数据导出（预览 → 确认 → 审计，不自动写入）。
+- **考试与证书** — 题库、带种子随机抽卷、限时考试、判分与可校验证书。
+- **知识库** — 文档审核、版本留痕、标签、应用层 ACL 与增量重索引。
+- **聊天审计** — WhatsApp / 企业微信 / Baileys 渠道配置、历史导入与命令审计（仅契约，不接真实外部消息）。
+- **7 语言界面** — 英文、简体中文、繁體中文、Deutsch、日本語、한국어、हिन्दी。
+
+> **边界**：未经明确授权不执行真实 SMTP / 外发消息 / 外部 Provider 调用；相关路径使用桩或按配置禁用。设计、迁移矩阵与取证记录见 [docs/kiger/](./docs/kiger/)。
 
 ## 文档
 
 | 去处 | 内容 |
 | --- | --- |
-| [文档站](https://basicapp.docs.xihanfun.com) | 完整指南与逐主题专题文档 |
+| [文档站](https://github.com/kylinlin2020/kigercrm) | 完整指南与逐主题专题文档 |
 | [后端工程说明](./backend/README_cn.md) | 分层结构、工程清单、接口暴露、依赖构成、本地开发 |
 | [前端工程说明](./frontend/README_cn.md) | 技术栈、monorepo 结构、架构约束、本地开发 |
 
@@ -93,7 +123,7 @@ XiHan.BasicApp 采用前后端分离架构。后端遵循 DDD 分层，写路径
 
 ## 功能亮点
 
-内置近 90 张表、50 多个页面与 300 多个权限码。这里只挑与众不同的地方，逐页面的能力清单见文档站[功能清单](https://basicapp.docs.xihanfun.com/features)；AI、在线聊天、代码生成、工作流和打印属于可选模块。
+内置近 90 张表、50 多个页面与 300 多个权限码。这里只挑与众不同的地方，逐页面的能力清单见文档站[功能清单](https://github.com/kylinlin2020/kigercrm/features)；AI、在线聊天、代码生成、工作流和打印属于可选模块。
 
 ### 交互体验
 
@@ -228,7 +258,7 @@ docker compose up -d
 ### 后端
 
 ```bash
-git clone https://github.com/XiHanFun/XiHan.BasicApp.git
+git clone https://github.com/kylinlin2020/kigercrm.git
 cd XiHan.BasicApp/backend
 
 dotnet run --project src/main/XiHan.BasicApp.WebHost --launch-profile Development
@@ -260,7 +290,7 @@ pnpm dev
 
 - [XiHan.Framework](https://github.com/XiHanFun/XiHan.Framework) - 快速、轻量、高效、用心的 .NET 现代模块化开发框架
 - [XiHan.UI](https://github.com/XiHanFun/XiHan.UI) - 快速、轻量、高效、用心的框架无关跨端组件库
-- [XiHan.BasicApp](https://github.com/XiHanFun/XiHan.BasicApp) - 基于 .Net + Vue 的超高颜值中后台内核
+- [XiHan.BasicApp](https://github.com/kylinlin2020/kigercrm) - 基于 .Net + Vue 的超高颜值中后台内核
 
 ## 诚挚致谢
 
@@ -289,7 +319,7 @@ pnpm dev
 
 ## 版权&授权
 
-Copyright (c) 2021-Present XiHanFun and contributors.
+Copyright (c) 2021-Present XiHanFun and contributors（上游）。KIGER CRM 为下游二开分支，详见 [LICENSE](./LICENSE)。
 
 本项目采用 MIT 授权，详见 [License](./LICENSE)
 
