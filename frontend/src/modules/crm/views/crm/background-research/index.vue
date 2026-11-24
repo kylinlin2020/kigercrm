@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CrmBackgroundResearchDetailDto, CrmBackgroundResearchReportDto } from '@/api/modules/crm/background-research.types'
+import type { CrmCustomerListItemDto } from '@/api/modules/crm/customer.types'
 import {
   XhButton,
   XhButtonLabel,
@@ -7,20 +8,58 @@ import {
   XhFieldLabel,
   XhFieldRoot,
 } from '@xihan-ui/vue'
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { createPageRequest } from '@/api'
 import { crmBackgroundResearchApi } from '@/api/modules/crm/background-research'
 import { CrmMarketOpportunityStatus, CrmResearchSource } from '@/api/modules/crm/background-research.types'
-import { XInput } from '~/components'
+import { crmCustomerApi } from '@/api/modules/crm/customer'
+import { XInput, XSelect } from '~/components'
 import { toast } from '~/composables'
 
 defineOptions({ name: 'CrmBackgroundResearchPage' })
 
 const { t } = useI18n()
 const customerId = ref('')
+const customerSearch = ref('')
+const customerOptions = ref<CrmCustomerListItemDto[]>([])
 const detail = ref<CrmBackgroundResearchDetailDto | null>(null)
 const history = ref<CrmBackgroundResearchReportDto[]>([])
 const working = ref(false)
+let customerSearchRequest = 0
+
+const customerSelectOptions = computed(() => [
+  { label: t('crm.backgroundResearch.selectCustomer'), value: '' },
+  ...customerOptions.value.map(customer => ({
+    label: `${customer.name} (#${customer.basicId})`,
+    value: String(customer.basicId),
+  })),
+])
+
+async function searchCustomers() {
+  const requestId = ++customerSearchRequest
+  try {
+    const page = createPageRequest({ page: { pageIndex: 1, pageSize: 100 } })
+    const result = await crmCustomerApi.page({ ...page, keyword: customerSearch.value.trim() || null })
+    if (requestId === customerSearchRequest)
+      customerOptions.value = result.items
+  }
+  catch (error) {
+    toast.danger((error as Error)?.message || t('crm.backgroundResearch.error'))
+  }
+}
+
+function onCustomerChange(value: string | number | Array<string | number> | null) {
+  const next = Array.isArray(value) ? value[0] : value
+  const id = next == null || next === '' ? '' : String(next)
+  if (id === customerId.value)
+    return
+  customerId.value = id
+  detail.value = null
+  history.value = []
+}
+
+onMounted(searchCustomers)
 
 function factLabel(key: string) {
   return t(`crm.backgroundResearch.fact.${key}`)
@@ -121,9 +160,27 @@ async function review(opportunityId: string, status: CrmMarketOpportunityStatus)
 
     <section class="research-form">
       <XhFieldRoot>
-        <XhFieldLabel>{{ t('crm.backgroundResearch.customerId') }}</XhFieldLabel>
+        <XhFieldLabel>{{ t('crm.backgroundResearch.customerSearch') }}</XhFieldLabel>
         <XhFieldControl>
-          <XInput v-model:value="customerId" />
+          <XInput
+            v-model:value="customerSearch"
+            :placeholder="t('crm.backgroundResearch.customerSearchPlaceholder')"
+            @keydown.enter.prevent="searchCustomers"
+          />
+        </XhFieldControl>
+      </XhFieldRoot>
+      <XhButton variant="subtle" :disabled="working" @click="searchCustomers">
+        <XhButtonLabel>{{ t('crm.backgroundResearch.searchCustomers') }}</XhButtonLabel>
+      </XhButton>
+      <XhFieldRoot>
+        <XhFieldLabel>{{ t('crm.backgroundResearch.customer') }}</XhFieldLabel>
+        <XhFieldControl>
+          <XSelect
+            :value="customerId"
+            :options="customerSelectOptions"
+            :placeholder="t('crm.backgroundResearch.selectCustomer')"
+            @update:value="onCustomerChange"
+          />
         </XhFieldControl>
       </XhFieldRoot>
       <XhButton variant="outline" :disabled="!customerId || working" @click="generate">
