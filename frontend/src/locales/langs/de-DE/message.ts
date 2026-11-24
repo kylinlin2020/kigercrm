@@ -343,7 +343,7 @@ export default {
       from_email: 'Absender-E-Mail',
       from_email_placeholder: 'z. B. noreply{\'@\'}example.com',
       from_name: 'Absender-Anzeigename',
-      from_name_placeholder: 'Wird auch als Markenname verwendet, z. B. XiHan BasicApp',
+      from_name_placeholder: 'Wird auch als Markenname verwendet, z. B. KIGER CRM',
       user_name: 'SMTP-Benutzername',
       user_name_placeholder: 'In der Regel die Absender-E-Mail; leer lassen für keine Authentifizierung',
       password: 'SMTP-Passwort',

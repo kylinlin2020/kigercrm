@@ -48,13 +48,13 @@ const systemPrintDemo: DemoDataSource = {
     },
   ],
   sample: {
-    title: 'XiHan BasicApp 打印示例',
+    title: 'KIGER CRM 打印示例',
     documentNo: 'DEMO-20260729-0001',
     customerName: '示例客户',
     createdTime: '2026-07-29 10:00:00',
     logo: '/favicon.png',
     barcode: 'DEMO-20260729-0001',
-    qrCode: 'https://basicapp.xihanfun.com/print-demo/DEMO-20260729-0001',
+    qrCode: 'https://github.com/kylinlin2020/kigercrm/print-demo/DEMO-20260729-0001',
     items: [
       { sku: 'SKU-001', name: '示例物料 A', quantity: 2, unit: '件' },
       { sku: 'SKU-002', name: '示例物料 B', quantity: 5, unit: '箱' },

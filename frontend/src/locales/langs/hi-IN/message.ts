@@ -343,7 +343,7 @@ export default {
       from_email: 'प्रेषक ईमेल',
       from_email_placeholder: 'जैसे noreply{\'@\'}example.com',
       from_name: 'प्रेषक का प्रदर्शित नाम',
-      from_name_placeholder: 'यही ब्रांड नाम के रूप में भी उपयोग होता है, जैसे XiHan BasicApp',
+      from_name_placeholder: 'ब्रांड नाम के रूप में भी उपयोग किया जाता है, जैसे KIGER CRM',
       user_name: 'SMTP प्रमाणीकरण उपयोगकर्ता नाम',
       user_name_placeholder: 'अधिकांश प्रदाताओं में यही प्रेषक ईमेल होता है; खाली छोड़ने पर प्रमाणीकरण नहीं होगा',
       password: 'SMTP प्रमाणीकरण पासवर्ड',

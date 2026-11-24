@@ -15,7 +15,7 @@ const appStore = useAppStore()
   <XhWatermarkRoot
     v-if="appStore.watermarkEnabled"
     class="app-watermark"
-    :text="appStore.watermarkText || 'XiHan BasicApp'"
+    :text="appStore.watermarkText || 'KIGER CRM'"
     :rotate="-25"
     :font-size="16"
     :gap="160"

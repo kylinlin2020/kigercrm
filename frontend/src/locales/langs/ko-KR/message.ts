@@ -343,7 +343,7 @@ export default {
       from_email: '발신 이메일',
       from_email_placeholder: '예: noreply{\'@\'}example.com',
       from_name: '발신자 표시 이름',
-      from_name_placeholder: '브랜드명으로도 쓰여요. 예: XiHan BasicApp',
+      from_name_placeholder: '브랜드 이름으로도 사용됩니다. 예: KIGER CRM',
       user_name: 'SMTP 인증 사용자명',
       user_name_placeholder: '대부분의 공급자에서는 발신 이메일과 같아요. 비워두면 인증하지 않아요',
       password: 'SMTP 인증 비밀번호',

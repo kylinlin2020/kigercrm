@@ -114,9 +114,9 @@ export function createPreferencesSlice() {
     LocalStorage.get<boolean>(FOOTER_SHOW_DEV_INFO_KEY) ?? true,
   )
   const copyrightEnable = ref<boolean>(LocalStorage.get<boolean>(COPYRIGHT_ENABLE_KEY) ?? true)
-  const copyrightName = ref<string>(LocalStorage.get<string>(COPYRIGHT_NAME_KEY) ?? 'XiHan')
+  const copyrightName = ref<string>(LocalStorage.get<string>(COPYRIGHT_NAME_KEY) ?? 'KIGER')
   const copyrightSite = ref<string>(
-    LocalStorage.get<string>(COPYRIGHT_SITE_KEY) ?? 'https://www.xihanfun.com',
+    LocalStorage.get<string>(COPYRIGHT_SITE_KEY) ?? 'https://github.com/kylinlin2020/kigercrm',
   )
   const copyrightDate = ref<string>(LocalStorage.get<string>(COPYRIGHT_DATE_KEY) ?? '2016')
   const copyrightIcp = ref<string>(LocalStorage.get<string>(COPYRIGHT_ICP_KEY) ?? '')
@@ -161,8 +161,8 @@ export function createPreferencesSlice() {
   bindPersist(FOOTER_FIXED_KEY, footerFixed, true)
   bindPersist(FOOTER_SHOW_DEV_INFO_KEY, footerShowDevInfo, true)
   bindPersist(COPYRIGHT_ENABLE_KEY, copyrightEnable, true)
-  bindPersist(COPYRIGHT_NAME_KEY, copyrightName, 'XiHan')
-  bindPersist(COPYRIGHT_SITE_KEY, copyrightSite, 'https://www.xihanfun.com')
+  bindPersist(COPYRIGHT_NAME_KEY, copyrightName, 'KIGER')
+  bindPersist(COPYRIGHT_SITE_KEY, copyrightSite, 'https://github.com/kylinlin2020/kigercrm')
   bindPersist(COPYRIGHT_DATE_KEY, copyrightDate, '2016')
   bindPersist(COPYRIGHT_ICP_KEY, copyrightIcp, '')
   bindPersist(COPYRIGHT_ICP_URL_KEY, copyrightIcpUrl, '')

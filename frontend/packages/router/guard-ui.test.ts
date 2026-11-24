@@ -252,21 +252,21 @@ describe('document.title', () => {
     useAppStore().dynamicTitle = false
     const router = createGuardedRouter()
     await router.push('/identity/user')
-    expect(document.title).toBe('XiHan BasicApp')
+    expect(document.title).toBe('KIGER CRM')
   })
 
   it('meta.title 是国际化键时按当前语言翻译后再拼应用名', async () => {
     signInWithLoadedRoutes()
     const router = createGuardedRouter()
     await router.push('/identity/user')
-    expect(document.title).toBe('用户管理 - XiHan BasicApp')
+    expect(document.title).toBe('用户管理 - KIGER CRM')
   })
 
   it('meta.title 不是国际化键时原样使用，中文与 emoji 不被转义', async () => {
     signInWithLoadedRoutes()
     const router = createGuardedRouter()
     await router.push('/plain')
-    expect(document.title).toBe('自定义标题🚀 - XiHan BasicApp')
+    expect(document.title).toBe('自定义标题🚀 - KIGER CRM')
   })
 
   it('路由没有 meta.title 时不动标题，保留上一次的值', async () => {
@@ -281,7 +281,7 @@ describe('document.title', () => {
     signInWithLoadedRoutes()
     const router = createGuardedRouter()
     await router.push('/no-such-page')
-    expect(document.title).toBe('页面不存在 - XiHan BasicApp')
+    expect(document.title).toBe('页面不存在 - KIGER CRM')
   })
 })
 

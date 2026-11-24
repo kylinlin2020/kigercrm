@@ -36,7 +36,7 @@ describe('默认值', () => {
   it('品牌信息默认取自构建期环境变量', () => {
     const store = freshStore()
 
-    expect(store.brandTitle).toBe('XiHan BasicApp')
+    expect(store.brandTitle).toBe('KIGER CRM')
     expect(store.brandLogo).toBe('/favicon.png')
     expect(store.brandSubtitle).toBeTruthy()
     expect(store.brandDescription).toBeTruthy()

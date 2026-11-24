@@ -22,16 +22,16 @@ public sealed class SaasDemoNotificationSeeder(
     IServiceProvider serviceProvider)
     : DemoDataSeederBase(clientResolver, logger, serviceProvider)
 {
-    private const string GuideTitle = "XiHan BasicApp 系统功能总览与上手指南";
+    private const string GuideTitle = "KIGER CRM 系统功能总览与上手指南";
 
     /// <summary>
     /// 系统功能总览公告正文（Markdown）。仅描述当前真实存在并可用的模块能力。
     /// </summary>
     private const string SystemOverviewContent =
         """
-        # 欢迎使用 XiHan BasicApp
+        # 欢迎使用 KIGER CRM
 
-        XiHan BasicApp 是一套面向 B2B 的多租户中后台基础平台，提供从身份权限到业务支撑的完整底座。本指南带您快速了解系统的各项能力与上手路径。
+        KIGER CRM 是一套面向 B2B 的多租户中后台基础平台，提供从身份权限到业务支撑的完整底座。本指南带您快速了解系统的各项能力与上手路径。
 
         ---
 

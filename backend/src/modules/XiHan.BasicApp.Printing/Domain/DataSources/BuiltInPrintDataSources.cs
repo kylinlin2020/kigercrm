@@ -32,7 +32,7 @@ public static class BuiltInPrintDataSources
         ],
         """
         {
-          "title": "XiHan BasicApp 打印示例",
+          "title": "KIGER CRM 打印示例",
           "documentNo": "DEMO-20260729-0001",
           "customerName": "示例客户",
           "createdTime": "2026-07-29 10:00:00",

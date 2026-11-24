@@ -385,7 +385,7 @@ public sealed class UserInfoDto
     /// <summary>
     /// 应用标题
     /// </summary>
-    public string? AppTitle { get; set; } = "XiHan BasicApp";
+    public string? AppTitle { get; set; } = "KIGER CRM";
 
     /// <summary>
     /// 应用 Logo

@@ -160,7 +160,7 @@ public sealed partial class ProfileAppService
 
         var currentUserId = GetCurrentUserIdOrThrow();
         var result = await _profileDomainService.SetupTwoFactorAsync(
-            ProfileApplicationMapper.ToTwoFactorSetupCommand(currentUserId, "XiHan BasicApp"),
+            ProfileApplicationMapper.ToTwoFactorSetupCommand(currentUserId, "KIGER CRM"),
             cancellationToken);
 
         return ProfileApplicationMapper.ToTwoFactorSetupDto(result);

@@ -1,29 +1,27 @@
 {
-  "name": "XiHanBasicApp",
+  "name": "KIGER-CRM",
   "type": "module",
   "version": "5.9.3",
   "lastBuildTime": "2026.10.23",
   "packageManager": "pnpm@11.28.3",
-  "description": "XiHan BasicApp - A modern Vue3 admin management system built on XiHan.UI",
+  "description": "KIGER CRM - A modern Vue3 admin management system",
   "keyword": [
     "Vue",
     "Vue3",
-    "XiHan.UI",
     "Pinia",
     "Vite",
     "Tailwind CSS",
     "TypeScript",
-    "BasicApp",
-    "XiHan"
+    "CRM"
   ],
   "author": {
-    "name": "XiHanFun"
+    "name": "KIGER"
   },
   "license": "MIT",
-  "homepage": "https://basicapp.xihanfun.com",
+  "homepage": "https://github.com/kylinlin2020/kigercrm",
   "repository": {
     "type": "git",
-    "url": "https://github.com/XiHanFun/XiHan.BasicApp"
+    "url": "https://github.com/kylinlin2020/kigercrm"
   },
   "engines": {
     "node": ">=24.0.0",

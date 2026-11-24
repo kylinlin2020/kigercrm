@@ -1709,7 +1709,7 @@ public sealed partial class AuthAppService
     private static string ResolveEmailBrand(EmailOptions? emailConfig)
     {
         var fromName = emailConfig?.From.FromName;
-        return string.IsNullOrWhiteSpace(fromName) ? "XiHan BasicApp" : fromName;
+        return string.IsNullOrWhiteSpace(fromName) ? "KIGER CRM" : fromName;
     }
 
     /// <summary>

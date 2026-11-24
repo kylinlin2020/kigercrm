@@ -29,7 +29,7 @@ const greeting = (name: string) => {
 
 // JSON 编辑器数据
 const jsonData = ref<Record<string, unknown>>({
-  name: 'XiHan BasicApp',
+  name: 'KIGER CRM',
   version: '1.2.0',
   features: ['Vue 3', '曦寒视图组件', 'TypeScript', 'Tailwind CSS'],
   config: {

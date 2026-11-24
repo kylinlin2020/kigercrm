@@ -37,7 +37,7 @@ public sealed class NotificationFanoutService
     /// <summary>
     /// 默认品牌名（邮件配置缺失/未配发件人显示名时回退，与验证码链路一致）
     /// </summary>
-    private const string DefaultBrand = "XiHan BasicApp";
+    private const string DefaultBrand = "KIGER CRM";
 
     /// <summary>
     /// 机器人广播占位收件地址（bot 通道无收件地址语义，仅用于信封结构完整）

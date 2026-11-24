@@ -23,7 +23,7 @@ public sealed class AuthPhoneLoginCodeService : IAuthPhoneLoginCodeService
 {
     private const string Purpose = "auth:phone-login";
     private const string SmsLoginBusinessType = "auth.sms-login";
-    private const string DefaultBrand = "XiHan BasicApp";
+    private const string DefaultBrand = "KIGER CRM";
 
     private readonly IOneTimeCodeService _oneTimeCodeService;
     private readonly ISmsConfigStore _smsConfigStore;

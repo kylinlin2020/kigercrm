@@ -148,8 +148,7 @@ describe('全部主题色清单的派生', () => {
 describe('页脚底座项目', () => {
   it('列出后端框架与前端组件库两项', () => {
     expect(FOUNDATION_PROJECTS.map(project => project.name)).toEqual([
-      'XiHan.Framework',
-      'XiHan.UI',
+      'KIGER CRM',
     ])
   })
 

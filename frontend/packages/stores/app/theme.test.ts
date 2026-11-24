@@ -74,7 +74,7 @@ describe('默认值', () => {
     expect(store.loadingName).toBe('lissajous-drift')
     expect(store.loadingFixedColor).toBe(false)
     expect(store.frostedGlassIntensity).toBe(10)
-    expect(store.watermarkText).toBe('XiHan BasicApp')
+    expect(store.watermarkText).toBe('KIGER CRM')
   })
 })
 

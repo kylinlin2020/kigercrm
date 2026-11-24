@@ -115,8 +115,7 @@ export const ALL_THEME_COLORS = [
 
 // ==================== 底座项目 ====================
 
-/** 页脚署名列出的底座项目：后端框架与前端组件库 */
+/** 页脚署名：KIGER 二开后统一为自有品牌，不再列出上游框架与组件库 */
 export const FOUNDATION_PROJECTS = [
-  { name: 'XiHan.Framework', url: 'https://github.com/XiHanFun/XiHan.Framework' },
-  { name: 'XiHan.UI', url: 'https://github.com/XiHanFun/XiHan.UI' },
+  { name: 'KIGER CRM', url: 'https://github.com/kylinlin2020/kigercrm' },
 ] as const

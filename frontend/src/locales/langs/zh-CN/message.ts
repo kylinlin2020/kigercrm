@@ -343,7 +343,7 @@ export default {
       from_email: '发件邮箱',
       from_email_placeholder: '如 noreply{\'@\'}example.com',
       from_name: '发件人显示名',
-      from_name_placeholder: '兼作品牌名，如 XiHan BasicApp',
+      from_name_placeholder: '同时用作品牌名称，例如 KIGER CRM',
       user_name: 'SMTP认证用户名',
       user_name_placeholder: '多数服务商即发件邮箱，留空不认证',
       password: 'SMTP认证密码',

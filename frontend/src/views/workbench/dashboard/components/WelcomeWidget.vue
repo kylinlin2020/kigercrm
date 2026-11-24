@@ -13,13 +13,13 @@ const { t } = useI18n()
 const version = `v${__APP_VERSION__}(${__APP_BUILD_TIME__})`
 
 /** 更新日志：BasicApp 文档站上的 changelog 页（仓库 docs/changelog.md） */
-const CHANGELOG_URL = 'https://basicapp.docs.xihanfun.com/changelog'
+const CHANGELOG_URL = 'https://github.com/kylinlin2020/kigercrm/blob/dev/docs/changelog.md'
 
 /** 源码仓库的三处托管：GitHub 取 package.json 的 repository（与页脚、登录页同源），另有 Gitee 与 GitCode */
 const repositories = computed(() => [
   { key: 'github', label: t('workbench.widgets.welcome_github'), icon: 'simple-icons:github', url: __APP_REPOSITORY__ },
-  { key: 'gitee', label: t('workbench.widgets.welcome_gitee'), icon: 'simple-icons:gitee', url: 'https://gitee.com/XiHanFun/XiHan.BasicApp' },
-  { key: 'gitcode', label: t('workbench.widgets.welcome_gitcode'), icon: 'simple-icons:gitcode', url: 'https://gitcode.com/XiHanFun/XiHan.BasicApp' },
+  { key: 'gitee', label: t('workbench.widgets.welcome_gitee'), icon: 'simple-icons:gitee', url: 'https://gitee.com/kylinlin2020/kigercrm' },
+  { key: 'gitcode', label: t('workbench.widgets.welcome_gitcode'), icon: 'simple-icons:gitcode', url: 'https://gitcode.com/kylinlin2020/kigercrm' },
 ])
 
 function open(url: string) {
@@ -46,7 +46,7 @@ function open(url: string) {
         {{ t('workbench.widgets.welcome_version', { version }) }}
       </p>
       <div class="mt-auto flex flex-wrap gap-2 pt-2">
-        <XhButton size="sm" tone="brand" variant="subtle" @click="open('https://docs.xihanfun.com')">
+        <XhButton size="sm" tone="brand" variant="subtle" @click="open('https://github.com/kylinlin2020/kigercrm')">
           <Icon icon="lucide:book-open" />
           {{ t('workbench.widgets.welcome_docs') }}
         </XhButton>

@@ -73,7 +73,7 @@ export function createThemeSlice() {
   )
   const watermarkEnabled = ref<boolean>(LocalStorage.get<boolean>(WATERMARK_ENABLED_KEY) ?? false)
   const watermarkText = ref<string>(
-    LocalStorage.get<string>(WATERMARK_TEXT_KEY) ?? 'XiHan BasicApp',
+    LocalStorage.get<string>(WATERMARK_TEXT_KEY) ?? 'KIGER CRM',
   )
 
   const isDark = computed(() => themeMode.value === 'dark')
@@ -98,7 +98,7 @@ export function createThemeSlice() {
   bindPersist(GRAYSCALE_ENABLED_KEY, grayscaleEnabled, false)
   bindPersist(COLOR_WEAKNESS_ENABLED_KEY, colorWeaknessEnabled, false)
   bindPersist(WATERMARK_ENABLED_KEY, watermarkEnabled, false)
-  bindPersist(WATERMARK_TEXT_KEY, watermarkText, 'XiHan BasicApp')
+  bindPersist(WATERMARK_TEXT_KEY, watermarkText, 'KIGER CRM')
 
   function toggleTheme() {
     save(THEME_MODE_KEY, themeMode, themeMode.value === 'light' ? 'dark' : 'light')

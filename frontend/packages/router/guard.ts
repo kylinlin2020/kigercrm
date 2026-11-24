@@ -252,13 +252,13 @@ export function setupRouterGuard(router: Router) {
     }
 
     if (!appStore.dynamicTitle) {
-      document.title = 'XiHan BasicApp'
+      document.title = 'KIGER CRM'
       return
     }
     const title = to.meta?.title as string | undefined
     if (title) {
       const translated = i18n.global.te(title) ? i18n.global.t(title) : title
-      document.title = `${translated} - XiHan BasicApp`
+      document.title = `${translated} - KIGER CRM`
     }
   })
 
