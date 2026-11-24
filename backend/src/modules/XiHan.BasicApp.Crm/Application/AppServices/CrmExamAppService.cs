@@ -183,6 +183,12 @@ public sealed class CrmExamAppService(
         var paper = await papers.GetByIdAsync(attempt.PaperId, cancellationToken)
             ?? throw new InvalidOperationException("Exam paper does not exist.");
         var now = DateTimeOffset.UtcNow;
+        // Bound the answer surface before serialization: reject absurd counts and oversized values.
+        var questionCount = CrmExamPolicy.ParseQuestionIds(paper.QuestionIdsJson).Count;
+        if (input.Answers.Count > Math.Max(questionCount, 1))
+            throw new ArgumentException("Too many answers submitted.", nameof(input));
+        if (input.Answers.Any(pair => pair.Value is { Length: > 2000 }))
+            throw new ArgumentException("Answer value exceeds the length limit.", nameof(input));
         var answers = input.Answers.Where(pair => pair.Key > 0 && !string.IsNullOrWhiteSpace(pair.Value))
             .ToDictionary(pair => pair.Key, pair => pair.Value.Trim());
         if (CrmExamPolicy.IsTimeout(attempt.StartedAtUtc, now, paper.DurationMinutes))

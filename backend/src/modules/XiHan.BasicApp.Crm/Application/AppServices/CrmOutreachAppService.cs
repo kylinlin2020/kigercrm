@@ -219,11 +219,11 @@ public sealed class CrmOutreachAppService(
     [PermissionAuthorize(CrmPermissionCodes.Execute)]
     public async Task<CrmOutreachEnrollmentDto> SuppressEnrollmentAsync(long enrollmentId, string reason, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        var normalizedReason = CrmOutreachDraftPolicy.NormalizeReason(reason);
         var enrollment = await GetEnrollmentAsync(enrollmentId, cancellationToken);
         await EnsureCandidateAccessibleAsync(enrollment.CandidateId, cancellationToken);
         enrollment.Status = CrmOutreachEnrollmentStatus.Suppressed;
-        enrollment.SuppressionReason = reason.Trim();
+        enrollment.SuppressionReason = normalizedReason;
         enrollment.NextActionAtUtc = null;
         var saved = await enrollments.UpdateAsync(enrollment, cancellationToken);
         await SuppressPendingAsync(enrollmentId, enrollment.SuppressionReason, cancellationToken);

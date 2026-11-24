@@ -703,7 +703,7 @@ public sealed class CrmProspectingAppService(
             {
                 // Honest per-item failure: the disposed unit of work rolls this item back and
                 // the loop continues with the next item's own unit of work.
-                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, ex.Message));
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, CrmProspectingDiagnosticSanitizer.Sanitize(ex.Message, 200)));
             }
         }
         return new CrmProspectingBulkResultDto { Items = items };
@@ -742,7 +742,7 @@ public sealed class CrmProspectingAppService(
             }
             catch (Exception ex)
             {
-                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, ex.Message));
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, CrmProspectingDiagnosticSanitizer.Sanitize(ex.Message, 200)));
             }
         }
         return new CrmProspectingBulkResultDto { Items = items };
@@ -779,7 +779,7 @@ public sealed class CrmProspectingAppService(
             }
             catch (Exception ex)
             {
-                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, ex.Message));
+                items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, CrmProspectingDiagnosticSanitizer.Sanitize(ex.Message, 200)));
             }
         }
         return new CrmProspectingBulkResultDto { Items = items };

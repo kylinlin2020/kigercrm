@@ -987,7 +987,9 @@ public sealed class CrmProspectingApplicationWiringTests
         // it, failure records the honest reason while the disposed scope rolls only that item back.
         Assert.Contains("using var uow = unitOfWorkManager.Begin(new XiHanUnitOfWorkOptions(isTransactional: true), requiresNew: true)", service, StringComparison.Ordinal);
         Assert.Contains("catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)", service, StringComparison.Ordinal);
-        Assert.Contains("items.Add(CreateBulkItem(candidateId, CrmProspectingBulkOutcome.Failed, ex.Message))", service, StringComparison.Ordinal);
+        // Failure reasons are sanitized before leaving the service (no raw exception internals).
+        Assert.Contains("CrmProspectingDiagnosticSanitizer.Sanitize(ex.Message, 200)", service, StringComparison.Ordinal);
+        Assert.DoesNotContain("CrmProspectingBulkOutcome.Failed, ex.Message))", service, StringComparison.Ordinal);
 
         // Bulk review/convert reuse the single-item state machine instead of duplicating it.
         Assert.Contains("await ReviewCandidateAsync(new CrmProspectingCandidateReviewDto", service, StringComparison.Ordinal);

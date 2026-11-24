@@ -8,6 +8,7 @@ using XiHan.BasicApp.Chat.Domain.Repositories;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
 using XiHan.Framework.Data.SqlSugar.Clients;
+using XiHan.Framework.MultiTenancy.Abstractions;
 using XiHan.Framework.Uow.Attributes;
 
 namespace XiHan.BasicApp.Chat.Application.AppServices;
@@ -20,7 +21,8 @@ namespace XiHan.BasicApp.Chat.Application.AppServices;
 [DynamicApi(Group = "BasicApp.Chat", GroupName = "在线聊天", Tag = "WhatsApp")]
 public sealed class WhatsAppChannelAppService(
     IWhatsAppChannelAccountRepository accounts,
-    ISqlSugarClientResolver clientResolver)
+    ISqlSugarClientResolver clientResolver,
+    ICurrentTenant currentTenant)
     : ChatApplicationService, IWhatsAppChannelAppService
 {
     [UnitOfWork(true)]
@@ -37,6 +39,13 @@ public sealed class WhatsAppChannelAppService(
             throw new ArgumentException("WhatsApp route ids may only contain letters, digits, '-' and '_'.", nameof(input));
         if (input.CredentialRef is { Length: > 300 } || input.CredentialRef?.Contains("Bearer ", StringComparison.OrdinalIgnoreCase) == true)
             throw new ArgumentException("CredentialRef must be a secret-store reference, never a token.", nameof(input));
+
+        // 全局唯一路由：同一 (WABA, phone) 不能属于另一个租户，否则匿名回调会
+        // FindByRouteAnyTenantAsync 取到任意一条并错投租户。
+        var foreign = await accounts.FindByRouteAnyTenantAsync(
+            input.WhatsAppBusinessAccountId, input.PhoneNumberId, cancellationToken);
+        if (foreign is not null && foreign.TenantId != currentTenant.Id)
+            throw new InvalidOperationException("This WhatsApp route is already bound to another tenant.");
 
         var existing = (await accounts.GetListAsync(item =>
                 item.WhatsAppBusinessAccountId == input.WhatsAppBusinessAccountId

@@ -7,6 +7,7 @@ using XiHan.BasicApp.Chat.Domain.Permissions;
 using XiHan.BasicApp.Chat.Domain.Repositories;
 using XiHan.Framework.Application.Attributes;
 using XiHan.Framework.Authorization.AspNetCore;
+using XiHan.Framework.MultiTenancy.Abstractions;
 using XiHan.Framework.Uow.Attributes;
 
 namespace XiHan.BasicApp.Chat.Application.AppServices;
@@ -15,7 +16,8 @@ namespace XiHan.BasicApp.Chat.Application.AppServices;
 [DynamicApi(Group = "BasicApp.Chat", GroupName = "在线聊天", Tag = "WeCom")]
 public sealed class WecomGatewayAppService(
     IWecomBindingRepository bindings,
-    IWecomCommandAuditRepository audits)
+    IWecomCommandAuditRepository audits,
+    ICurrentTenant currentTenant)
     : ChatApplicationService, IWecomGatewayAppService
 {
     [UnitOfWork(true)]
@@ -30,6 +32,12 @@ public sealed class WecomGatewayAppService(
             throw new ArgumentException("WeCom route ids may only contain letters, digits, '-' and '_'.", nameof(input));
         if (input.CredentialRef is { Length: > 300 })
             throw new ArgumentOutOfRangeException(nameof(input.CredentialRef));
+
+        // 全局唯一路由：同一 (corpId, agentId) 不能属于另一个租户，否则无租户上下文的
+        // 命令回调会被 FirstOrDefault 错投租户审计。
+        var foreign = await bindings.FindRouteAnyTenantAsync(input.CorpId, input.AgentId, cancellationToken);
+        if (foreign is not null && foreign.TenantId != currentTenant.Id)
+            throw new InvalidOperationException("This WeCom route is already bound to another tenant.");
 
         var existing = (await bindings.GetAllAsync(cancellationToken)).FirstOrDefault(item =>
             item.CorpId == input.CorpId && item.AgentId == input.AgentId);
